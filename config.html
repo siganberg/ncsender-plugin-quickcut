@@ -634,11 +634,11 @@
               </div>
               <div class="qc-field">
                 <label for="qc-feed">Feed Rate</label>
-                <input class="qc-input" type="number" id="qc-feed" min="1" step="1" value="800" required>
+                <input class="qc-input" type="number" id="qc-feed" min="1" step="1" value="2000" required>
               </div>
               <div class="qc-field">
                 <label for="qc-plunge">Plunge Rate</label>
-                <input class="qc-input" type="number" id="qc-plunge" min="1" step="1" value="200" required>
+                <input class="qc-input" type="number" id="qc-plunge" min="1" step="1" value="1000" required>
               </div>
             </div>
           </div>
@@ -697,10 +697,10 @@
                 <label for="qc-rect-origin">Origin</label>
                 <select class="qc-select" id="qc-rect-origin">
                   <option value="center">Center</option>
-                  <option value="top-left">Top-Left</option>
-                  <option value="top-right">Top-Right</option>
-                  <option value="bottom-left">Bottom-Left</option>
-                  <option value="bottom-right">Bottom-Right</option>
+                  <option value="back-left">Back-Left</option>
+                  <option value="back-right">Back-Right</option>
+                  <option value="front-left">Front-Left</option>
+                  <option value="front-right">Front-Right</option>
                 </select>
               </div>
               <div class="qc-field">
@@ -821,10 +821,10 @@
                 <label for="qc-circ-origin">Origin</label>
                 <select class="qc-select" id="qc-circ-origin">
                   <option value="center">Center</option>
-                  <option value="top-left">Top-Left</option>
-                  <option value="top-right">Top-Right</option>
-                  <option value="bottom-left">Bottom-Left</option>
-                  <option value="bottom-right">Bottom-Right</option>
+                  <option value="back-left">Back-Left</option>
+                  <option value="back-right">Back-Right</option>
+                  <option value="front-left">Front-Left</option>
+                  <option value="front-right">Front-Right</option>
                 </select>
               </div>
               <div class="qc-field">
@@ -984,11 +984,11 @@
               <div class="qc-field">
                 <label for="qc-plan-origin">Origin</label>
                 <select class="qc-select" id="qc-plan-origin">
-                  <option value="bottom-left" selected>Bottom-Left</option>
+                  <option value="front-left" selected>Front-Left</option>
                   <option value="center">Center</option>
-                  <option value="top-left">Top-Left</option>
-                  <option value="top-right">Top-Right</option>
-                  <option value="bottom-right">Bottom-Right</option>
+                  <option value="back-left">Back-Left</option>
+                  <option value="back-right">Back-Right</option>
+                  <option value="front-right">Front-Right</option>
                 </select>
               </div>
               <div class="qc-field">
@@ -1199,8 +1199,15 @@
     // /api/firmware — used by Planer wasteboard mode to auto-fill the
     // surfacing region with the machine's full travel area.
     machineLimitXmm: 0,
-    machineLimitYmm: 0
+    machineLimitYmm: 0,
+    // Tool card (Bit Diameter, Feed Rate, Plunge Rate) is per-shape.
+    // Each shape keeps its own values in mm / mm-per-min. On tab switch
+    // we swap the DOM inputs between shapes. Spindle & Coolant stay
+    // common across shapes.
+    currentTab: 'rectangle',
+    toolByShape: {}
   };
+  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter'];
 
   async function init() {
     try {
@@ -1252,9 +1259,20 @@
     btns.forEach(function(btn) {
       btn.addEventListener('click', function() {
         var target = btn.getAttribute('data-tab');
+        // Snapshot the current tab's tool inputs BEFORE we swap the DOM
+        // over to the new tab — otherwise the new tab would inherit the
+        // previous tab's edits.
+        if (TOOL_SHAPES.indexOf(state.currentTab) >= 0) {
+          state.toolByShape[state.currentTab] = readToolFromInputs();
+        }
         btns.forEach(function(b) { b.classList.toggle('active', b === btn); });
         panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
         relocateCommonCards(target);
+        // Load the new tab's tool values into the (now-relocated) inputs.
+        if (TOOL_SHAPES.indexOf(target) >= 0) {
+          writeToolToInputs(state.toolByShape[target]);
+        }
+        state.currentTab = target;
         // Remember which tab the operator was on so the next dialog
         // open lands on it. Wrapped in try/catch because some browser
         // contexts (private mode, storage quota) can throw here.
@@ -1654,7 +1672,7 @@
       widthEl.parentElement.style.opacity = '0.6';
       heightEl.parentElement.style.opacity = '0.6';
       if (originWrap) { originWrap.style.opacity = '0.4'; originWrap.style.pointerEvents = 'none'; }
-      $('qc-plan-origin').value = 'bottom-left';
+      $('qc-plan-origin').value = 'front-left';
     } else {
       widthEl.readOnly = false; heightEl.readOnly = false;
       widthEl.parentElement.style.opacity = '';
@@ -1687,8 +1705,8 @@
       var limitsText = haveLimits
         ? ('Uses your machine’s full travel (<strong>$130 × $131 = ' +
            roundDisplay(mmToDisplay(state.machineLimitXmm)) + ' × ' +
-           roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>).')
-        : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported).';
+           roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
+        : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported), inset by bit radius so the cutter stays within machine limits.';
       return z0('machine zero (0, 0, 0)') + '<br>' +
              '<strong>Wasteboard Surfacing.</strong> ' + limitsText +
              ' Touch off at machine 0, 0, 0 and set G54 origin there — the g-code treats WCS ' +
@@ -1842,24 +1860,58 @@
     }
   }
 
+  // Read/write helpers for the per-shape Tool card. Values in state are
+  // canonical mm / mm-per-min; DOM shows active-unit values.
+  function readToolFromInputs() {
+    return {
+      bitDiameter:    displayToMm(num('qc-bit', 0)),
+      feedRate:       displayToMm(num('qc-feed', 0)),
+      plungeFeedRate: displayToMm(num('qc-plunge', 0))
+    };
+  }
+  function writeToolToInputs(tool) {
+    if (!tool) return;
+    if (tool.bitDiameter != null)    $('qc-bit').value    = roundDisplay(mmToDisplay(tool.bitDiameter));
+    if (tool.feedRate != null)       $('qc-feed').value   = roundDisplay(mmToDisplay(tool.feedRate));
+    if (tool.plungeFeedRate != null) $('qc-plunge').value = roundDisplay(mmToDisplay(tool.plungeFeedRate));
+  }
+
+  // Old builds saved origin as bottom-left / top-right / etc. Renamed to
+  // front-/back- so terminology matches the CNC bed orientation across
+  // all shape/op tabs. Migrate on load so existing settings still work.
+  function migrateOrigin(v) {
+    if (v == null) return v;
+    return String(v)
+      .replace(/^bottom-/, 'front-')
+      .replace(/^top-/, 'back-');
+  }
+
   function hydrateSavedSettings() {
     var saved = initialConfig || {};
     var common = saved.common || {};
     var rect = saved.rectangle || {};
-    // All distances stored in mm; feed rates in mm/min.
-    if (common.bitDiameter != null)    $('qc-bit').value    = roundDisplay(mmToDisplay(common.bitDiameter));
-    if (common.feedRate != null)       $('qc-feed').value   = roundDisplay(mmToDisplay(common.feedRate));
-    if (common.plungeFeedRate != null) $('qc-plunge').value = roundDisplay(mmToDisplay(common.plungeFeedRate));
+    // Spindle & Coolant stay common across shapes.
     if (common.spindleRpm != null)     $('qc-rpm').value    = common.spindleRpm;
     if (common.spindleDelay != null)   $('qc-delay').value  = common.spindleDelay;
     if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
     if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
+    // Tool card is per-shape. Falls back to common.bit/feed/plunge for
+    // shapes without a per-shape override yet (first-run + legacy).
+    TOOL_SHAPES.forEach(function(shape) {
+      var s = saved[shape] || {};
+      state.toolByShape[shape] = s.tool || {
+        bitDiameter:    common.bitDiameter,
+        feedRate:       common.feedRate,
+        plungeFeedRate: common.plungeFeedRate
+      };
+    });
+    writeToolToInputs(state.toolByShape[state.currentTab]);
 
     if (rect.width != null)         $('qc-rect-width').value  = roundDisplay(mmToDisplay(rect.width));
     if (rect.height != null)        $('qc-rect-height').value = roundDisplay(mmToDisplay(rect.height));
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
-    if (rect.origin)                $('qc-rect-origin').value = rect.origin;
+    if (rect.origin)                $('qc-rect-origin').value = migrateOrigin(rect.origin);
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
     if (rect.depthOfCut != null)    $('qc-rect-step').value   = roundDisplay(mmToDisplay(rect.depthOfCut));
     // Stepover is a percent — unitless, stored as-is.
@@ -1869,7 +1921,7 @@
     var circ = saved.circle || {};
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
     if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
-    if (circ.origin)                $('qc-circ-origin').value = circ.origin;
+    if (circ.origin)                $('qc-circ-origin').value = migrateOrigin(circ.origin);
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
@@ -1881,7 +1933,7 @@
     if (plan.width != null)      $('qc-plan-width').value    = roundDisplay(mmToDisplay(plan.width));
     if (plan.height != null)     $('qc-plan-height').value   = roundDisplay(mmToDisplay(plan.height));
     if (plan.overrun != null)    $('qc-plan-overrun').value  = roundDisplay(mmToDisplay(plan.overrun));
-    if (plan.origin)             $('qc-plan-origin').value   = plan.origin;
+    if (plan.origin)             $('qc-plan-origin').value   = migrateOrigin(plan.origin);
     if (plan.pattern)            $('qc-plan-pattern').value  = plan.pattern;
     if (plan.stepoverPct != null) $('qc-plan-stepover').value = plan.stepoverPct;
     if (plan.depth != null)      $('qc-plan-depth').value    = roundDisplay(mmToDisplay(plan.depth));
@@ -1943,10 +1995,17 @@
     };
     // saveSettings PATCHES the shape it was called for — the other
     // shape's saved values shouldn't be clobbered on Rectangle Generate
-    // vs Circle Generate.
+    // vs Circle Generate. Also snapshots the current Tool inputs into
+    // this shape's own `tool` sub-object so each shape stays independent.
     var body = { common: common };
+    var toolForShape = {
+      bitDiameter:    displayToMm(params.bitDiameter),
+      feedRate:       displayToMm(params.feedRate),
+      plungeFeedRate: displayToMm(params.plungeFeedRate)
+    };
     if (params.shape === 'rectangle') {
       body.rectangle = {
+        tool:         toolForShape,
         width:        displayToMm(params.width),
         height:       displayToMm(params.height),
         cornerRadius: displayToMm(params.cornerRadius),
@@ -1959,6 +2018,7 @@
       };
     } else if (params.shape === 'circle') {
       body.circle = {
+        tool:         toolForShape,
         diameter:     displayToMm(params.diameter),
         cutType:      params.cutType,
         origin:       params.origin,
@@ -1969,6 +2029,7 @@
       };
     } else if (params.shape === 'planer') {
       body.planer = {
+        tool:              toolForShape,
         mode:              params.mode,
         startingThickness: displayToMm(params.startingThickness),
         width:        displayToMm(params.width),
@@ -1982,6 +2043,7 @@
       };
     } else if (params.shape === 'jointer') {
       body.jointer = {
+        tool:         toolForShape,
         length:       displayToMm(params.length),
         trimWidth:    displayToMm(params.trimWidth),
         numTrims:     params.numTrims,
@@ -1994,6 +2056,7 @@
       };
     } else if (params.shape === 'cutter') {
       body.cutter = {
+        tool:          toolForShape,
         axis:          params.axis,
         targetSize:    displayToMm(params.targetSize),
         cuttingLength: displayToMm(params.cuttingLength),
@@ -2002,6 +2065,10 @@
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut)
       };
+    }
+    // Mirror to state so a tab-switch away doesn't lose the fresh values.
+    if (TOOL_SHAPES.indexOf(params.shape) >= 0) {
+      state.toolByShape[params.shape] = toolForShape;
     }
     fetch(BASE_URL + '/api/plugins/com.ncsender.quickcut/settings', {
       method: 'PUT',
@@ -2176,10 +2243,10 @@
     function originOffset(origin, width, height) {
       switch (origin) {
         case 'center':       return { x: 0, y: 0 };
-        case 'top-left':     return { x:  width / 2, y: -height / 2 };
-        case 'top-right':    return { x: -width / 2, y: -height / 2 };
-        case 'bottom-left':  return { x:  width / 2, y:  height / 2 };
-        case 'bottom-right': return { x: -width / 2, y:  height / 2 };
+        case 'back-left':     return { x:  width / 2, y: -height / 2 };
+        case 'back-right':    return { x: -width / 2, y: -height / 2 };
+        case 'front-left':  return { x:  width / 2, y:  height / 2 };
+        case 'front-right': return { x: -width / 2, y:  height / 2 };
         default:             return { x: 0, y: 0 };
       }
     }
@@ -2631,12 +2698,14 @@
         var nextDepth = Math.min(depth, currentDepth + depthOfCut);
         var targetZ = -nextDepth;
         var midZ = (prevZ + targetZ) / 2;
+        // Helical descent is a cutting motion (spiraling perimeter as
+        // it drops), so it uses feed rate, not plunge rate.
         lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                    ' I' + (-pathRadius).toFixed(5) + ' J0' +
-                   ' Z' + midZ.toFixed(3) + ' F' + plungeFeedRate);
+                   ' Z' + midZ.toFixed(3) + ' F' + feedRate);
         lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                    ' I' + pathRadius.toFixed(5) + ' J0' +
-                   ' Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+                   ' Z' + targetZ.toFixed(3) + ' F' + feedRate);
         prevZ = targetZ;
         currentDepth = nextDepth;
       }
@@ -2787,10 +2856,10 @@
     // ===== PLANER + JOINTER (raster / linear surfacing) ==================
     function regionBottomLeft(origin, width, height) {
       switch (origin) {
-        case 'bottom-left':  return { x: 0, y: 0 };
-        case 'bottom-right': return { x: -width, y: 0 };
-        case 'top-left':     return { x: 0, y: -height };
-        case 'top-right':    return { x: -width, y: -height };
+        case 'front-left':  return { x: 0, y: 0 };
+        case 'front-right': return { x: -width, y: 0 };
+        case 'back-left':     return { x: 0, y: -height };
+        case 'back-right':    return { x: -width, y: -height };
         case 'center':       return { x: -width / 2, y: -height / 2 };
         default:             return { x: 0, y: 0 };
       }
@@ -2858,11 +2927,20 @@
       var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
       var pattern = params.pattern || 'zigzagY';
 
-      var bl = regionBottomLeft(params.origin || 'bottom-left', width, height);
+      var bl = regionBottomLeft(params.origin || 'front-left', width, height);
       var startX = bl.x - overrun;
       var startY = bl.y - overrun;
       var cutW = width + overrun * 2;
       var cutH = height + overrun * 2;
+      // Wasteboard: inset by bit radius so the tool's outer edge stops
+      // at machine travel bounds (no over-travel into the frame).
+      if (isWasteboard) {
+        var inset = bitDiameter / 2;
+        startX += inset;
+        startY += inset;
+        cutW  -= inset * 2;
+        cutH  -= inset * 2;
+      }
       var stepoverDist = bitDiameter * (stepoverPct / 100);
 
       var modeLabels = { depth: 'Target Depth', thickness: 'Target Thickness', wasteboard: 'Wasteboard Surfacing' };
@@ -2883,7 +2961,7 @@
       }
       extras.push('Stepover: ' + stepoverPct + '% (' + stepoverDist.toFixed(3) + unitsLabel + ')');
       extras.push('Pattern: ' + pattern);
-      extras.push('Origin: ' + (params.origin || 'bottom-left'));
+      extras.push('Origin: ' + (params.origin || 'front-left'));
 
       var lines = programHeader(params, {
         shapeLabel: 'Planer' + (isThickness ? ' (thickness)' : isWasteboard ? ' (wasteboard)' : ''),

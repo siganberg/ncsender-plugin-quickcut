@@ -157,10 +157,10 @@ test('origin=center puts shape midpoint at (0,0)', () => {
   assert.match(gcode, /G0 X0\.000 Y-10\.000/);
 });
 
-test('origin=top-left puts top-left of bounding box at (0,0)', () => {
+test('origin=back-left puts back-left of bounding box at (0,0)', () => {
   const gen = makeQuickCutGenerator(false).generateRectangleProgram;
   const gcode = gen(baseParams({
-    width: 40, height: 20, origin: 'top-left', cornerRadius: 0, cutType: 'outer', bitDiameter: 0
+    width: 40, height: 20, origin: 'back-left', cornerRadius: 0, cutType: 'outer', bitDiameter: 0
   }));
   // Local center offset for top-left = (+w/2, -h/2) = (20, -10). Start = (cx, cy - h/2) = (20, -20).
   assert.match(gcode, /G0 X20\.000 Y-20\.000/);
@@ -535,7 +535,7 @@ test('circle pattern replicates the whole ring at each position', () => {
 // ---------- Planer ----------
 function planerBase(overrides) {
   return Object.assign({
-    width: 100, height: 80, overrun: 2, origin: 'bottom-left',
+    width: 100, height: 80, overrun: 2, origin: 'front-left',
     pattern: 'zigzagY', stepoverPct: 40,
     depth: 2, depthOfCut: 1,
     bitDiameter: 6, feedRate: 1500, plungeFeedRate: 300,
@@ -570,7 +570,7 @@ test('planer zigzagX makes long strokes along X with stepover in Y', () => {
 test('planer overrun extends the cut area past every edge', () => {
   const gen = makeQuickCutGenerator(false).generatePlanerProgram;
   const gcode = gen(planerBase({
-    width: 40, height: 30, overrun: 5, origin: 'bottom-left',
+    width: 40, height: 30, overrun: 5, origin: 'front-left',
     pattern: 'zigzagY', depth: 1, depthOfCut: 1
   }));
   // Start moved -5 in both X and Y from (0,0) → (-5, -5).
@@ -619,15 +619,20 @@ test('planer thickness mode warns if target goes below wasteboard', () => {
   assert.match(gcode, /WARNING: target thickness goes below wasteboard/);
 });
 
-test('planer wasteboard mode disables overrun', () => {
+test('planer wasteboard mode disables overrun and insets by bit radius', () => {
   const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  // bit=6 → bitRadius=3. Machine=100×80 → tool center travels 3..97 in
+  // X and 3..77 in Y so the cutter's outer edge stops at the machine
+  // travel bounds (0..100 × 0..80).
   const gcode = gen(planerBase({
     mode: 'wasteboard', overrun: 10, width: 100, height: 80,
-    origin: 'bottom-left', pattern: 'zigzagY'
+    origin: 'front-left', pattern: 'zigzagY', bitDiameter: 6
   }));
   assert.match(gcode, /^\(Mode: Wasteboard Surfacing\)/m);
-  // First XY approach at (0,0) — no overrun offset.
-  assert.match(gcode, /G0 X0\.000 Y0\.000/);
+  // First XY approach at (3, 3) — inset by bit radius, no overrun.
+  assert.match(gcode, /G0 X3\.000 Y3\.000/);
+  // Long-Y zigzag reaches Y=77 (80 - bit radius), not Y=80.
+  assert.match(gcode, /G1 Y77\.000/);
   // Should NOT see Overrun in the header comments.
   assert.ok(!/^\(Overrun:/m.test(gcode), 'wasteboard mode should not emit an Overrun header line');
 });
