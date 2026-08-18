@@ -1,0 +1,50 @@
+# ncSender Plugin - Dual License
+
+Copyright (c) 2024 ncSender
+
+This software is available under a dual license model:
+
+## Option 1: GNU General Public License v3.0 (GPL-3.0)
+
+For open source projects and personal use, this plugin is licensed under the GNU General Public License v3.0.
+
+You may use, modify, and distribute this software under the terms of the GPL-3.0 license. Any derivative works must also be distributed under the same GPL-3.0 license terms.
+
+See [LICENSE-GPL-3.0](LICENSE-GPL-3.0) for the full license text.
+
+### GPL-3.0 Summary:
+- Freedom to use the software for any purpose
+- Freedom to study and modify the source code
+- Freedom to distribute copies
+- Freedom to distribute modified versions
+- **Requirement**: Derivative works must be licensed under GPL-3.0
+- **Requirement**: Source code must be made available
+
+## Option 2: Commercial License
+
+For commercial use, proprietary applications, or if you cannot comply with the GPL-3.0 requirements, a commercial license is available.
+
+The commercial license allows you to:
+- Use this plugin in proprietary/closed-source applications
+- Distribute without GPL-3.0 obligations
+- Receive priority support and updates
+- Remove attribution requirements
+
+### To obtain a commercial license:
+
+Contact us at: support@franciscreation.com
+
+---
+
+## Which license should I choose?
+
+**Choose GPL-3.0 if:**
+- You are building an open source project
+- You can release your derivative work under GPL-3.0
+- You are using this for personal/educational purposes
+
+**Choose Commercial License if:**
+- You are building a proprietary/closed-source product
+- You cannot or do not want to release source code
+- You need to distribute this as part of a commercial product
+- You require commercial support and warranty

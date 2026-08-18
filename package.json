@@ -1,0 +1,15 @@
+{
+  "name": "ncsender-plugin-quickcut",
+  "version": "0.1.0",
+  "description": "ncSender QuickCut plugin — g-code for rectangles, circles, planer, jointer, and cutter ops",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "author": "ncSender",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/siganberg/ncsender-plugin-quickcut"
+  }
+}

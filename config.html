@@ -1,0 +1,3089 @@
+<style>
+  /* Hide the outer PluginDialog header/X — QuickCut owns the whole chrome
+     via its own sidebar + Close button. Style is inside the plugin content
+     so it only applies while this dialog is mounted. */
+  .plugin-dialog-header { display: none !important; }
+  .plugin-dialog-content { padding: 0 !important; }
+
+  .qc-wrapper {
+    width: 953px;
+    max-width: 95vw;
+    height: 85vh;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-radius: var(--radius-medium);
+    overflow: hidden;
+    position: relative;
+  }
+  .qc-container {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    min-height: 0;
+    border-radius: var(--radius-medium);
+    overflow: hidden;
+  }
+
+  /* ============ Sidebar ============ */
+  .qc-sidebar {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 220px;
+    border-right: 1px solid var(--color-border);
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface-muted) 96%, transparent) 0%,
+      var(--color-surface-muted) 100%);
+    border-radius: var(--radius-medium) 0 0 var(--radius-medium);
+    padding: 22px 14px 14px;
+    overflow-y: auto;
+  }
+  .qc-sidebar-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 12px 18px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .qc-sidebar-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    opacity: 0.85;
+  }
+  .qc-sidebar-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    letter-spacing: -0.01em;
+  }
+  .qc-beta-badge {
+    display: inline;
+    margin-left: 4px;
+    font-size: 0.55em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #e67e22;
+    vertical-align: super;
+    line-height: 1;
+  }
+  /* Sidebar unit indicator — one badge for the whole plugin instead of
+     repeated next to every shape title. Same accent-tinted pill style
+     as the old inline title badge. */
+  .qc-sidebar-unit {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 3px 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-radius: 999px;
+    line-height: 1.3;
+  }
+  .qc-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .qc-nav-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: var(--color-text-secondary) !important;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: inherit;
+    width: 100%;
+    text-align: left;
+    position: relative;
+    outline: none;
+    box-shadow: none;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .qc-nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-secondary);
+    opacity: 0.75;
+    transition: color 0.15s ease, opacity 0.15s ease;
+    flex-shrink: 0;
+  }
+  .qc-nav-icon svg { display: block; width: 18px; height: 18px; }
+  .qc-nav-label {
+    flex: 1;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .qc-nav-btn:hover {
+    background: color-mix(in srgb, var(--color-text-primary, #fff) 5%, transparent) !important;
+    color: var(--color-text-primary) !important;
+  }
+  .qc-nav-btn:hover .qc-nav-icon {
+    color: var(--color-accent);
+    opacity: 1;
+  }
+  .qc-nav-btn.active {
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--color-accent) 16%, transparent) 0%,
+      color-mix(in srgb, var(--color-accent) 8%, transparent) 100%) !important;
+    color: var(--color-text-primary) !important;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 22%, transparent) !important;
+  }
+  .qc-nav-btn.active .qc-nav-icon {
+    color: var(--color-accent);
+    opacity: 1;
+  }
+  .qc-nav-btn.active .qc-nav-label { font-weight: 600; }
+  .qc-nav-sup {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    vertical-align: super;
+    margin-left: 4px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    line-height: 1;
+  }
+
+  .qc-sidebar-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: center;
+  }
+  .qc-close-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 130px;
+    min-height: 44px;
+    padding: 12px 32px;
+    background: var(--gradient-accent, var(--color-accent)) !important;
+    color: #fff !important;
+    cursor: pointer;
+    transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 25%, transparent) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    outline: none;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .qc-close-btn:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+  .qc-close-btn:active { transform: translateY(1px); }
+
+  /* ============ Content area ============ */
+  .qc-content {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--color-surface);
+    border-radius: 0 var(--radius-medium) var(--radius-medium) 0;
+    overflow: hidden;
+  }
+  .qc-content.active { display: flex; }
+
+  .qc-panel-header {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px 20px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .qc-panel-title-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .qc-panel-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+  /* Unit indicator inline after the panel title — accent-tinted pill
+     so the operator sees at-a-glance which units the shape/depth
+     fields are in. Sized to sit comfortably next to the title text. */
+  .qc-title-unit {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 3px 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-radius: 999px;
+    vertical-align: middle;
+    line-height: 1.3;
+  }
+  .qc-panel-sub {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+  .qc-panel-footer {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+  }
+  .qc-primary-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 22px;
+    background: var(--color-accent) !important;
+    color: #fff !important;
+    border-radius: 10px !important;
+    border: none !important;
+    outline: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .qc-primary-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+
+  /* Header cards — shared tool + spindle/coolant across all shape tabs.
+     Same look as Pneumatic's Machine Coords + Jog header cards so the
+     two plugins feel consistent when opened back-to-back. */
+  .qc-header-cards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .qc-header-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+  }
+  .qc-header-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0;
+  }
+
+  .qc-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg, 16px);
+    padding: 15px 20px 20px;
+  }
+  /* Forms inside the panel need the same column-gap so cards stacked
+     inside them get the same breathing room as direct panel children.
+     Without this, .qc-panel's `gap` doesn't reach through the <form>
+     wrapper and the cards visually touch. */
+  .qc-panel form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .qc-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-medium);
+    padding: var(--gap-md, 14px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+  .qc-wrapper *, .qc-wrapper *::before, .qc-wrapper *::after {
+    box-sizing: border-box;
+  }
+  .qc-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .qc-unit-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-surface-muted, transparent);
+    padding: 1px 8px;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--color-border);
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+  }
+
+  /* Card header row — title on the left, a toggle switch on the right.
+     Used by cards whose contents are optional (like Pattern). */
+  .qc-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .qc-card-header .qc-card-title { margin: 0; }
+
+  /* Toggle switch. Renders as a small pill with a sliding thumb.
+     The underlying <input type="checkbox"> stays visually hidden but
+     keeps native focus + keyboard toggling. */
+  .qc-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex: none;
+  }
+  .qc-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+  /* Off state matches ncSender's standard switch style: near-transparent
+     track with a subtle border, white thumb with a soft shadow. On state
+     fills with the accent color. */
+  .qc-switch-track {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 22px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .qc-switch-track::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .qc-switch input:checked + .qc-switch-track {
+    background: var(--color-accent, #0088ff);
+    border-color: var(--color-accent, #0088ff);
+  }
+  .qc-switch input:checked + .qc-switch-track::before {
+    transform: translateX(18px);
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  .qc-switch input:focus-visible + .qc-switch-track {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent, #0088ff) 40%, transparent);
+  }
+
+  /* Inline explanation shown below a mode selector — dim, small,
+     wraps naturally. Bottom margin cancelled since the parent .qc-card
+     already provides gap between children. */
+  .qc-mode-hint {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+  }
+  .qc-mode-hint strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+  /* Prominent Z0 callout — the critical piece of information for a
+     surfacing op. Stands out from the surrounding hint copy. */
+  .qc-z0-callout {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 5px 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+  .qc-z0-callout .qc-z0-tag {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75rem;
+    opacity: 0.85;
+  }
+  .qc-z0-callout .qc-z0-target { font-weight: 700; }
+
+  /* Body that shows/hides based on the header switch. */
+  .qc-pattern-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  /* Inner sub-groups (Linear / Circular fields) stack their own rows.
+     Without this the two qc-row-2 children collapse together and the
+     next-row label ends up sitting right on top of the previous input. */
+  .qc-pattern-linear-fields,
+  .qc-pattern-circular-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .qc-row-2, .qc-row-3, .qc-row-4 {
+    display: grid;
+    gap: 12px;
+  }
+  .qc-row-2 { grid-template-columns: repeat(2, 1fr); }
+  .qc-row-3 { grid-template-columns: repeat(3, 1fr); }
+  .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
+
+  .qc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .qc-field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+  }
+  .qc-input,
+  .qc-select {
+    padding: 9px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  .qc-input {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .qc-input:focus, .qc-select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
+
+  .qc-coolant-toggles {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 8px 2px 0;
+  }
+  /* Label + switch pair — text on the left, switch on the right. */
+  .qc-switch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+
+  .qc-soon {
+    text-align: center;
+    padding: 60px 30px;
+    color: var(--color-text-secondary);
+  }
+  .qc-soon h3 {
+    margin: 0 0 8px;
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+  .qc-soon p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+</style>
+
+<div class="qc-wrapper">
+  <div class="qc-container">
+    <!-- Sidebar -->
+    <aside class="qc-sidebar">
+      <div class="qc-sidebar-header">
+        <span class="qc-sidebar-eyebrow">ncSender</span>
+        <span class="qc-sidebar-title">QuickCut<span class="qc-beta-badge">Beta</span></span>
+        <span class="qc-sidebar-unit" data-unit-badge>METRIC (mm)</span>
+      </div>
+      <nav class="qc-sidebar-nav">
+        <button type="button" class="qc-nav-btn active" data-tab="rectangle">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></span>
+          <span class="qc-nav-label">Rectangle</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="circle">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
+          <span class="qc-nav-label">Circle</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="planer">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"/><path d="M6 14v6M10 14v6M14 14v6M18 14v6"/></svg></span>
+          <span class="qc-nav-label">Planer</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="jointer">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18M3 14h18M6 6l3 4M15 6l3 4M6 18l3-4M15 18l3-4"/></svg></span>
+          <span class="qc-nav-label">Jointer</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="cutter">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
+          <span class="qc-nav-label">Cutter</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="polygon">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
+          <span class="qc-nav-label">Polygon<span class="qc-nav-sup">Soon</span></span>
+        </button>
+      </nav>
+      <div class="qc-sidebar-footer">
+        <button type="button" class="qc-close-btn" id="qc-close-btn">Close</button>
+      </div>
+    </aside>
+
+    <!-- Rectangle tab -->
+    <section class="qc-content active" data-view="rectangle">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Rectangle</h2>
+          <p class="qc-panel-sub">Cut a rectangle by width × height, with optional corner radius.</p>
+        </div>
+
+        <!-- Common cards (Tool + Spindle & Coolant) live once in the DOM
+             and are moved into whichever section's header is currently
+             active via `wireTabs()`. That preserves the original per-shape
+             layout while keeping input IDs unique. -->
+        <div class="qc-header-cards" id="qc-common-cards">
+          <div class="qc-header-card">
+            <h4 class="qc-header-card-title">Tool</h4>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-bit">Bit Diameter</label>
+                <input class="qc-input" type="number" id="qc-bit" min="0.001" step="0.01" value="3.175" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-feed">Feed Rate</label>
+                <input class="qc-input" type="number" id="qc-feed" min="1" step="1" value="800" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-plunge">Plunge Rate</label>
+                <input class="qc-input" type="number" id="qc-plunge" min="1" step="1" value="200" required>
+              </div>
+            </div>
+          </div>
+          <div class="qc-header-card">
+            <h4 class="qc-header-card-title">Spindle &amp; Coolant</h4>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-rpm">Spindle RPM</label>
+                <input class="qc-input" type="number" id="qc-rpm" min="0" max="24000" step="100" value="15000">
+              </div>
+              <div class="qc-field">
+                <label for="qc-delay">Delay (s)</label>
+                <input class="qc-input" type="number" id="qc-delay" min="0" max="30" step="1" value="1">
+              </div>
+            </div>
+            <div class="qc-coolant-toggles">
+              <label class="qc-switch-label">
+                <span>Mist (M7)</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-mist">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+              <label class="qc-switch-label">
+                <span>Flood (M8)</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-flood">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-rect-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Shape</h3>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-rect-width">Width</label>
+                <input class="qc-input" type="number" id="qc-rect-width" min="0.001" step="0.01" value="50" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-rect-height">Height</label>
+                <input class="qc-input" type="number" id="qc-rect-height" min="0.001" step="0.01" value="30" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-rect-corner">Corner Radius</label>
+                <input class="qc-input" type="number" id="qc-rect-corner" min="0" step="0.01" value="0">
+              </div>
+            </div>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-rect-origin">Origin</label>
+                <select class="qc-select" id="qc-rect-origin">
+                  <option value="center">Center</option>
+                  <option value="top-left">Top-Left</option>
+                  <option value="top-right">Top-Right</option>
+                  <option value="bottom-left">Bottom-Left</option>
+                  <option value="bottom-right">Bottom-Right</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-rect-cut-type">Cut Type</label>
+                <select class="qc-select" id="qc-rect-cut-type">
+                  <option value="inner">Inner (perimeter)</option>
+                  <option value="clearing">Inner (clearing)</option>
+                  <option value="outer" selected>Outer (part)</option>
+                </select>
+              </div>
+              <div class="qc-field qc-rect-clearing-only" style="display: none;">
+                <label for="qc-rect-stepover">Stepover (% of bit)</label>
+                <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40">
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-rect-depth">Total Depth</label>
+                <input class="qc-input" type="number" id="qc-rect-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-rect-step">Depth of Cut</label>
+                <input class="qc-input" type="number" id="qc-rect-step" min="0.001" step="0.01" value="1" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this shape">
+                <input type="checkbox" id="qc-rect-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-rect-pattern-body" style="display: none;">
+              <div class="qc-row-2">
+                <div class="qc-field">
+                  <label for="qc-rect-pattern-style">Pattern Style</label>
+                  <select class="qc-select" id="qc-rect-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="circular">Circular</option>
+                  </select>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-x-dist">X Distance</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-x-dist" step="0.1" value="60">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-y-dist">Y Distance</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" style="display: none;">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-radius">Radius</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-radius" min="0.1" step="0.1" value="40" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-start-angle" step="1" value="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-rect-generate">Generate</button>
+      </div>
+    </section>
+
+    <!-- Circle tab -->
+    <section class="qc-content" data-view="circle">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Circle</h2>
+          <p class="qc-panel-sub">Cut a circle by diameter, inner/outer/clearing, with optional pattern.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-circ-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Shape</h3>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-circ-diameter">Diameter</label>
+                <input class="qc-input" type="number" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-circ-origin">Origin</label>
+                <select class="qc-select" id="qc-circ-origin">
+                  <option value="center">Center</option>
+                  <option value="top-left">Top-Left</option>
+                  <option value="top-right">Top-Right</option>
+                  <option value="bottom-left">Bottom-Left</option>
+                  <option value="bottom-right">Bottom-Right</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-circ-cut-type">Cut Type</label>
+                <select class="qc-select" id="qc-circ-cut-type">
+                  <option value="inner">Inner (perimeter)</option>
+                  <option value="clearing">Inner (clearing)</option>
+                  <option value="outer" selected>Outer (part)</option>
+                </select>
+              </div>
+            </div>
+            <div class="qc-row-3">
+              <div class="qc-field qc-circ-clearing-only" style="display: none;">
+                <label for="qc-circ-stepover">Stepover (% of bit)</label>
+                <input class="qc-input" type="number" id="qc-circ-stepover" min="1" max="90" step="1" value="40">
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-circ-depth">Total Depth</label>
+                <input class="qc-input" type="number" id="qc-circ-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-circ-step">Depth of Cut</label>
+                <input class="qc-input" type="number" id="qc-circ-step" min="0.001" step="0.01" value="1" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this shape">
+                <input type="checkbox" id="qc-circ-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-circ-pattern-body" style="display: none;">
+              <div class="qc-row-2">
+                <div class="qc-field">
+                  <label for="qc-circ-pattern-style">Pattern Style</label>
+                  <select class="qc-select" id="qc-circ-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="circular">Circular</option>
+                  </select>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields" data-shape="circ">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-x-dist">X Distance</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-y-dist">Y Distance</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" data-shape="circ" style="display: none;">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-radius">Radius</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-radius" min="0.1" step="0.1" value="40" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-start-angle" step="1" value="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-circ-generate">Generate</button>
+      </div>
+    </section>
+
+    <!-- Coming-soon tabs. The sub-description mirrors the real tabs'
+         qc-panel-sub line so the header height stays identical and the
+         common-cards block doesn't shift when the user hops tabs. -->
+    <section class="qc-content" data-view="polygon">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Polygon</h2>
+          <p class="qc-panel-sub">Regular N-sided polygon with corner radius and orientation control.</p>
+        </div>
+      </header>
+      <div class="qc-panel">
+        <div class="qc-soon"><h3>Coming soon</h3><p>Regular N-sided polygon (triangle, square, pentagon, hexagon, ...) with corner radius and rotation.</p></div>
+      </div>
+    </section>
+    <section class="qc-content" data-view="planer">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Planer</h2>
+          <p class="qc-panel-sub">Surface a flat region with a zigzag or spiral raster.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-plan-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Region</h3>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-plan-mode">Mode</label>
+                <select class="qc-select" id="qc-plan-mode">
+                  <option value="depth" selected>Target Depth</option>
+                  <option value="thickness">Target Thickness</option>
+                  <option value="wasteboard">Wasteboard Surfacing</option>
+                </select>
+              </div>
+              <div class="qc-field qc-plan-thickness-only" style="display: none;">
+                <label for="qc-plan-start-thickness">Starting Thickness</label>
+                <input class="qc-input" type="number" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20">
+              </div>
+            </div>
+            <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-plan-width">Width (X)</label>
+                <input class="qc-input" type="number" id="qc-plan-width" min="0.001" step="0.01" value="100" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-plan-height">Height (Y)</label>
+                <input class="qc-input" type="number" id="qc-plan-height" min="0.001" step="0.01" value="80" required>
+              </div>
+              <div class="qc-field qc-plan-overrun-field">
+                <label for="qc-plan-overrun">Overrun</label>
+                <input class="qc-input" type="number" id="qc-plan-overrun" min="0" step="0.1" value="2">
+              </div>
+            </div>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-plan-origin">Origin</label>
+                <select class="qc-select" id="qc-plan-origin">
+                  <option value="bottom-left" selected>Bottom-Left</option>
+                  <option value="center">Center</option>
+                  <option value="top-left">Top-Left</option>
+                  <option value="top-right">Top-Right</option>
+                  <option value="bottom-right">Bottom-Right</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-plan-pattern">Pattern</label>
+                <select class="qc-select" id="qc-plan-pattern">
+                  <option value="zigzagY" selected>Zigzag (long-Y)</option>
+                  <option value="zigzagX">Zigzag (long-X)</option>
+                  <option value="spiral">Spiral (outside-in)</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-plan-stepover">Stepover (% of bit)</label>
+                <input class="qc-input" type="number" id="qc-plan-stepover" min="10" max="100" step="1" value="40">
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title" id="qc-plan-depth-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-plan-depth" id="qc-plan-depth-label">Total Depth</label>
+                <input class="qc-input" type="number" id="qc-plan-depth" min="0.001" step="0.01" value="2" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-plan-step">Depth of Cut</label>
+                <input class="qc-input" type="number" id="qc-plan-step" min="0.001" step="0.01" value="1" required>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-plan-generate">Generate</button>
+      </div>
+    </section>
+
+    <section class="qc-content" data-view="jointer">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Jointer</h2>
+          <p class="qc-panel-sub">Straight edge-jointing cut along one axis with multi-pass depth.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-join-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Trim</h3>
+            <div class="qc-row-4">
+              <div class="qc-field">
+                <label for="qc-join-length">Length</label>
+                <input class="qc-input" type="number" id="qc-join-length" min="0.001" step="0.01" value="150" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-join-width">Trim Width</label>
+                <input class="qc-input" type="number" id="qc-join-width" min="0.001" step="0.01" value="1" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-join-trims">Number of Trims</label>
+                <input class="qc-input" type="number" id="qc-join-trims" min="1" max="50" step="1" value="3" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-join-overrun">Overrun</label>
+                <input class="qc-input" type="number" id="qc-join-overrun" min="0" step="0.1" value="2">
+              </div>
+            </div>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-join-axis">Trim Axis</label>
+                <select class="qc-select" id="qc-join-axis">
+                  <option value="x" selected>X-axis</option>
+                  <option value="y">Y-axis</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-join-direction">Cut Direction</label>
+                <select class="qc-select" id="qc-join-direction">
+                  <option value="conventional" selected>Conventional</option>
+                  <option value="climb">Climb</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-join-origin">Side to Cut</label>
+                <select class="qc-select" id="qc-join-origin">
+                  <option value="front" data-axis="x" selected>Front</option>
+                  <option value="back" data-axis="x">Back</option>
+                  <option value="left" data-axis="y">Left</option>
+                  <option value="right" data-axis="y">Right</option>
+                </select>
+              </div>
+            </div>
+            <p class="qc-mode-hint" id="qc-join-hint"></p>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-join-depth">Total Depth</label>
+                <input class="qc-input" type="number" id="qc-join-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-join-step">Depth of Cut</label>
+                <input class="qc-input" type="number" id="qc-join-step" min="0.001" step="0.01" value="5" required>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-join-generate">Generate</button>
+      </div>
+    </section>
+
+    <section class="qc-content" data-view="cutter">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Cutter</h2>
+          <p class="qc-panel-sub">Cut stock to an accurate final dimension along one axis.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-cut-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Cut</h3>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-cut-axis">Cut Axis</label>
+                <select class="qc-select" id="qc-cut-axis">
+                  <option value="x" selected>X-axis</option>
+                  <option value="y">Y-axis</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-cut-target">Target Size</label>
+                <input class="qc-input" type="number" id="qc-cut-target" min="0.001" step="0.01" value="100" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-cut-length">Cutting Length</label>
+                <input class="qc-input" type="number" id="qc-cut-length" min="0.001" step="0.01" value="200" required>
+              </div>
+            </div>
+            <div class="qc-row-3">
+              <div class="qc-field">
+                <label for="qc-cut-direction">Cut Direction</label>
+                <select class="qc-select" id="qc-cut-direction">
+                  <option value="conventional" selected>Conventional</option>
+                  <option value="climb">Climb</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-cut-origin">Origin (start side)</label>
+                <select class="qc-select" id="qc-cut-origin">
+                  <option value="front" data-axis="x" selected>Front</option>
+                  <option value="back" data-axis="x">Back</option>
+                  <option value="left" data-axis="y">Left</option>
+                  <option value="right" data-axis="y">Right</option>
+                </select>
+              </div>
+            </div>
+            <p class="qc-mode-hint" id="qc-cut-hint"></p>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-cut-depth">Total Depth</label>
+                <input class="qc-input" type="number" id="qc-cut-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-cut-step">Depth of Cut</label>
+                <input class="qc-input" type="number" id="qc-cut-step" min="0.001" step="0.01" value="5" required>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-cut-generate">Generate</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function() {
+  var FALLBACK_PORT = __SERVER_PORT__;
+  var initialConfig = __INITIAL_CONFIG__;
+  var TOOL_LABEL = '__TOOL_MENU_LABEL__';
+
+  var resolveApiBaseUrl = function() {
+    if (typeof window !== 'undefined' && window.ncSender && typeof window.ncSender.getApiBaseUrl === 'function') {
+      return window.ncSender.getApiBaseUrl(FALLBACK_PORT);
+    }
+    return '';
+  };
+  var BASE_URL = resolveApiBaseUrl();
+
+  var state = {
+    isImperial: false,
+    unitLabel: 'mm',
+    unitDisplay: 'METRIC (mm)',
+    safeZHeightMm: null,
+    // grblHAL $130/$131 (max travel X/Y, mm). Populated on init from
+    // /api/firmware — used by Planer wasteboard mode to auto-fill the
+    // surfacing region with the machine's full travel area.
+    machineLimitXmm: 0,
+    machineLimitYmm: 0
+  };
+
+  async function init() {
+    try {
+      var res = await fetch(BASE_URL + '/api/settings');
+      var s = res.ok ? await res.json() : {};
+      state.isImperial = (s.unitsPreference || 'metric') === 'imperial';
+      state.unitLabel = state.isImperial ? 'in' : 'mm';
+      state.unitDisplay = state.isImperial ? 'IMPERIAL (in)' : 'METRIC (mm)';
+      var safeZRaw = Number(s.safeZHeight);
+      state.safeZHeightMm = isFinite(safeZRaw) ? safeZRaw : null;
+    } catch (err) {
+      console.warn('[QuickCut] settings fetch failed, using defaults:', err);
+    }
+    try {
+      var fwRes = await fetch(BASE_URL + '/api/firmware');
+      var fw = fwRes.ok ? await fwRes.json() : null;
+      var fwSettings = fw && fw.settings;
+      if (fwSettings && fwSettings['130'] && fwSettings['130'].value) {
+        state.machineLimitXmm = parseFloat(fwSettings['130'].value) || 0;
+      }
+      if (fwSettings && fwSettings['131'] && fwSettings['131'].value) {
+        state.machineLimitYmm = parseFloat(fwSettings['131'].value) || 0;
+      }
+    } catch (err) {
+      console.warn('[QuickCut] firmware fetch failed, wasteboard limits unknown:', err);
+    }
+    hydrateSavedSettings();
+    updateUnitBadges();
+    wireTabs();
+    wireValidation();
+    wireRectangleForm();
+    wireCircleForm();
+    wirePlanerForm();
+    wireJointerForm();
+    wireCutterForm();
+    wireCloseButton();
+  }
+
+  function updateUnitBadges() {
+    var badges = document.querySelectorAll('[data-unit-badge]');
+    for (var i = 0; i < badges.length; i++) badges[i].textContent = state.unitDisplay;
+  }
+
+  var LAST_TAB_KEY = 'ncsender.quickcut.lastTab';
+
+  function wireTabs() {
+    var btns = document.querySelectorAll('.qc-nav-btn');
+    var panels = document.querySelectorAll('.qc-content');
+    btns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var target = btn.getAttribute('data-tab');
+        btns.forEach(function(b) { b.classList.toggle('active', b === btn); });
+        panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
+        relocateCommonCards(target);
+        // Remember which tab the operator was on so the next dialog
+        // open lands on it. Wrapped in try/catch because some browser
+        // contexts (private mode, storage quota) can throw here.
+        try { localStorage.setItem(LAST_TAB_KEY, target); } catch (e) {}
+      });
+    });
+    // Restore the last-selected tab. If the saved tab no longer exists
+    // (e.g., renamed / removed), silently fall back to the default.
+    try {
+      var saved = localStorage.getItem(LAST_TAB_KEY);
+      if (saved) {
+        var savedBtn = document.querySelector('.qc-nav-btn[data-tab="' + saved + '"]');
+        if (savedBtn) savedBtn.click();
+      }
+    } catch (e) {}
+  }
+
+  // The Tool + Spindle & Coolant cards exist ONCE (unique input IDs) but
+  // visually belong in every shape's header. On tab switch we move the
+  // single #qc-common-cards element into the target section's <header>.
+  // Sections without a header (planer / jointer coming-soon panels have
+  // simple headers too — all real sections have one) get skipped.
+  function relocateCommonCards(view) {
+    var cards = $('qc-common-cards');
+    if (!cards) return;
+    var section = document.querySelector('.qc-content[data-view="' + view + '"]');
+    if (!section) return;
+    var header = section.querySelector('.qc-panel-header');
+    if (!header) return;
+    header.appendChild(cards);
+  }
+
+  function wireCloseButton() {
+    var btn = document.getElementById('qc-close-btn');
+    if (btn) btn.addEventListener('click', function() {
+      // Same message the app's Esc handler dispatches internally — posted
+      // to `window` (not `parent`), matches PneumaticATC's convention.
+      window.postMessage({ type: 'close-plugin-dialog' }, '*');
+    });
+  }
+
+  var $ = function(id) { return document.getElementById(id); };
+  var num = function(id, def) { var v = parseFloat($(id).value); return isFinite(v) ? v : def; };
+
+  // ===== Validation (ported from ToolBench) =====
+  // Red-callout tooltip anchored above the offending field, matching the
+  // ToolBench validation pattern so operators see identical feedback
+  // across plugins. `attachInputListeners` wires blur-time checks per
+  // field and Generate's click handler runs `validateAllInputs()` first.
+  function createTooltip() {
+    var tooltip = document.createElement('div');
+    tooltip.style.cssText =
+      'position: fixed;' +
+      'background: #d32f2f;' +
+      'color: white;' +
+      'padding: 8px 12px;' +
+      'border-radius: 4px;' +
+      'font-size: 0.85rem;' +
+      'z-index: 10000;' +
+      'pointer-events: none;' +
+      'opacity: 0;' +
+      'transition: opacity 0.2s;' +
+      'box-shadow: 0 2px 8px rgba(0,0,0,0.2);' +
+      'white-space: nowrap;';
+    document.body.appendChild(tooltip);
+    var arrow = document.createElement('div');
+    arrow.style.cssText =
+      'position: absolute;' +
+      'width: 0; height: 0;' +
+      'border-left: 6px solid transparent;' +
+      'border-right: 6px solid transparent;' +
+      'border-top: 6px solid #d32f2f;' +
+      'bottom: -6px; left: 50%;' +
+      'transform: translateX(-50%);';
+    tooltip.appendChild(arrow);
+    return tooltip;
+  }
+  var _tooltip = null;
+  function showTooltip(el, message) {
+    if (!_tooltip) _tooltip = createTooltip();
+    var rect = el.getBoundingClientRect();
+    _tooltip.firstChild && (_tooltip.textContent = message);
+    _tooltip.textContent = message;
+    var arrow = document.createElement('div');
+    arrow.style.cssText = 'position:absolute;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #d32f2f;bottom:-6px;left:50%;transform:translateX(-50%);';
+    _tooltip.appendChild(arrow);
+    _tooltip.style.left = rect.left + (rect.width / 2) + 'px';
+    _tooltip.style.top  = (rect.top - 10) + 'px';
+    _tooltip.style.transform = 'translate(-50%, -100%)';
+    _tooltip.style.opacity = '1';
+    el.style.borderColor = '#d32f2f';
+    el.focus();
+  }
+  function hideTooltip() {
+    if (!_tooltip) return;
+    _tooltip.style.opacity = '0';
+    setTimeout(function() { if (_tooltip) _tooltip.style.left = '-9999px'; }, 200);
+  }
+
+  function validationRules() {
+    // Distance ranges in DISPLAY units. Feed rate is unit-dependent
+    // (mm/min vs in/min) so its min swings by ~25x between systems.
+    if (state.isImperial) {
+      return {
+        'qc-rect-width':  { min: 0.004, max: 200,     label: 'Width' },
+        'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
+        'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
+        'qc-rect-depth':  { min: 0.001, max: 20,      label: 'Total Depth' },
+        'qc-rect-step':   { min: 0.001, max: 5,       label: 'Depth of Cut' },
+        'qc-bit':         { min: 0.004, max: 4,       label: 'Bit Diameter' },
+        'qc-feed':        { min: 0.1,   max: 500,     label: 'Feed Rate' },
+        'qc-plunge':      { min: 0.1,   max: 500,     label: 'Plunge Rate' },
+        'qc-rpm':         { min: 0,     max: 24000,   label: 'Spindle RPM',   integer: true },
+        'qc-delay':       { min: 0,     max: 30,      label: 'Spindle Delay', integer: true },
+        // Rectangle
+        'qc-rect-stepover': { min: 1,   max: 90,      label: 'Stepover',      integer: true },
+        'qc-rect-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
+        'qc-rect-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-rect-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
+        'qc-rect-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
+        'qc-rect-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
+        'qc-rect-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-rect-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        // Circle
+        'qc-circ-diameter': { min: 0.004, max: 200, label: 'Diameter' },
+        'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
+        'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
+        'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
+        'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
+        'qc-circ-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-circ-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
+        'qc-circ-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
+        'qc-circ-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
+        'qc-circ-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-circ-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        // Planer
+        'qc-plan-width':    { min: 0.004, max: 200, label: 'Width' },
+        'qc-plan-height':   { min: 0.004, max: 200, label: 'Height' },
+        'qc-plan-overrun':  { min: 0,     max: 20,  label: 'Overrun' },
+        'qc-plan-stepover': { min: 10,    max: 100, label: 'Stepover', integer: true },
+        'qc-plan-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
+        'qc-plan-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
+        'qc-plan-start-thickness': { min: 0.001, max: 20, label: 'Starting Thickness' },
+        // Jointer
+        'qc-join-length':   { min: 0.004, max: 200, label: 'Length' },
+        'qc-join-width':    { min: 0.004, max: 20,  label: 'Trim Width' },
+        'qc-join-trims':    { min: 1,     max: 50,  label: 'Number of Trims', integer: true },
+        'qc-join-overrun':  { min: 0,     max: 20,  label: 'Overrun' },
+        'qc-join-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
+        'qc-join-step':     { min: 0.001, max: 20,  label: 'Depth of Cut' },
+        // Cutter
+        'qc-cut-target':    { min: 0.004, max: 200, label: 'Target Size' },
+        'qc-cut-length':    { min: 0.004, max: 200, label: 'Cutting Length' },
+        'qc-cut-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
+        'qc-cut-step':      { min: 0.001, max: 20,  label: 'Depth of Cut' }
+      };
+    }
+    return {
+      'qc-rect-width':  { min: 0.1,   max: 5000,   label: 'Width' },
+      'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
+      'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
+      'qc-rect-depth':  { min: 0.01,  max: 500,    label: 'Total Depth' },
+      'qc-rect-step':   { min: 0.01,  max: 100,    label: 'Depth of Cut' },
+      'qc-bit':         { min: 0.1,   max: 100,    label: 'Bit Diameter' },
+      'qc-feed':        { min: 1,     max: 12000,  label: 'Feed Rate' },
+      'qc-plunge':      { min: 1,     max: 12000,  label: 'Plunge Rate' },
+      'qc-rpm':         { min: 0,     max: 24000,  label: 'Spindle RPM',   integer: true },
+      'qc-delay':       { min: 0,     max: 30,     label: 'Spindle Delay', integer: true },
+      // Rectangle
+      'qc-rect-stepover': { min: 1,   max: 90,     label: 'Stepover',      integer: true },
+      'qc-rect-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
+      'qc-rect-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-rect-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
+      'qc-rect-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
+      'qc-rect-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
+      'qc-rect-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
+      'qc-rect-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      // Circle
+      'qc-circ-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
+      'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
+      'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
+      'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
+      'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
+      'qc-circ-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-circ-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
+      'qc-circ-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
+      'qc-circ-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
+      'qc-circ-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
+      'qc-circ-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      // Planer
+      'qc-plan-width':    { min: 0.1,  max: 5000, label: 'Width' },
+      'qc-plan-height':   { min: 0.1,  max: 5000, label: 'Height' },
+      'qc-plan-overrun':  { min: 0,    max: 500,  label: 'Overrun' },
+      'qc-plan-stepover': { min: 10,   max: 100,  label: 'Stepover', integer: true },
+      'qc-plan-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
+      'qc-plan-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
+      'qc-plan-start-thickness': { min: 0.01, max: 500, label: 'Starting Thickness' },
+      // Jointer
+      'qc-join-length':   { min: 0.1,  max: 5000, label: 'Length' },
+      'qc-join-width':    { min: 0.1,  max: 500,  label: 'Trim Width' },
+      'qc-join-trims':    { min: 1,    max: 50,   label: 'Number of Trims', integer: true },
+      'qc-join-overrun':  { min: 0,    max: 500,  label: 'Overrun' },
+      'qc-join-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
+      'qc-join-step':     { min: 0.01, max: 500,  label: 'Depth of Cut' },
+      // Cutter
+      'qc-cut-target':    { min: 0.1,  max: 5000, label: 'Target Size' },
+      'qc-cut-length':    { min: 0.1,  max: 5000, label: 'Cutting Length' },
+      'qc-cut-depth':     { min: 0.01, max: 500,  label: 'Total Depth' },
+      'qc-cut-step':      { min: 0.01, max: 500,  label: 'Depth of Cut' }
+    };
+  }
+
+  function validateField(id, value) {
+    var rules = validationRules()[id];
+    if (!rules) return null;
+    var n = parseFloat(value);
+    if (isNaN(n))                                  return rules.label + ' must be a number';
+    if (rules.integer && !Number.isInteger(n))     return rules.label + ' must be a whole number';
+    if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min;
+    if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max;
+
+    // Cross-field: Depth of Cut can't be deeper than Total Depth — a
+    // single pass to that depth would overshoot the requested total.
+    if (id === 'qc-rect-step') {
+      var rTot = parseFloat($('qc-rect-depth').value);
+      if (isFinite(rTot) && n > rTot) return 'Depth of Cut must not exceed Total Depth (' + rTot + ')';
+    }
+    if (id === 'qc-circ-step') {
+      var cTot = parseFloat($('qc-circ-depth').value);
+      if (isFinite(cTot) && n > cTot) return 'Depth of Cut must not exceed Total Depth (' + cTot + ')';
+    }
+    if (id === 'qc-plan-step') {
+      var pTot = parseFloat($('qc-plan-depth').value);
+      if (isFinite(pTot) && n > pTot) return 'Depth of Cut must not exceed Total Depth (' + pTot + ')';
+    }
+    if (id === 'qc-join-step') {
+      var jTot = parseFloat($('qc-join-depth').value);
+      if (isFinite(jTot) && n > jTot) return 'Depth of Cut must not exceed Total Depth (' + jTot + ')';
+    }
+    if (id === 'qc-cut-step') {
+      var kTot = parseFloat($('qc-cut-depth').value);
+      if (isFinite(kTot) && n > kTot) return 'Depth of Cut must not exceed Total Depth (' + kTot + ')';
+    }
+    return null;
+  }
+  function validateAll() {
+    var rules = validationRules();
+    for (var id in rules) {
+      var el = document.getElementById(id);
+      // offsetParent==null → element (or an ancestor) is display:none
+      // and pointer-inert, so its value doesn't gate the current cut.
+      if (!el || el.disabled || el.offsetParent === null) continue;
+      var err = validateField(id, el.value);
+      if (err) { showTooltip(el, err); return false; }
+    }
+    return true;
+  }
+  function wireValidation() {
+    var rules = validationRules();
+    for (var id in rules) {
+      (function(fieldId) {
+        var el = document.getElementById(fieldId);
+        if (!el) return;
+        el.addEventListener('input', function() { this.style.borderColor = ''; hideTooltip(); });
+        el.addEventListener('blur', function() {
+          var err = validateField(fieldId, this.value);
+          if (err) { showTooltip(this, err); setTimeout(hideTooltip, 3000); }
+        });
+      })(id);
+    }
+    // Cross-field: when Total Depth changes, re-check Depth of Cut so
+    // the operator sees the DOC error immediately rather than waiting
+    // for a blur on the DOC field.
+    wireDepthCrossCheck('rect');
+    wireDepthCrossCheck('circ');
+    wireDepthCrossCheck('plan');
+    wireDepthCrossCheck('join');
+    wireDepthCrossCheck('cut');
+  }
+
+  function wireDepthCrossCheck(prefix) {
+    var depthEl = $('qc-' + prefix + '-depth');
+    var stepId = 'qc-' + prefix + '-step';
+    if (!depthEl || !$(stepId)) return;
+    depthEl.addEventListener('input', function() {
+      var stepEl = $(stepId);
+      stepEl.style.borderColor = '';
+      var err = validateField(stepId, stepEl.value);
+      if (err) { showTooltip(stepEl, err); setTimeout(hideTooltip, 3000); }
+    });
+  }
+
+  // Storage vs display convention:
+  //   * Saved settings on the server are ALWAYS in mm (distances) and
+  //     mm/min (feed rates). One canonical form so a user who switches
+  //     units doesn't get their numbers reinterpreted (2 in ≠ 2 mm).
+  //   * The form always shows values in the ACTIVE unit — imperial ops
+  //     see inches / in-per-min, metric ops see mm / mm-per-min.
+  //   * readRectangleForm() returns DISPLAY units so the generator can
+  //     just consume them with the isImperial flag. saveSettings()
+  //     converts back to mm before sending.
+  var INCH_TO_MM = 25.4;
+  var MM_TO_INCH = 1 / INCH_TO_MM;
+  function mmToDisplay(mm)  { return state.isImperial ? mm * MM_TO_INCH : mm; }
+  function displayToMm(val) { return state.isImperial ? val * INCH_TO_MM : val; }
+  function roundDisplay(v)  {
+    // 4 decimals in imperial catches sub-thou; 3 in metric matches
+    // typical grblHAL precision.
+    var d = state.isImperial ? 4 : 3;
+    return parseFloat(v.toFixed(d));
+  }
+
+  function readCommonParams() {
+    return {
+      bitDiameter:    num('qc-bit', 0),
+      feedRate:       num('qc-feed', 0),
+      plungeFeedRate: num('qc-plunge', 0),
+      spindleRpm:     num('qc-rpm', 0),
+      spindleDelay:   num('qc-delay', 0),
+      mistM7:         $('qc-mist').checked,
+      floodM8:        $('qc-flood').checked
+    };
+  }
+
+  function readRectangleForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      width:        num('qc-rect-width', 0),
+      height:       num('qc-rect-height', 0),
+      cornerRadius: num('qc-rect-corner', 0),
+      cutType:      $('qc-rect-cut-type').value,
+      origin:       $('qc-rect-origin').value,
+      depth:        num('qc-rect-depth', 0),
+      depthOfCut:   num('qc-rect-step', 0),
+      // Stepover only used for 'clearing' cutType; safe to always pass.
+      // Percent of bit diameter — 40 = 40% engagement (60% overlap).
+      stepoverPct:  num('qc-rect-stepover', 40),
+      pattern:      readPatternForm('rect'),
+      isImperial:      state.isImperial,
+      safeZHeightMm:   state.safeZHeightMm
+    });
+  }
+
+  function readCircleForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      diameter:     num('qc-circ-diameter', 0),
+      cutType:      $('qc-circ-cut-type').value,
+      origin:       $('qc-circ-origin').value,
+      depth:        num('qc-circ-depth', 0),
+      depthOfCut:   num('qc-circ-step', 0),
+      stepoverPct:  num('qc-circ-stepover', 40),
+      pattern:      readPatternForm('circ'),
+      isImperial:      state.isImperial,
+      safeZHeightMm:   state.safeZHeightMm
+    });
+  }
+
+  function readPlanerForm() {
+    var common = readCommonParams();
+    var mode = $('qc-plan-mode').value;
+    return Object.assign({}, common, {
+      mode:              mode,
+      startingThickness: num('qc-plan-start-thickness', 0),
+      width:        num('qc-plan-width', 0),
+      height:       num('qc-plan-height', 0),
+      // Wasteboard mode intentionally forces overrun=0 — cut area is
+      // exactly the machine travel bounds the user positioned to.
+      overrun:      mode === 'wasteboard' ? 0 : num('qc-plan-overrun', 0),
+      origin:       $('qc-plan-origin').value,
+      pattern:      $('qc-plan-pattern').value,
+      stepoverPct:  num('qc-plan-stepover', 40),
+      depth:        num('qc-plan-depth', 0),
+      depthOfCut:   num('qc-plan-step', 0),
+      isImperial:      state.isImperial,
+      safeZHeightMm:   state.safeZHeightMm
+    });
+  }
+
+  function updatePlanerModeVisibility() {
+    var mode = $('qc-plan-mode').value;
+    var isWasteboard = (mode === 'wasteboard');
+    var thickEls = document.querySelectorAll('.qc-plan-thickness-only');
+    for (var i = 0; i < thickEls.length; i++) thickEls[i].style.display = (mode === 'thickness') ? '' : 'none';
+    var overrunField = document.querySelector('.qc-plan-overrun-field');
+    if (overrunField) overrunField.style.display = isWasteboard ? 'none' : '';
+    // Wasteboard: auto-fill width/height from grblHAL $130/$131 and lock
+    // the fields so the user can't drift off machine limits. Origin
+    // selector also loses meaning here (start is always machine 0,0), so
+    // dim it visually.
+    var widthEl = $('qc-plan-width'), heightEl = $('qc-plan-height');
+    var originWrap = $('qc-plan-origin').closest('.qc-field');
+    if (isWasteboard) {
+      if (state.machineLimitXmm > 0) widthEl.value = roundDisplay(mmToDisplay(state.machineLimitXmm));
+      if (state.machineLimitYmm > 0) heightEl.value = roundDisplay(mmToDisplay(state.machineLimitYmm));
+      widthEl.readOnly = true; heightEl.readOnly = true;
+      widthEl.parentElement.style.opacity = '0.6';
+      heightEl.parentElement.style.opacity = '0.6';
+      if (originWrap) { originWrap.style.opacity = '0.4'; originWrap.style.pointerEvents = 'none'; }
+      $('qc-plan-origin').value = 'bottom-left';
+    } else {
+      widthEl.readOnly = false; heightEl.readOnly = false;
+      widthEl.parentElement.style.opacity = '';
+      heightEl.parentElement.style.opacity = '';
+      if (originWrap) { originWrap.style.opacity = ''; originWrap.style.pointerEvents = ''; }
+    }
+    var lbl = $('qc-plan-depth-label');
+    if (lbl) lbl.textContent = (mode === 'thickness') ? 'Amount to Remove' : 'Total Depth';
+
+    var hint = $('qc-plan-mode-hint');
+    if (hint) hint.innerHTML = planerModeHint(mode);
+  }
+
+  function planerModeHint(mode) {
+    var u = state.unitLabel;
+    function z0(target) {
+      return '<span class="qc-z0-callout">' +
+             '<span class="qc-z0-tag">Set Z0 on</span>' +
+             '<span class="qc-z0-target">' + target + '</span>' +
+             '</span>';
+    }
+    if (mode === 'thickness') {
+      return z0('the wasteboard (bottom of stock)') + '<br>' +
+             '<strong>Target Thickness</strong> tells the generator the stock’s current height ' +
+             'and how much to remove — passes land at a guaranteed final thickness above the ' +
+             'wasteboard. Use when the top is uneven and you want a known final thickness.';
+    }
+    if (mode === 'wasteboard') {
+      var haveLimits = state.machineLimitXmm > 0 && state.machineLimitYmm > 0;
+      var limitsText = haveLimits
+        ? ('Uses your machine’s full travel (<strong>$130 × $131 = ' +
+           roundDisplay(mmToDisplay(state.machineLimitXmm)) + ' × ' +
+           roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>).')
+        : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported).';
+      return z0('machine zero (0, 0, 0)') + '<br>' +
+             '<strong>Wasteboard Surfacing.</strong> ' + limitsText +
+             ' Touch off at machine 0, 0, 0 and set G54 origin there — the g-code treats WCS ' +
+             'coords as machine coords.';
+    }
+    return z0('the highest spot of the stock') + '<br>' +
+           '<strong>Target Depth</strong> flattens an uneven top. Zero on the highest spot, ' +
+           'cut a bit at a time — keep running until no low spots remain.';
+  }
+
+  function readCutterForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      axis:          $('qc-cut-axis').value,
+      targetSize:    num('qc-cut-target', 0),
+      cuttingLength: num('qc-cut-length', 0),
+      cutDirection:  $('qc-cut-direction').value,
+      origin:        $('qc-cut-origin').value,
+      depth:         num('qc-cut-depth', 0),
+      depthOfCut:    num('qc-cut-step', 0),
+      isImperial:      state.isImperial,
+      safeZHeightMm:   state.safeZHeightMm
+    });
+  }
+
+  function updateCutterOriginOptions() {
+    var axis = $('qc-cut-axis').value;
+    var origin = $('qc-cut-origin');
+    var opts = origin.querySelectorAll('option');
+    var currentValid = false;
+    for (var i = 0; i < opts.length; i++) {
+      var ok = opts[i].dataset.axis === axis;
+      opts[i].hidden = !ok;
+      opts[i].disabled = !ok;
+      if (ok && opts[i].value === origin.value) currentValid = true;
+    }
+    if (!currentValid) {
+      for (var j = 0; j < opts.length; j++) {
+        if (opts[j].dataset.axis === axis) { origin.value = opts[j].value; break; }
+      }
+    }
+  }
+
+  function updateCutterHint() {
+    var hint = $('qc-cut-hint');
+    if (!hint) return;
+    var feedAxis = $('qc-cut-axis').value;
+    var target = num('qc-cut-target', 0);
+    var length = num('qc-cut-length', 0);
+    var dir = $('qc-cut-direction').value;
+    var origin = $('qc-cut-origin').value;
+    var perpAxis = feedAxis === 'x' ? 'Y' : 'X';
+    var u = state.unitLabel;
+    var dirText = (dir === 'climb')
+      ? '<strong>Climb</strong> — cutter teeth engage <em>with</em> the feed direction. Cleaner finish, but needs a rigid machine.'
+      : '<strong>Conventional</strong> — cutter teeth engage <em>against</em> the feed direction. Safer and less chatter.';
+    hint.innerHTML =
+      'Tool feeds <strong>' + length + ' ' + u + '</strong> along the ' + feedAxis.toUpperCase() +
+      '-axis, starting from the <strong>' + origin + '</strong> side. Single cut line at ' + perpAxis +
+      '=<strong>' + target + ' ' + u + '</strong> — the final <strong>' + perpAxis +
+      '-dimension</strong> of the kept material. Depth passes reduce bit load.<br>' + dirText;
+  }
+
+  function readJointerForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      length:       num('qc-join-length', 0),
+      trimWidth:    num('qc-join-width', 0),
+      numTrims:     Math.max(1, Math.floor(num('qc-join-trims', 1))),
+      overrun:      num('qc-join-overrun', 0),
+      feedAxis:     $('qc-join-axis').value,
+      cutDirection: $('qc-join-direction').value,
+      origin:       $('qc-join-origin').value,
+      depth:        num('qc-join-depth', 0),
+      depthOfCut:   num('qc-join-step', 0),
+      isImperial:      state.isImperial,
+      safeZHeightMm:   state.safeZHeightMm
+    });
+  }
+
+  function updateJointerOriginOptions() {
+    var axis = $('qc-join-axis').value;
+    var origin = $('qc-join-origin');
+    var opts = origin.querySelectorAll('option');
+    var currentValid = false;
+    for (var i = 0; i < opts.length; i++) {
+      var ok = opts[i].dataset.axis === axis;
+      opts[i].hidden = !ok;
+      opts[i].disabled = !ok;
+      if (ok && opts[i].value === origin.value) currentValid = true;
+    }
+    if (!currentValid) {
+      for (var j = 0; j < opts.length; j++) {
+        if (opts[j].dataset.axis === axis) { origin.value = opts[j].value; break; }
+      }
+    }
+  }
+
+  function updateJointerHint() {
+    var hint = $('qc-join-hint');
+    if (!hint) return;
+    var length = num('qc-join-length', 0);
+    var trim = num('qc-join-width', 0), n = Math.max(1, Math.floor(num('qc-join-trims', 1)));
+    var total = (trim * n).toFixed(3);
+    var axis = $('qc-join-axis').value;
+    var dir = $('qc-join-direction').value;
+    var dirText = (dir === 'climb')
+      ? '<strong>Climb</strong> — cutter teeth engage <em>with</em> the feed direction. Cleaner finish, but needs a rigid machine (climb tries to pull the workpiece).'
+      : '<strong>Conventional</strong> — cutter teeth engage <em>against</em> the feed direction. Safer and less chatter; standard for hand routers and hobbyist CNCs.';
+    hint.innerHTML =
+      '<strong>Trim:</strong> removes <strong>' + trim + ' ' + state.unitLabel +
+      '</strong> per pass × <strong>' + n + '</strong> pass' + (n === 1 ? '' : 'es') +
+      ' = <strong>' + total + ' ' + state.unitLabel + '</strong> total off the edge. Each pass ' +
+      'travels <strong>' + length + ' ' + state.unitLabel + '</strong> along the ' + axis.toUpperCase() +
+      '-axis.<br>' + dirText;
+  }
+
+  // Pattern form is in DISPLAY units for distances; angle/counts unitless.
+  // `prefix` is 'rect' or 'circ' — inputs are named qc-<prefix>-pattern-*.
+  function readPatternForm(prefix) {
+    var pre = 'qc-' + prefix + '-pattern-';
+    return {
+      enabled: $(pre + 'enable').checked,
+      style:   $(pre + 'style').value,
+      xDist:   num(pre + 'x-dist', 0),
+      yDist:   num(pre + 'y-dist', 0),
+      xCount:  Math.max(1, Math.floor(num(pre + 'x-count', 1))),
+      yCount:  Math.max(1, Math.floor(num(pre + 'y-count', 1))),
+      count:      Math.max(1, Math.floor(num(pre + 'count', 1))),
+      radius:     num(pre + 'radius', 0),
+      startAngle: num(pre + 'start-angle', 0)
+    };
+  }
+
+  function updateClearingVisibility(prefix) {
+    var isClearing = $('qc-' + prefix + '-cut-type').value === 'clearing';
+    var els = document.querySelectorAll('.qc-' + prefix + '-clearing-only');
+    for (var i = 0; i < els.length; i++) els[i].style.display = isClearing ? '' : 'none';
+  }
+
+  function updatePatternVisibility(prefix) {
+    var enabled = $('qc-' + prefix + '-pattern-enable').checked;
+    $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
+    if (enabled) {
+      var style = $('qc-' + prefix + '-pattern-style').value;
+      var body = $('qc-' + prefix + '-pattern-body');
+      var linear = body.querySelector('.qc-pattern-linear-fields');
+      var circ = body.querySelector('.qc-pattern-circular-fields');
+      if (linear) linear.style.display = (style === 'linear') ? '' : 'none';
+      if (circ)   circ.style.display   = (style === 'circular') ? '' : 'none';
+    }
+  }
+
+  function hydrateSavedSettings() {
+    var saved = initialConfig || {};
+    var common = saved.common || {};
+    var rect = saved.rectangle || {};
+    // All distances stored in mm; feed rates in mm/min.
+    if (common.bitDiameter != null)    $('qc-bit').value    = roundDisplay(mmToDisplay(common.bitDiameter));
+    if (common.feedRate != null)       $('qc-feed').value   = roundDisplay(mmToDisplay(common.feedRate));
+    if (common.plungeFeedRate != null) $('qc-plunge').value = roundDisplay(mmToDisplay(common.plungeFeedRate));
+    if (common.spindleRpm != null)     $('qc-rpm').value    = common.spindleRpm;
+    if (common.spindleDelay != null)   $('qc-delay').value  = common.spindleDelay;
+    if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
+    if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
+
+    if (rect.width != null)         $('qc-rect-width').value  = roundDisplay(mmToDisplay(rect.width));
+    if (rect.height != null)        $('qc-rect-height').value = roundDisplay(mmToDisplay(rect.height));
+    if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
+    if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
+    if (rect.origin)                $('qc-rect-origin').value = rect.origin;
+    if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
+    if (rect.depthOfCut != null)    $('qc-rect-step').value   = roundDisplay(mmToDisplay(rect.depthOfCut));
+    // Stepover is a percent — unitless, stored as-is.
+    if (rect.stepoverPct != null)   $('qc-rect-stepover').value = rect.stepoverPct;
+    hydratePattern('rect', rect.pattern);
+
+    var circ = saved.circle || {};
+    if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
+    if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
+    if (circ.origin)                $('qc-circ-origin').value = circ.origin;
+    if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
+    if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
+    if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
+    hydratePattern('circ', circ.pattern);
+
+    var plan = saved.planer || {};
+    if (plan.mode)               $('qc-plan-mode').value     = plan.mode;
+    if (plan.startingThickness != null) $('qc-plan-start-thickness').value = roundDisplay(mmToDisplay(plan.startingThickness));
+    if (plan.width != null)      $('qc-plan-width').value    = roundDisplay(mmToDisplay(plan.width));
+    if (plan.height != null)     $('qc-plan-height').value   = roundDisplay(mmToDisplay(plan.height));
+    if (plan.overrun != null)    $('qc-plan-overrun').value  = roundDisplay(mmToDisplay(plan.overrun));
+    if (plan.origin)             $('qc-plan-origin').value   = plan.origin;
+    if (plan.pattern)            $('qc-plan-pattern').value  = plan.pattern;
+    if (plan.stepoverPct != null) $('qc-plan-stepover').value = plan.stepoverPct;
+    if (plan.depth != null)      $('qc-plan-depth').value    = roundDisplay(mmToDisplay(plan.depth));
+    if (plan.depthOfCut != null) $('qc-plan-step').value     = roundDisplay(mmToDisplay(plan.depthOfCut));
+    updatePlanerModeVisibility();
+
+    var join = saved.jointer || {};
+    if (join.length != null)     $('qc-join-length').value   = roundDisplay(mmToDisplay(join.length));
+    if (join.trimWidth != null)  $('qc-join-width').value    = roundDisplay(mmToDisplay(join.trimWidth));
+    if (join.numTrims != null)   $('qc-join-trims').value    = join.numTrims;
+    if (join.overrun != null)    $('qc-join-overrun').value  = roundDisplay(mmToDisplay(join.overrun));
+    if (join.feedAxis)           $('qc-join-axis').value     = join.feedAxis;
+    if (join.cutDirection)       $('qc-join-direction').value = join.cutDirection;
+    if (join.origin)             $('qc-join-origin').value   = join.origin;
+    if (join.depth != null)      $('qc-join-depth').value    = roundDisplay(mmToDisplay(join.depth));
+    if (join.depthOfCut != null) $('qc-join-step').value     = roundDisplay(mmToDisplay(join.depthOfCut));
+
+    var cut = saved.cutter || {};
+    if (cut.axis)                   $('qc-cut-axis').value      = cut.axis;
+    if (cut.targetSize != null)     $('qc-cut-target').value    = roundDisplay(mmToDisplay(cut.targetSize));
+    if (cut.cuttingLength != null)  $('qc-cut-length').value    = roundDisplay(mmToDisplay(cut.cuttingLength));
+    if (cut.cutDirection)           $('qc-cut-direction').value = cut.cutDirection;
+    if (cut.origin)                 $('qc-cut-origin').value    = cut.origin;
+    if (cut.depth != null)          $('qc-cut-depth').value     = roundDisplay(mmToDisplay(cut.depth));
+    if (cut.depthOfCut != null)     $('qc-cut-step').value      = roundDisplay(mmToDisplay(cut.depthOfCut));
+
+    updateClearingVisibility('rect');
+    updatePatternVisibility('rect');
+    updateClearingVisibility('circ');
+    updatePatternVisibility('circ');
+  }
+
+  function hydratePattern(prefix, p) {
+    p = p || {};
+    var pre = 'qc-' + prefix + '-pattern-';
+    if (p.enabled != null)  $(pre + 'enable').checked = !!p.enabled;
+    if (p.style)            $(pre + 'style').value = p.style;
+    if (p.xDist != null)    $(pre + 'x-dist').value = roundDisplay(mmToDisplay(p.xDist));
+    if (p.yDist != null)    $(pre + 'y-dist').value = roundDisplay(mmToDisplay(p.yDist));
+    if (p.xCount != null)   $(pre + 'x-count').value = p.xCount;
+    if (p.yCount != null)   $(pre + 'y-count').value = p.yCount;
+    if (p.count != null)    $(pre + 'count').value = p.count;
+    if (p.radius != null)   $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radius));
+    if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
+  }
+
+  function saveSettings(params) {
+    // params holds DISPLAY-unit values (what the form shows). Convert
+    // distances + feed rates back to mm before persisting so switching
+    // the app's unit later doesn't reinterpret the saved numbers.
+    var common = {
+      bitDiameter:    displayToMm(params.bitDiameter),
+      feedRate:       displayToMm(params.feedRate),
+      plungeFeedRate: displayToMm(params.plungeFeedRate),
+      spindleRpm:     params.spindleRpm,
+      spindleDelay:   params.spindleDelay,
+      mistM7:         params.mistM7,
+      floodM8:        params.floodM8
+    };
+    // saveSettings PATCHES the shape it was called for — the other
+    // shape's saved values shouldn't be clobbered on Rectangle Generate
+    // vs Circle Generate.
+    var body = { common: common };
+    if (params.shape === 'rectangle') {
+      body.rectangle = {
+        width:        displayToMm(params.width),
+        height:       displayToMm(params.height),
+        cornerRadius: displayToMm(params.cornerRadius),
+        cutType:      params.cutType,
+        origin:       params.origin,
+        depth:        displayToMm(params.depth),
+        depthOfCut:   displayToMm(params.depthOfCut),
+        stepoverPct:  params.stepoverPct,
+        pattern:      packPattern(params.pattern)
+      };
+    } else if (params.shape === 'circle') {
+      body.circle = {
+        diameter:     displayToMm(params.diameter),
+        cutType:      params.cutType,
+        origin:       params.origin,
+        depth:        displayToMm(params.depth),
+        depthOfCut:   displayToMm(params.depthOfCut),
+        stepoverPct:  params.stepoverPct,
+        pattern:      packPattern(params.pattern)
+      };
+    } else if (params.shape === 'planer') {
+      body.planer = {
+        mode:              params.mode,
+        startingThickness: displayToMm(params.startingThickness),
+        width:        displayToMm(params.width),
+        height:       displayToMm(params.height),
+        overrun:      displayToMm(params.overrun),
+        origin:       params.origin,
+        pattern:      params.pattern,
+        stepoverPct:  params.stepoverPct,
+        depth:        displayToMm(params.depth),
+        depthOfCut:   displayToMm(params.depthOfCut)
+      };
+    } else if (params.shape === 'jointer') {
+      body.jointer = {
+        length:       displayToMm(params.length),
+        trimWidth:    displayToMm(params.trimWidth),
+        numTrims:     params.numTrims,
+        overrun:      displayToMm(params.overrun),
+        feedAxis:     params.feedAxis,
+        cutDirection: params.cutDirection,
+        origin:       params.origin,
+        depth:        displayToMm(params.depth),
+        depthOfCut:   displayToMm(params.depthOfCut)
+      };
+    } else if (params.shape === 'cutter') {
+      body.cutter = {
+        axis:          params.axis,
+        targetSize:    displayToMm(params.targetSize),
+        cuttingLength: displayToMm(params.cuttingLength),
+        cutDirection:  params.cutDirection,
+        origin:        params.origin,
+        depth:         displayToMm(params.depth),
+        depthOfCut:    displayToMm(params.depthOfCut)
+      };
+    }
+    fetch(BASE_URL + '/api/plugins/com.ncsender.quickcut/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).catch(function(err) { console.warn('[QuickCut] settings save failed:', err); });
+  }
+
+  function packPattern(p) {
+    p = p || {};
+    return {
+      enabled:    !!p.enabled,
+      style:      p.style || 'linear',
+      xDist:      displayToMm(p.xDist),
+      yDist:      displayToMm(p.yDist),
+      xCount:     p.xCount,
+      yCount:     p.yCount,
+      count:      p.count,
+      radius:     displayToMm(p.radius),
+      startAngle: p.startAngle
+    };
+  }
+
+  // Load the generated gcode as a temp file so ncSender's visualizer
+  // renders it — same pattern the ToolBench plugins use. The operator
+  // reviews the toolpath, then runs it from the main UI when ready.
+  async function loadGcodeIntoVisualizer(gcode, filename) {
+    return fetch(BASE_URL + '/api/gcode-files/load-temp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: filename, content: gcode })
+    });
+  }
+
+  function wireRectangleForm() {
+    $('qc-rect-cut-type').addEventListener('change', function() { updateClearingVisibility('rect'); });
+    $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); });
+    $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); });
+    updateClearingVisibility('rect');
+    updatePatternVisibility('rect');
+
+    $('qc-rect-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readRectangleForm();
+      params.shape = 'rectangle';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generateRectangleProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Rectangle.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
+  function wirePlanerForm() {
+    $('qc-plan-mode').addEventListener('change', updatePlanerModeVisibility);
+    updatePlanerModeVisibility();
+
+    $('qc-plan-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readPlanerForm();
+      params.shape = 'planer';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generatePlanerProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Planer.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
+      } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
+    });
+  }
+
+  function wireCutterForm() {
+    ['qc-cut-axis', 'qc-cut-target', 'qc-cut-length',
+     'qc-cut-direction', 'qc-cut-origin'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.addEventListener('input', updateCutterHint);
+      if (el) el.addEventListener('change', updateCutterHint);
+    });
+    $('qc-cut-axis').addEventListener('change', function() { updateCutterOriginOptions(); updateCutterHint(); });
+    updateCutterOriginOptions();
+    updateCutterHint();
+
+    $('qc-cut-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readCutterForm();
+      params.shape = 'cutter';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generateCutterProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Cutter.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
+      } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
+    });
+  }
+
+  function wireJointerForm() {
+    ['qc-join-length', 'qc-join-width', 'qc-join-trims', 'qc-join-axis', 'qc-join-direction', 'qc-join-origin'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.addEventListener('input', updateJointerHint);
+      if (el) el.addEventListener('change', updateJointerHint);
+    });
+    // Feed axis toggles which origin options are valid.
+    $('qc-join-axis').addEventListener('change', function() { updateJointerOriginOptions(); updateJointerHint(); });
+    updateJointerOriginOptions();
+    updateJointerHint();
+
+    $('qc-join-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readJointerForm();
+      params.shape = 'jointer';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generateJointerProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Jointer.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
+      } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
+    });
+  }
+
+  function wireCircleForm() {
+    $('qc-circ-cut-type').addEventListener('change', function() { updateClearingVisibility('circ'); });
+    $('qc-circ-pattern-enable').addEventListener('change', function() { updatePatternVisibility('circ'); });
+    $('qc-circ-pattern-style').addEventListener('change', function() { updatePatternVisibility('circ'); });
+    updateClearingVisibility('circ');
+    updatePatternVisibility('circ');
+
+    $('qc-circ-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readCircleForm();
+      params.shape = 'circle';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generateCircleProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Circle.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
+  // ================== QuickCut generator (INLINE COPY) ==================
+  //
+  // MUST STAY IN SYNC WITH lib/quickcut-gcode.cjs. That file is the
+  // test spec (Node-loadable). ncSenderPro V2's plugin server hands
+  // config.html to the dialog verbatim and won't inject external JS,
+  // so the browser needs the generator inlined here.
+  function makeQuickCutGenerator(isImperial) {
+    var safeHopDelta = isImperial ? (5 * 0.0393701) : 5;
+
+    function coreSafeZLine(safeZHeightMm) {
+      if (typeof safeZHeightMm !== 'number' || !isFinite(safeZHeightMm)) return null;
+      return 'G53 G0 Z' + (isImperial ? (safeZHeightMm * 0.0393701) : safeZHeightMm).toFixed(3);
+    }
+
+    function originOffset(origin, width, height) {
+      switch (origin) {
+        case 'center':       return { x: 0, y: 0 };
+        case 'top-left':     return { x:  width / 2, y: -height / 2 };
+        case 'top-right':    return { x: -width / 2, y: -height / 2 };
+        case 'bottom-left':  return { x:  width / 2, y:  height / 2 };
+        case 'bottom-right': return { x: -width / 2, y:  height / 2 };
+        default:             return { x: 0, y: 0 };
+      }
+    }
+
+    function programHeader(params, opts) {
+      var unitsCode = isImperial ? 'G20' : 'G21';
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var lines = [];
+      lines.push('(QuickCut: ' + opts.shapeLabel + ')');
+      if (opts.extraComments) {
+        for (var i = 0; i < opts.extraComments.length; i++) lines.push('(' + opts.extraComments[i] + ')');
+      }
+      if (params.cutType) lines.push('(Cut Type: ' + params.cutType + ')');
+      lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + ')');
+      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
+      lines.push('');
+      lines.push(unitsCode + ' ; ' + (isImperial ? 'Imperial' : 'Metric') + ' units');
+      lines.push('G17 ; XY plane selection');
+      lines.push('G90 ; Absolute positioning');
+      lines.push('G94 ; Feed rate per minute');
+      lines.push('');
+      var csz = coreSafeZLine(params.safeZHeightMm);
+      if (csz) lines.push(csz + ' ; Move to safe Z');
+      else lines.push('G53 G0 Z0 ; Move to machine Z0');
+      lines.push('');
+      return lines;
+    }
+
+    function programFooter(params) {
+      var lines = [];
+      var csz = coreSafeZLine(params.safeZHeightMm);
+      if (csz) lines.push(csz + ' ; Return to safe Z');
+      else lines.push('G53 G0 Z0 ; Return to machine Z0');
+      if (params.mistM7 || params.floodM8) lines.push('M9 ; Coolant off');
+      if (params.spindleRpm > 0) lines.push('M5 ; Stop spindle');
+      lines.push('M30 ; Program end');
+      return lines;
+    }
+
+    function startupBlock(params) {
+      var lines = [];
+      if (params.mistM7) lines.push('M7 ; Mist coolant on');
+      if (params.floodM8) lines.push('M8 ; Flood coolant on');
+      if (params.spindleRpm > 0) {
+        lines.push('M3 S' + params.spindleRpm + ' ; Start spindle');
+        if (params.spindleDelay > 0) {
+          lines.push('G4 P' + params.spindleDelay + ' ; Wait ' + params.spindleDelay + ' seconds');
+        }
+      }
+      return lines;
+    }
+
+    function emitRectanglePath(lines, geom, feedRate) {
+      var cx = geom.cx, cy = geom.cy;
+      var halfW = geom.halfW, halfH = geom.halfH;
+      var cornerR = geom.cornerR;
+      var xR = cx + halfW, xL = cx - halfW;
+      var yT = cy + halfH, yB = cy - halfH;
+      var startX = cx, startY = yB;
+      var feedSuffix = ' F' + feedRate;
+
+      if (cornerR <= 0) {
+        lines.push('G1 X' + xR.toFixed(3) + ' Y' + yB.toFixed(3) + feedSuffix);
+        lines.push('G1 X' + xR.toFixed(3) + ' Y' + yT.toFixed(3));
+        lines.push('G1 X' + xL.toFixed(3) + ' Y' + yT.toFixed(3));
+        lines.push('G1 X' + xL.toFixed(3) + ' Y' + yB.toFixed(3));
+        lines.push('G1 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+        return;
+      }
+
+      var xRt = xR - cornerR, xLt = xL + cornerR;
+      var yTt = yT - cornerR, yBt = yB + cornerR;
+
+      lines.push('G1 X' + xRt.toFixed(3) + ' Y' + yB.toFixed(3) + feedSuffix);
+      lines.push('G3 X' + xR.toFixed(5) + ' Y' + yBt.toFixed(5) + ' I0 J' + cornerR.toFixed(5));
+      lines.push('G1 X' + xR.toFixed(3) + ' Y' + yTt.toFixed(3));
+      lines.push('G3 X' + xRt.toFixed(5) + ' Y' + yT.toFixed(5) + ' I' + (-cornerR).toFixed(5) + ' J0');
+      lines.push('G1 X' + xLt.toFixed(3) + ' Y' + yT.toFixed(3));
+      lines.push('G3 X' + xL.toFixed(5) + ' Y' + yTt.toFixed(5) + ' I0 J' + (-cornerR).toFixed(5));
+      lines.push('G1 X' + xL.toFixed(3) + ' Y' + yBt.toFixed(3));
+      lines.push('G3 X' + xLt.toFixed(5) + ' Y' + yB.toFixed(5) + ' I' + cornerR.toFixed(5) + ' J0');
+      lines.push('G1 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+    }
+
+    function computeRectangleGeom(params, offsetX, offsetY) {
+      var width = params.width, height = params.height;
+      var cornerRadius = Math.max(0, params.cornerRadius || 0);
+      var cutType = params.cutType || 'inner';
+      var origin = params.origin || 'center';
+      var toolRadius = params.bitDiameter / 2;
+
+      var pathHalfW, pathHalfH, cornerR;
+      if (cutType === 'inner' || cutType === 'clearing') {
+        pathHalfW = width / 2 - toolRadius;
+        pathHalfH = height / 2 - toolRadius;
+      } else {
+        pathHalfW = width / 2 + toolRadius;
+        pathHalfH = height / 2 + toolRadius;
+      }
+      if (cornerRadius <= 0) {
+        cornerR = 0;
+      } else if (cutType === 'inner' || cutType === 'clearing') {
+        cornerR = Math.max(0, cornerRadius - toolRadius);
+      } else {
+        cornerR = cornerRadius + toolRadius;
+      }
+      cornerR = Math.min(cornerR, Math.min(pathHalfW, pathHalfH));
+
+      var off = originOffset(origin, width, height);
+      return {
+        cx: off.x + (offsetX || 0), cy: off.y + (offsetY || 0),
+        halfW: pathHalfW, halfH: pathHalfH,
+        cornerR: cornerR,
+        toolRadius: toolRadius
+      };
+    }
+
+    function computePatternPositions(pattern) {
+      if (!pattern || !pattern.enabled) return [{ x: 0, y: 0 }];
+      var positions = [];
+      if (pattern.style === 'linear') {
+        var xCount = Math.max(1, Math.floor(pattern.xCount || 1));
+        var yCount = Math.max(1, Math.floor(pattern.yCount || 1));
+        var xDist = pattern.xDist || 0;
+        var yDist = pattern.yDist || 0;
+        for (var j = 0; j < yCount; j++) {
+          for (var i = 0; i < xCount; i++) {
+            positions.push({ x: i * xDist, y: j * yDist });
+          }
+        }
+        return positions;
+      }
+      if (pattern.style === 'circular') {
+        var count = Math.max(1, Math.floor(pattern.count || 1));
+        var radius = pattern.radius || 0;
+        var startAngle = pattern.startAngle || 0;
+        var stepDeg = 360 / count;
+        for (var k = 0; k < count; k++) {
+          var deg = startAngle + stepDeg * k;
+          var rad = deg * Math.PI / 180;
+          positions.push({ x: radius * Math.cos(rad), y: radius * Math.sin(rad) });
+        }
+        return positions;
+      }
+      return [{ x: 0, y: 0 }];
+    }
+
+    function patternDescription(p) {
+      if (!p || !p.enabled) return '';
+      if (p.style === 'linear') {
+        return 'Linear ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
+               ' (dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0) + ')';
+      }
+      return 'Circular n=' + (p.count || 1) +
+             ' r=' + (p.radius || 0) + ' start=' + (p.startAngle || 0) + '°';
+    }
+
+    function generateRectangleProgram(params) {
+      if ((params.cutType || 'inner') === 'clearing') {
+        return generateRectangleClearingProgram(params);
+      }
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var baseGeom = computeRectangleGeom(params);
+
+      var extras = [
+        'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
+        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel,
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Origin: ' + (params.origin || 'center')
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Rectangle' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (baseGeom.halfW <= 0 || baseGeom.halfH <= 0) {
+        lines.push('(WARNING: shape smaller than tool diameter; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+        }
+        emitOneRectangle(lines, params, pos.x, pos.y);
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneRectangle(lines, params, offsetX, offsetY) {
+      var geom = computeRectangleGeom(params, offsetX, offsetY);
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+
+      var startX = geom.cx, startY = geom.cy - geom.halfH;
+      lines.push('G0 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+      var safeHeight = safeHopDelta.toFixed(3);
+      lines.push('G0 Z' + safeHeight);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
+        emitRectanglePath(lines, geom, feedRate);
+        currentDepth = nextDepth;
+      }
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    // Pocket clearing: helical bore at pocket center, then expanding
+    // concentric rectangles outward. Engagement stays bounded by the
+    // stepover distance on straight sections (corners still spike a
+    // bit — accepted trade-off vs true adaptive clearing).
+    function generateRectangleClearingProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var baseGeom = computeRectangleGeom(params);
+      var stepoverPct = params.stepoverPct || 40;
+      var step = params.bitDiameter * (stepoverPct / 100);
+
+      var extras = [
+        'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
+        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel,
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
+        'Entry: helical bore then expanding outward',
+        'Origin: ' + (params.origin || 'center')
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Rectangle (clearing)' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (baseGeom.halfW <= 0 || baseGeom.halfH <= 0) {
+        lines.push('(WARNING: shape smaller than tool diameter; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      if (step <= 0) {
+        lines.push('(WARNING: stepover produced non-positive distance; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+        }
+        emitOneRectangleClearing(lines, params, pos.x, pos.y, step);
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneRectangleClearing(lines, params, offsetX, offsetY, step) {
+      var base = computeRectangleGeom(params, offsetX, offsetY);
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+
+      var levels = [];
+      var offset = 0;
+      while (true) {
+        var hW = base.halfW - offset;
+        var hH = base.halfH - offset;
+        if (hW <= 0 || hH <= 0) break;
+        var cR = Math.max(0, base.cornerR - offset);
+        cR = Math.min(cR, Math.min(hW, hH));
+        levels.push({ cx: base.cx, cy: base.cy, halfW: hW, halfH: hH, cornerR: cR });
+        if (hW <= base.toolRadius && hH <= base.toolRadius) break;
+        offset += step;
+      }
+      levels.reverse();
+      for (var li = 0; li < levels.length - 1; li++) {
+        levels[li].cornerR = 0;
+      }
+
+      var helixRadius = base.toolRadius * 0.6;
+      helixRadius = Math.min(helixRadius, base.halfW - 0.001, base.halfH - 0.001);
+      var useHelix = helixRadius > base.toolRadius * 0.1;
+      if (!useHelix) helixRadius = 0;
+      var helixStartX = base.cx + helixRadius;
+      var helixStartY = base.cy;
+
+      lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + helixStartY.toFixed(3));
+      var safeHeight = safeHopDelta.toFixed(3);
+      lines.push('G0 Z' + safeHeight);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var prevZ = parseFloat(slowPlungeStart);
+      var currentDepth = 0;
+      var maxPitchPerTurn = base.toolRadius * 0.5;
+
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        var targetZ = -nextDepth;
+        var descent = prevZ - targetZ;
+
+        if (useHelix) {
+          var numTurns = Math.max(1, Math.ceil(descent / maxPitchPerTurn));
+          var pitchPerTurn = descent / numTurns;
+          var helixLeftX = base.cx - helixRadius;
+          var helixRightX = base.cx + helixRadius;
+          for (var t = 0; t < numTurns; t++) {
+            var midZ = prevZ - pitchPerTurn * t - pitchPerTurn / 2;
+            var endZ = prevZ - pitchPerTurn * (t + 1);
+            lines.push('G3 X' + helixLeftX.toFixed(5) + ' Y' + base.cy.toFixed(5) +
+                       ' I' + (-helixRadius).toFixed(5) + ' J0' +
+                       ' Z' + midZ.toFixed(3) + ' F' + plungeFeedRate);
+            lines.push('G3 X' + helixRightX.toFixed(5) + ' Y' + base.cy.toFixed(5) +
+                       ' I' + helixRadius.toFixed(5) + ' J0' +
+                       ' Z' + endZ.toFixed(3) + ' F' + plungeFeedRate);
+          }
+        } else {
+          lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+        }
+
+        if (levels.length > 0) {
+          var inner = levels[0];
+          var innerStartX = inner.cx;
+          var innerStartY = inner.cy - inner.halfH;
+          lines.push('G1 X' + innerStartX.toFixed(3) + ' Y' + innerStartY.toFixed(3) +
+                     ' F' + plungeFeedRate);
+
+          for (var i = 0; i < levels.length; i++) {
+            var lvl = levels[i];
+            emitRectanglePath(lines, lvl, feedRate);
+            if (i < levels.length - 1) {
+              var next = levels[i + 1];
+              var nextStartX = next.cx;
+              var nextStartY = next.cy - next.halfH;
+              lines.push('G1 X' + nextStartX.toFixed(3) + ' Y' + nextStartY.toFixed(3) +
+                         ' F' + plungeFeedRate);
+            }
+          }
+        }
+
+        prevZ = targetZ;
+        currentDepth = nextDepth;
+
+        if (currentDepth < depth - 1e-6) {
+          lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + helixStartY.toFixed(3));
+        }
+      }
+
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    // ===== CIRCLE =========================================================
+    function computeCircleGeom(params, offsetX, offsetY) {
+      var diameter = params.diameter;
+      var cutType = params.cutType || 'inner';
+      var origin = params.origin || 'center';
+      var toolRadius = params.bitDiameter / 2;
+      var pathRadius;
+      if (cutType === 'inner' || cutType === 'clearing') pathRadius = diameter / 2 - toolRadius;
+      else                                                pathRadius = diameter / 2 + toolRadius;
+      var off = originOffset(origin, diameter, diameter);
+      return {
+        cx: off.x + (offsetX || 0), cy: off.y + (offsetY || 0),
+        pathRadius: pathRadius, toolRadius: toolRadius
+      };
+    }
+
+    function generateCircleProgram(params) {
+      if ((params.cutType || 'inner') === 'clearing') {
+        return generateCircleClearingProgram(params);
+      }
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var baseGeom = computeCircleGeom(params);
+
+      var extras = [
+        'Diameter: ' + params.diameter + unitsLabel,
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Origin: ' + (params.origin || 'center')
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Circle' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (baseGeom.pathRadius <= 0) {
+        lines.push('(WARNING: circle smaller than tool diameter; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+        }
+        emitOneCircle(lines, params, pos.x, pos.y);
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneCircle(lines, params, offsetX, offsetY) {
+      var geom = computeCircleGeom(params, offsetX, offsetY);
+      var cx = geom.cx, cy = geom.cy, pathRadius = geom.pathRadius;
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+
+      lines.push('G0 X' + (cx + pathRadius).toFixed(3) + ' Y' + cy.toFixed(3));
+      var safeHeight = safeHopDelta.toFixed(3);
+      lines.push('G0 Z' + safeHeight);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var prevZ = parseFloat(slowPlungeStart);
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        var targetZ = -nextDepth;
+        var midZ = (prevZ + targetZ) / 2;
+        lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                   ' I' + (-pathRadius).toFixed(5) + ' J0' +
+                   ' Z' + midZ.toFixed(3) + ' F' + plungeFeedRate);
+        lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                   ' I' + pathRadius.toFixed(5) + ' J0' +
+                   ' Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+        prevZ = targetZ;
+        currentDepth = nextDepth;
+      }
+      // Final cleanup circle at target Z.
+      lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                 ' I' + (-pathRadius).toFixed(5) + ' J0 F' + feedRate);
+      lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                 ' I' + pathRadius.toFixed(5) + ' J0');
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    function generateCircleClearingProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var baseGeom = computeCircleGeom(params);
+      var stepoverPct = params.stepoverPct || 40;
+      var step = params.bitDiameter * (stepoverPct / 100);
+
+      var extras = [
+        'Diameter: ' + params.diameter + unitsLabel,
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
+        'Entry: helical bore then expanding outward',
+        'Origin: ' + (params.origin || 'center')
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Circle (clearing)' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (baseGeom.pathRadius <= 0) {
+        lines.push('(WARNING: circle smaller than tool diameter; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      if (step <= 0) {
+        lines.push('(WARNING: stepover produced non-positive distance; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+        }
+        emitOneCircleClearing(lines, params, pos.x, pos.y, step);
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneCircleClearing(lines, params, offsetX, offsetY, step) {
+      var geom = computeCircleGeom(params, offsetX, offsetY);
+      var cx = geom.cx, cy = geom.cy;
+      var pathRadius = geom.pathRadius;
+      var toolRadius = geom.toolRadius;
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+
+      var radii = [];
+      var offset = 0;
+      while (true) {
+        var r = pathRadius - offset;
+        if (r <= 0) break;
+        radii.push(r);
+        if (r <= toolRadius) break;
+        offset += step;
+      }
+      radii.reverse();
+
+      var helixRadius = toolRadius * 0.6;
+      helixRadius = Math.min(helixRadius, pathRadius - 0.001);
+      var useHelix = helixRadius > toolRadius * 0.1;
+      if (!useHelix) helixRadius = 0;
+      var helixStartX = cx + helixRadius;
+
+      lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + cy.toFixed(3));
+      var safeHeight = safeHopDelta.toFixed(3);
+      lines.push('G0 Z' + safeHeight);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var prevZ = parseFloat(slowPlungeStart);
+      var currentDepth = 0;
+      var maxPitchPerTurn = toolRadius * 0.5;
+
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        var targetZ = -nextDepth;
+        var descent = prevZ - targetZ;
+
+        if (useHelix) {
+          var numTurns = Math.max(1, Math.ceil(descent / maxPitchPerTurn));
+          var pitchPerTurn = descent / numTurns;
+          var helixLeftX = cx - helixRadius;
+          var helixRightX = cx + helixRadius;
+          for (var t = 0; t < numTurns; t++) {
+            var midZ = prevZ - pitchPerTurn * t - pitchPerTurn / 2;
+            var endZ = prevZ - pitchPerTurn * (t + 1);
+            lines.push('G3 X' + helixLeftX.toFixed(5) + ' Y' + cy.toFixed(5) +
+                       ' I' + (-helixRadius).toFixed(5) + ' J0' +
+                       ' Z' + midZ.toFixed(3) + ' F' + plungeFeedRate);
+            lines.push('G3 X' + helixRightX.toFixed(5) + ' Y' + cy.toFixed(5) +
+                       ' I' + helixRadius.toFixed(5) + ' J0' +
+                       ' Z' + endZ.toFixed(3) + ' F' + plungeFeedRate);
+          }
+        } else {
+          lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+        }
+
+        if (radii.length > 0) {
+          lines.push('G1 X' + (cx + radii[0]).toFixed(3) + ' Y' + cy.toFixed(3) +
+                     ' F' + plungeFeedRate);
+          for (var i = 0; i < radii.length; i++) {
+            var rr = radii[i];
+            lines.push('G3 X' + (cx - rr).toFixed(5) + ' Y' + cy.toFixed(5) +
+                       ' I' + (-rr).toFixed(5) + ' J0 F' + feedRate);
+            lines.push('G3 X' + (cx + rr).toFixed(5) + ' Y' + cy.toFixed(5) +
+                       ' I' + rr.toFixed(5) + ' J0');
+            if (i < radii.length - 1) {
+              lines.push('G1 X' + (cx + radii[i + 1]).toFixed(3) + ' Y' + cy.toFixed(3) +
+                         ' F' + plungeFeedRate);
+            }
+          }
+        }
+
+        prevZ = targetZ;
+        currentDepth = nextDepth;
+
+        if (currentDepth < depth - 1e-6) {
+          lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + cy.toFixed(3));
+        }
+      }
+
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    // ===== PLANER + JOINTER (raster / linear surfacing) ==================
+    function regionBottomLeft(origin, width, height) {
+      switch (origin) {
+        case 'bottom-left':  return { x: 0, y: 0 };
+        case 'bottom-right': return { x: -width, y: 0 };
+        case 'top-left':     return { x: 0, y: -height };
+        case 'top-right':    return { x: -width, y: -height };
+        case 'center':       return { x: -width / 2, y: -height / 2 };
+        default:             return { x: 0, y: 0 };
+      }
+    }
+
+    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate) {
+      if (pattern === 'spiral') {
+        emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate);
+        return;
+      }
+      var invert = (pattern === 'zigzagX');
+      var stepDim = invert ? cutH : cutW;
+      var numPasses = Math.ceil(stepDim / step) + 1;
+      var direction = 1;
+      for (var p = 0; p < numPasses; p++) {
+        if (invert) {
+          var y = Math.min(startY + p * step, startY + cutH);
+          if (p > 0) lines.push('G1 Y' + y.toFixed(3) + ' F' + feedRate);
+          var xEnd = direction === 1 ? (startX + cutW) : startX;
+          lines.push('G1 X' + xEnd.toFixed(3) + ' F' + feedRate);
+        } else {
+          var x = Math.min(startX + p * step, startX + cutW);
+          if (p > 0) lines.push('G1 X' + x.toFixed(3) + ' F' + feedRate);
+          var yEnd = direction === 1 ? (startY + cutH) : startY;
+          lines.push('G1 Y' + yEnd.toFixed(3) + ' F' + feedRate);
+        }
+        direction *= -1;
+      }
+    }
+
+    function emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate) {
+      var effStep = Math.max(Math.min(step, Math.min(cutW, cutH) / 2), 0.1);
+      var left = startX, right = startX + cutW;
+      var bottom = startY, top = startY + cutH;
+      var curX = left, curY = bottom;
+      while (right - left > 0 && top - bottom > 0) {
+        lines.push('G1 X' + right.toFixed(3) + ' Y' + bottom.toFixed(3) + ' F' + feedRate);
+        curX = right; curY = bottom;
+        bottom += effStep; if (bottom >= top) break;
+        lines.push('G1 X' + curX.toFixed(3) + ' Y' + top.toFixed(3) + ' F' + feedRate);
+        curY = top;
+        right -= effStep; if (left >= right) break;
+        lines.push('G1 X' + left.toFixed(3) + ' Y' + curY.toFixed(3) + ' F' + feedRate);
+        curX = left;
+        top -= effStep; if (bottom >= top) break;
+        lines.push('G1 X' + curX.toFixed(3) + ' Y' + bottom.toFixed(3) + ' F' + feedRate);
+        curY = bottom;
+        left += effStep; if (left >= right) break;
+        lines.push('G1 X' + left.toFixed(3) + ' Y' + curY.toFixed(3) + ' F' + feedRate);
+        curX = left;
+      }
+    }
+
+    function generatePlanerProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var mode = params.mode || 'depth';
+      var isThickness = (mode === 'thickness');
+      var isWasteboard = (mode === 'wasteboard');
+      var startingThickness = params.startingThickness || 0;
+      var width = params.width, height = params.height;
+      var overrun = isWasteboard ? 0 : (params.overrun || 0);
+      var depth = params.depth, depthOfCut = params.depthOfCut;
+      var bitDiameter = params.bitDiameter;
+      var stepoverPct = params.stepoverPct || 40;
+      var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
+      var pattern = params.pattern || 'zigzagY';
+
+      var bl = regionBottomLeft(params.origin || 'bottom-left', width, height);
+      var startX = bl.x - overrun;
+      var startY = bl.y - overrun;
+      var cutW = width + overrun * 2;
+      var cutH = height + overrun * 2;
+      var stepoverDist = bitDiameter * (stepoverPct / 100);
+
+      var modeLabels = { depth: 'Target Depth', thickness: 'Target Thickness', wasteboard: 'Wasteboard Surfacing' };
+      var extras = [
+        'Mode: ' + (modeLabels[mode] || mode),
+        'Region: ' + width + ' x ' + height + ' ' + unitsLabel
+      ];
+      if (isWasteboard) {
+        extras.push('Machine coordinates — set G54 origin to machine zero (0,0,0) before running');
+      }
+      if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + cutW + ' x ' + cutH + ')');
+      if (isThickness) {
+        extras.push('Starting Thickness: ' + startingThickness + unitsLabel +
+                    ', Target Thickness: ' + (startingThickness - depth) + unitsLabel);
+        extras.push('Amount to Remove: ' + depth + unitsLabel + ', Step: ' + depthOfCut + unitsLabel);
+      } else {
+        extras.push('Depth: ' + depth + unitsLabel + ', Step: ' + depthOfCut + unitsLabel);
+      }
+      extras.push('Stepover: ' + stepoverPct + '% (' + stepoverDist.toFixed(3) + unitsLabel + ')');
+      extras.push('Pattern: ' + pattern);
+      extras.push('Origin: ' + (params.origin || 'bottom-left'));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Planer' + (isThickness ? ' (thickness)' : isWasteboard ? ' (wasteboard)' : ''),
+        extraComments: extras
+      });
+
+      if (bitDiameter <= 0 || stepoverDist <= 0 || cutW <= 0 || cutH <= 0) {
+        lines.push('(WARNING: invalid parameters; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      if (isThickness && startingThickness - depth < 0) {
+        lines.push('(WARNING: target thickness goes below wasteboard — check Amount to Remove)');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      var safeHopWork = (isThickness ? (startingThickness + safeHopDelta) : safeHopDelta).toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        var z = isThickness ? (startingThickness - nextDepth) : -nextDepth;
+        lines.push('(Pass Z' + z.toFixed(3) + ')');
+        lines.push('G0 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+        lines.push('G0 Z' + safeHopWork);
+        var approachZ = isThickness
+          ? (startingThickness - currentDepth + 0.5).toFixed(3)
+          : slowPlungeStart;
+        lines.push('G0 Z' + approachZ);
+        lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
+        emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, stepoverDist, feedRate);
+        lines.push('G0 Z' + safeHopWork);
+        currentDepth = nextDepth;
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function generateJointerProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var length = params.length || 0;
+      var trimWidth = params.trimWidth || 0;
+      var numTrims = Math.max(1, Math.floor(params.numTrims || 1));
+      var totalTrim = trimWidth * numTrims;
+      var feedAxis = params.feedAxis || 'x';
+      var cutDirection = params.cutDirection || 'conventional';
+      var origin = params.origin || (feedAxis === 'x' ? 'front' : 'left');
+      var stepDir = (origin === 'front' || origin === 'left') ? 1 : -1;
+      var overrun = params.overrun || 0;
+      var depth = params.depth, depthOfCut = params.depthOfCut;
+      var bitDiameter = params.bitDiameter;
+      var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
+
+      var feedStart = -overrun;
+      var feedEnd = length + overrun;
+      if (cutDirection === 'climb') {
+        var tmp = feedStart; feedStart = feedEnd; feedEnd = tmp;
+      }
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Jointer',
+        extraComments: [
+          'Length: ' + length + unitsLabel + ' along ' + feedAxis.toUpperCase() + '-axis',
+          'Trim: ' + trimWidth + unitsLabel + ' × ' + numTrims +
+            ' pass' + (numTrims === 1 ? '' : 'es') + ' = ' + totalTrim + unitsLabel + ' total',
+          'Cut Direction: ' + cutDirection,
+          'Side to Cut: ' + origin,
+          'Overrun: ' + overrun + unitsLabel,
+          'Depth: ' + depth + unitsLabel + ', Step: ' + depthOfCut + unitsLabel
+        ]
+      });
+
+      if (bitDiameter <= 0 || trimWidth <= 0 || numTrims < 1 || length <= 0) {
+        lines.push('(WARNING: invalid parameters; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        var z = -nextDepth;
+        lines.push('(Pass Z' + z.toFixed(3) + ')');
+        for (var i = 0; i < numTrims; i++) {
+          var stepOffset = i * trimWidth * stepDir;
+          var fromX, fromY, toX, toY;
+          if (feedAxis === 'x') {
+            fromX = feedStart; fromY = stepOffset;
+            toX = feedEnd;     toY = stepOffset;
+          } else {
+            fromX = stepOffset; fromY = feedStart;
+            toX = stepOffset;   toY = feedEnd;
+          }
+          lines.push('(Trim ' + (i + 1) + '/' + numTrims + ')');
+          lines.push('G0 X' + fromX.toFixed(3) + ' Y' + fromY.toFixed(3));
+          lines.push('G0 Z' + safeHeight);
+          lines.push('G0 Z' + slowPlungeStart);
+          lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
+          lines.push('G1 X' + toX.toFixed(3) + ' Y' + toY.toFixed(3) + ' F' + feedRate);
+          lines.push('G0 Z' + safeHeight);
+        }
+        currentDepth = nextDepth;
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    // ===== CUTTER =========================================================
+    // Cold-saw parting cut. Tool feeds along FEED axis for cuttingLength;
+    // cut line at perpendicular = target + bitRadius (signed by origin).
+    function generateCutterProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var feedAxis = params.axis || 'x';
+      var target = params.targetSize || 0;
+      var cuttingLength = params.cuttingLength || 0;
+      var cutDirection = params.cutDirection || 'conventional';
+      var origin = params.origin || (feedAxis === 'x' ? 'front' : 'left');
+      var depth = params.depth, depthOfCut = params.depthOfCut;
+      var bitDiameter = params.bitDiameter;
+      var bitRadius = bitDiameter / 2;
+      var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
+
+      var perpAxis = feedAxis === 'x' ? 'y' : 'x';
+      var perpDir = (origin === 'front' || origin === 'left') ? 1 : -1;
+      var cutPos = perpDir * (target + bitRadius);
+      var feedFrom = 0;
+      var feedTo = cuttingLength;
+      if (cutDirection === 'climb') {
+        var tmp = feedFrom; feedFrom = feedTo; feedTo = tmp;
+      }
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Cutter',
+        extraComments: [
+          'Cut Axis: ' + feedAxis.toUpperCase() +
+            ' (tool travels ' + cuttingLength + unitsLabel + ')',
+          'Cut Line: ' + perpAxis.toUpperCase() + '=' + cutPos.toFixed(3) + unitsLabel +
+            ' (target ' + target + unitsLabel + ' + bit radius, sign from origin)',
+          'Cut Direction: ' + cutDirection,
+          'Origin (start side): ' + origin,
+          'Depth: ' + depth + unitsLabel + ', Step: ' + depthOfCut + unitsLabel
+        ]
+      });
+
+      if (bitDiameter <= 0 || target <= 0 || cuttingLength <= 0) {
+        lines.push('(WARNING: invalid parameters; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        var z = -nextDepth;
+        var fromX, fromY, toX, toY;
+        if (feedAxis === 'x') {
+          fromX = feedFrom; toX = feedTo; fromY = cutPos; toY = cutPos;
+        } else {
+          fromY = feedFrom; toY = feedTo; fromX = cutPos; toX = cutPos;
+        }
+        lines.push('(Pass Z' + z.toFixed(3) + ')');
+        lines.push('G0 X' + fromX.toFixed(3) + ' Y' + fromY.toFixed(3));
+        lines.push('G0 Z' + safeHeight);
+        lines.push('G0 Z' + slowPlungeStart);
+        lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
+        lines.push('G1 X' + toX.toFixed(3) + ' Y' + toY.toFixed(3) + ' F' + feedRate);
+        lines.push('G0 Z' + safeHeight);
+        currentDepth = nextDepth;
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    return {
+      generateRectangleProgram: generateRectangleProgram,
+      generateCircleProgram: generateCircleProgram,
+      generatePlanerProgram: generatePlanerProgram,
+      generateJointerProgram: generateJointerProgram,
+      generateCutterProgram: generateCutterProgram
+    };
+  }
+
+  init();
+})();
+</script>

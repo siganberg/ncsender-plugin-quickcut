@@ -1,0 +1,120 @@
+name: Build and Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Plugin Release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests
+        run: npm test
+
+      - name: Get plugin info
+        id: plugin_info
+        run: |
+          PLUGIN_ID=$(jq -r '.id' manifest.json)
+          PLUGIN_NAME=$(jq -r '.name' manifest.json)
+          PLUGIN_VERSION=$(jq -r '.version' manifest.json)
+          TAG="${{ github.ref_name }}"
+
+          echo "PLUGIN_ID=$PLUGIN_ID" >> $GITHUB_OUTPUT
+          echo "PLUGIN_NAME=$PLUGIN_NAME" >> $GITHUB_OUTPUT
+          echo "PLUGIN_VERSION=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+
+          echo "Plugin ID: $PLUGIN_ID"
+          echo "Plugin Name: $PLUGIN_NAME"
+          echo "Plugin Version: $PLUGIN_VERSION"
+          echo "Tag: $TAG"
+
+      - name: Create plugin package
+        run: |
+          mkdir -p dist
+          PLUGIN_ID="${{ steps.plugin_info.outputs.PLUGIN_ID }}"
+          TAG="${{ steps.plugin_info.outputs.TAG }}"
+          ZIP_NAME="${PLUGIN_ID}_${TAG}.zip"
+
+          # Create a temporary directory for the plugin
+          mkdir -p "tmp/$PLUGIN_ID"
+
+          # Copy all files except .git, .github, .scripts, dist, and latest_release.md
+          rsync -av --exclude='.git' --exclude='.github' --exclude='.scripts' --exclude='dist' --exclude='latest_release.md' --exclude='tmp' ./ "tmp/$PLUGIN_ID/"
+
+          # Create zip from the temporary directory
+          cd tmp
+          zip -r "../dist/$ZIP_NAME" "$PLUGIN_ID"
+          cd ..
+
+          # Cleanup
+          rm -rf tmp
+
+          echo "Created package: dist/$ZIP_NAME"
+          ls -lh dist/
+
+      - name: Get release notes from latest_release.md
+        id: release_notes
+        run: |
+          if [ -f "latest_release.md" ]; then
+            cp latest_release.md release-notes.md
+            echo "Release notes content:"
+            cat release-notes.md
+            echo "---END RELEASE NOTES---"
+          else
+            echo "⚠️ latest_release.md not found, using default message"
+            echo "Release ${{ github.ref_name }}" > release-notes.md
+          fi
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PLUGIN_NAME="${{ steps.plugin_info.outputs.PLUGIN_NAME }}"
+          TAG="${{ steps.plugin_info.outputs.TAG }}"
+
+          gh release create "$TAG" \
+            --repo ${{ github.repository }} \
+            --title "$PLUGIN_NAME $TAG" \
+            --notes-file release-notes.md \
+            dist/*.zip
+
+      - name: Announce on Discord
+        if: success() && env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          PLUGIN_NAME="${{ steps.plugin_info.outputs.PLUGIN_NAME }}"
+          TAG="${{ steps.plugin_info.outputs.TAG }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+
+          curl -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🔌 ${PLUGIN_NAME} ${TAG} Released!\",
+                \"description\": \"A new version of the ${PLUGIN_NAME} plugin is now available.\",
+                \"url\": \"${RELEASE_URL}\",
+                \"color\": 1941124,
+                \"fields\": [
+                  {
+                    \"name\": \"Download\",
+                    \"value\": \"[View Release](${RELEASE_URL})\"
+                  }
+                ]
+              }]
+            }" \
+            "$DISCORD_WEBHOOK_URL"
