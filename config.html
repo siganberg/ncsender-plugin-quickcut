@@ -746,7 +746,8 @@
                   <label for="qc-rect-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-rect-pattern-style">
                     <option value="linear" selected>Linear</option>
-                    <option value="circular">Circular</option>
+                    <option value="circular">Circular (Identical)</option>
+                    <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
                 </div>
               </div>
@@ -1826,6 +1827,9 @@
 
   // Pattern form is in DISPLAY units for distances; angle/counts unitless.
   // `prefix` is 'rect' or 'circ' — inputs are named qc-<prefix>-pattern-*.
+  // Style values: 'linear' | 'circular' | 'circular-follow'.
+  // 'circular-follow' rotates each instance to point outward from the
+  // pattern center (rest is identical to 'circular').
   function readPatternForm(prefix) {
     var pre = 'qc-' + prefix + '-pattern-';
     return {
@@ -1852,11 +1856,12 @@
     $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
     if (enabled) {
       var style = $('qc-' + prefix + '-pattern-style').value;
+      var isCircular = style === 'circular' || style === 'circular-follow';
       var body = $('qc-' + prefix + '-pattern-body');
       var linear = body.querySelector('.qc-pattern-linear-fields');
       var circ = body.querySelector('.qc-pattern-circular-fields');
       if (linear) linear.style.display = (style === 'linear') ? '' : 'none';
-      if (circ)   circ.style.display   = (style === 'circular') ? '' : 'none';
+      if (circ)   circ.style.display   = isCircular ? '' : 'none';
     }
   }
 
@@ -2079,9 +2084,14 @@
 
   function packPattern(p) {
     p = p || {};
+    // Legacy migration: earlier build used { style: 'circular', rotate: true }
+    // — collapse into the new 'circular-follow' style so saved settings
+    // stay clean going forward.
+    var style = p.style || 'linear';
+    if (style === 'circular' && p.rotate) style = 'circular-follow';
     return {
       enabled:    !!p.enabled,
-      style:      p.style || 'linear',
+      style:      style,
       xDist:      displayToMm(p.xDist),
       yDist:      displayToMm(p.yDist),
       xCount:     p.xCount,
@@ -2299,39 +2309,60 @@
       return lines;
     }
 
+    function rotatePoint(px, py, x, y, deg) {
+      if (!deg) return { x: x, y: y };
+      var rad = deg * Math.PI / 180;
+      var cos = Math.cos(rad), sin = Math.sin(rad);
+      var dx = x - px, dy = y - py;
+      return { x: px + dx * cos - dy * sin, y: py + dx * sin + dy * cos };
+    }
+
     function emitRectanglePath(lines, geom, feedRate) {
       var cx = geom.cx, cy = geom.cy;
       var halfW = geom.halfW, halfH = geom.halfH;
       var cornerR = geom.cornerR;
+      var rot = geom.rotationDeg || 0;
       var xR = cx + halfW, xL = cx - halfW;
       var yT = cy + halfH, yB = cy - halfH;
       var startX = cx, startY = yB;
       var feedSuffix = ' F' + feedRate;
 
+      function g1(x, y, withFeed) {
+        var p = rotatePoint(cx, cy, x, y, rot);
+        lines.push('G1 X' + p.x.toFixed(3) + ' Y' + p.y.toFixed(3) + (withFeed ? feedSuffix : ''));
+      }
+      function g3(endX, endY, ctrX, ctrY, prevX, prevY) {
+        var e = rotatePoint(cx, cy, endX, endY, rot);
+        var c = rotatePoint(cx, cy, ctrX, ctrY, rot);
+        var s = rotatePoint(cx, cy, prevX, prevY, rot);
+        lines.push('G3 X' + e.x.toFixed(5) + ' Y' + e.y.toFixed(5) +
+                   ' I' + (c.x - s.x).toFixed(5) + ' J' + (c.y - s.y).toFixed(5));
+      }
+
       if (cornerR <= 0) {
-        lines.push('G1 X' + xR.toFixed(3) + ' Y' + yB.toFixed(3) + feedSuffix);
-        lines.push('G1 X' + xR.toFixed(3) + ' Y' + yT.toFixed(3));
-        lines.push('G1 X' + xL.toFixed(3) + ' Y' + yT.toFixed(3));
-        lines.push('G1 X' + xL.toFixed(3) + ' Y' + yB.toFixed(3));
-        lines.push('G1 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+        g1(xR, yB, true);
+        g1(xR, yT, false);
+        g1(xL, yT, false);
+        g1(xL, yB, false);
+        g1(startX, startY, false);
         return;
       }
 
       var xRt = xR - cornerR, xLt = xL + cornerR;
       var yTt = yT - cornerR, yBt = yB + cornerR;
 
-      lines.push('G1 X' + xRt.toFixed(3) + ' Y' + yB.toFixed(3) + feedSuffix);
-      lines.push('G3 X' + xR.toFixed(5) + ' Y' + yBt.toFixed(5) + ' I0 J' + cornerR.toFixed(5));
-      lines.push('G1 X' + xR.toFixed(3) + ' Y' + yTt.toFixed(3));
-      lines.push('G3 X' + xRt.toFixed(5) + ' Y' + yT.toFixed(5) + ' I' + (-cornerR).toFixed(5) + ' J0');
-      lines.push('G1 X' + xLt.toFixed(3) + ' Y' + yT.toFixed(3));
-      lines.push('G3 X' + xL.toFixed(5) + ' Y' + yTt.toFixed(5) + ' I0 J' + (-cornerR).toFixed(5));
-      lines.push('G1 X' + xL.toFixed(3) + ' Y' + yBt.toFixed(3));
-      lines.push('G3 X' + xLt.toFixed(5) + ' Y' + yB.toFixed(5) + ' I' + cornerR.toFixed(5) + ' J0');
-      lines.push('G1 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+      g1(xRt, yB, true);
+      g3(xR, yBt, xRt, yBt, xRt, yB);
+      g1(xR, yTt, false);
+      g3(xRt, yT, xRt, yTt, xR, yTt);
+      g1(xLt, yT, false);
+      g3(xL, yTt, xLt, yTt, xLt, yT);
+      g1(xL, yBt, false);
+      g3(xLt, yB, xLt, yBt, xL, yBt);
+      g1(startX, startY, false);
     }
 
-    function computeRectangleGeom(params, offsetX, offsetY) {
+    function computeRectangleGeom(params, offsetX, offsetY, rotationDeg) {
       var width = params.width, height = params.height;
       var cornerRadius = Math.max(0, params.cornerRadius || 0);
       var cutType = params.cutType || 'inner';
@@ -2360,12 +2391,13 @@
         cx: off.x + (offsetX || 0), cy: off.y + (offsetY || 0),
         halfW: pathHalfW, halfH: pathHalfH,
         cornerR: cornerR,
-        toolRadius: toolRadius
+        toolRadius: toolRadius,
+        rotationDeg: rotationDeg || 0
       };
     }
 
     function computePatternPositions(pattern) {
-      if (!pattern || !pattern.enabled) return [{ x: 0, y: 0 }];
+      if (!pattern || !pattern.enabled) return [{ x: 0, y: 0, rotDeg: 0 }];
       var positions = [];
       if (pattern.style === 'linear') {
         var xCount = Math.max(1, Math.floor(pattern.xCount || 1));
@@ -2374,24 +2406,29 @@
         var yDist = pattern.yDist || 0;
         for (var j = 0; j < yCount; j++) {
           for (var i = 0; i < xCount; i++) {
-            positions.push({ x: i * xDist, y: j * yDist });
+            positions.push({ x: i * xDist, y: j * yDist, rotDeg: 0 });
           }
         }
         return positions;
       }
-      if (pattern.style === 'circular') {
+      if (pattern.style === 'circular' || pattern.style === 'circular-follow') {
         var count = Math.max(1, Math.floor(pattern.count || 1));
         var radius = pattern.radius || 0;
         var startAngle = pattern.startAngle || 0;
         var stepDeg = 360 / count;
+        var doRotate = pattern.style === 'circular-follow' || !!pattern.rotate;
         for (var k = 0; k < count; k++) {
           var deg = startAngle + stepDeg * k;
           var rad = deg * Math.PI / 180;
-          positions.push({ x: radius * Math.cos(rad), y: radius * Math.sin(rad) });
+          positions.push({
+            x: radius * Math.cos(rad),
+            y: radius * Math.sin(rad),
+            rotDeg: doRotate ? deg : 0
+          });
         }
         return positions;
       }
-      return [{ x: 0, y: 0 }];
+      return [{ x: 0, y: 0, rotDeg: 0 }];
     }
 
     function patternDescription(p) {
@@ -2400,7 +2437,8 @@
         return 'Linear ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
                ' (dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0) + ')';
       }
-      return 'Circular n=' + (p.count || 1) +
+      var follow = p.style === 'circular-follow' || !!p.rotate;
+      return 'Circular' + (follow ? ' (Path Direction)' : ' (Identical)') + ' n=' + (p.count || 1) +
              ' r=' + (p.radius || 0) + ' start=' + (p.startAngle || 0) + '°';
     }
 
@@ -2436,10 +2474,11 @@
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
         }
-        emitOneRectangle(lines, params, pos.x, pos.y);
+        emitOneRectangle(lines, params, pos.x, pos.y, pos.rotDeg);
       }
 
       lines.push('');
@@ -2447,14 +2486,15 @@
       return lines.join('\n');
     }
 
-    function emitOneRectangle(lines, params, offsetX, offsetY) {
-      var geom = computeRectangleGeom(params, offsetX, offsetY);
+    function emitOneRectangle(lines, params, offsetX, offsetY, rotationDeg) {
+      var geom = computeRectangleGeom(params, offsetX, offsetY, rotationDeg);
       var depth = params.depth;
       var depthOfCut = params.depthOfCut;
       var feedRate = params.feedRate;
       var plungeFeedRate = params.plungeFeedRate;
 
-      var startX = geom.cx, startY = geom.cy - geom.halfH;
+      var s0 = rotatePoint(geom.cx, geom.cy, geom.cx, geom.cy - geom.halfH, geom.rotationDeg);
+      var startX = s0.x, startY = s0.y;
       lines.push('G0 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
       var safeHeight = safeHopDelta.toFixed(3);
       lines.push('G0 Z' + safeHeight);
@@ -2513,10 +2553,11 @@
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
         }
-        emitOneRectangleClearing(lines, params, pos.x, pos.y, step);
+        emitOneRectangleClearing(lines, params, pos.x, pos.y, step, pos.rotDeg);
       }
 
       lines.push('');
@@ -2524,8 +2565,8 @@
       return lines.join('\n');
     }
 
-    function emitOneRectangleClearing(lines, params, offsetX, offsetY, step) {
-      var base = computeRectangleGeom(params, offsetX, offsetY);
+    function emitOneRectangleClearing(lines, params, offsetX, offsetY, step, rotationDeg) {
+      var base = computeRectangleGeom(params, offsetX, offsetY, rotationDeg);
       var depth = params.depth;
       var depthOfCut = params.depthOfCut;
       var feedRate = params.feedRate;
@@ -2539,7 +2580,10 @@
         if (hW <= 0 || hH <= 0) break;
         var cR = Math.max(0, base.cornerR - offset);
         cR = Math.min(cR, Math.min(hW, hH));
-        levels.push({ cx: base.cx, cy: base.cy, halfW: hW, halfH: hH, cornerR: cR });
+        levels.push({
+          cx: base.cx, cy: base.cy, halfW: hW, halfH: hH, cornerR: cR,
+          rotationDeg: base.rotationDeg
+        });
         if (hW <= base.toolRadius && hH <= base.toolRadius) break;
         offset += step;
       }
@@ -2591,9 +2635,10 @@
 
         if (levels.length > 0) {
           var inner = levels[0];
-          var innerStartX = inner.cx;
-          var innerStartY = inner.cy - inner.halfH;
-          lines.push('G1 X' + innerStartX.toFixed(3) + ' Y' + innerStartY.toFixed(3) +
+          var innerStart = rotatePoint(inner.cx, inner.cy,
+                                       inner.cx, inner.cy - inner.halfH,
+                                       inner.rotationDeg || 0);
+          lines.push('G1 X' + innerStart.x.toFixed(3) + ' Y' + innerStart.y.toFixed(3) +
                      ' F' + plungeFeedRate);
 
           for (var i = 0; i < levels.length; i++) {
@@ -2601,9 +2646,10 @@
             emitRectanglePath(lines, lvl, feedRate);
             if (i < levels.length - 1) {
               var next = levels[i + 1];
-              var nextStartX = next.cx;
-              var nextStartY = next.cy - next.halfH;
-              lines.push('G1 X' + nextStartX.toFixed(3) + ' Y' + nextStartY.toFixed(3) +
+              var nextStart = rotatePoint(next.cx, next.cy,
+                                          next.cx, next.cy - next.halfH,
+                                          next.rotationDeg || 0);
+              lines.push('G1 X' + nextStart.x.toFixed(3) + ' Y' + nextStart.y.toFixed(3) +
                          ' F' + plungeFeedRate);
             }
           }

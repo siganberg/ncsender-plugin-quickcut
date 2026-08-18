@@ -398,6 +398,30 @@ test('linear pattern with negative distance reverses direction', () => {
   assert.match(gcode, /\(Instance 3\/3 at X-60\.000 Y0\.000\)/);
 });
 
+test('circular (follow) pattern: instances rotate to match their position angle', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 20, height: 10, cornerRadius: 0, cutType: 'outer',
+    origin: 'center', bitDiameter: 0, depth: 1, depthOfCut: 1,
+    pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 40, startAngle: 0 }
+  }));
+  assert.match(gcode, /\(Instance 1\/4 at X40\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000°\)/);
+  assert.match(gcode, /Pattern: Circular \(Path Direction\) n=4 r=40 start=0°/);
+});
+
+test('circular pattern (no follow) leaves instances un-rotated', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 20, height: 10, cornerRadius: 0, cutType: 'outer',
+    origin: 'center', bitDiameter: 0, depth: 1, depthOfCut: 1,
+    pattern: { enabled: true, style: 'circular', count: 4, radius: 40, startAngle: 0 }
+  }));
+  // Instance comment should NOT include a rot=... suffix.
+  assert.ok(!/Instance 2\/4[^)]*rot=/.test(gcode),
+    'plain Circular must not rotate instances');
+});
+
 test('circular pattern places instances on the polar circle', () => {
   const gen = makeQuickCutGenerator(false).generateRectangleProgram;
   const gcode = gen(baseParams({
