@@ -1,4 +1,5 @@
 ## What's Changed
 
 ### ✨ New Features
-- Added a Circular (Path Direction) pattern for rectangles, giving you a new way to control how the tool travels around rectangular cuts
+- New Honeycomb pattern for creating hexagonal cut layouts
+- Optional Symmetric Ends setting for Honeycomb, giving evenly balanced edges across the pattern
