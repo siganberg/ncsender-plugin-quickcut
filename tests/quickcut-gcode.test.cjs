@@ -166,6 +166,42 @@ test('origin=back-left puts back-left of bounding box at (0,0)', () => {
   assert.match(gcode, /G0 X20\.000 Y-20\.000/);
 });
 
+test('origin=back-center puts back-center of bounding box at (0,0)', () => {
+  // Center offset = (0, -h/2) = (0, -10). Start = (cx, cy - h/2) = (0, -20).
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 40, height: 20, origin: 'back-center', cornerRadius: 0, cutType: 'outer', bitDiameter: 0
+  }));
+  assert.match(gcode, /G0 X0\.000 Y-20\.000/);
+});
+
+test('origin=front-center puts front-center of bounding box at (0,0)', () => {
+  // Center offset = (0, +h/2) = (0, 10). Start = (cx, cy - h/2) = (0, 0).
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 40, height: 20, origin: 'front-center', cornerRadius: 0, cutType: 'outer', bitDiameter: 0
+  }));
+  assert.match(gcode, /G0 X0\.000 Y0\.000/);
+});
+
+test('origin=left-center puts left-center of bounding box at (0,0)', () => {
+  // Center offset = (+w/2, 0) = (20, 0). Start = (cx, cy - h/2) = (20, -10).
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 40, height: 20, origin: 'left-center', cornerRadius: 0, cutType: 'outer', bitDiameter: 0
+  }));
+  assert.match(gcode, /G0 X20\.000 Y-10\.000/);
+});
+
+test('origin=right-center puts right-center of bounding box at (0,0)', () => {
+  // Center offset = (-w/2, 0) = (-20, 0). Start = (cx, cy - h/2) = (-20, -10).
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 40, height: 20, origin: 'right-center', cornerRadius: 0, cutType: 'outer', bitDiameter: 0
+  }));
+  assert.match(gcode, /G0 X-20\.000 Y-10\.000/);
+});
+
 // ---------- Depth passes ----------
 test('depth passes: flat multi-pass, one plunge + one lap per DOC step', () => {
   const gen = makeQuickCutGenerator(false).generateRectangleProgram;

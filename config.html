@@ -523,6 +523,72 @@
   .qc-row-3 { grid-template-columns: repeat(3, 1fr); }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
 
+  /* Graphical origin picker — 3x3 grid of dots on the workpiece
+     bounding box. Corners + center are the primary anchors (large,
+     dark). Edge midpoints are the four "extra" positions (smaller,
+     accent-tinted) so the visual weight tells users which options are
+     traditional at a glance. */
+  .qc-origin-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .qc-origin-grid {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface-muted, var(--color-surface));
+  }
+  /* Circle uses a dashed outline for its bounding box and adds a
+     solid inscribed circle inside so users see the actual shape.
+     The dashed square is the abstract reference frame the origin
+     picker anchors to; the solid circle is what will be cut. */
+  .qc-origin-grid[data-picker-for="qc-circ-origin"] {
+    border-style: dashed;
+    border-color: var(--color-text-secondary, #888);
+  }
+  .qc-origin-grid[data-picker-for="qc-circ-origin"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--color-text-secondary, #888);
+    border-radius: 50%;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+  .qc-origin-point {
+    position: absolute;
+    border-radius: 50%;
+    cursor: pointer;
+    background: var(--color-text-secondary, #888);
+    transform: translate(-50%, -50%);
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .qc-origin-point.qc-corner { width: 14px; height: 14px; }
+  .qc-origin-point.qc-edge   { width: 9px;  height: 9px;  }
+  .qc-origin-point:hover {
+    background: var(--color-accent);
+  }
+  .qc-origin-point.active {
+    background: var(--color-accent);
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  .qc-origin-point[data-origin="back-left"]     { top: 0;    left: 0;    }
+  .qc-origin-point[data-origin="back-center"]   { top: 0;    left: 50%;  }
+  .qc-origin-point[data-origin="back-right"]    { top: 0;    left: 100%; }
+  .qc-origin-point[data-origin="left-center"]   { top: 50%;  left: 0;    }
+  .qc-origin-point[data-origin="center"]        { top: 50%;  left: 50%;  }
+  .qc-origin-point[data-origin="right-center"]  { top: 50%;  left: 100%; }
+  .qc-origin-point[data-origin="front-left"]    { top: 100%; left: 0;    }
+  .qc-origin-point[data-origin="front-center"]  { top: 100%; left: 50%;  }
+  .qc-origin-point[data-origin="front-right"]   { top: 100%; left: 100%; }
+
   .qc-field {
     display: flex;
     flex-direction: column;
@@ -709,14 +775,8 @@
             </div>
             <div class="qc-row-3">
               <div class="qc-field">
-                <label for="qc-rect-origin">Origin</label>
-                <select class="qc-select" id="qc-rect-origin">
-                  <option value="center">Center</option>
-                  <option value="back-left">Back-Left</option>
-                  <option value="back-right">Back-Right</option>
-                  <option value="front-left">Front-Left</option>
-                  <option value="front-right">Front-Right</option>
-                </select>
+                <label>Origin</label>
+                <div id="qc-rect-origin-picker"></div>
               </div>
               <div class="qc-field">
                 <label for="qc-rect-cut-type">Cut Type</label>
@@ -838,18 +898,12 @@
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-row-3">
               <div class="qc-field">
-                <label for="qc-circ-diameter">Diameter</label>
-                <input class="qc-input" type="number" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
+                <label>Origin</label>
+                <div id="qc-circ-origin-picker"></div>
               </div>
               <div class="qc-field">
-                <label for="qc-circ-origin">Origin</label>
-                <select class="qc-select" id="qc-circ-origin">
-                  <option value="center">Center</option>
-                  <option value="back-left">Back-Left</option>
-                  <option value="back-right">Back-Right</option>
-                  <option value="front-left">Front-Left</option>
-                  <option value="front-right">Front-Right</option>
-                </select>
+                <label for="qc-circ-diameter">Diameter</label>
+                <input class="qc-input" type="number" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
               </div>
               <div class="qc-field">
                 <label for="qc-circ-cut-type">Cut Type</label>
@@ -1014,14 +1068,8 @@
             </div>
             <div class="qc-row-3">
               <div class="qc-field">
-                <label for="qc-plan-origin">Origin</label>
-                <select class="qc-select" id="qc-plan-origin">
-                  <option value="front-left" selected>Front-Left</option>
-                  <option value="center">Center</option>
-                  <option value="back-left">Back-Left</option>
-                  <option value="back-right">Back-Right</option>
-                  <option value="front-right">Front-Right</option>
-                </select>
+                <label>Origin</label>
+                <div id="qc-plan-origin-picker"></div>
               </div>
               <div class="qc-field">
                 <label for="qc-plan-pattern">Pattern</label>
@@ -1266,6 +1314,7 @@
     } catch (err) {
       console.warn('[QuickCut] firmware fetch failed, wasteboard limits unknown:', err);
     }
+    renderOriginPickers();
     hydrateSavedSettings();
     updateUnitBadges();
     wireTabs();
@@ -1704,7 +1753,7 @@
       widthEl.parentElement.style.opacity = '0.6';
       heightEl.parentElement.style.opacity = '0.6';
       if (originWrap) { originWrap.style.opacity = '0.4'; originWrap.style.pointerEvents = 'none'; }
-      $('qc-plan-origin').value = 'front-left';
+      setOriginPickerValue('qc-plan-origin', 'front-left');
     } else {
       widthEl.readOnly = false; heightEl.readOnly = false;
       widthEl.parentElement.style.opacity = '';
@@ -1929,6 +1978,91 @@
       .replace(/^top-/, 'back-');
   }
 
+  // Renders the 3x3 graphical origin picker. `inputId` is the hidden
+  // input generator code reads via $(id).value — kept as an <input>
+  // (not a data-* attribute) so downstream reads work unchanged.
+  var ORIGIN_CORNERS = ['back-left', 'back-right', 'front-left', 'front-right', 'center'];
+  var ORIGIN_EDGES   = ['back-center', 'left-center', 'right-center', 'front-center'];
+  var ORIGIN_ALL     = ORIGIN_CORNERS.concat(ORIGIN_EDGES);
+  function originPickerHtml(inputId, selected, cornersOnly) {
+    var sel = selected;
+    var keys = cornersOnly ? ORIGIN_CORNERS : ORIGIN_ALL;
+    var html = '' +
+      '<div class="qc-origin-picker">' +
+        '<div class="qc-origin-grid" data-picker-for="' + inputId + '">' +
+          '<input type="hidden" id="' + inputId + '" value="' + sel + '">';
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var kind = ORIGIN_CORNERS.indexOf(key) >= 0 ? 'qc-corner' : 'qc-edge';
+      html += '<div class="qc-origin-point ' + kind +
+              (sel === key ? ' active' : '') +
+              '" data-origin="' + key + '"></div>';
+    }
+    html +=   '</div>' +
+      '</div>';
+    return html;
+  }
+
+  // Wires click handlers on every origin picker present in the DOM.
+  // Safe to call multiple times — re-binds by walking `.qc-origin-grid`
+  // elements each time (tabs are re-rendered on switch).
+  function wireOriginPickers() {
+    var grids = document.querySelectorAll('.qc-origin-grid');
+    for (var g = 0; g < grids.length; g++) {
+      (function(grid) {
+        var inputId = grid.getAttribute('data-picker-for');
+        var input = document.getElementById(inputId);
+        var points = grid.querySelectorAll('.qc-origin-point');
+        for (var p = 0; p < points.length; p++) {
+          (function(pt) {
+            pt.addEventListener('click', function() {
+              for (var q = 0; q < points.length; q++) points[q].classList.remove('active');
+              pt.classList.add('active');
+              if (input) {
+                input.value = pt.getAttribute('data-origin');
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            });
+          })(points[p]);
+        }
+      })(grids[g]);
+    }
+  }
+
+  // Renders every origin picker placeholder present in the DOM.
+  // Called once at init — panels aren't re-rendered on tab switch, so
+  // the pickers stay in place across the session.
+  function renderOriginPickers() {
+    var slots = [
+      { host: 'qc-rect-origin-picker', input: 'qc-rect-origin', def: 'center'     },
+      { host: 'qc-circ-origin-picker', input: 'qc-circ-origin', def: 'center'     },
+      // Planer only offers the 4 corners + center — edge midpoints
+      // don't map to a useful surfacing start position.
+      { host: 'qc-plan-origin-picker', input: 'qc-plan-origin', def: 'front-left', cornersOnly: true }
+    ];
+    for (var i = 0; i < slots.length; i++) {
+      var host = document.getElementById(slots[i].host);
+      if (host) host.innerHTML = originPickerHtml(slots[i].input, slots[i].def, slots[i].cornersOnly);
+    }
+    wireOriginPickers();
+  }
+
+  // Programmatic setter — mirrors what a click would do. Callers use
+  // this when they need to force a value (e.g. wasteboard mode locks
+  // planer origin to front-left).
+  function setOriginPickerValue(inputId, value) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    input.value = value;
+    var grid = document.querySelector('.qc-origin-grid[data-picker-for="' + inputId + '"]');
+    if (!grid) return;
+    var points = grid.querySelectorAll('.qc-origin-point');
+    for (var p = 0; p < points.length; p++) {
+      if (points[p].getAttribute('data-origin') === value) points[p].classList.add('active');
+      else points[p].classList.remove('active');
+    }
+  }
+
   function hydrateSavedSettings() {
     var saved = initialConfig || {};
     var common = saved.common || {};
@@ -1954,7 +2088,7 @@
     if (rect.height != null)        $('qc-rect-height').value = roundDisplay(mmToDisplay(rect.height));
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
-    if (rect.origin)                $('qc-rect-origin').value = migrateOrigin(rect.origin);
+    if (rect.origin)                setOriginPickerValue('qc-rect-origin', migrateOrigin(rect.origin));
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
     if (rect.depthOfCut != null)    $('qc-rect-step').value   = roundDisplay(mmToDisplay(rect.depthOfCut));
     // Stepover is a percent — unitless, stored as-is.
@@ -1964,7 +2098,7 @@
     var circ = saved.circle || {};
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
     if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
-    if (circ.origin)                $('qc-circ-origin').value = migrateOrigin(circ.origin);
+    if (circ.origin)                setOriginPickerValue('qc-circ-origin', migrateOrigin(circ.origin));
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
@@ -1976,7 +2110,7 @@
     if (plan.width != null)      $('qc-plan-width').value    = roundDisplay(mmToDisplay(plan.width));
     if (plan.height != null)     $('qc-plan-height').value   = roundDisplay(mmToDisplay(plan.height));
     if (plan.overrun != null)    $('qc-plan-overrun').value  = roundDisplay(mmToDisplay(plan.overrun));
-    if (plan.origin)             $('qc-plan-origin').value   = migrateOrigin(plan.origin);
+    if (plan.origin)             setOriginPickerValue('qc-plan-origin', migrateOrigin(plan.origin));
     if (plan.pattern)            $('qc-plan-pattern').value  = plan.pattern;
     if (plan.stepoverPct != null) $('qc-plan-stepover').value = plan.stepoverPct;
     if (plan.depth != null)      $('qc-plan-depth').value    = roundDisplay(mmToDisplay(plan.depth));
@@ -2292,13 +2426,20 @@
     }
 
     function originOffset(origin, width, height) {
+      // Returns where the bounding-box center sits relative to the
+      // named origin point. `back` = +Y, `front` = -Y, matching the
+      // CNC bed convention used across the rest of QuickCut.
       switch (origin) {
-        case 'center':       return { x: 0, y: 0 };
+        case 'center':        return { x:  0,         y:  0          };
         case 'back-left':     return { x:  width / 2, y: -height / 2 };
+        case 'back-center':   return { x:  0,         y: -height / 2 };
         case 'back-right':    return { x: -width / 2, y: -height / 2 };
-        case 'front-left':  return { x:  width / 2, y:  height / 2 };
-        case 'front-right': return { x: -width / 2, y:  height / 2 };
-        default:             return { x: 0, y: 0 };
+        case 'left-center':   return { x:  width / 2, y:  0          };
+        case 'right-center':  return { x: -width / 2, y:  0          };
+        case 'front-left':    return { x:  width / 2, y:  height / 2 };
+        case 'front-center':  return { x:  0,         y:  height / 2 };
+        case 'front-right':   return { x: -width / 2, y:  height / 2 };
+        default:              return { x:  0,         y:  0          };
       }
     }
 
