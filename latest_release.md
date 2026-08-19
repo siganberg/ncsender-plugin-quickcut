@@ -1,5 +1,5 @@
 ## What's Changed
 
-### ✨ New Features
-- New Honeycomb pattern for creating hexagonal cut layouts
-- Optional Symmetric Ends setting for Honeycomb, giving evenly balanced edges across the pattern
+### 🔧 Improvements
+- Honeycomb pattern now spaces shifted rows correctly, advancing by half the row pitch for true staggered spacing
+- Row count now refers to primary rows, making pattern sizing easier to predict
