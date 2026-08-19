@@ -2445,14 +2445,34 @@
         var yCount = Math.max(1, Math.floor(pattern.yCount || 1));
         var xDist = pattern.xDist || 0;
         var yDist = pattern.yDist || 0;
+        // Honeycomb: xCount × yCount = PRIMARY (un-shifted) items.
+        // Shifted rows auto-insert between primary rows at Y = yDist/2
+        // with X shifted by xDist/2. yCount stays the primary-row
+        // count so 10×10 renders as 10 primary rows visible (with
+        // alternates filling in between).
         var isHoney = pattern.style === 'honeycomb';
-        var hexTrim = isHoney && !!pattern.hexTrim;
-        for (var j = 0; j < yCount; j++) {
-          var isShiftedRow = isHoney && (j % 2 === 1);
-          var rowOffset = isShiftedRow ? xDist / 2 : 0;
-          var rowCount = (hexTrim && isShiftedRow) ? Math.max(0, xCount - 1) : xCount;
-          for (var i = 0; i < rowCount; i++) {
-            positions.push({ x: i * xDist + rowOffset, y: j * yDist, rotDeg: 0 });
+        if (isHoney) {
+          var hexTrim = !!pattern.hexTrim;
+          for (var j = 0; j < yCount; j++) {
+            for (var i = 0; i < xCount; i++) {
+              positions.push({ x: i * xDist, y: j * yDist, rotDeg: 0 });
+            }
+            if (j < yCount - 1) {
+              var shiftedCount = hexTrim ? Math.max(0, xCount - 1) : xCount;
+              for (var k = 0; k < shiftedCount; k++) {
+                positions.push({
+                  x: k * xDist + xDist / 2,
+                  y: j * yDist + yDist / 2,
+                  rotDeg: 0
+                });
+              }
+            }
+          }
+          return positions;
+        }
+        for (var jj = 0; jj < yCount; jj++) {
+          for (var ii = 0; ii < xCount; ii++) {
+            positions.push({ x: ii * xDist, y: jj * yDist, rotDeg: 0 });
           }
         }
         return positions;

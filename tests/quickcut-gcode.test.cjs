@@ -362,31 +362,41 @@ test('clearing preserves cornerRadius only on outermost level', () => {
 // Pattern replicates the same shape at multiple positions inside a
 // single program. Header/spindle/coolant run once; each instance emits
 // its own approach, plunge, cut, and safe-Z lift.
-test('honeycomb pattern staggers odd rows by X-distance/2 (Skadis layout)', () => {
-  // 40 mm square pitch, 3×3 grid = classic Skadis hole spacing.
-  // Row 0 (y=0):   x = 0, 40, 80
-  // Row 1 (y=40):  x = 20, 60, 100  ← offset by xDist/2
-  // Row 2 (y=80):  x = 0, 40, 80
+test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert between', () => {
+  // 3×3 primary grid with 40mm pitch:
+  //   Row 0 primary (y=0):    x = 0, 40, 80          → 3 items
+  //   Shifted    (y=20):      x = 20, 60, 100        → 3 items
+  //   Row 1 primary (y=40):   x = 0, 40, 80          → 3 items
+  //   Shifted    (y=60):      x = 20, 60, 100        → 3 items
+  //   Row 2 primary (y=80):   x = 0, 40, 80          → 3 items
+  //   Total = 15.
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, cutType: 'inner', bitDiameter: 3,
     pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 3 }
   }));
-  assert.match(gcode, /^\(QuickCut: Circle × 9\)/m);
+  assert.match(gcode, /^\(QuickCut: Circle × 15\)/m);
   assert.match(gcode, /^\(Pattern: Honeycomb 3x3/m);
-  // First row un-offset.
-  assert.match(gcode, /\(Instance 1\/9 at X0\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 3\/9 at X80\.000 Y0\.000\)/);
-  // Second row offset by xDist/2 = 20.
-  assert.match(gcode, /\(Instance 4\/9 at X20\.000 Y40\.000\)/);
-  assert.match(gcode, /\(Instance 6\/9 at X100\.000 Y40\.000\)/);
-  // Third row back to un-offset.
-  assert.match(gcode, /\(Instance 7\/9 at X0\.000 Y80\.000\)/);
+  // Primary row 0 at Y=0.
+  assert.match(gcode, /\(Instance 1\/15 at X0\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 3\/15 at X80\.000 Y0\.000\)/);
+  // First shifted row at Y=20, offset X.
+  assert.match(gcode, /\(Instance 4\/15 at X20\.000 Y20\.000\)/);
+  assert.match(gcode, /\(Instance 6\/15 at X100\.000 Y20\.000\)/);
+  // Primary row 1 at Y=40.
+  assert.match(gcode, /\(Instance 7\/15 at X0\.000 Y40\.000\)/);
+  // Primary row 2 at Y=80.
+  assert.match(gcode, /\(Instance 13\/15 at X0\.000 Y80\.000\)/);
 });
 
-test('honeycomb + Symmetric Ends: shifted rows have one less item', () => {
-  // 3×3 honeycomb: 3 items × 3 rows = 9 without trim.
-  // With hexTrim: rows 0/2 keep 3, row 1 gets 2 → total 8.
+test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are always primary', () => {
+  // 3×3 primary grid with hexTrim:
+  //   Primary row 0 (y=0):  3 items
+  //   Shifted    (y=20):    2 items (trim)
+  //   Primary row 1 (y=40): 3 items
+  //   Shifted    (y=60):    2 items (trim)
+  //   Primary row 2 (y=80): 3 items
+  //   Total = 3+2+3+2+3 = 13.
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, cutType: 'inner', bitDiameter: 3,
@@ -395,15 +405,17 @@ test('honeycomb + Symmetric Ends: shifted rows have one less item', () => {
       xDist: 40, yDist: 40, xCount: 3, yCount: 3
     }
   }));
-  assert.match(gcode, /^\(QuickCut: Circle × 8\)/m);
-  // Row 0: 3 items at Y=0
-  assert.match(gcode, /\(Instance 1\/8 at X0\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 3\/8 at X80\.000 Y0\.000\)/);
-  // Row 1: only 2 items at Y=40, offset by 20.
-  assert.match(gcode, /\(Instance 4\/8 at X20\.000 Y40\.000\)/);
-  assert.match(gcode, /\(Instance 5\/8 at X60\.000 Y40\.000\)/);
-  // No third item on row 1 → next would be instance 6 at row 2.
-  assert.match(gcode, /\(Instance 6\/8 at X0\.000 Y80\.000\)/);
+  assert.match(gcode, /^\(QuickCut: Circle × 13\)/m);
+  // Primary row 0.
+  assert.match(gcode, /\(Instance 1\/13 at X0\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 3\/13 at X80\.000 Y0\.000\)/);
+  // Shifted row (trimmed).
+  assert.match(gcode, /\(Instance 4\/13 at X20\.000 Y20\.000\)/);
+  assert.match(gcode, /\(Instance 5\/13 at X60\.000 Y20\.000\)/);
+  // Primary row 1.
+  assert.match(gcode, /\(Instance 6\/13 at X0\.000 Y40\.000\)/);
+  // Ends on a primary row (top/bottom un-shifted).
+  assert.match(gcode, /\(Instance 13\/13 at X80\.000 Y80\.000\)/);
 });
 
 test('linear 2×2 pattern emits 4 instances at correct offsets', () => {
