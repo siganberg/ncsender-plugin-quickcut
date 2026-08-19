@@ -1,7 +1,7 @@
 {
   "id": "com.ncsender.quickcut",
   "name": "QuickCut",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "minAppVersion": "2.0.88",
   "configUi": "config.html",
   "author": "ncSender",

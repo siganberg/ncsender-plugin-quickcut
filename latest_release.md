@@ -1,5 +1,5 @@
 ## What's Changed
 
-### 🔧 Improvements
-- Honeycomb pattern now spaces shifted rows correctly, advancing by half the row pitch for true staggered spacing
-- Row count now refers to primary rows, making pattern sizing easier to predict
+### ✨ New Features
+- Set your job origin visually with a new graphical origin picker instead of choosing from a text list
+- Rectangle and Circle patterns now support four additional edge midpoint origins, giving you nine origin positions in total
