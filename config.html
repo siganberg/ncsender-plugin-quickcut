@@ -538,7 +538,7 @@
     position: relative;
     width: 64px;
     height: 64px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-text-secondary, #888);
     border-radius: 6px;
     background: var(--color-surface-muted, var(--color-surface));
   }
@@ -548,7 +548,6 @@
      picker anchors to; the solid circle is what will be cut. */
   .qc-origin-grid[data-picker-for="qc-circ-origin"] {
     border-style: dashed;
-    border-color: var(--color-text-secondary, #888);
   }
   .qc-origin-grid[data-picker-for="qc-circ-origin"]::before {
     content: '';
@@ -588,6 +587,55 @@
   .qc-origin-point[data-origin="front-left"]    { top: 100%; left: 0;    }
   .qc-origin-point[data-origin="front-center"]  { top: 100%; left: 50%;  }
   .qc-origin-point[data-origin="front-right"]   { top: 100%; left: 100%; }
+
+  /* Polygon Shape card layout — fields on the left, live preview on
+     the right taking the full card height so the shape reads at a
+     glance and both columns stay visually balanced. Preview repaints
+     whenever Sides, Start Angle, or bit-related fields change. */
+  .qc-poly-shape-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    align-items: stretch;
+  }
+  .qc-poly-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+  .qc-poly-preview-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-muted, var(--color-surface));
+    min-width: 160px;
+  }
+  #qc-poly-preview {
+    width: 150px;
+    height: 150px;
+    color: var(--color-text-secondary, #888);
+    display: block;
+  }
+  #qc-poly-preview .qc-poly-shape {
+    fill: color-mix(in srgb, var(--color-accent) 8%, transparent);
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+  }
+  #qc-poly-preview .qc-poly-inscribed {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+  @media (max-width: 600px) {
+    .qc-poly-shape-grid { grid-template-columns: 1fr; }
+    .qc-poly-preview-cell { order: -1; }  /* preview at top on narrow screens */
+  }
 
   .qc-field {
     display: flex;
@@ -685,7 +733,7 @@
         </button>
         <button type="button" class="qc-nav-btn" data-tab="polygon">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
-          <span class="qc-nav-label">Polygon<span class="qc-nav-sup">Soon</span></span>
+          <span class="qc-nav-label">Polygon</span>
         </button>
       </nav>
       <div class="qc-sidebar-footer">
@@ -1018,11 +1066,136 @@
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
           <h2 class="qc-panel-title">Polygon</h2>
-          <p class="qc-panel-sub">Regular N-sided polygon with corner radius and orientation control.</p>
+          <p class="qc-panel-sub">Regular N-sided polygon by circumscribed radius (vertex-to-center).</p>
         </div>
       </header>
+
       <div class="qc-panel">
-        <div class="qc-soon"><h3>Coming soon</h3><p>Regular N-sided polygon (triangle, square, pentagon, hexagon, ...) with corner radius and rotation.</p></div>
+        <form id="qc-poly-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Shape</h3>
+            <div class="qc-poly-shape-grid">
+              <div class="qc-poly-fields">
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-poly-sides">Sides</label>
+                    <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-radius">Radius</label>
+                    <input class="qc-input" type="number" id="qc-poly-radius" min="0.001" step="0.01" value="20" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-poly-start-angle" step="1" value="0">
+                  </div>
+                </div>
+                <div class="qc-row-2 qc-poly-origin-row">
+                  <div class="qc-field">
+                    <label for="qc-poly-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-poly-cut-type">
+                      <option value="inner">Inner (perimeter)</option>
+                      <option value="outer" selected>Outer (part)</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label>Origin</label>
+                    <div id="qc-poly-origin-picker"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-poly-preview-cell">
+                <svg id="qc-poly-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-poly-depth">Total Depth</label>
+                <input class="qc-input" type="number" id="qc-poly-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-poly-step">Depth of Cut</label>
+                <input class="qc-input" type="number" id="qc-poly-step" min="0.001" step="0.01" value="1" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this shape">
+                <input type="checkbox" id="qc-poly-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-poly-pattern-body" style="display: none;">
+              <div class="qc-field">
+                <label for="qc-poly-pattern-style">Pattern Style</label>
+                <div class="qc-select-with-toggle">
+                  <select class="qc-select" id="qc-poly-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="honeycomb">Honeycomb</option>
+                    <option value="circular">Circular</option>
+                  </select>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-poly-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields" data-shape="poly">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-x-dist">X Distance</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-y-dist">Y Distance</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" data-shape="poly" style="display: none;">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-radius">Radius</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-radius" min="0.1" step="0.1" value="40" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-start-angle" step="1" value="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-poly-generate">Generate</button>
       </div>
     </section>
     <section class="qc-content" data-view="planer">
@@ -1287,7 +1460,7 @@
     currentTab: 'rectangle',
     toolByShape: {}
   };
-  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter'];
+  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon'];
 
   async function init() {
     try {
@@ -1324,6 +1497,7 @@
     wirePlanerForm();
     wireJointerForm();
     wireCutterForm();
+    wirePolygonForm();
     wireCloseButton();
   }
 
@@ -1508,7 +1682,20 @@
         'qc-cut-target':    { min: 0.004, max: 200, label: 'Target Size' },
         'qc-cut-length':    { min: 0.004, max: 200, label: 'Cutting Length' },
         'qc-cut-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
-        'qc-cut-step':      { min: 0.001, max: 20,  label: 'Depth of Cut' }
+        'qc-cut-step':      { min: 0.001, max: 20,  label: 'Depth of Cut' },
+        // Polygon
+        'qc-poly-sides':    { min: 3,     max: 12,  label: 'Sides', integer: true },
+        'qc-poly-radius':   { min: 0.004, max: 200, label: 'Radius' },
+        'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
+        'qc-poly-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
+        'qc-poly-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
+        'qc-poly-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-poly-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
+        'qc-poly-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
+        'qc-poly-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
+        'qc-poly-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-poly-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' }
       };
     }
     return {
@@ -1562,7 +1749,20 @@
       'qc-cut-target':    { min: 0.1,  max: 5000, label: 'Target Size' },
       'qc-cut-length':    { min: 0.1,  max: 5000, label: 'Cutting Length' },
       'qc-cut-depth':     { min: 0.01, max: 500,  label: 'Total Depth' },
-      'qc-cut-step':      { min: 0.01, max: 500,  label: 'Depth of Cut' }
+      'qc-cut-step':      { min: 0.01, max: 500,  label: 'Depth of Cut' },
+      // Polygon
+      'qc-poly-sides':    { min: 3,    max: 12,   label: 'Sides', integer: true },
+      'qc-poly-radius':   { min: 0.1,  max: 5000, label: 'Radius' },
+      'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
+      'qc-poly-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
+      'qc-poly-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
+      'qc-poly-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-poly-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
+      'qc-poly-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
+      'qc-poly-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
+      'qc-poly-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
+      'qc-poly-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' }
     };
   }
 
@@ -1868,6 +2068,22 @@
     });
   }
 
+  function readPolygonForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      sides:         Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))),
+      radius:        num('qc-poly-radius', 0),
+      startAngleDeg: num('qc-poly-start-angle', 0),
+      cutType:       $('qc-poly-cut-type').value,
+      origin:        $('qc-poly-origin').value,
+      depth:         num('qc-poly-depth', 0),
+      depthOfCut:    num('qc-poly-step', 0),
+      pattern:       readPatternForm('poly'),
+      isImperial:    state.isImperial,
+      safeZHeightMm: state.safeZHeightMm
+    });
+  }
+
   function updateJointerOriginOptions() {
     var axis = $('qc-join-axis').value;
     var origin = $('qc-join-origin');
@@ -2036,6 +2252,7 @@
     var slots = [
       { host: 'qc-rect-origin-picker', input: 'qc-rect-origin', def: 'center'     },
       { host: 'qc-circ-origin-picker', input: 'qc-circ-origin', def: 'center'     },
+      { host: 'qc-poly-origin-picker', input: 'qc-poly-origin', def: 'center'     },
       // Planer only offers the 4 corners + center — edge midpoints
       // don't map to a useful surfacing start position.
       { host: 'qc-plan-origin-picker', input: 'qc-plan-origin', def: 'front-left', cornersOnly: true }
@@ -2137,10 +2354,22 @@
     if (cut.depth != null)          $('qc-cut-depth').value     = roundDisplay(mmToDisplay(cut.depth));
     if (cut.depthOfCut != null)     $('qc-cut-step').value      = roundDisplay(mmToDisplay(cut.depthOfCut));
 
+    var poly = saved.polygon || {};
+    if (poly.sides != null)         $('qc-poly-sides').value    = poly.sides;
+    if (poly.radius != null)        $('qc-poly-radius').value   = roundDisplay(mmToDisplay(poly.radius));
+    if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
+    if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
+    if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
+    if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
+    if (poly.depthOfCut != null)    $('qc-poly-step').value     = roundDisplay(mmToDisplay(poly.depthOfCut));
+    hydratePattern('poly', poly.pattern);
+
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
+    updatePatternVisibility('poly');
+    updatePolygonPreview();
   }
 
   function hydratePattern(prefix, p) {
@@ -2243,6 +2472,18 @@
         origin:        params.origin,
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut)
+      };
+    } else if (params.shape === 'polygon') {
+      body.polygon = {
+        tool:          toolForShape,
+        sides:         params.sides,
+        radius:        displayToMm(params.radius),
+        startAngleDeg: params.startAngleDeg,
+        cutType:       params.cutType,
+        origin:        params.origin,
+        depth:         displayToMm(params.depth),
+        depthOfCut:    displayToMm(params.depthOfCut),
+        pattern:       packPattern(params.pattern)
       };
     }
     // Mirror to state so a tab-switch away doesn't lose the fresh values.
@@ -2401,6 +2642,58 @@
       saveSettings(params);
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Circle.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
+  // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
+  // radius inside a 100-unit viewBox so the shape stays the same
+  // rendered size regardless of the user's actual radius input —
+  // the point is to preview the SHAPE (side count + rotation), not
+  // the scale. Start angle is added on top of the natural CAD
+  // orientation so 0° matches what the generator emits.
+  function updatePolygonPreview() {
+    var svg = document.getElementById('qc-poly-preview');
+    if (!svg) return;
+    var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
+    var startDeg = num('qc-poly-start-angle', 0);
+    var R = 40;
+    var start = Math.PI / n - Math.PI / 2 + startDeg * Math.PI / 180;
+    var pts = [];
+    for (var i = 0; i < n; i++) {
+      var theta = start + i * 2 * Math.PI / n;
+      // SVG y-down: negate the y coordinate so up-in-machine renders as up on screen.
+      pts.push((R * Math.cos(theta)).toFixed(2) + ',' + (-R * Math.sin(theta)).toFixed(2));
+    }
+    var apothem = R * Math.cos(Math.PI / n);
+    svg.innerHTML =
+      '<polygon class="qc-poly-shape" points="' + pts.join(' ') + '"/>' +
+      '<circle class="qc-poly-inscribed" cx="0" cy="0" r="' + apothem.toFixed(2) + '"/>';
+  }
+
+  function wirePolygonForm() {
+    $('qc-poly-sides').addEventListener('input', updatePolygonPreview);
+    $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
+    $('qc-poly-pattern-enable').addEventListener('change', function() { updatePatternVisibility('poly'); });
+    $('qc-poly-pattern-style').addEventListener('change', function() { updatePatternVisibility('poly'); });
+    updatePolygonPreview();
+    updatePatternVisibility('poly');
+
+    $('qc-poly-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readPolygonForm();
+      params.shape = 'polygon';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generatePolygonProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Polygon.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -3407,12 +3700,124 @@
       return lines.join('\n');
     }
 
+    // ---------- POLYGON ----------
+    // Regular N-sided polygon (3–12 sides) sized by circumscribed
+    // radius (center-to-vertex). Straight-line perimeter cut with
+    // multi-pass depth. Cut-type offset is computed against the
+    // apothem so bit-radius compensation is consistent regardless of
+    // side count: apothem = R × cos(π/n).
+    function computePolygonGeom(params, offsetX, offsetY, extraRotDeg) {
+      var radius = params.radius;
+      var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
+      var cutType = params.cutType || 'inner';
+      var origin = params.origin || 'center';
+      var toolRadius = params.bitDiameter / 2;
+      var apothem = radius * Math.cos(Math.PI / sides);
+
+      var newApothem = (cutType === 'inner') ? apothem - toolRadius : apothem + toolRadius;
+      var pathRadius = newApothem / Math.cos(Math.PI / sides);
+
+      // Bounding box for origin math is the circumscribed square
+      // (2R × 2R). The polygon inscribes into this box; origin
+      // positions map to points on the box regardless of orientation.
+      var off = originOffset(origin, 2 * radius, 2 * radius);
+      var startDeg = (params.startAngleDeg || 0) + (extraRotDeg || 0);
+      return {
+        cx: off.x + (offsetX || 0),
+        cy: off.y + (offsetY || 0),
+        pathRadius: pathRadius,
+        sides: sides,
+        toolRadius: toolRadius,
+        startAngle: Math.PI / sides - Math.PI / 2 + startDeg * Math.PI / 180
+      };
+    }
+
+    function polygonVertices(cx, cy, radius, sides, startAngle) {
+      var pts = [];
+      for (var i = 0; i < sides; i++) {
+        var theta = startAngle + i * 2 * Math.PI / sides;
+        pts.push({ x: cx + radius * Math.cos(theta), y: cy + radius * Math.sin(theta) });
+      }
+      return pts;
+    }
+
+    function generatePolygonProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var baseGeom = computePolygonGeom(params);
+
+      var extras = [
+        'Sides: ' + baseGeom.sides,
+        'Radius: ' + params.radius + unitsLabel + ' (circumscribed)',
+        'Start Angle: ' + (params.startAngleDeg || 0) + '°',
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Origin: ' + (params.origin || 'center')
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Polygon (' + baseGeom.sides + '-sided)' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (baseGeom.pathRadius <= 0) {
+        lines.push('(WARNING: polygon smaller than tool diameter; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+        }
+        var geom = computePolygonGeom(params, pos.x, pos.y, pos.rotDeg);
+        emitOnePolygon(lines, params, geom);
+      }
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOnePolygon(lines, params, geom) {
+      var verts = polygonVertices(geom.cx, geom.cy, geom.pathRadius, geom.sides, geom.startAngle);
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+
+      lines.push('G0 X' + verts[0].x.toFixed(3) + ' Y' + verts[0].y.toFixed(3));
+      lines.push('G0 Z' + safeHeight);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
+        for (var i = 1; i <= verts.length; i++) {
+          var v = verts[i % verts.length];
+          lines.push('G1 X' + v.x.toFixed(3) + ' Y' + v.y.toFixed(3) + ' F' + feedRate);
+        }
+        currentDepth = nextDepth;
+      }
+
+      lines.push('G0 Z' + safeHeight);
+    }
+
     return {
       generateRectangleProgram: generateRectangleProgram,
       generateCircleProgram: generateCircleProgram,
       generatePlanerProgram: generatePlanerProgram,
       generateJointerProgram: generateJointerProgram,
-      generateCutterProgram: generateCutterProgram
+      generateCutterProgram: generateCutterProgram,
+      generatePolygonProgram: generatePolygonProgram
     };
   }
 

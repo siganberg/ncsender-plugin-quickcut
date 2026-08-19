@@ -891,3 +891,125 @@ test('shape smaller than tool diameter warns and produces no cut', () => {
   assert.match(gcode, /WARNING: shape smaller than tool diameter/);
   assert.ok(!/\bG1 X.*Y/.test(gcode), 'should emit no cutting moves');
 });
+
+// ============================================================
+// POLYGON
+// ============================================================
+
+function polygonBase(overrides) {
+  return Object.assign({
+    sides: 6, radius: 20, cutType: 'outer', origin: 'center',
+    bitDiameter: 0, depth: 5, depthOfCut: 5,
+    feedRate: 800, plungeFeedRate: 200,
+    spindleRpm: 15000, spindleDelay: 1,
+    mistM7: false, floodM8: false
+  }, overrides || {});
+}
+
+function countG1XY(gcode) {
+  return gcode.split('\n').filter(l => /^G1\s+X.*Y/.test(l.trim())).length;
+}
+
+test('polygon: emits N G1 vertex moves per depth pass (hexagon → 6 per pass)', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, depth: 5, depthOfCut: 5 })); // 1 pass
+  assert.equal(countG1XY(gcode), 6, 'hexagon = 6 vertex G1s in one pass');
+});
+
+test('polygon: sides count reflects in output for triangle and dodecagon', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const tri = gen(polygonBase({ sides: 3, depth: 5, depthOfCut: 5 }));
+  const dodec = gen(polygonBase({ sides: 12, depth: 5, depthOfCut: 5 }));
+  assert.equal(countG1XY(tri), 3);
+  assert.equal(countG1XY(dodec), 12);
+  assert.match(tri, /Polygon \(3-sided\)/);
+  assert.match(dodec, /Polygon \(12-sided\)/);
+});
+
+test('polygon: multi-pass depth repeats vertex loop', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  // 3 passes × 6 vertices = 18 vertex moves
+  const gcode = gen(polygonBase({ sides: 6, depth: 6, depthOfCut: 2 }));
+  assert.equal(countG1XY(gcode), 18);
+});
+
+test('polygon: hexagon with bitDiameter=0 has vertices on the circumscribed circle', () => {
+  // No bit compensation → path radius = input radius. First vertex sits
+  // at angle (π/n - π/2) = 0 for n=6 → (R, 0) offset around center. But
+  // origin=center puts polygon centered on 0,0, and startAngle for n=6
+  // is -60° so first vertex is at (R·cos(-60°), R·sin(-60°)) = (10, -17.32).
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, radius: 20, cutType: 'outer', bitDiameter: 0 }));
+  assert.match(gcode, /G0 X10\.000 Y-17\.32[01]/);
+});
+
+test('polygon: inner cut shrinks the path by bitRadius/cos(π/n)', () => {
+  // Hexagon R=20, bit dia=3.175 → tool r=1.5875. cos(π/6)=0.866.
+  // apothem shrinks by tool r: 17.3205 - 1.5875 = 15.733.
+  // path R = 15.733 / 0.866 = 18.167.
+  // First vertex angle -60°: (18.167·0.5, 18.167·-0.866) = (9.083, -15.733).
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, radius: 20, cutType: 'inner', bitDiameter: 3.175 }));
+  assert.match(gcode, /G0 X9\.083 Y-15\.7[23]/);
+});
+
+test('polygon: outer cut grows the path by bitRadius/cos(π/n)', () => {
+  // Same math but +: apothem 17.3205 + 1.5875 = 18.908, path R = 21.833.
+  // First vertex: (21.833·0.5, 21.833·-0.866) = (10.917, -18.908).
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, radius: 20, cutType: 'outer', bitDiameter: 3.175 }));
+  assert.match(gcode, /G0 X10\.917 Y-18\.90[78]/);
+});
+
+test('polygon: origin=front-left offsets center by (+R, +R)', () => {
+  // Bounding box = 2R × 2R = 40 × 40. front-left offset = (+w/2, +h/2) = (20, 20).
+  // First vertex sits at center + local(10, -17.32) = (30, 2.68).
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, radius: 20, origin: 'front-left', bitDiameter: 0 }));
+  assert.match(gcode, /G0 X30\.000 Y2\.679/);
+});
+
+test('polygon: shape smaller than tool warns and emits no cut', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, radius: 2, cutType: 'inner', bitDiameter: 10 }));
+  assert.match(gcode, /WARNING: polygon smaller than tool diameter/);
+  assert.equal(countG1XY(gcode), 0);
+});
+
+test('polygon: startAngleDeg=90 rotates the polygon by +90°', () => {
+  // Hexagon with 0° start angle: first vertex at (10, -17.321).
+  // With +90° rotation, first vertex rotates 90° CCW: (17.321, 10).
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 6, radius: 20, startAngleDeg: 90, cutType: 'outer', bitDiameter: 0 }));
+  assert.match(gcode, /G0 X17\.32[01] Y10\.000/);
+});
+
+test('polygon: pattern (linear 2x2) emits 4 instances', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({
+    sides: 6, radius: 10, depth: 5, depthOfCut: 5, bitDiameter: 0,
+    pattern: { enabled: true, style: 'linear', xDist: 30, yDist: 30, xCount: 2, yCount: 2 }
+  }));
+  // 4 instances × 6 vertices each = 24 G1 vertex moves
+  assert.equal(countG1XY(gcode), 24);
+  assert.match(gcode, /Instance 1\/4/);
+  assert.match(gcode, /Instance 4\/4/);
+});
+
+test('polygon: closes back to first vertex (last G1 equals first G0)', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 5, radius: 15, cutType: 'outer', bitDiameter: 0 }));
+  const lines = gcode.split('\n').map(l => l.trim());
+  const firstG0 = lines.find(l => /^G0 X-?\d/.test(l));
+  const g1xy = lines.filter(l => /^G1 X-?\d.*Y-?\d/.test(l));
+  const lastG1 = g1xy[g1xy.length - 1];
+  const xy = s => {
+    const x = parseFloat(s.match(/X(-?\d+\.?\d*)/)[1]);
+    const y = parseFloat(s.match(/Y(-?\d+\.?\d*)/)[1]);
+    return [x, y];
+  };
+  const [fx, fy] = xy(firstG0);
+  const [lx, ly] = xy(lastG1);
+  assert.ok(Math.abs(fx - lx) < 1e-3 && Math.abs(fy - ly) < 1e-3,
+    `perimeter should close: first (${fx},${fy}) vs last (${lx},${ly})`);
+});
