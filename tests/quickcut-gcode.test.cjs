@@ -362,6 +362,50 @@ test('clearing preserves cornerRadius only on outermost level', () => {
 // Pattern replicates the same shape at multiple positions inside a
 // single program. Header/spindle/coolant run once; each instance emits
 // its own approach, plunge, cut, and safe-Z lift.
+test('honeycomb pattern staggers odd rows by X-distance/2 (Skadis layout)', () => {
+  // 40 mm square pitch, 3×3 grid = classic Skadis hole spacing.
+  // Row 0 (y=0):   x = 0, 40, 80
+  // Row 1 (y=40):  x = 20, 60, 100  ← offset by xDist/2
+  // Row 2 (y=80):  x = 0, 40, 80
+  const gen = makeQuickCutGenerator(false).generateCircleProgram;
+  const gcode = gen(circleBase({
+    diameter: 5, cutType: 'inner', bitDiameter: 3,
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 3 }
+  }));
+  assert.match(gcode, /^\(QuickCut: Circle × 9\)/m);
+  assert.match(gcode, /^\(Pattern: Honeycomb 3x3/m);
+  // First row un-offset.
+  assert.match(gcode, /\(Instance 1\/9 at X0\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 3\/9 at X80\.000 Y0\.000\)/);
+  // Second row offset by xDist/2 = 20.
+  assert.match(gcode, /\(Instance 4\/9 at X20\.000 Y40\.000\)/);
+  assert.match(gcode, /\(Instance 6\/9 at X100\.000 Y40\.000\)/);
+  // Third row back to un-offset.
+  assert.match(gcode, /\(Instance 7\/9 at X0\.000 Y80\.000\)/);
+});
+
+test('honeycomb + Symmetric Ends: shifted rows have one less item', () => {
+  // 3×3 honeycomb: 3 items × 3 rows = 9 without trim.
+  // With hexTrim: rows 0/2 keep 3, row 1 gets 2 → total 8.
+  const gen = makeQuickCutGenerator(false).generateCircleProgram;
+  const gcode = gen(circleBase({
+    diameter: 5, cutType: 'inner', bitDiameter: 3,
+    pattern: {
+      enabled: true, style: 'honeycomb', hexTrim: true,
+      xDist: 40, yDist: 40, xCount: 3, yCount: 3
+    }
+  }));
+  assert.match(gcode, /^\(QuickCut: Circle × 8\)/m);
+  // Row 0: 3 items at Y=0
+  assert.match(gcode, /\(Instance 1\/8 at X0\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 3\/8 at X80\.000 Y0\.000\)/);
+  // Row 1: only 2 items at Y=40, offset by 20.
+  assert.match(gcode, /\(Instance 4\/8 at X20\.000 Y40\.000\)/);
+  assert.match(gcode, /\(Instance 5\/8 at X60\.000 Y40\.000\)/);
+  // No third item on row 1 → next would be instance 6 at row 2.
+  assert.match(gcode, /\(Instance 6\/8 at X0\.000 Y80\.000\)/);
+});
+
 test('linear 2×2 pattern emits 4 instances at correct offsets', () => {
   const gen = makeQuickCutGenerator(false).generateRectangleProgram;
   const gcode = gen(baseParams({

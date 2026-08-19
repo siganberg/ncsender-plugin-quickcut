@@ -484,6 +484,21 @@
   }
   .qc-z0-callout .qc-z0-target { font-weight: 700; }
 
+  /* Select + inline switch on the same line — used for the Pattern
+     Style field where the Symmetric Ends toggle sits to the right of
+     the dropdown control (not stacked above with its own label). */
+  .qc-select-with-toggle {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .qc-select-with-toggle > .qc-select {
+    flex: 0 0 240px;
+    width: 240px;
+    min-width: 0;
+  }
+
   /* Body that shows/hides based on the header switch. */
   .qc-pattern-body {
     display: flex;
@@ -741,14 +756,22 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-rect-pattern-body" style="display: none;">
-              <div class="qc-row-2">
-                <div class="qc-field">
-                  <label for="qc-rect-pattern-style">Pattern Style</label>
+              <div class="qc-field">
+                <label for="qc-rect-pattern-style">Pattern Style</label>
+                <div class="qc-select-with-toggle">
                   <select class="qc-select" id="qc-rect-pattern-style">
                     <option value="linear" selected>Linear</option>
+                    <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-rect-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                 </div>
               </div>
               <div class="qc-pattern-linear-fields">
@@ -868,13 +891,21 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-circ-pattern-body" style="display: none;">
-              <div class="qc-row-2">
-                <div class="qc-field">
-                  <label for="qc-circ-pattern-style">Pattern Style</label>
+              <div class="qc-field">
+                <label for="qc-circ-pattern-style">Pattern Style</label>
+                <div class="qc-select-with-toggle">
                   <select class="qc-select" id="qc-circ-pattern-style">
                     <option value="linear" selected>Linear</option>
+                    <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular</option>
                   </select>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-circ-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                 </div>
               </div>
               <div class="qc-pattern-linear-fields" data-shape="circ">
@@ -1832,6 +1863,7 @@
   // pattern center (rest is identical to 'circular').
   function readPatternForm(prefix) {
     var pre = 'qc-' + prefix + '-pattern-';
+    var hexTrimEl = $(pre + 'hex-trim');
     return {
       enabled: $(pre + 'enable').checked,
       style:   $(pre + 'style').value,
@@ -1841,7 +1873,10 @@
       yCount:  Math.max(1, Math.floor(num(pre + 'y-count', 1))),
       count:      Math.max(1, Math.floor(num(pre + 'count', 1))),
       radius:     num(pre + 'radius', 0),
-      startAngle: num(pre + 'start-angle', 0)
+      startAngle: num(pre + 'start-angle', 0),
+      // Honeycomb-only: trim one item from shifted rows so both ends
+      // of the pattern line up (no dangling shifted-row overhang).
+      hexTrim:    hexTrimEl ? hexTrimEl.checked : false
     };
   }
 
@@ -1856,12 +1891,15 @@
     $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
     if (enabled) {
       var style = $('qc-' + prefix + '-pattern-style').value;
+      var isGrid = style === 'linear' || style === 'honeycomb';
       var isCircular = style === 'circular' || style === 'circular-follow';
       var body = $('qc-' + prefix + '-pattern-body');
       var linear = body.querySelector('.qc-pattern-linear-fields');
       var circ = body.querySelector('.qc-pattern-circular-fields');
-      if (linear) linear.style.display = (style === 'linear') ? '' : 'none';
+      var honey = body.querySelector('.qc-pattern-honeycomb-only');
+      if (linear) linear.style.display = isGrid ? '' : 'none';
       if (circ)   circ.style.display   = isCircular ? '' : 'none';
+      if (honey)  honey.style.display  = (style === 'honeycomb') ? '' : 'none';
     }
   }
 
@@ -1983,6 +2021,8 @@
     if (p.count != null)    $(pre + 'count').value = p.count;
     if (p.radius != null)   $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radius));
     if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
+    var hexTrimEl = $(pre + 'hex-trim');
+    if (hexTrimEl && p.hexTrim != null) hexTrimEl.checked = !!p.hexTrim;
   }
 
   function saveSettings(params) {
@@ -2098,7 +2138,8 @@
       yCount:     p.yCount,
       count:      p.count,
       radius:     displayToMm(p.radius),
-      startAngle: p.startAngle
+      startAngle: p.startAngle,
+      hexTrim:    !!p.hexTrim
     };
   }
 
@@ -2399,14 +2440,19 @@
     function computePatternPositions(pattern) {
       if (!pattern || !pattern.enabled) return [{ x: 0, y: 0, rotDeg: 0 }];
       var positions = [];
-      if (pattern.style === 'linear') {
+      if (pattern.style === 'linear' || pattern.style === 'honeycomb') {
         var xCount = Math.max(1, Math.floor(pattern.xCount || 1));
         var yCount = Math.max(1, Math.floor(pattern.yCount || 1));
         var xDist = pattern.xDist || 0;
         var yDist = pattern.yDist || 0;
+        var isHoney = pattern.style === 'honeycomb';
+        var hexTrim = isHoney && !!pattern.hexTrim;
         for (var j = 0; j < yCount; j++) {
-          for (var i = 0; i < xCount; i++) {
-            positions.push({ x: i * xDist, y: j * yDist, rotDeg: 0 });
+          var isShiftedRow = isHoney && (j % 2 === 1);
+          var rowOffset = isShiftedRow ? xDist / 2 : 0;
+          var rowCount = (hexTrim && isShiftedRow) ? Math.max(0, xCount - 1) : xCount;
+          for (var i = 0; i < rowCount; i++) {
+            positions.push({ x: i * xDist + rowOffset, y: j * yDist, rotDeg: 0 });
           }
         }
         return positions;
@@ -2433,8 +2479,9 @@
 
     function patternDescription(p) {
       if (!p || !p.enabled) return '';
-      if (p.style === 'linear') {
-        return 'Linear ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
+      if (p.style === 'linear' || p.style === 'honeycomb') {
+        var label = p.style === 'honeycomb' ? 'Honeycomb' : 'Linear';
+        return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
                ' (dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0) + ')';
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
