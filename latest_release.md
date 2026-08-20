@@ -1,4 +1,4 @@
 ## What's Changed
 
-### 🐛 Bug Fixes
-- Polygon inner clearing now follows each polygon's position in a pattern instead of clearing at the wrong location
+### 🔧 Improvements
+- Pattern origin is now anchored to the full pattern's overall bounding box, so positioning stays consistent across every copy in the pattern
