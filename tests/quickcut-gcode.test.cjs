@@ -961,12 +961,14 @@ test('polygon: outer cut grows the path by bitRadius/cos(π/n)', () => {
   assert.match(gcode, /G0 X10\.917 Y-18\.90[78]/);
 });
 
-test('polygon: origin=front-left offsets center by (+R, +R)', () => {
-  // Bounding box = 2R × 2R = 40 × 40. front-left offset = (+w/2, +h/2) = (20, 20).
-  // First vertex sits at center + local(10, -17.32) = (30, 2.68).
+test('polygon: origin=front-left pins finished polygon front-left corner to (0,0)', () => {
+  // Hexagon R=20 flat-top: actual bbox is 40 × 34.64 (not 40 × 40 — sin
+  // extremes only reach ±0.866R). front-left of that bbox = (-20, -17.32)
+  // in polygon-local coords, so polygon center in machine = (20, 17.32).
+  // First vertex (angle -60°): center + (10, -17.32) = (30, 0).
   const gen = makeQuickCutGenerator(false).generatePolygonProgram;
   const gcode = gen(polygonBase({ sides: 6, radius: 20, origin: 'front-left', bitDiameter: 0 }));
-  assert.match(gcode, /G0 X30\.000 Y2\.679/);
+  assert.match(gcode, /G0 X30\.000 Y0\.000/);
 });
 
 test('polygon: shape smaller than tool warns and emits no cut', () => {
@@ -994,6 +996,25 @@ test('polygon: pattern (linear 2x2) emits 4 instances', () => {
   assert.equal(countG1XY(gcode), 24);
   assert.match(gcode, /Instance 1\/4/);
   assert.match(gcode, /Instance 4\/4/);
+});
+
+test('polygon: clearing emits concentric shrinking polygons', () => {
+  // Hexagon R=10 (dia 20), bit dia=3, stepover 50% → step = 1.5.
+  // apothem = 10 * cos(π/6) = 8.66; outer path apothem = 8.66 - 1.5 = 7.16.
+  // Rings step inward by 1.5 apothem each until ≤ toolRadius (1.5).
+  // So apo passes: 7.16, 5.66, 4.16, 2.66, 1.16 → 5 rings.
+  // Each ring closes 6 vertices → 30 G1 vertex moves.
+  // Plus 4 "between-ring" G1 hops (5 rings, first has no hop) — 4 extra G1s.
+  // Total G1 with X and Y = 30 + 4 = 34.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({
+    sides: 6, radius: 10, cutType: 'clearing', bitDiameter: 3,
+    stepoverPct: 50, depth: 5, depthOfCut: 5
+  }));
+  assert.match(gcode, /Polygon \(6-sided, clearing\)/);
+  assert.match(gcode, /Stepover: 50%/);
+  const g1Count = countG1XY(gcode);
+  assert.ok(g1Count >= 30 && g1Count <= 40, `expected ~34 G1 XY moves, got ${g1Count}`);
 });
 
 test('polygon: closes back to first vertex (last G1 equals first G0)', () => {

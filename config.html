@@ -588,53 +588,81 @@
   .qc-origin-point[data-origin="front-center"]  { top: 100%; left: 50%;  }
   .qc-origin-point[data-origin="front-right"]   { top: 100%; left: 100%; }
 
-  /* Polygon Shape card layout — fields on the left, live preview on
-     the right taking the full card height so the shape reads at a
-     glance and both columns stay visually balanced. Preview repaints
-     whenever Sides, Start Angle, or bit-related fields change. */
-  .qc-poly-shape-grid {
+  /* Shape card layout — fields on the left, live preview on the
+     right taking the full card height so the shape reads at a
+     glance and both columns stay visually balanced. Shared across
+     Rectangle, Circle, and Polygon tabs. Preview repaints whenever
+     any input that affects geometry changes. */
+  .qc-shape-grid {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 20px;
     align-items: stretch;
   }
-  .qc-poly-fields {
+  .qc-shape-fields {
     display: flex;
     flex-direction: column;
     gap: 12px;
     min-width: 0;
   }
-  .qc-poly-preview-cell {
+  .qc-shape-preview-cell {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    border: 1px solid var(--color-border);
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+    border: 2px solid var(--color-text-secondary, #888);
     border-radius: 8px;
     background: var(--color-surface-muted, var(--color-surface));
-    min-width: 160px;
+    width: 160px;
+    height: 160px;
+    overflow: hidden;
+    box-sizing: border-box;
   }
-  #qc-poly-preview {
-    width: 150px;
-    height: 150px;
+  .qc-shape-preview-cell > svg {
+    width: 100%;
+    height: 100%;
     color: var(--color-text-secondary, #888);
     display: block;
   }
-  #qc-poly-preview .qc-poly-shape {
+  .qc-shape-preview-cell .qc-shape-fill {
     fill: color-mix(in srgb, var(--color-accent) 8%, transparent);
     stroke: currentColor;
     stroke-width: 1.8;
     stroke-linejoin: round;
   }
-  #qc-poly-preview .qc-poly-inscribed {
+  .qc-shape-preview-cell .qc-shape-inscribed {
     fill: none;
     stroke: currentColor;
     stroke-width: 1;
     stroke-dasharray: 3 3;
   }
+  /* Diagonal hatch marking the waste area. */
+  .qc-shape-preview-cell .qc-shape-hatch {
+    color: var(--color-text-secondary, #888);
+    stroke: none;
+    opacity: 0.55;
+  }
+  /* Dimension line + arrow markers use the same neutral color as
+     the other reference lines (text-secondary), and the line is
+     dashed so it reads as a "measurement" rather than a cut path. */
+  .qc-shape-preview-cell .qc-shape-dim-line {
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    fill: none;
+  }
+  .qc-shape-preview-cell .qc-shape-dim-label {
+    fill: currentColor;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    paint-order: stroke;
+    stroke: var(--color-surface-muted, var(--color-surface));
+    stroke-width: 2px;
+  }
   @media (max-width: 600px) {
-    .qc-poly-shape-grid { grid-template-columns: 1fr; }
-    .qc-poly-preview-cell { order: -1; }  /* preview at top on narrow screens */
+    .qc-shape-grid { grid-template-columns: 1fr; }
+    .qc-shape-preview-cell { order: -1; }
   }
 
   .qc-field {
@@ -719,6 +747,10 @@
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
           <span class="qc-nav-label">Circle</span>
         </button>
+        <button type="button" class="qc-nav-btn" data-tab="polygon">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
+          <span class="qc-nav-label">Polygon</span>
+        </button>
         <button type="button" class="qc-nav-btn" data-tab="planer">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"/><path d="M6 14v6M10 14v6M14 14v6M18 14v6"/></svg></span>
           <span class="qc-nav-label">Planer</span>
@@ -730,10 +762,6 @@
         <button type="button" class="qc-nav-btn" data-tab="cutter">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
           <span class="qc-nav-label">Cutter</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="polygon">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
-          <span class="qc-nav-label">Polygon</span>
         </button>
       </nav>
       <div class="qc-sidebar-footer">
@@ -807,36 +835,45 @@
         <form id="qc-rect-form" onsubmit="return false">
           <div class="qc-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label for="qc-rect-width">Width</label>
-                <input class="qc-input" type="number" id="qc-rect-width" min="0.001" step="0.01" value="50" required>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-rect-width">Width</label>
+                    <input class="qc-input" type="number" id="qc-rect-width" min="0.001" step="0.01" value="50" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-height">Height</label>
+                    <input class="qc-input" type="number" id="qc-rect-height" min="0.001" step="0.01" value="30" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-corner">Corner Radius</label>
+                    <input class="qc-input" type="number" id="qc-rect-corner" min="0" step="0.01" value="0">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-rect-cut-type">
+                      <option value="inner">Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
+                      <option value="outer" selected>Outer (part)</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label>Origin</label>
+                    <div id="qc-rect-origin-picker"></div>
+                  </div>
+                </div>
+                <div class="qc-row-3">
+                  <div class="qc-field qc-rect-clearing-only" style="display: none;">
+                    <label for="qc-rect-stepover">Stepover (% of bit)</label>
+                    <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40">
+                  </div>
+                </div>
               </div>
-              <div class="qc-field">
-                <label for="qc-rect-height">Height</label>
-                <input class="qc-input" type="number" id="qc-rect-height" min="0.001" step="0.01" value="30" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-rect-corner">Corner Radius</label>
-                <input class="qc-input" type="number" id="qc-rect-corner" min="0" step="0.01" value="0">
-              </div>
-            </div>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label>Origin</label>
-                <div id="qc-rect-origin-picker"></div>
-              </div>
-              <div class="qc-field">
-                <label for="qc-rect-cut-type">Cut Type</label>
-                <select class="qc-select" id="qc-rect-cut-type">
-                  <option value="inner">Inner (perimeter)</option>
-                  <option value="clearing">Inner (clearing)</option>
-                  <option value="outer" selected>Outer (part)</option>
-                </select>
-              </div>
-              <div class="qc-field qc-rect-clearing-only" style="display: none;">
-                <label for="qc-rect-stepover">Stepover (% of bit)</label>
-                <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40">
+              <div class="qc-shape-preview-cell">
+                <svg id="qc-rect-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
               </div>
             </div>
           </div>
@@ -944,28 +981,35 @@
         <form id="qc-circ-form" onsubmit="return false">
           <div class="qc-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label>Origin</label>
-                <div id="qc-circ-origin-picker"></div>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-diameter">Diameter</label>
+                    <input class="qc-input" type="number" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-circ-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-circ-cut-type">
+                      <option value="inner">Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
+                      <option value="outer" selected>Outer (part)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label>Origin</label>
+                    <div id="qc-circ-origin-picker"></div>
+                  </div>
+                  <div class="qc-field qc-circ-clearing-only" style="display: none;">
+                    <label for="qc-circ-stepover">Stepover (% of bit)</label>
+                    <input class="qc-input" type="number" id="qc-circ-stepover" min="1" max="90" step="1" value="40">
+                  </div>
+                </div>
               </div>
-              <div class="qc-field">
-                <label for="qc-circ-diameter">Diameter</label>
-                <input class="qc-input" type="number" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-circ-cut-type">Cut Type</label>
-                <select class="qc-select" id="qc-circ-cut-type">
-                  <option value="inner">Inner (perimeter)</option>
-                  <option value="clearing">Inner (clearing)</option>
-                  <option value="outer" selected>Outer (part)</option>
-                </select>
-              </div>
-            </div>
-            <div class="qc-row-3">
-              <div class="qc-field qc-circ-clearing-only" style="display: none;">
-                <label for="qc-circ-stepover">Stepover (% of bit)</label>
-                <input class="qc-input" type="number" id="qc-circ-stepover" min="1" max="90" step="1" value="40">
+              <div class="qc-shape-preview-cell">
+                <svg id="qc-circ-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
               </div>
             </div>
           </div>
@@ -1074,16 +1118,16 @@
         <form id="qc-poly-form" onsubmit="return false">
           <div class="qc-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-poly-shape-grid">
-              <div class="qc-poly-fields">
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-poly-sides">Sides</label>
                     <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-poly-radius">Radius</label>
-                    <input class="qc-input" type="number" id="qc-poly-radius" min="0.001" step="0.01" value="20" required>
+                    <label for="qc-poly-diameter">Diameter</label>
+                    <input class="qc-input" type="number" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -1095,6 +1139,7 @@
                     <label for="qc-poly-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-poly-cut-type">
                       <option value="inner">Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
                       <option value="outer" selected>Outer (part)</option>
                     </select>
                   </div>
@@ -1103,8 +1148,14 @@
                     <div id="qc-poly-origin-picker"></div>
                   </div>
                 </div>
+                <div class="qc-row-3">
+                  <div class="qc-field qc-poly-clearing-only" style="display: none;">
+                    <label for="qc-poly-stepover">Stepover (% of bit)</label>
+                    <input class="qc-input" type="number" id="qc-poly-stepover" min="1" max="90" step="1" value="40">
+                  </div>
+                </div>
               </div>
-              <div class="qc-poly-preview-cell">
+              <div class="qc-shape-preview-cell">
                 <svg id="qc-poly-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
               </div>
             </div>
@@ -1685,10 +1736,11 @@
         'qc-cut-step':      { min: 0.001, max: 20,  label: 'Depth of Cut' },
         // Polygon
         'qc-poly-sides':    { min: 3,     max: 12,  label: 'Sides', integer: true },
-        'qc-poly-radius':   { min: 0.004, max: 200, label: 'Radius' },
+        'qc-poly-diameter': { min: 0.004, max: 200, label: 'Diameter' },
         'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-poly-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
+        'qc-poly-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
         'qc-poly-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
         'qc-poly-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
         'qc-poly-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
@@ -1752,10 +1804,11 @@
       'qc-cut-step':      { min: 0.01, max: 500,  label: 'Depth of Cut' },
       // Polygon
       'qc-poly-sides':    { min: 3,    max: 12,   label: 'Sides', integer: true },
-      'qc-poly-radius':   { min: 0.1,  max: 5000, label: 'Radius' },
+      'qc-poly-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
       'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-poly-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
+      'qc-poly-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
       'qc-poly-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
       'qc-poly-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
       'qc-poly-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
@@ -2070,14 +2123,19 @@
 
   function readPolygonForm() {
     var common = readCommonParams();
+    var diameter = num('qc-poly-diameter', 0);
     return Object.assign({}, common, {
       sides:         Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))),
-      radius:        num('qc-poly-radius', 0),
+      diameter:      diameter,
+      // Generator still takes radius (its natural math input). UI
+      // stores/reads diameter for parity with the Circle tab.
+      radius:        diameter / 2,
       startAngleDeg: num('qc-poly-start-angle', 0),
       cutType:       $('qc-poly-cut-type').value,
       origin:        $('qc-poly-origin').value,
       depth:         num('qc-poly-depth', 0),
       depthOfCut:    num('qc-poly-step', 0),
+      stepoverPct:   num('qc-poly-stepover', 40),
       pattern:       readPatternForm('poly'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
@@ -2356,19 +2414,28 @@
 
     var poly = saved.polygon || {};
     if (poly.sides != null)         $('qc-poly-sides').value    = poly.sides;
-    if (poly.radius != null)        $('qc-poly-radius').value   = roundDisplay(mmToDisplay(poly.radius));
+    // v0.1.6 saved `radius`; v0.1.7+ saves `diameter`. Migrate on read
+    // so users upgrading don't lose their sizing.
+    var polyDiameterMm = poly.diameter != null
+      ? poly.diameter
+      : (poly.radius != null ? poly.radius * 2 : null);
+    if (polyDiameterMm != null)     $('qc-poly-diameter').value = roundDisplay(mmToDisplay(polyDiameterMm));
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
     if (poly.depthOfCut != null)    $('qc-poly-step').value     = roundDisplay(mmToDisplay(poly.depthOfCut));
+    if (poly.stepoverPct != null)   $('qc-poly-stepover').value = poly.stepoverPct;
     hydratePattern('poly', poly.pattern);
 
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
+    updateClearingVisibility('poly');
     updatePatternVisibility('poly');
+    updateRectanglePreview();
+    updateCirclePreview();
     updatePolygonPreview();
   }
 
@@ -2477,12 +2544,13 @@
       body.polygon = {
         tool:          toolForShape,
         sides:         params.sides,
-        radius:        displayToMm(params.radius),
+        diameter:      displayToMm(params.diameter),
         startAngleDeg: params.startAngleDeg,
         cutType:       params.cutType,
         origin:        params.origin,
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut),
+        stepoverPct:   params.stepoverPct,
         pattern:       packPattern(params.pattern)
       };
     }
@@ -2530,11 +2598,18 @@
   }
 
   function wireRectangleForm() {
-    $('qc-rect-cut-type').addEventListener('change', function() { updateClearingVisibility('rect'); });
+    $('qc-rect-cut-type').addEventListener('change', function() {
+      updateClearingVisibility('rect');
+      updateRectanglePreview();
+    });
     $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); });
     $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); });
+    ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner'].forEach(function(id) {
+      $(id).addEventListener('input', updateRectanglePreview);
+    });
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
+    updateRectanglePreview();
 
     $('qc-rect-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
@@ -2627,11 +2702,16 @@
   }
 
   function wireCircleForm() {
-    $('qc-circ-cut-type').addEventListener('change', function() { updateClearingVisibility('circ'); });
+    $('qc-circ-cut-type').addEventListener('change', function() {
+      updateClearingVisibility('circ');
+      updateCirclePreview();
+    });
     $('qc-circ-pattern-enable').addEventListener('change', function() { updatePatternVisibility('circ'); });
     $('qc-circ-pattern-style').addEventListener('change', function() { updatePatternVisibility('circ'); });
+    $('qc-circ-diameter').addEventListener('input', updateCirclePreview);
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
+    updateCirclePreview();
 
     $('qc-circ-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
@@ -2652,34 +2732,235 @@
     });
   }
 
+  // Shared SVG marker + hatch pattern for shape previews. Emitted
+  // once per SVG in its <defs>. Note: pattern ids are per-SVG (SVGs
+  // don't share <defs>), so each shape's preview needs to include
+  // its own copy — see the caller for the inline `defs` block.
+  function shapePreviewDefs(idPrefix) {
+    // Open V-style arrowhead — two strokes meeting at the tip
+    // (unfilled), giving a lighter "measurement" feel than a solid
+    // triangle. Smaller markerWidth/Height keeps the arrows from
+    // pushing into the shape or container edges.
+    return (
+      '<defs>' +
+        '<marker id="' + idPrefix + '-arr" viewBox="0 0 10 10" refX="8" refY="5" ' +
+                'markerWidth="4" markerHeight="4" orient="auto-start-reverse" markerUnits="strokeWidth">' +
+          '<path d="M0,0 L8,5 L0,10" fill="none" stroke="currentColor" stroke-width="2" ' +
+                'stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</marker>' +
+        '<pattern id="' + idPrefix + '-hatch" patternUnits="userSpaceOnUse" ' +
+                 'width="6" height="6" patternTransform="rotate(45)">' +
+          '<line x1="0" y1="0" x2="0" y2="6" stroke="currentColor" stroke-width="1"/>' +
+        '</pattern>' +
+      '</defs>'
+    );
+  }
+
+  // Rectangle preview — bordered viewport, hatched waste based on
+  // cut type, and two dimension arrows (horizontal for Width, vertical
+  // for Height) labeled with the current values. Rectangle scales to
+  // fit inside the fixed 100-unit viewBox with a small margin.
+  function updateRectanglePreview() {
+    var svg = document.getElementById('qc-rect-preview');
+    if (!svg) return;
+    var W = num('qc-rect-width', 0);
+    var H = num('qc-rect-height', 0);
+    var cutType = $('qc-rect-cut-type').value;
+
+    // Rectangle is drawn at a FIXED size regardless of the user's
+    // Width/Height values — the preview's job is to communicate
+    // where the WASTE lives (inside vs. outside) and how the arrows
+    // relate to Width/Height, not to be an accurate scale drawing.
+    // Dim labels still show the real numeric values.
+    var w = 76, h = 46;
+    var cr = 0;
+    // Rectangle is vertically centered in the container; the width
+    // dim arrow lives below the rect in the same visual band as the
+    // hatch, no vertical offset needed.
+    var centerY = 0;
+    var x = -w / 2;
+    var y = centerY - h / 2;
+    var boxHalf = 50;
+
+    var shapeAttrs = 'x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
+                     '" width="' + w.toFixed(2) + '" height="' + h.toFixed(2) +
+                     (cr > 0 ? '" rx="' + cr.toFixed(2) + '" ry="' + cr.toFixed(2) : '') + '"';
+
+    // Hatched waste area.
+    var hatchFill = 'fill="url(#qc-rect-hatch)"';
+    var hatched;
+    if (cutType === 'inner' || cutType === 'clearing') {
+      hatched = '<rect class="qc-shape-hatch" ' + hatchFill + ' ' + shapeAttrs + '/>';
+    } else {
+      var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
+              ' L' + boxHalf + ',' + (-boxHalf) +
+              ' L' + boxHalf + ',' + boxHalf +
+              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' +
+              'M' + x.toFixed(2) + ',' + y.toFixed(2) +
+              ' L' + (x + w).toFixed(2) + ',' + y.toFixed(2) +
+              ' L' + (x + w).toFixed(2) + ',' + (y + h).toFixed(2) +
+              ' L' + x.toFixed(2) + ',' + (y + h).toFixed(2) + ' Z';
+      hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
+    }
+
+    // Dimension arrows placed asymmetrically to keep them from crossing:
+    //   Width arrow OUTSIDE, below the bottom edge; label further below the line.
+    //   Height arrow INSIDE, near the right edge; label to the LEFT of the arrow.
+    // Both arrow lines are inset from the shape edges so the arrow
+    // tips (which extend past the line endpoints) don't touch the
+    // container border.
+    var dimGap = 4;
+    var arrowInset = 5;
+    var wY = y + h + dimGap;
+    var hX = x + w - arrowInset;
+    var wLine = '<line class="qc-shape-dim-line" x1="' + (x + arrowInset).toFixed(2) +
+                '" y1="' + wY.toFixed(2) +
+                '" x2="' + (x + w - arrowInset).toFixed(2) + '" y2="' + wY.toFixed(2) + '" ' +
+                'marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
+    // dominant-baseline="hanging" makes `y` the TOP of the text, so
+    // the label sits fully below the arrow line instead of straddling it.
+    var wLabel = '<text class="qc-shape-dim-label" x="' + (x + w / 2).toFixed(2) +
+                 '" y="' + (wY + 2).toFixed(2) + '" text-anchor="middle" ' +
+                 'dominant-baseline="hanging">' +
+                 (W > 0 ? W : '?') + '</text>';
+    var hLine = '<line class="qc-shape-dim-line" x1="' + hX.toFixed(2) + '" y1="' + (y + arrowInset).toFixed(2) +
+                '" x2="' + hX.toFixed(2) + '" y2="' + (y + h - arrowInset).toFixed(2) + '" ' +
+                'marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
+    var hLabel = '<text class="qc-shape-dim-label" x="' + (hX - 4).toFixed(2) +
+                 '" y="' + centerY.toFixed(2) + '" text-anchor="end" ' +
+                 'dominant-baseline="middle">' +
+                 (H > 0 ? H : '?') + '</text>';
+
+    svg.innerHTML =
+      shapePreviewDefs('qc-rect') +
+      hatched +
+      '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
+      wLine + hLine + wLabel + hLabel;
+  }
+
+  // Circle preview — bordered viewport, hatched waste based on cut
+  // type, horizontal dimension arrow labeling the diameter.
+  function updateCirclePreview() {
+    var svg = document.getElementById('qc-circ-preview');
+    if (!svg) return;
+    var D = num('qc-circ-diameter', 0);
+    var cutType = $('qc-circ-cut-type').value;
+    var r = 40;
+    var boxHalf = 50;
+    var arrowInset = 4;
+
+    var hatchFill = 'fill="url(#qc-circ-hatch)"';
+    var hatched;
+    if (cutType === 'inner' || cutType === 'clearing') {
+      hatched = '<circle class="qc-shape-hatch" ' + hatchFill + ' cx="0" cy="0" r="' + r + '"/>';
+    } else {
+      // Outer waste = viewBox rect minus interior circle (evenodd).
+      // Approximate the circle with two arcs joined by a move.
+      var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
+              ' L' + boxHalf + ',' + (-boxHalf) +
+              ' L' + boxHalf + ',' + boxHalf +
+              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' +
+              'M' + r + ',0 A' + r + ',' + r + ' 0 1 0 ' + (-r) + ',0 ' +
+              'A' + r + ',' + r + ' 0 1 0 ' + r + ',0 Z';
+      hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
+    }
+
+    var dLine = '<line class="qc-shape-dim-line" x1="' + (-r + arrowInset) + '" y1="0" ' +
+                'x2="' + (r - arrowInset) + '" y2="0" ' +
+                'marker-start="url(#qc-circ-arr)" marker-end="url(#qc-circ-arr)"/>';
+    var dLabel = '<text class="qc-shape-dim-label" x="0" y="-3" text-anchor="middle">' +
+                 (D > 0 ? D : '?') + '</text>';
+
+    svg.innerHTML =
+      shapePreviewDefs('qc-circ') +
+      hatched +
+      '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
+      dLine + dLabel;
+  }
+
   // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
   // radius inside a 100-unit viewBox so the shape stays the same
-  // rendered size regardless of the user's actual radius input —
+  // rendered size regardless of the user's actual diameter input —
   // the point is to preview the SHAPE (side count + rotation), not
   // the scale. Start angle is added on top of the natural CAD
-  // orientation so 0° matches what the generator emits.
+  // orientation so 0° matches what the generator emits. The dimension
+  // arrow across the middle labels the polygon's circumscribed
+  // diameter (vertex-to-opposite-vertex distance).
   function updatePolygonPreview() {
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
     var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
     var startDeg = num('qc-poly-start-angle', 0);
+    var diameter = num('qc-poly-diameter', 0);
+    var cutType = $('qc-poly-cut-type').value;
     var R = 40;
+    // Hatched-region boundary — extends to the full SVG viewBox so
+    // the "outer" waste hatch fills all the way to the preview cell's
+    // border, which serves as the visible container box (no need to
+    // draw a second one). ViewBox is -50…+50 in each axis.
+    var boxHalf = 50;
     var start = Math.PI / n - Math.PI / 2 + startDeg * Math.PI / 180;
     var pts = [];
     for (var i = 0; i < n; i++) {
       var theta = start + i * 2 * Math.PI / n;
       // SVG y-down: negate the y coordinate so up-in-machine renders as up on screen.
-      pts.push((R * Math.cos(theta)).toFixed(2) + ',' + (-R * Math.sin(theta)).toFixed(2));
+      pts.push({
+        x: R * Math.cos(theta),
+        y: -R * Math.sin(theta)
+      });
     }
+    var ptsStr = pts.map(function(p) { return p.x.toFixed(2) + ',' + p.y.toFixed(2); }).join(' ');
     var apothem = R * Math.cos(Math.PI / n);
+    var armX = apothem * 0.92;
+    var label = diameter > 0 ? String(diameter) : '?';
+
+    // Hatched waste area — the region the cut leaves as scrap.
+    //   Inner (perimeter) cut → keep the outside, waste the polygon interior
+    //   Outer (part) cut     → keep the polygon, waste the surrounding box
+    // For "outer", use an even-odd path: outer container rect + inner
+    // polygon subpath. The area between them (box minus polygon) gets
+    // the hatch fill; the polygon interior stays clear.
+    // "Inner" cuts leave the polygon interior as waste; "outer"
+    // (and clearing implicitly, but clearing goes to the perimeter
+    // branch UI-wise) leaves the surrounding box as waste. Even-odd
+    // rule paints the box minus the polygon for the outer case.
+    var hatchFill = 'fill="url(#qc-poly-hatch)"';
+    var hatchedPath;
+    if (cutType === 'inner' || cutType === 'clearing') {
+      hatchedPath = '<polygon class="qc-shape-hatch" ' + hatchFill + ' points="' + ptsStr + '"/>';
+    } else {
+      var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
+              ' L' + boxHalf + ',' + (-boxHalf) +
+              ' L' + boxHalf + ',' + boxHalf +
+              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ';
+      d += 'M' + pts[0].x.toFixed(2) + ',' + pts[0].y.toFixed(2);
+      for (var i = 1; i < pts.length; i++) {
+        d += ' L' + pts[i].x.toFixed(2) + ',' + pts[i].y.toFixed(2);
+      }
+      d += ' Z';
+      hatchedPath = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
+    }
+
     svg.innerHTML =
-      '<polygon class="qc-poly-shape" points="' + pts.join(' ') + '"/>' +
-      '<circle class="qc-poly-inscribed" cx="0" cy="0" r="' + apothem.toFixed(2) + '"/>';
+      shapePreviewDefs('qc-poly') +
+      hatchedPath +
+      '<polygon class="qc-shape-fill" points="' + ptsStr + '"/>' +
+      '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + apothem.toFixed(2) + '"/>' +
+      '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
+            'x2="' + armX.toFixed(2) + '" y2="0" ' +
+            'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
+      '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>';
   }
 
   function wirePolygonForm() {
     $('qc-poly-sides').addEventListener('input', updatePolygonPreview);
     $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
+    $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
+    $('qc-poly-cut-type').addEventListener('change', function() {
+      updateClearingVisibility('poly');
+      updatePolygonPreview();
+    });
+    updateClearingVisibility('poly');
     $('qc-poly-pattern-enable').addEventListener('change', function() { updatePatternVisibility('poly'); });
     $('qc-poly-pattern-style').addEventListener('change', function() { updatePatternVisibility('poly'); });
     updatePolygonPreview();
@@ -3707,28 +3988,60 @@
     // apothem so bit-radius compensation is consistent regardless of
     // side count: apothem = R × cos(π/n).
     function computePolygonGeom(params, offsetX, offsetY, extraRotDeg) {
-      var radius = params.radius;
+      var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
       var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
       var cutType = params.cutType || 'inner';
       var origin = params.origin || 'center';
       var toolRadius = params.bitDiameter / 2;
       var apothem = radius * Math.cos(Math.PI / sides);
 
-      var newApothem = (cutType === 'inner') ? apothem - toolRadius : apothem + toolRadius;
+      var shrinkInward = (cutType === 'inner' || cutType === 'clearing');
+      var newApothem = shrinkInward ? apothem - toolRadius : apothem + toolRadius;
       var pathRadius = newApothem / Math.cos(Math.PI / sides);
 
-      // Bounding box for origin math is the circumscribed square
-      // (2R × 2R). The polygon inscribes into this box; origin
-      // positions map to points on the box regardless of orientation.
-      var off = originOffset(origin, 2 * radius, 2 * radius);
       var startDeg = (params.startAngleDeg || 0) + (extraRotDeg || 0);
+      var startAngle = Math.PI / sides - Math.PI / 2 + startDeg * Math.PI / 180;
+
+      // Origin placement uses the polygon's ACTUAL bounding box, not
+      // a 2R × 2R circumscribed square — for anything but a square,
+      // some vertices sit inside the square, so the polygon's real box
+      // is smaller in at least one axis. Compute the finished polygon's
+      // vertex bbox (using `radius`, not the tool-path radius) so
+      // "front-left" pins the finished part's front-left corner to
+      // workpiece (0,0), regardless of side count or rotation.
+      var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (var i = 0; i < sides; i++) {
+        var theta = startAngle + i * 2 * Math.PI / sides;
+        var vx = radius * Math.cos(theta);
+        var vy = radius * Math.sin(theta);
+        if (vx < minX) minX = vx;
+        if (vx > maxX) maxX = vx;
+        if (vy < minY) minY = vy;
+        if (vy > maxY) maxY = vy;
+      }
+      var bboxCx = (minX + maxX) / 2;
+      var bboxCy = (minY + maxY) / 2;
+      // In machine convention: back = +Y (maxY), front = -Y (minY).
+      var anchorLocalX, anchorLocalY;
+      switch (origin) {
+        case 'back-left':    anchorLocalX = minX;    anchorLocalY = maxY;    break;
+        case 'back-center':  anchorLocalX = bboxCx;  anchorLocalY = maxY;    break;
+        case 'back-right':   anchorLocalX = maxX;    anchorLocalY = maxY;    break;
+        case 'left-center':  anchorLocalX = minX;    anchorLocalY = bboxCy;  break;
+        case 'right-center': anchorLocalX = maxX;    anchorLocalY = bboxCy;  break;
+        case 'front-left':   anchorLocalX = minX;    anchorLocalY = minY;    break;
+        case 'front-center': anchorLocalX = bboxCx;  anchorLocalY = minY;    break;
+        case 'front-right':  anchorLocalX = maxX;    anchorLocalY = minY;    break;
+        default:             anchorLocalX = bboxCx;  anchorLocalY = bboxCy;  break;
+      }
+
       return {
-        cx: off.x + (offsetX || 0),
-        cy: off.y + (offsetY || 0),
+        cx: -anchorLocalX + (offsetX || 0),
+        cy: -anchorLocalY + (offsetY || 0),
         pathRadius: pathRadius,
         sides: sides,
         toolRadius: toolRadius,
-        startAngle: Math.PI / sides - Math.PI / 2 + startDeg * Math.PI / 180
+        startAngle: startAngle
       };
     }
 
@@ -3742,13 +4055,17 @@
     }
 
     function generatePolygonProgram(params) {
+      if ((params.cutType || 'inner') === 'clearing') {
+        return generatePolygonClearingProgram(params);
+      }
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var baseGeom = computePolygonGeom(params);
 
+      var polyDiameter = params.diameter != null ? params.diameter : params.radius * 2;
       var extras = [
         'Sides: ' + baseGeom.sides,
-        'Radius: ' + params.radius + unitsLabel + ' (circumscribed)',
+        'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
         'Start Angle: ' + (params.startAngleDeg || 0) + '°',
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Origin: ' + (params.origin || 'center')
@@ -3806,6 +4123,116 @@
           lines.push('G1 X' + v.x.toFixed(3) + ' Y' + v.y.toFixed(3) + ' F' + feedRate);
         }
         currentDepth = nextDepth;
+      }
+
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    // ---------- POLYGON (CLEARING) ----------
+    // Pocket-clear the inside of an N-sided polygon with concentric
+    // shrinking polygons. Bit walks the innermost polygon first, then
+    // spirals outward — each between-ring hop is a G1 through fresh
+    // material (plunge feed for safety). No helical bore yet; center
+    // plunge is a straight-Z at innermost polygon start.
+    function generatePolygonClearingProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var baseGeom = computePolygonGeom(params);
+      var stepoverPct = params.stepoverPct || 40;
+      var step = params.bitDiameter * (stepoverPct / 100);
+      var polyDiameter = params.diameter != null ? params.diameter : params.radius * 2;
+
+      var extras = [
+        'Sides: ' + baseGeom.sides,
+        'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
+        'Start Angle: ' + (params.startAngleDeg || 0) + '°',
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
+        'Entry: straight plunge at innermost polygon start',
+        'Origin: ' + (params.origin || 'center')
+      ];
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Polygon (' + baseGeom.sides + '-sided, clearing)',
+        extraComments: extras
+      });
+
+      if (baseGeom.pathRadius <= 0) {
+        lines.push('(WARNING: polygon smaller than tool diameter; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      if (step <= 0) {
+        lines.push('(WARNING: stepover produced non-positive distance; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      Array.prototype.push.apply(lines, startupBlock(params));
+      emitOnePolygonClearing(lines, params, baseGeom, step);
+
+      lines.push('');
+      Array.prototype.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOnePolygonClearing(lines, params, geom, step) {
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+
+      // Build concentric path radii outermost → innermost, then reverse.
+      // Each pass shrinks the apothem by `step`; corresponding path
+      // radius = apothem / cos(π/n).
+      var cosHalfAngle = Math.cos(Math.PI / geom.sides);
+      var apoStep = step;
+      var apoOuter = geom.pathRadius * cosHalfAngle;
+      var apoMin = geom.toolRadius;
+      var radii = [];
+      var apo = apoOuter;
+      while (apo > 0) {
+        radii.push(apo / cosHalfAngle);
+        if (apo <= apoMin) break;
+        apo -= apoStep;
+      }
+      radii.reverse();
+
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      var innerVerts = polygonVertices(geom.cx, geom.cy, radii[0], geom.sides, geom.startAngle);
+
+      lines.push('G0 X' + innerVerts[0].x.toFixed(3) + ' Y' + innerVerts[0].y.toFixed(3));
+      lines.push('G0 Z' + safeHeight);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
+
+        for (var r = 0; r < radii.length; r++) {
+          var verts = polygonVertices(geom.cx, geom.cy, radii[r], geom.sides, geom.startAngle);
+          // If we're not at the innermost polygon, we're already on a
+          // vertex from the previous ring. Cut a short G1 outward to
+          // this ring's starting vertex (through fresh material →
+          // plunge feed for safety).
+          if (r > 0) {
+            lines.push('G1 X' + verts[0].x.toFixed(3) + ' Y' + verts[0].y.toFixed(3) +
+                       ' F' + plungeFeedRate);
+          }
+          for (var i = 1; i <= verts.length; i++) {
+            var v = verts[i % verts.length];
+            lines.push('G1 X' + v.x.toFixed(3) + ' Y' + v.y.toFixed(3) + ' F' + feedRate);
+          }
+        }
+
+        currentDepth = nextDepth;
+        if (currentDepth < depth - 1e-6) {
+          // Retract to safe Z, hop back to innermost vertex for the next pass.
+          lines.push('G0 Z' + safeHeight);
+          lines.push('G0 X' + innerVerts[0].x.toFixed(3) + ' Y' + innerVerts[0].y.toFixed(3));
+          lines.push('G0 Z' + slowPlungeStart);
+        }
       }
 
       lines.push('G0 Z' + safeHeight);
