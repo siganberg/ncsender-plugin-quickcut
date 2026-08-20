@@ -1190,7 +1190,8 @@
                   <select class="qc-select" id="qc-poly-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="circular">Circular</option>
+                    <option value="circular">Circular (Identical)</option>
+                    <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
@@ -3142,9 +3143,9 @@
       }
       cornerR = Math.min(cornerR, Math.min(pathHalfW, pathHalfH));
 
-      var off = originOffset(origin, width, height);
+      // Origin handled by the pattern loop.
       return {
-        cx: off.x + (offsetX || 0), cy: off.y + (offsetY || 0),
+        cx: (offsetX || 0), cy: (offsetY || 0),
         halfW: pathHalfW, halfH: pathHalfH,
         cornerR: cornerR,
         toolRadius: toolRadius,
@@ -3212,6 +3213,62 @@
       return [{ x: 0, y: 0, rotDeg: 0 }];
     }
 
+    // See lib/quickcut-gcode.cjs::computePatternAnchorShift for
+    // documentation. Origin is applied to the aggregate bounding
+    // box of the whole pattern, not to a single instance.
+    function computePatternAnchorShift(origin, positions, shapeBbox) {
+      var minX = Infinity, maxX = -Infinity;
+      var minY = Infinity, maxY = -Infinity;
+      for (var i = 0; i < positions.length; i++) {
+        var p = positions[i];
+        if (p.x + shapeBbox.minX < minX) minX = p.x + shapeBbox.minX;
+        if (p.x + shapeBbox.maxX > maxX) maxX = p.x + shapeBbox.maxX;
+        if (p.y + shapeBbox.minY < minY) minY = p.y + shapeBbox.minY;
+        if (p.y + shapeBbox.maxY > maxY) maxY = p.y + shapeBbox.maxY;
+      }
+      var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+      var anchorX, anchorY;
+      switch (origin) {
+        case 'back-left':    anchorX = minX; anchorY = maxY; break;
+        case 'back-center':  anchorX = cx;   anchorY = maxY; break;
+        case 'back-right':   anchorX = maxX; anchorY = maxY; break;
+        case 'left-center':  anchorX = minX; anchorY = cy;   break;
+        case 'right-center': anchorX = maxX; anchorY = cy;   break;
+        case 'front-left':   anchorX = minX; anchorY = minY; break;
+        case 'front-center': anchorX = cx;   anchorY = minY; break;
+        case 'front-right':  anchorX = maxX; anchorY = minY; break;
+        default:             anchorX = cx;   anchorY = cy;   break;
+      }
+      return { x: -anchorX, y: -anchorY };
+    }
+
+    function rectangleShapeBbox(params) {
+      var W = params.width, H = params.height;
+      return { minX: -W / 2, maxX: W / 2, minY: -H / 2, maxY: H / 2 };
+    }
+
+    function circleShapeBbox(params) {
+      var R = params.diameter / 2;
+      return { minX: -R, maxX: R, minY: -R, maxY: R };
+    }
+
+    function polygonShapeBbox(params) {
+      var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
+      var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
+      var startAngle = Math.PI / sides - Math.PI / 2 + (params.startAngleDeg || 0) * Math.PI / 180;
+      var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (var i = 0; i < sides; i++) {
+        var theta = startAngle + i * 2 * Math.PI / sides;
+        var vx = radius * Math.cos(theta);
+        var vy = radius * Math.sin(theta);
+        if (vx < minX) minX = vx;
+        if (vx > maxX) maxX = vx;
+        if (vy < minY) minY = vy;
+        if (vy > maxY) maxY = vy;
+      }
+      return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+    }
+
     function patternDescription(p) {
       if (!p || !p.enabled) return '';
       if (p.style === 'linear' || p.style === 'honeycomb') {
@@ -3253,14 +3310,17 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, rectangleShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
         if (positions.length > 1) {
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        emitOneRectangle(lines, params, pos.x, pos.y, pos.rotDeg);
+        emitOneRectangle(lines, params, mx, my, pos.rotDeg);
       }
 
       lines.push('');
@@ -3332,14 +3392,17 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, rectangleShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
         if (positions.length > 1) {
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        emitOneRectangleClearing(lines, params, pos.x, pos.y, step, pos.rotDeg);
+        emitOneRectangleClearing(lines, params, mx, my, step, pos.rotDeg);
       }
 
       lines.push('');
@@ -3452,14 +3515,13 @@
     function computeCircleGeom(params, offsetX, offsetY) {
       var diameter = params.diameter;
       var cutType = params.cutType || 'inner';
-      var origin = params.origin || 'center';
       var toolRadius = params.bitDiameter / 2;
       var pathRadius;
       if (cutType === 'inner' || cutType === 'clearing') pathRadius = diameter / 2 - toolRadius;
       else                                                pathRadius = diameter / 2 + toolRadius;
-      var off = originOffset(origin, diameter, diameter);
+      // Origin handled by the pattern loop.
       return {
-        cx: off.x + (offsetX || 0), cy: off.y + (offsetY || 0),
+        cx: (offsetX || 0), cy: (offsetY || 0),
         pathRadius: pathRadius, toolRadius: toolRadius
       };
     }
@@ -3492,13 +3554,16 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
         if (positions.length > 1) {
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + ')');
         }
-        emitOneCircle(lines, params, pos.x, pos.y);
+        emitOneCircle(lines, params, mx, my);
       }
 
       lines.push('');
@@ -3579,13 +3644,16 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
         if (positions.length > 1) {
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + ')');
         }
-        emitOneCircleClearing(lines, params, pos.x, pos.y, step);
+        emitOneCircleClearing(lines, params, mx, my, step);
       }
 
       lines.push('');
@@ -3991,7 +4059,6 @@
       var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
       var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
       var cutType = params.cutType || 'inner';
-      var origin = params.origin || 'center';
       var toolRadius = params.bitDiameter / 2;
       var apothem = radius * Math.cos(Math.PI / sides);
 
@@ -4002,42 +4069,11 @@
       var startDeg = (params.startAngleDeg || 0) + (extraRotDeg || 0);
       var startAngle = Math.PI / sides - Math.PI / 2 + startDeg * Math.PI / 180;
 
-      // Origin placement uses the polygon's ACTUAL bounding box, not
-      // a 2R × 2R circumscribed square — for anything but a square,
-      // some vertices sit inside the square, so the polygon's real box
-      // is smaller in at least one axis. Compute the finished polygon's
-      // vertex bbox (using `radius`, not the tool-path radius) so
-      // "front-left" pins the finished part's front-left corner to
-      // workpiece (0,0), regardless of side count or rotation.
-      var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (var i = 0; i < sides; i++) {
-        var theta = startAngle + i * 2 * Math.PI / sides;
-        var vx = radius * Math.cos(theta);
-        var vy = radius * Math.sin(theta);
-        if (vx < minX) minX = vx;
-        if (vx > maxX) maxX = vx;
-        if (vy < minY) minY = vy;
-        if (vy > maxY) maxY = vy;
-      }
-      var bboxCx = (minX + maxX) / 2;
-      var bboxCy = (minY + maxY) / 2;
-      // In machine convention: back = +Y (maxY), front = -Y (minY).
-      var anchorLocalX, anchorLocalY;
-      switch (origin) {
-        case 'back-left':    anchorLocalX = minX;    anchorLocalY = maxY;    break;
-        case 'back-center':  anchorLocalX = bboxCx;  anchorLocalY = maxY;    break;
-        case 'back-right':   anchorLocalX = maxX;    anchorLocalY = maxY;    break;
-        case 'left-center':  anchorLocalX = minX;    anchorLocalY = bboxCy;  break;
-        case 'right-center': anchorLocalX = maxX;    anchorLocalY = bboxCy;  break;
-        case 'front-left':   anchorLocalX = minX;    anchorLocalY = minY;    break;
-        case 'front-center': anchorLocalX = bboxCx;  anchorLocalY = minY;    break;
-        case 'front-right':  anchorLocalX = maxX;    anchorLocalY = minY;    break;
-        default:             anchorLocalX = bboxCx;  anchorLocalY = bboxCy;  break;
-      }
-
+      // Origin is handled by the pattern loop via computePatternAnchorShift;
+      // this fn just centers the polygon at the passed offset.
       return {
-        cx: -anchorLocalX + (offsetX || 0),
-        cy: -anchorLocalY + (offsetY || 0),
+        cx: (offsetX || 0),
+        cy: (offsetY || 0),
         pathRadius: pathRadius,
         sides: sides,
         toolRadius: toolRadius,
@@ -4085,14 +4121,17 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, polygonShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
         if (positions.length > 1) {
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        var geom = computePolygonGeom(params, pos.x, pos.y, pos.rotDeg);
+        var geom = computePolygonGeom(params, mx, my, pos.rotDeg);
         emitOnePolygon(lines, params, geom);
       }
 
@@ -4172,14 +4211,17 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, polygonShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
         if (positions.length > 1) {
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
-                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        var geom = computePolygonGeom(params, pos.x, pos.y, pos.rotDeg);
+        var geom = computePolygonGeom(params, mx, my, pos.rotDeg);
         emitOnePolygonClearing(lines, params, geom, step);
       }
 

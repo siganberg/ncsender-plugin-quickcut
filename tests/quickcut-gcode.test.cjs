@@ -413,16 +413,15 @@ test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert betwe
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 15\)/m);
   assert.match(gcode, /^\(Pattern: Honeycomb 3x3/m);
-  // Primary row 0 at Y=0.
-  assert.match(gcode, /\(Instance 1\/15 at X0\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 3\/15 at X80\.000 Y0\.000\)/);
-  // First shifted row at Y=20, offset X.
-  assert.match(gcode, /\(Instance 4\/15 at X20\.000 Y20\.000\)/);
-  assert.match(gcode, /\(Instance 6\/15 at X100\.000 Y20\.000\)/);
-  // Primary row 1 at Y=40.
-  assert.match(gcode, /\(Instance 7\/15 at X0\.000 Y40\.000\)/);
-  // Primary row 2 at Y=80.
-  assert.match(gcode, /\(Instance 13\/15 at X0\.000 Y80\.000\)/);
+  // Origin=center anchors the WHOLE pattern's aggregate bbox center at
+  // (0,0), so instance coordinates are shifted by (-50, -40) — the
+  // negative of the aggregate bbox center for this 100×80 spread.
+  assert.match(gcode, /\(Instance 1\/15 at X-50\.000 Y-40\.000\)/);
+  assert.match(gcode, /\(Instance 3\/15 at X30\.000 Y-40\.000\)/);
+  assert.match(gcode, /\(Instance 4\/15 at X-30\.000 Y-20\.000\)/);
+  assert.match(gcode, /\(Instance 6\/15 at X50\.000 Y-20\.000\)/);
+  assert.match(gcode, /\(Instance 7\/15 at X-50\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 13\/15 at X-50\.000 Y40\.000\)/);
 });
 
 test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are always primary', () => {
@@ -442,16 +441,14 @@ test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are alwa
     }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 13\)/m);
-  // Primary row 0.
-  assert.match(gcode, /\(Instance 1\/13 at X0\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 3\/13 at X80\.000 Y0\.000\)/);
-  // Shifted row (trimmed).
-  assert.match(gcode, /\(Instance 4\/13 at X20\.000 Y20\.000\)/);
-  assert.match(gcode, /\(Instance 5\/13 at X60\.000 Y20\.000\)/);
-  // Primary row 1.
-  assert.match(gcode, /\(Instance 6\/13 at X0\.000 Y40\.000\)/);
-  // Ends on a primary row (top/bottom un-shifted).
-  assert.match(gcode, /\(Instance 13\/13 at X80\.000 Y80\.000\)/);
+  // Aggregate bbox is 80×80 (Symmetric Ends trims to 80 wide); center
+  // shift = (-40, -40).
+  assert.match(gcode, /\(Instance 1\/13 at X-40\.000 Y-40\.000\)/);
+  assert.match(gcode, /\(Instance 3\/13 at X40\.000 Y-40\.000\)/);
+  assert.match(gcode, /\(Instance 4\/13 at X-20\.000 Y-20\.000\)/);
+  assert.match(gcode, /\(Instance 5\/13 at X20\.000 Y-20\.000\)/);
+  assert.match(gcode, /\(Instance 6\/13 at X-40\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 13\/13 at X40\.000 Y40\.000\)/);
 });
 
 test('linear 2×2 pattern emits 4 instances at correct offsets', () => {
@@ -465,11 +462,12 @@ test('linear 2×2 pattern emits 4 instances at correct offsets', () => {
   // Header mentions pattern count + description
   assert.match(gcode, /^\(QuickCut: Rectangle × 4\)/m);
   assert.match(gcode, /^\(Pattern: Linear 2x2 \(dX=50, dY=40\)\)/m);
-  // 4 instance comments, at (0,0) (50,0) (0,40) (50,40).
-  assert.match(gcode, /\(Instance 1\/4 at X0\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 2\/4 at X50\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 3\/4 at X0\.000 Y40\.000\)/);
-  assert.match(gcode, /\(Instance 4\/4 at X50\.000 Y40\.000\)/);
+  // origin=center anchors the pattern's aggregate bbox (2×2 rects with
+  // dX=50 dY=40, W=H=20) center at (0,0). Center shift = (-25, -20).
+  assert.match(gcode, /\(Instance 1\/4 at X-25\.000 Y-20\.000\)/);
+  assert.match(gcode, /\(Instance 2\/4 at X25\.000 Y-20\.000\)/);
+  assert.match(gcode, /\(Instance 3\/4 at X-25\.000 Y20\.000\)/);
+  assert.match(gcode, /\(Instance 4\/4 at X25\.000 Y20\.000\)/);
   // One M3 spindle-start line, not four.
   const spindleStarts = gcode.split('\n').filter(l => /^M3\b/.test(l.trim())).length;
   assert.equal(spindleStarts, 1, 'spindle should start once for the whole program');
@@ -484,10 +482,11 @@ test('linear pattern with negative distance reverses direction', () => {
     bitDiameter: 3, depth: 1, depthOfCut: 1, origin: 'center',
     pattern: { enabled: true, style: 'linear', xDist: -30, yDist: 20, xCount: 3, yCount: 1 }
   }));
-  // Instances at (0,0), (-30, 0), (-60, 0).
-  assert.match(gcode, /\(Instance 1\/3 at X0\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 2\/3 at X-30\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 3\/3 at X-60\.000 Y0\.000\)/);
+  // Raw positions (0,0),(-30,0),(-60,0). Aggregate bbox center = (-30,0);
+  // origin=center shifts by (+30, 0).
+  assert.match(gcode, /\(Instance 1\/3 at X30\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 2\/3 at X0\.000 Y0\.000\)/);
+  assert.match(gcode, /\(Instance 3\/3 at X-30\.000 Y0\.000\)/);
 });
 
 test('circular (follow) pattern: instances rotate to match their position angle', () => {
@@ -642,8 +641,10 @@ test('circle pattern replicates the whole ring at each position', () => {
     pattern: { enabled: true, style: 'circular', count: 3, radius: 30, startAngle: 0 }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 3\)/m);
-  // 3 circular instances at 0°, 120°, 240°.
-  assert.match(gcode, /\(Instance 1\/3 at X30\.000 Y0\.000\)/);
+  // Circular ring positions (30,0), (-15, 25.98), (-15, -25.98) with
+  // D=20 circles. Aggregate bbox center = (7.5, 0); origin=center shifts
+  // by (-7.5, 0). First instance = (22.5, 0).
+  assert.match(gcode, /\(Instance 1\/3 at X22\.500 Y-?0\.000\)/);
   const spindleStarts = gcode.split('\n').filter(l => /^M3\b/.test(l.trim())).length;
   assert.equal(spindleStarts, 1, 'spindle starts once for the whole program');
 });
