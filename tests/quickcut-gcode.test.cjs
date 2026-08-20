@@ -986,6 +986,18 @@ test('polygon: startAngleDeg=90 rotates the polygon by +90°', () => {
   assert.match(gcode, /G0 X17\.32[01] Y10\.000/);
 });
 
+test('polygon clearing: pattern (linear 2x2) emits 4 instances', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({
+    sides: 6, radius: 8, cutType: 'clearing', bitDiameter: 3, stepoverPct: 50,
+    depth: 5, depthOfCut: 5,
+    pattern: { enabled: true, style: 'linear', xDist: 25, yDist: 25, xCount: 2, yCount: 2 }
+  }));
+  assert.match(gcode, /Polygon \(6-sided, clearing\) × 4/);
+  assert.match(gcode, /Instance 1\/4/);
+  assert.match(gcode, /Instance 4\/4/);
+});
+
 test('polygon: pattern (linear 2x2) emits 4 instances', () => {
   const gen = makeQuickCutGenerator(false).generatePolygonProgram;
   const gcode = gen(polygonBase({

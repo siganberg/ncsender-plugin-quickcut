@@ -4136,6 +4136,7 @@
     // plunge is a straight-Z at innermost polygon start.
     function generatePolygonClearingProgram(params) {
       var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
       var baseGeom = computePolygonGeom(params);
       var stepoverPct = params.stepoverPct || 40;
       var step = params.bitDiameter * (stepoverPct / 100);
@@ -4150,9 +4151,11 @@
         'Entry: straight plunge at innermost polygon start',
         'Origin: ' + (params.origin || 'center')
       ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
-        shapeLabel: 'Polygon (' + baseGeom.sides + '-sided, clearing)',
+        shapeLabel: 'Polygon (' + baseGeom.sides + '-sided, clearing)' +
+                    (positions.length > 1 ? ' × ' + positions.length : ''),
         extraComments: extras
       });
 
@@ -4168,7 +4171,17 @@
       }
 
       Array.prototype.push.apply(lines, startupBlock(params));
-      emitOnePolygonClearing(lines, params, baseGeom, step);
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+        }
+        var geom = computePolygonGeom(params, pos.x, pos.y, pos.rotDeg);
+        emitOnePolygonClearing(lines, params, geom, step);
+      }
 
       lines.push('');
       Array.prototype.push.apply(lines, programFooter(params));
