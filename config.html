@@ -624,6 +624,13 @@
     color: var(--color-text-secondary, #888);
     display: block;
   }
+  /* Side-view variant (Planer, Jointer, etc.): the shape represents a
+     cross-section, so the container border would be misleading — drop
+     it and let the drawing rest on its own ground line. */
+  .qc-shape-preview-cell.qc-shape-preview-cell--sideview {
+    border: none;
+    background: transparent;
+  }
   .qc-shape-preview-cell .qc-shape-fill {
     fill: color-mix(in srgb, var(--color-accent) 8%, transparent);
     stroke: currentColor;
@@ -659,6 +666,37 @@
     paint-order: stroke;
     stroke: var(--color-surface-muted, var(--color-surface));
     stroke-width: 2px;
+  }
+  /* Planer side-view accents. Ground line reads as the surface the
+     material rests on; pass guides subdivide the hatched cut layer
+     so multi-pass depths look plausibly staged. */
+  /* Match the material rectangle's stroke so the wasteboard line
+     reads as a continuation of the box's bottom edge. */
+  .qc-shape-preview-cell .qc-plan-ground {
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+  /* Accent-colored Z0 marker. Overlays the neutral edge it sits on
+     (top of material for Target Depth, ground line for Target
+     Thickness / Wasteboard), so it needs to be at least as thick. */
+  .qc-shape-preview-cell .qc-plan-z0 {
+    stroke: var(--color-accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .qc-shape-preview-cell .qc-plan-cut-border {
+    stroke: currentColor;
+    stroke-width: 1;
+    opacity: 0.9;
+  }
+  .qc-shape-preview-cell .qc-plan-caption {
+    fill: var(--color-text-secondary, #888);
+    font-size: 6px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.75;
   }
   @media (max-width: 600px) {
     .qc-shape-grid { grid-template-columns: 1fr; }
@@ -1262,51 +1300,58 @@
         <form id="qc-plan-form" onsubmit="return false">
           <div class="qc-card">
             <h3 class="qc-card-title">Region</h3>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label for="qc-plan-mode">Mode</label>
-                <select class="qc-select" id="qc-plan-mode">
-                  <option value="depth" selected>Target Depth</option>
-                  <option value="thickness">Target Thickness</option>
-                  <option value="wasteboard">Wasteboard Surfacing</option>
-                </select>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-plan-mode">Mode</label>
+                    <select class="qc-select" id="qc-plan-mode">
+                      <option value="depth" selected>Target Depth</option>
+                      <option value="thickness">Target Thickness</option>
+                      <option value="wasteboard">Wasteboard Surfacing</option>
+                    </select>
+                  </div>
+                  <div class="qc-field qc-plan-thickness-only" style="display: none;">
+                    <label for="qc-plan-start-thickness">Starting Thickness</label>
+                    <input class="qc-input" type="number" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20">
+                  </div>
+                </div>
+                <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-plan-width">Width (X)</label>
+                    <input class="qc-input" type="number" id="qc-plan-width" min="0.001" step="0.01" value="100" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-plan-height">Height (Y)</label>
+                    <input class="qc-input" type="number" id="qc-plan-height" min="0.001" step="0.01" value="80" required>
+                  </div>
+                  <div class="qc-field qc-plan-overrun-field">
+                    <label for="qc-plan-overrun">Overrun</label>
+                    <input class="qc-input" type="number" id="qc-plan-overrun" min="0" step="0.1" value="2">
+                  </div>
+                </div>
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label>Origin</label>
+                    <div id="qc-plan-origin-picker"></div>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-plan-pattern">Pattern</label>
+                    <select class="qc-select" id="qc-plan-pattern">
+                      <option value="zigzagY" selected>Zigzag (long-Y)</option>
+                      <option value="zigzagX">Zigzag (long-X)</option>
+                      <option value="spiral">Spiral (outside-in)</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-plan-stepover">Stepover (% of bit)</label>
+                    <input class="qc-input" type="number" id="qc-plan-stepover" min="10" max="100" step="1" value="40">
+                  </div>
+                </div>
               </div>
-              <div class="qc-field qc-plan-thickness-only" style="display: none;">
-                <label for="qc-plan-start-thickness">Starting Thickness</label>
-                <input class="qc-input" type="number" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20">
-              </div>
-            </div>
-            <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label for="qc-plan-width">Width (X)</label>
-                <input class="qc-input" type="number" id="qc-plan-width" min="0.001" step="0.01" value="100" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-plan-height">Height (Y)</label>
-                <input class="qc-input" type="number" id="qc-plan-height" min="0.001" step="0.01" value="80" required>
-              </div>
-              <div class="qc-field qc-plan-overrun-field">
-                <label for="qc-plan-overrun">Overrun</label>
-                <input class="qc-input" type="number" id="qc-plan-overrun" min="0" step="0.1" value="2">
-              </div>
-            </div>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label>Origin</label>
-                <div id="qc-plan-origin-picker"></div>
-              </div>
-              <div class="qc-field">
-                <label for="qc-plan-pattern">Pattern</label>
-                <select class="qc-select" id="qc-plan-pattern">
-                  <option value="zigzagY" selected>Zigzag (long-Y)</option>
-                  <option value="zigzagX">Zigzag (long-X)</option>
-                  <option value="spiral">Spiral (outside-in)</option>
-                </select>
-              </div>
-              <div class="qc-field">
-                <label for="qc-plan-stepover">Stepover (% of bit)</label>
-                <input class="qc-input" type="number" id="qc-plan-stepover" min="10" max="100" step="1" value="40">
+              <div class="qc-shape-preview-cell qc-shape-preview-cell--sideview">
+                <svg id="qc-plan-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
               </div>
             </div>
           </div>
@@ -2438,6 +2483,7 @@
     updateRectanglePreview();
     updateCirclePreview();
     updatePolygonPreview();
+    updatePlanerPreview();
   }
 
   function hydratePattern(prefix, p) {
@@ -2632,8 +2678,16 @@
   }
 
   function wirePlanerForm() {
-    $('qc-plan-mode').addEventListener('change', updatePlanerModeVisibility);
+    $('qc-plan-mode').addEventListener('change', function() {
+      updatePlanerModeVisibility();
+      updatePlanerPreview();
+    });
+    ['qc-plan-depth', 'qc-plan-start-thickness'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.addEventListener('input', updatePlanerPreview);
+    });
     updatePlanerModeVisibility();
+    updatePlanerPreview();
 
     $('qc-plan-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
@@ -2837,6 +2891,122 @@
       hatched +
       '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
       wLine + hLine + wLabel + hLabel;
+  }
+
+  // Planer preview — side view of the material being surfaced. The
+  // top strip is hatched to mark the layer being removed (Total Depth),
+  // the rest of the rectangle is the material that stays. A vertical
+  // dim arrow on the left labels the removed layer's thickness. A
+  // ground line below the material grounds the drawing so it reads
+  // as a side view rather than a floating shape. Depth-of-cut passes
+  // are drawn as faint horizontal guides inside the hatched strip
+  // when they fit visually. The material rectangle stays a fixed size —
+  // the label carries the real numeric value.
+  function updatePlanerPreview() {
+    var svg = document.getElementById('qc-plan-preview');
+    if (!svg) return;
+    var mode = $('qc-plan-mode') ? $('qc-plan-mode').value : 'depth';
+    var totalDepth = num('qc-plan-depth', 0);
+    var startThick = num('qc-plan-start-thickness', 0);
+
+    // Material biased to the left of the viewBox to leave the right
+    // side open for the thickness-mode dim arrow + label. The
+    // wasteboard/ground line still spans the full width.
+    var matW = 68, matH = 46;
+    var matX = -42, matY = -18;
+    // Ground line coincides with the material's bottom edge so the
+    // stock sits on the wasteboard instead of floating above it.
+    var groundY = matY + matH;
+    var groundHalf = 46;
+
+    // Fixed-proportion hatched cut layer. The preview's job is to
+    // depict WHAT is being cut, not to be an accurate scale drawing —
+    // mode switches only change labels and the Z0 accent, never the
+    // rectangle's geometry. Sized to leave room for the depth label
+    // centered inside.
+    var cutH = matH * 0.22;
+
+    var shapeAttrs = 'x="' + matX.toFixed(2) + '" y="' + matY.toFixed(2) +
+                     '" width="' + matW.toFixed(2) + '" height="' + matH.toFixed(2) + '"';
+    var hatchAttrs = 'x="' + matX.toFixed(2) + '" y="' + matY.toFixed(2) +
+                     '" width="' + matW.toFixed(2) + '" height="' + cutH.toFixed(2) + '"';
+
+    // Horizontal border at the bottom of the hatched strip — marks
+    // the final planing surface (where the cut stops).
+    var cutBorderY = matY + cutH;
+    var cutBorder = '<line class="qc-plan-cut-border" x1="' + matX.toFixed(2) +
+                    '" y1="' + cutBorderY.toFixed(2) +
+                    '" x2="' + (matX + matW).toFixed(2) +
+                    '" y2="' + cutBorderY.toFixed(2) + '"/>';
+
+    // Total Depth / Amount to Remove label — centered inside the
+    // hatched cut layer so it sits with the region it describes and
+    // never risks clipping past the viewBox left edge.
+    var dimGap = 4;
+    var arrowInset = 4;
+    var dLine = '';
+    var dLabelX = matX + matW / 2;
+    var dLabel = '<text class="qc-shape-dim-label qc-plan-depth-label" x="' +
+                 dLabelX.toFixed(2) + '" y="' + (matY + cutH / 2).toFixed(2) +
+                 '" text-anchor="middle" dominant-baseline="central">' +
+                 (totalDepth > 0 ? totalDepth : '?') + '</text>';
+
+    // Right dim arrow (Target Thickness mode only) spans the full
+    // material height and labels the Starting Thickness — the stock
+    // going in, which the mode is measured against.
+    var rightDim = '';
+    if (mode === 'thickness') {
+      var rightDimX = matX + matW + dimGap;
+      // Span the full box height so the arrow reads as "this whole
+      // thickness" rather than a subset of it.
+      var rLine = '<line class="qc-shape-dim-line" x1="' + rightDimX.toFixed(2) +
+                  '" y1="' + matY.toFixed(2) +
+                  '" x2="' + rightDimX.toFixed(2) + '" y2="' + (matY + matH).toFixed(2) + '" ' +
+                  'marker-start="url(#qc-plan-arr)" marker-end="url(#qc-plan-arr)"/>';
+      var rLabel = '<text class="qc-shape-dim-label" x="' + (rightDimX + 2).toFixed(2) +
+                   '" y="' + (matY + matH / 2).toFixed(2) + '" text-anchor="start" ' +
+                   'dominant-baseline="central">' +
+                   (startThick > 0 ? startThick : '?') + '</text>';
+      rightDim = rLine + rLabel;
+    }
+
+    // Ground line under the material (neutral). Spans the full width
+    // of the viewBox regardless of where the material sits.
+    var groundLine = '<line class="qc-plan-ground" x1="' + (-groundHalf) +
+                     '" y1="' + groundY.toFixed(2) +
+                     '" x2="' + groundHalf + '" y2="' + groundY.toFixed(2) + '"/>';
+
+    // Z0 marker — accent overlay on the edge the user probes against.
+    // Target Depth and Wasteboard Surfacing both probe the top surface
+    // (stock top and wasteboard top, respectively). Target Thickness
+    // probes the wasteboard (bottom of stock). Matches the "Set Z0 on
+    // …" callout under Mode.
+    var z0;
+    if (mode === 'thickness') {
+      z0 = '<line class="qc-plan-z0" x1="' + (-groundHalf) +
+           '" y1="' + groundY.toFixed(2) +
+           '" x2="' + groundHalf + '" y2="' + groundY.toFixed(2) + '"/>';
+    } else {
+      z0 = '<line class="qc-plan-z0" x1="' + matX.toFixed(2) +
+           '" y1="' + matY.toFixed(2) +
+           '" x2="' + (matX + matW).toFixed(2) +
+           '" y2="' + matY.toFixed(2) + '"/>';
+    }
+
+    // Caption below the ground line, centered in the viewBox.
+    var caption = '<text class="qc-plan-caption" x="0" y="42" ' +
+                  'text-anchor="middle" dominant-baseline="central">Side View</text>';
+
+    svg.innerHTML =
+      shapePreviewDefs('qc-plan') +
+      '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
+      '<rect class="qc-shape-hatch" fill="url(#qc-plan-hatch)" ' + hatchAttrs + '/>' +
+      cutBorder +
+      groundLine +
+      z0 +
+      dLine + dLabel +
+      rightDim +
+      caption;
   }
 
   // Circle preview — bordered viewport, hatched waste based on cut
