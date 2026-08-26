@@ -1,4 +1,8 @@
 ## What's Changed
 
+### ✨ New Features
+- Jointer operations now include a top-view preview so you can see the cut layout before running the job
+- Planer operations now include a side-view preview with a highlighted Z0 reference line and depth arrows for clearer setup
+
 ### 🔧 Improvements
-- Pattern origin is now anchored to the full pattern's overall bounding box, so positioning stays consistent across every copy in the pattern
+- Renamed the frameless preview modifier for clearer, more consistent naming across operations
