@@ -624,10 +624,11 @@
     color: var(--color-text-secondary, #888);
     display: block;
   }
-  /* Side-view variant (Planer, Jointer, etc.): the shape represents a
-     cross-section, so the container border would be misleading — drop
-     it and let the drawing rest on its own ground line. */
-  .qc-shape-preview-cell.qc-shape-preview-cell--sideview {
+  /* Frameless variant (Planer / Jointer / Cutter): these previews
+     draw their own material rectangle inside the cell, so the outer
+     container border would be a redundant second frame. Drop the
+     border and let the drawing speak for itself. */
+  .qc-shape-preview-cell.qc-shape-preview-cell--frameless {
     border: none;
     background: transparent;
   }
@@ -1350,7 +1351,7 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-shape-preview-cell qc-shape-preview-cell--sideview">
+              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
                 <svg id="qc-plan-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
               </div>
             </div>
@@ -1388,50 +1389,57 @@
         <form id="qc-join-form" onsubmit="return false">
           <div class="qc-card">
             <h3 class="qc-card-title">Trim</h3>
-            <div class="qc-row-4">
-              <div class="qc-field">
-                <label for="qc-join-length">Length</label>
-                <input class="qc-input" type="number" id="qc-join-length" min="0.001" step="0.01" value="150" required>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-4">
+                  <div class="qc-field">
+                    <label for="qc-join-length">Length</label>
+                    <input class="qc-input" type="number" id="qc-join-length" min="0.001" step="0.01" value="150" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-join-width">Trim Width</label>
+                    <input class="qc-input" type="number" id="qc-join-width" min="0.001" step="0.01" value="1" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-join-trims">Number of Trims</label>
+                    <input class="qc-input" type="number" id="qc-join-trims" min="1" max="50" step="1" value="3" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-join-overrun">Overrun</label>
+                    <input class="qc-input" type="number" id="qc-join-overrun" min="0" step="0.1" value="2">
+                  </div>
+                </div>
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-join-axis">Trim Axis</label>
+                    <select class="qc-select" id="qc-join-axis">
+                      <option value="x" selected>X-axis</option>
+                      <option value="y">Y-axis</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-join-direction">Cut Direction</label>
+                    <select class="qc-select" id="qc-join-direction">
+                      <option value="conventional" selected>Conventional</option>
+                      <option value="climb">Climb</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-join-origin">Side to Cut</label>
+                    <select class="qc-select" id="qc-join-origin">
+                      <option value="front" data-axis="x" selected>Front</option>
+                      <option value="back" data-axis="x">Back</option>
+                      <option value="left" data-axis="y">Left</option>
+                      <option value="right" data-axis="y">Right</option>
+                    </select>
+                  </div>
+                </div>
+                <p class="qc-mode-hint" id="qc-join-hint"></p>
               </div>
-              <div class="qc-field">
-                <label for="qc-join-width">Trim Width</label>
-                <input class="qc-input" type="number" id="qc-join-width" min="0.001" step="0.01" value="1" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-join-trims">Number of Trims</label>
-                <input class="qc-input" type="number" id="qc-join-trims" min="1" max="50" step="1" value="3" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-join-overrun">Overrun</label>
-                <input class="qc-input" type="number" id="qc-join-overrun" min="0" step="0.1" value="2">
+              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
+                <svg id="qc-join-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
               </div>
             </div>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label for="qc-join-axis">Trim Axis</label>
-                <select class="qc-select" id="qc-join-axis">
-                  <option value="x" selected>X-axis</option>
-                  <option value="y">Y-axis</option>
-                </select>
-              </div>
-              <div class="qc-field">
-                <label for="qc-join-direction">Cut Direction</label>
-                <select class="qc-select" id="qc-join-direction">
-                  <option value="conventional" selected>Conventional</option>
-                  <option value="climb">Climb</option>
-                </select>
-              </div>
-              <div class="qc-field">
-                <label for="qc-join-origin">Side to Cut</label>
-                <select class="qc-select" id="qc-join-origin">
-                  <option value="front" data-axis="x" selected>Front</option>
-                  <option value="back" data-axis="x">Back</option>
-                  <option value="left" data-axis="y">Left</option>
-                  <option value="right" data-axis="y">Right</option>
-                </select>
-              </div>
-            </div>
-            <p class="qc-mode-hint" id="qc-join-hint"></p>
           </div>
 
           <div class="qc-card">
@@ -2484,6 +2492,7 @@
     updateCirclePreview();
     updatePolygonPreview();
     updatePlanerPreview();
+    updateJointerPreview();
   }
 
   function hydratePattern(prefix, p) {
@@ -2737,9 +2746,15 @@
       if (el) el.addEventListener('change', updateJointerHint);
     });
     // Feed axis toggles which origin options are valid.
-    $('qc-join-axis').addEventListener('change', function() { updateJointerOriginOptions(); updateJointerHint(); });
+    $('qc-join-axis').addEventListener('change', function() { updateJointerOriginOptions(); updateJointerHint(); updateJointerPreview(); });
+    $('qc-join-origin').addEventListener('change', updateJointerPreview);
+    ['qc-join-length', 'qc-join-width'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.addEventListener('input', updateJointerPreview);
+    });
     updateJointerOriginOptions();
     updateJointerHint();
+    updateJointerPreview();
 
     $('qc-join-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
@@ -3006,6 +3021,133 @@
       z0 +
       dLine + dLabel +
       rightDim +
+      caption;
+  }
+
+  // Jointer preview — top view of the workpiece with a hatched strip
+  // marking the trim area on the selected side. Fixed geometry: the
+  // hatch thickness never scales with Trim Width, and the material
+  // rectangle is a constant preview size. Length arrow sits outside
+  // the material parallel to the trim edge (same visual band as the
+  // hatch); Trim Width label is centered inside the hatched strip
+  // like the Planer's Total Depth. Cut border line marks the final
+  // trimmed edge (where the material ends after the cut).
+  function updateJointerPreview() {
+    var svg = document.getElementById('qc-join-preview');
+    if (!svg) return;
+    var axis   = $('qc-join-axis').value;
+    var side   = $('qc-join-origin').value;
+    var length = num('qc-join-length', 0);
+    var trimW  = num('qc-join-width', 0);
+
+    var w = 76, h = 46;
+    var matL = -w / 2, matR = w / 2;
+    var matT = -h / 2, matB = h / 2;
+    // Fixed hatched strip thickness (~26% like the Planer's cut layer).
+    var stripThickness = 12;
+    var arrowInset = 4;
+    var dimGap = 4;
+
+    var shapeAttrs = 'x="' + matL.toFixed(2) + '" y="' + matT.toFixed(2) +
+                     '" width="' + w.toFixed(2) + '" height="' + h.toFixed(2) + '"';
+
+    var hatchAttrs, cutBorder, trimLabelX, trimLabelY, lengthLine, lengthLabel;
+
+    if (axis === 'x') {
+      // Trim runs along X — hatched strip on the front (bottom) or
+      // back (top) edge; Length dim outside on the same side.
+      var lY;
+      if (side === 'back') {
+        hatchAttrs = 'x="' + matL.toFixed(2) + '" y="' + matT.toFixed(2) +
+                     '" width="' + w.toFixed(2) + '" height="' + stripThickness.toFixed(2) + '"';
+        var cbY = matT + stripThickness;
+        cutBorder = '<line class="qc-plan-cut-border" x1="' + matL.toFixed(2) +
+                    '" y1="' + cbY.toFixed(2) +
+                    '" x2="' + matR.toFixed(2) + '" y2="' + cbY.toFixed(2) + '"/>';
+        trimLabelX = 0;
+        trimLabelY = matT + stripThickness / 2;
+        lY = matT - dimGap;
+        lengthLabel = '<text class="qc-shape-dim-label" x="0" y="' + (lY - 2).toFixed(2) +
+                      '" text-anchor="middle">' +
+                      (length > 0 ? length : '?') + '</text>';
+      } else {  // 'front' (default)
+        var stripY = matB - stripThickness;
+        hatchAttrs = 'x="' + matL.toFixed(2) + '" y="' + stripY.toFixed(2) +
+                     '" width="' + w.toFixed(2) + '" height="' + stripThickness.toFixed(2) + '"';
+        cutBorder = '<line class="qc-plan-cut-border" x1="' + matL.toFixed(2) +
+                    '" y1="' + stripY.toFixed(2) +
+                    '" x2="' + matR.toFixed(2) + '" y2="' + stripY.toFixed(2) + '"/>';
+        trimLabelX = 0;
+        trimLabelY = matB - stripThickness / 2;
+        lY = matB + dimGap;
+        lengthLabel = '<text class="qc-shape-dim-label" x="0" y="' + (lY + 2).toFixed(2) +
+                      '" text-anchor="middle" dominant-baseline="hanging">' +
+                      (length > 0 ? length : '?') + '</text>';
+      }
+      lengthLine = '<line class="qc-shape-dim-line" x1="' + (matL + arrowInset).toFixed(2) +
+                   '" y1="' + lY.toFixed(2) +
+                   '" x2="' + (matR - arrowInset).toFixed(2) + '" y2="' + lY.toFixed(2) + '" ' +
+                   'marker-start="url(#qc-join-arr)" marker-end="url(#qc-join-arr)"/>';
+    } else {
+      // Trim runs along Y — hatched strip on the left or right edge;
+      // Length dim vertical, outside on the same side.
+      var lX;
+      if (side === 'left') {
+        hatchAttrs = 'x="' + matL.toFixed(2) + '" y="' + matT.toFixed(2) +
+                     '" width="' + stripThickness.toFixed(2) + '" height="' + h.toFixed(2) + '"';
+        var cbX = matL + stripThickness;
+        cutBorder = '<line class="qc-plan-cut-border" x1="' + cbX.toFixed(2) +
+                    '" y1="' + matT.toFixed(2) +
+                    '" x2="' + cbX.toFixed(2) + '" y2="' + matB.toFixed(2) + '"/>';
+        trimLabelX = matL + stripThickness / 2;
+        trimLabelY = 0;
+        lX = matL - dimGap;
+        // Rotate the label so it reads along the Y axis — a horizontal
+        // "150" would overflow the viewBox on the left side.
+        var lTx = lX - 2;
+        lengthLabel = '<text class="qc-shape-dim-label" x="' + lTx.toFixed(2) +
+                      '" y="0" text-anchor="middle" dominant-baseline="central" ' +
+                      'transform="rotate(-90 ' + lTx.toFixed(2) + ' 0)">' +
+                      (length > 0 ? length : '?') + '</text>';
+      } else {  // 'right'
+        var stripX = matR - stripThickness;
+        hatchAttrs = 'x="' + stripX.toFixed(2) + '" y="' + matT.toFixed(2) +
+                     '" width="' + stripThickness.toFixed(2) + '" height="' + h.toFixed(2) + '"';
+        cutBorder = '<line class="qc-plan-cut-border" x1="' + stripX.toFixed(2) +
+                    '" y1="' + matT.toFixed(2) +
+                    '" x2="' + stripX.toFixed(2) + '" y2="' + matB.toFixed(2) + '"/>';
+        trimLabelX = stripX + stripThickness / 2;
+        trimLabelY = 0;
+        lX = matR + dimGap;
+        var rTx = lX + 2;
+        lengthLabel = '<text class="qc-shape-dim-label" x="' + rTx.toFixed(2) +
+                      '" y="0" text-anchor="middle" dominant-baseline="central" ' +
+                      'transform="rotate(-90 ' + rTx.toFixed(2) + ' 0)">' +
+                      (length > 0 ? length : '?') + '</text>';
+      }
+      lengthLine = '<line class="qc-shape-dim-line" x1="' + lX.toFixed(2) +
+                   '" y1="' + (matT + arrowInset).toFixed(2) +
+                   '" x2="' + lX.toFixed(2) + '" y2="' + (matB - arrowInset).toFixed(2) + '" ' +
+                   'marker-start="url(#qc-join-arr)" marker-end="url(#qc-join-arr)"/>';
+    }
+
+    var trimWLabel = '<text class="qc-shape-dim-label" x="' + trimLabelX.toFixed(2) +
+                     '" y="' + trimLabelY.toFixed(2) +
+                     '" text-anchor="middle" dominant-baseline="central">' +
+                     (trimW > 0 ? trimW : '?') + '</text>';
+
+    // Caption below the material — this is a top-down view, spelled
+    // out so nobody confuses it with the side-view previews.
+    var caption = '<text class="qc-plan-caption" x="0" y="42" ' +
+                  'text-anchor="middle" dominant-baseline="central">Top View</text>';
+
+    svg.innerHTML =
+      shapePreviewDefs('qc-join') +
+      '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
+      '<rect class="qc-shape-hatch" fill="url(#qc-join-hatch)" ' + hatchAttrs + '/>' +
+      cutBorder +
+      lengthLine + lengthLabel +
+      trimWLabel +
       caption;
   }
 
