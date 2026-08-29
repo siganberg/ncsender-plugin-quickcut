@@ -521,6 +521,10 @@
   }
   .qc-row-2 { grid-template-columns: repeat(2, 1fr); }
   .qc-row-3 { grid-template-columns: repeat(3, 1fr); }
+  /* Mode row only ever holds two fields (Starting Thickness is hidden
+     outside thickness mode), so a third empty column just squeezed the
+     select until "Wasteboard Surfacing" was clipped. */
+  .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
 
   /* Graphical origin picker — 3x3 grid of dots on the workpiece
@@ -1303,7 +1307,7 @@
             <h3 class="qc-card-title">Region</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
-                <div class="qc-row-3">
+                <div class="qc-row-3 qc-plan-mode-row">
                   <div class="qc-field">
                     <label for="qc-plan-mode">Mode</label>
                     <select class="qc-select" id="qc-plan-mode">
@@ -2095,10 +2099,10 @@
            roundDisplay(mmToDisplay(state.machineLimitXmm)) + ' × ' +
            roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
         : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported), inset by bit radius so the cutter stays within machine limits.';
-      return z0('machine zero (0, 0, 0)') + '<br>' +
+      return z0('the highest spot of the wasteboard') + '<br>' +
              '<strong>Wasteboard Surfacing.</strong> ' + limitsText +
-             ' Touch off at machine 0, 0, 0 and set G54 origin there — the g-code treats WCS ' +
-             'coords as machine coords.';
+             ' Set G54 X0/Y0 at machine zero — the g-code treats WCS X/Y as machine coords — ' +
+             'and zero Z on the wasteboard itself, not at machine Z0.';
     }
     return z0('the highest spot of the stock') + '<br>' +
            '<strong>Target Depth</strong> flattens an uneven top. Zero on the highest spot, ' +
@@ -4157,7 +4161,7 @@
         'Region: ' + width + ' x ' + height + ' ' + unitsLabel
       ];
       if (isWasteboard) {
-        extras.push('Machine coordinates — set G54 origin to machine zero (0,0,0) before running');
+        extras.push('Machine coordinates — set G54 X0/Y0 at machine zero (0,0); Z0 on the wasteboard surface');
       }
       if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + cutW + ' x ' + cutH + ')');
       if (isThickness) {
