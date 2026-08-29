@@ -1,8 +1,7 @@
 ## What's Changed
 
-### ✨ New Features
-- Jointer operations now include a top-view preview so you can see the cut layout before running the job
-- Planer operations now include a side-view preview with a highlighted Z0 reference line and depth arrows for clearer setup
+### 🐛 Bug Fixes
+- Corrected the wasteboard Z0 setup instruction in the Planer wizard so it now describes the right zeroing step
 
 ### 🔧 Improvements
-- Renamed the frameless preview modifier for clearer, more consistent naming across operations
+- Widened the Planer Mode dropdown so mode names are fully readable
