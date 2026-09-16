@@ -261,6 +261,11 @@
     vertical-align: middle;
     line-height: 1.3;
   }
+  /* Save to File Manager sits top-right of whichever shape's header is showing;
+     the title row leaves room for it rather than running underneath. */
+  .qc-panel-header { position: relative; }
+  .qc-panel-title-row { padding-right: 220px; }
+  .qc-save-toggle { position: absolute; top: 15px; right: 20px; }
   .qc-panel-sub {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
@@ -819,6 +824,16 @@
           <h2 class="qc-panel-title">Rectangle</h2>
           <p class="qc-panel-sub">Cut a rectangle by width × height, with optional corner radius.</p>
         </div>
+
+        <!-- One switch for every shape, moved into the active header with the
+             common cards. -->
+        <label class="qc-switch-label qc-save-toggle" id="qc-save-toggle" title="Also save each generated program to File Manager › QuickCut">
+          <span>Save to File Manager</span>
+          <span class="qc-switch">
+            <input type="checkbox" id="qc-save-files">
+            <span class="qc-switch-track"></span>
+          </span>
+        </label>
 
         <!-- Common cards (Tool + Spindle & Coolant) live once in the DOM
              and are moved into whichever section's header is currently
@@ -1667,6 +1682,8 @@
     var header = section.querySelector('.qc-panel-header');
     if (!header) return;
     header.appendChild(cards);
+    var saveToggle = $('qc-save-toggle');
+    if (saveToggle) header.appendChild(saveToggle);
   }
 
   function wireCloseButton() {
@@ -2405,6 +2422,10 @@
     if (common.spindleDelay != null)   $('qc-delay').value  = common.spindleDelay;
     if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
     if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
+    $('qc-save-files').checked = !!common.saveToFileManager;
+    $('qc-save-files').addEventListener('change', function() {
+      persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
+    });
     // Tool card is per-shape. Falls back to common.bit/feed/plunge for
     // shapes without a per-shape override yet (first-run + legacy).
     TOOL_SHAPES.forEach(function(shape) {
@@ -2618,10 +2639,25 @@
     if (TOOL_SHAPES.indexOf(params.shape) >= 0) {
       state.toolByShape[params.shape] = toolForShape;
     }
-    fetch(BASE_URL + '/api/plugins/com.ncsender.quickcut/settings', {
+    persistSettings(body);
+  }
+
+  // The server replaces the whole settings file on every save. Sending only the
+  // shape that was generated therefore wiped every other shape's saved values,
+  // so each change is merged into the full saved copy and that is sent instead.
+  function persistSettings(patch) {
+    initialConfig = initialConfig || {};
+    Object.keys(patch).forEach(function(key) {
+      if (key === 'common') {
+        initialConfig.common = Object.assign({}, initialConfig.common || {}, patch.common);
+      } else {
+        initialConfig[key] = patch[key];
+      }
+    });
+    return fetch(BASE_URL + '/api/plugins/com.ncsender.quickcut/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(initialConfig)
     }).catch(function(err) { console.warn('[QuickCut] settings save failed:', err); });
   }
 
@@ -2650,11 +2686,47 @@
   // renders it — same pattern the ToolBench plugins use. The operator
   // reviews the toolpath, then runs it from the main UI when ready.
   async function loadGcodeIntoVisualizer(gcode, filename) {
-    return fetch(BASE_URL + '/api/gcode-files/load-temp', {
+    var res = await fetch(BASE_URL + '/api/gcode-files/load-temp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: filename, content: gcode })
     });
+    // Saved before returning: every Generate closes the dialog as soon as this
+    // resolves, and a save still in flight would be abandoned.
+    var saveBox = $('qc-save-files');
+    if (res.ok && saveBox && saveBox.checked) {
+      try {
+        await saveGeneratedProgram(gcode, filename);
+      } catch (err) {
+        alert('The program was loaded, but saving it to File Manager failed: ' + err.message);
+      }
+    }
+    return res;
+  }
+
+  // Saves into File Manager › QuickCut under the generated name. Every shape
+  // generates the same name each time, so a name already taken gets " (2)",
+  // " (3)" and so on rather than overwriting a program saved earlier. The
+  // server creates the QuickCut folder on the first save.
+  async function saveGeneratedProgram(gcode, filename) {
+    var dot = filename.lastIndexOf('.');
+    var stem = dot > 0 ? filename.slice(0, dot) : filename;
+    var ext = dot > 0 ? filename.slice(dot) : '';
+    var path = 'QuickCut/' + filename;
+    for (var n = 2; ; n++) {
+      var probe = await fetch(BASE_URL + '/api/gcode-files/file?path=' + encodeURIComponent(path));
+      if (probe.status === 404) break;
+      if (!probe.ok) throw new Error('could not check for an existing file (' + probe.status + ')');
+      if (n > 999) throw new Error('too many saved copies of ' + filename);
+      path = 'QuickCut/' + stem + ' (' + n + ')' + ext;
+    }
+    var saved = await fetch(BASE_URL + '/api/gcode-files/file/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: path, content: gcode })
+    });
+    if (!saved.ok) throw new Error('save failed (' + saved.status + ')');
+    return path;
   }
 
   function wireRectangleForm() {
