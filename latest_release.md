@@ -1,7 +1,7 @@
 ## What's Changed
 
-### 🐛 Bug Fixes
-- Corrected the wasteboard Z0 setup instruction in the Planer wizard so it now describes the right zeroing step
+### ✨ New Features
+- Generated programs can now be saved straight to the File Manager
 
 ### 🔧 Improvements
-- Widened the Planer Mode dropdown so mode names are fully readable
+- Each shape now keeps its own settings, so switching between shapes no longer loses the values you entered
