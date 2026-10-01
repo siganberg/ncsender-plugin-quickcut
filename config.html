@@ -3382,6 +3382,11 @@
   // so the browser needs the generator inlined here.
   function makeQuickCutGenerator(isImperial) {
     var safeHopDelta = isImperial ? (5 * 0.0393701) : 5;
+    // X/Y decimals for G0/G1 moves. An arc starting where a move left the tool
+    // needs its start within grblHAL's arc tolerance (~0.002 mm). 3 decimals is
+    // 0.0005 mm in metric but 0.0127 mm in inches (error:33), so inches get 5,
+    // like the arc words themselves.
+    var xyDp = isImperial ? 5 : 3;
 
     function coreSafeZLine(safeZHeightMm) {
       if (typeof safeZHeightMm !== 'number' || !isFinite(safeZHeightMm)) return null;
@@ -3474,7 +3479,7 @@
 
       function g1(x, y, withFeed) {
         var p = rotatePoint(cx, cy, x, y, rot);
-        lines.push('G1 X' + p.x.toFixed(3) + ' Y' + p.y.toFixed(3) + (withFeed ? feedSuffix : ''));
+        lines.push('G1 X' + p.x.toFixed(xyDp) + ' Y' + p.y.toFixed(xyDp) + (withFeed ? feedSuffix : ''));
       }
       function g3(endX, endY, ctrX, ctrY, prevX, prevY) {
         var e = rotatePoint(cx, cy, endX, endY, rot);
@@ -3725,7 +3730,7 @@
 
       var s0 = rotatePoint(geom.cx, geom.cy, geom.cx, geom.cy - geom.halfH, geom.rotationDeg);
       var startX = s0.x, startY = s0.y;
-      lines.push('G0 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+      lines.push('G0 X' + startX.toFixed(xyDp) + ' Y' + startY.toFixed(xyDp));
       var safeHeight = safeHopDelta.toFixed(3);
       lines.push('G0 Z' + safeHeight);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
@@ -3832,7 +3837,7 @@
       var helixStartX = base.cx + helixRadius;
       var helixStartY = base.cy;
 
-      lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + helixStartY.toFixed(3));
+      lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + helixStartY.toFixed(xyDp));
       var safeHeight = safeHopDelta.toFixed(3);
       lines.push('G0 Z' + safeHeight);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
@@ -3871,7 +3876,7 @@
           var innerStart = rotatePoint(inner.cx, inner.cy,
                                        inner.cx, inner.cy - inner.halfH,
                                        inner.rotationDeg || 0);
-          lines.push('G1 X' + innerStart.x.toFixed(3) + ' Y' + innerStart.y.toFixed(3) +
+          lines.push('G1 X' + innerStart.x.toFixed(xyDp) + ' Y' + innerStart.y.toFixed(xyDp) +
                      ' F' + plungeFeedRate);
 
           for (var i = 0; i < levels.length; i++) {
@@ -3882,7 +3887,7 @@
               var nextStart = rotatePoint(next.cx, next.cy,
                                           next.cx, next.cy - next.halfH,
                                           next.rotationDeg || 0);
-              lines.push('G1 X' + nextStart.x.toFixed(3) + ' Y' + nextStart.y.toFixed(3) +
+              lines.push('G1 X' + nextStart.x.toFixed(xyDp) + ' Y' + nextStart.y.toFixed(xyDp) +
                          ' F' + plungeFeedRate);
             }
           }
@@ -3892,7 +3897,7 @@
         currentDepth = nextDepth;
 
         if (currentDepth < depth - 1e-6) {
-          lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + helixStartY.toFixed(3));
+          lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + helixStartY.toFixed(xyDp));
         }
       }
 
@@ -3967,7 +3972,7 @@
       var feedRate = params.feedRate;
       var plungeFeedRate = params.plungeFeedRate;
 
-      lines.push('G0 X' + (cx + pathRadius).toFixed(3) + ' Y' + cy.toFixed(3));
+      lines.push('G0 X' + (cx + pathRadius).toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
       var safeHeight = safeHopDelta.toFixed(3);
       lines.push('G0 Z' + safeHeight);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
@@ -4076,7 +4081,7 @@
       if (!useHelix) helixRadius = 0;
       var helixStartX = cx + helixRadius;
 
-      lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + cy.toFixed(3));
+      lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
       var safeHeight = safeHopDelta.toFixed(3);
       lines.push('G0 Z' + safeHeight);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
@@ -4111,7 +4116,7 @@
         }
 
         if (radii.length > 0) {
-          lines.push('G1 X' + (cx + radii[0]).toFixed(3) + ' Y' + cy.toFixed(3) +
+          lines.push('G1 X' + (cx + radii[0]).toFixed(xyDp) + ' Y' + cy.toFixed(xyDp) +
                      ' F' + plungeFeedRate);
           for (var i = 0; i < radii.length; i++) {
             var rr = radii[i];
@@ -4120,7 +4125,7 @@
             lines.push('G3 X' + (cx + rr).toFixed(5) + ' Y' + cy.toFixed(5) +
                        ' I' + rr.toFixed(5) + ' J0');
             if (i < radii.length - 1) {
-              lines.push('G1 X' + (cx + radii[i + 1]).toFixed(3) + ' Y' + cy.toFixed(3) +
+              lines.push('G1 X' + (cx + radii[i + 1]).toFixed(xyDp) + ' Y' + cy.toFixed(xyDp) +
                          ' F' + plungeFeedRate);
             }
           }
@@ -4130,7 +4135,7 @@
         currentDepth = nextDepth;
 
         if (currentDepth < depth - 1e-6) {
-          lines.push('G0 X' + helixStartX.toFixed(3) + ' Y' + cy.toFixed(3));
+          lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
         }
       }
 
@@ -4163,10 +4168,10 @@
           var y = Math.min(startY + p * step, startY + cutH);
           if (p > 0) lines.push('G1 Y' + y.toFixed(3) + ' F' + feedRate);
           var xEnd = direction === 1 ? (startX + cutW) : startX;
-          lines.push('G1 X' + xEnd.toFixed(3) + ' F' + feedRate);
+          lines.push('G1 X' + xEnd.toFixed(xyDp) + ' F' + feedRate);
         } else {
           var x = Math.min(startX + p * step, startX + cutW);
-          if (p > 0) lines.push('G1 X' + x.toFixed(3) + ' F' + feedRate);
+          if (p > 0) lines.push('G1 X' + x.toFixed(xyDp) + ' F' + feedRate);
           var yEnd = direction === 1 ? (startY + cutH) : startY;
           lines.push('G1 Y' + yEnd.toFixed(3) + ' F' + feedRate);
         }
@@ -4180,19 +4185,19 @@
       var bottom = startY, top = startY + cutH;
       var curX = left, curY = bottom;
       while (right - left > 0 && top - bottom > 0) {
-        lines.push('G1 X' + right.toFixed(3) + ' Y' + bottom.toFixed(3) + ' F' + feedRate);
+        lines.push('G1 X' + right.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + feedRate);
         curX = right; curY = bottom;
         bottom += effStep; if (bottom >= top) break;
-        lines.push('G1 X' + curX.toFixed(3) + ' Y' + top.toFixed(3) + ' F' + feedRate);
+        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + top.toFixed(xyDp) + ' F' + feedRate);
         curY = top;
         right -= effStep; if (left >= right) break;
-        lines.push('G1 X' + left.toFixed(3) + ' Y' + curY.toFixed(3) + ' F' + feedRate);
+        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + feedRate);
         curX = left;
         top -= effStep; if (bottom >= top) break;
-        lines.push('G1 X' + curX.toFixed(3) + ' Y' + bottom.toFixed(3) + ' F' + feedRate);
+        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + feedRate);
         curY = bottom;
         left += effStep; if (left >= right) break;
-        lines.push('G1 X' + left.toFixed(3) + ' Y' + curY.toFixed(3) + ' F' + feedRate);
+        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + feedRate);
         curX = left;
       }
     }
@@ -4271,7 +4276,7 @@
         var nextDepth = Math.min(depth, currentDepth + depthOfCut);
         var z = isThickness ? (startingThickness - nextDepth) : -nextDepth;
         lines.push('(Pass Z' + z.toFixed(3) + ')');
-        lines.push('G0 X' + startX.toFixed(3) + ' Y' + startY.toFixed(3));
+        lines.push('G0 X' + startX.toFixed(xyDp) + ' Y' + startY.toFixed(xyDp));
         lines.push('G0 Z' + safeHopWork);
         var approachZ = isThickness
           ? (startingThickness - currentDepth + 0.5).toFixed(3)
@@ -4349,11 +4354,11 @@
             toX = stepOffset;   toY = feedEnd;
           }
           lines.push('(Trim ' + (i + 1) + '/' + numTrims + ')');
-          lines.push('G0 X' + fromX.toFixed(3) + ' Y' + fromY.toFixed(3));
+          lines.push('G0 X' + fromX.toFixed(xyDp) + ' Y' + fromY.toFixed(xyDp));
           lines.push('G0 Z' + safeHeight);
           lines.push('G0 Z' + slowPlungeStart);
           lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
-          lines.push('G1 X' + toX.toFixed(3) + ' Y' + toY.toFixed(3) + ' F' + feedRate);
+          lines.push('G1 X' + toX.toFixed(xyDp) + ' Y' + toY.toFixed(xyDp) + ' F' + feedRate);
           lines.push('G0 Z' + safeHeight);
         }
         currentDepth = nextDepth;
@@ -4423,11 +4428,11 @@
           fromY = feedFrom; toY = feedTo; fromX = cutPos; toX = cutPos;
         }
         lines.push('(Pass Z' + z.toFixed(3) + ')');
-        lines.push('G0 X' + fromX.toFixed(3) + ' Y' + fromY.toFixed(3));
+        lines.push('G0 X' + fromX.toFixed(xyDp) + ' Y' + fromY.toFixed(xyDp));
         lines.push('G0 Z' + safeHeight);
         lines.push('G0 Z' + slowPlungeStart);
         lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
-        lines.push('G1 X' + toX.toFixed(3) + ' Y' + toY.toFixed(3) + ' F' + feedRate);
+        lines.push('G1 X' + toX.toFixed(xyDp) + ' Y' + toY.toFixed(xyDp) + ' F' + feedRate);
         lines.push('G0 Z' + safeHeight);
         currentDepth = nextDepth;
       }
@@ -4537,7 +4542,7 @@
       var safeHeight = safeHopDelta.toFixed(3);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
 
-      lines.push('G0 X' + verts[0].x.toFixed(3) + ' Y' + verts[0].y.toFixed(3));
+      lines.push('G0 X' + verts[0].x.toFixed(xyDp) + ' Y' + verts[0].y.toFixed(xyDp));
       lines.push('G0 Z' + safeHeight);
       lines.push('G0 Z' + slowPlungeStart);
 
@@ -4547,7 +4552,7 @@
         lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
         for (var i = 1; i <= verts.length; i++) {
           var v = verts[i % verts.length];
-          lines.push('G1 X' + v.x.toFixed(3) + ' Y' + v.y.toFixed(3) + ' F' + feedRate);
+          lines.push('G1 X' + v.x.toFixed(xyDp) + ' Y' + v.y.toFixed(xyDp) + ' F' + feedRate);
         }
         currentDepth = nextDepth;
       }
@@ -4644,7 +4649,7 @@
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
       var innerVerts = polygonVertices(geom.cx, geom.cy, radii[0], geom.sides, geom.startAngle);
 
-      lines.push('G0 X' + innerVerts[0].x.toFixed(3) + ' Y' + innerVerts[0].y.toFixed(3));
+      lines.push('G0 X' + innerVerts[0].x.toFixed(xyDp) + ' Y' + innerVerts[0].y.toFixed(xyDp));
       lines.push('G0 Z' + safeHeight);
       lines.push('G0 Z' + slowPlungeStart);
 
@@ -4660,12 +4665,12 @@
           // this ring's starting vertex (through fresh material →
           // plunge feed for safety).
           if (r > 0) {
-            lines.push('G1 X' + verts[0].x.toFixed(3) + ' Y' + verts[0].y.toFixed(3) +
+            lines.push('G1 X' + verts[0].x.toFixed(xyDp) + ' Y' + verts[0].y.toFixed(xyDp) +
                        ' F' + plungeFeedRate);
           }
           for (var i = 1; i <= verts.length; i++) {
             var v = verts[i % verts.length];
-            lines.push('G1 X' + v.x.toFixed(3) + ' Y' + v.y.toFixed(3) + ' F' + feedRate);
+            lines.push('G1 X' + v.x.toFixed(xyDp) + ' Y' + v.y.toFixed(xyDp) + ' F' + feedRate);
           }
         }
 
@@ -4673,7 +4678,7 @@
         if (currentDepth < depth - 1e-6) {
           // Retract to safe Z, hop back to innermost vertex for the next pass.
           lines.push('G0 Z' + safeHeight);
-          lines.push('G0 X' + innerVerts[0].x.toFixed(3) + ' Y' + innerVerts[0].y.toFixed(3));
+          lines.push('G0 X' + innerVerts[0].x.toFixed(xyDp) + ' Y' + innerVerts[0].y.toFixed(xyDp));
           lines.push('G0 Z' + slowPlungeStart);
         }
       }

@@ -1047,3 +1047,27 @@ test('polygon: closes back to first vertex (last G1 equals first G0)', () => {
   assert.ok(Math.abs(fx - lx) < 1e-3 && Math.abs(fy - ly) < 1e-3,
     `perimeter should close: first (${fx},${fy}) vs last (${lx},${ly})`);
 });
+
+// ---------- Imperial: G0/G1 moves that start an arc keep 5 decimals ----------
+// A circle 0.187" with a 1/16" bit put the rapid at X0.125 (3 decimals) while
+// the arcs used radius 0.12475: 0.00025" (0.006 mm) apart -> error:33.
+test('imperial circle: arc start matches the move before it (reported case)', () => {
+  const gcode = makeQuickCutGenerator(true).generateCircleProgram(circleBase({
+    diameter: 0.187, cutType: 'outer', bitDiameter: 0.0625,
+    depth: 0.25, depthOfCut: 0.03, feedRate: 20, plungeFeedRate: 10
+  }));
+  assert.match(gcode, /^G0 X0\.12475 Y0\.00000$/m);
+  assert.ok(maxArcRadiusDelta(gcode) < GRBL_ARC_TOLERANCE_INCH);
+});
+
+test('imperial circle clearing, circles and rounded rectangles stay within grbl arc tolerance', () => {
+  const g = makeQuickCutGenerator(true);
+  for (const gcode of [
+    g.generateCircleClearingProgram(circleBase({ diameter: 0.937, cutType: 'inner', bitDiameter: 0.0625, depth: 0.1, depthOfCut: 0.05 })),
+    g.generateCircleProgram(circleBase({ diameter: 1.313, cutType: 'inner', bitDiameter: 0.125, depth: 0.1, depthOfCut: 0.05 })),
+    g.generateRectangleProgram(baseParams({ width: 2.187, height: 1.313, cornerRadius: 0.187, cutType: 'inner', bitDiameter: 0.0625, depth: 0.1, depthOfCut: 0.05, feedRate: 30, plungeFeedRate: 5 })),
+  ]) {
+    const worst = maxArcRadiusDelta(gcode);
+    assert.ok(worst < GRBL_ARC_TOLERANCE_INCH, `arc radius mismatch ${worst} in`);
+  }
+});
