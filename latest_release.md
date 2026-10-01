@@ -1,7 +1,4 @@
 ## What's Changed
 
-### ✨ New Features
-- Generated programs can now be saved straight to the File Manager
-
-### 🔧 Improvements
-- Each shape now keeps its own settings, so switching between shapes no longer loses the values you entered
+### 🐛 Bug Fixes
+- Fixed an "error 33" alarm when running imperial (inch) programs that contain arcs, caused by the move before an arc being rounded to 3 decimal places
