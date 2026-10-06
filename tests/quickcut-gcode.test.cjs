@@ -271,7 +271,7 @@ test('clearing emits helical bore then expanding concentric rectangles', () => {
     // Helix radius = 0.6 × 3 = 1.8mm (center-clearing guarantee).
   }));
 
-  assert.match(gcode, /^\(QuickCut: Rectangle \(clearing\)\)/m);
+  assert.match(gcode, /^\(QuickCut: Rectangle \[clearing\]\)/m);
   assert.match(gcode, /^\(Entry: helical bore then expanding outward\)/m);
   assert.match(gcode, /^\(Stepover: 40%/m);
 
@@ -461,7 +461,7 @@ test('linear 2×2 pattern emits 4 instances at correct offsets', () => {
   }));
   // Header mentions pattern count + description
   assert.match(gcode, /^\(QuickCut: Rectangle × 4\)/m);
-  assert.match(gcode, /^\(Pattern: Linear 2x2 \(dX=50, dY=40\)\)/m);
+  assert.match(gcode, /^\(Pattern: Linear 2x2 \[dX=50, dY=40\]\)/m);
   // origin=center anchors the pattern's aggregate bbox (2×2 rects with
   // dX=50 dY=40, W=H=20) center at (0,0). Center shift = (-25, -20).
   assert.match(gcode, /\(Instance 1\/4 at X-25\.000 Y-20\.000\)/);
@@ -498,7 +498,7 @@ test('circular (follow) pattern: instances rotate to match their position angle'
   }));
   assert.match(gcode, /\(Instance 1\/4 at X40\.000 Y0\.000\)/);
   assert.match(gcode, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000°\)/);
-  assert.match(gcode, /Pattern: Circular \(Path Direction\) n=4 r=40 start=0°/);
+  assert.match(gcode, /Pattern: Circular \[Path Direction\] n=4 r=40 start=0°/);
 });
 
 test('circular pattern (no follow) leaves instances un-rotated', () => {
@@ -619,7 +619,7 @@ test('circle clearing emits helical bore + expanding concentric rings', () => {
     diameter: 50, cutType: 'clearing',
     bitDiameter: 6, depth: 1, depthOfCut: 1, stepoverPct: 40
   }));
-  assert.match(gcode, /^\(QuickCut: Circle \(clearing\)\)/m);
+  assert.match(gcode, /^\(QuickCut: Circle \[clearing\]\)/m);
   assert.match(gcode, /^\(Entry: helical bore then expanding outward\)/m);
   // Single depth pass — descent 3mm ÷ 1.5mm/turn = 2 turns → 4 helix arcs.
   const helices = gcode.split('\n').filter(l => /^G3\b.*\bZ-?\d/.test(l.trim())).length;
@@ -923,8 +923,8 @@ test('polygon: sides count reflects in output for triangle and dodecagon', () =>
   const dodec = gen(polygonBase({ sides: 12, depth: 5, depthOfCut: 5 }));
   assert.equal(countG1XY(tri), 3);
   assert.equal(countG1XY(dodec), 12);
-  assert.match(tri, /Polygon \(3-sided\)/);
-  assert.match(dodec, /Polygon \(12-sided\)/);
+  assert.match(tri, /Polygon \[3-sided\]/);
+  assert.match(dodec, /Polygon \[12-sided\]/);
 });
 
 test('polygon: multi-pass depth repeats vertex loop', () => {
@@ -994,7 +994,7 @@ test('polygon clearing: pattern (linear 2x2) emits 4 instances', () => {
     depth: 5, depthOfCut: 5,
     pattern: { enabled: true, style: 'linear', xDist: 25, yDist: 25, xCount: 2, yCount: 2 }
   }));
-  assert.match(gcode, /Polygon \(6-sided, clearing\) × 4/);
+  assert.match(gcode, /Polygon \[6-sided, clearing\] × 4/);
   assert.match(gcode, /Instance 1\/4/);
   assert.match(gcode, /Instance 4\/4/);
 });
@@ -1024,7 +1024,7 @@ test('polygon: clearing emits concentric shrinking polygons', () => {
     sides: 6, radius: 10, cutType: 'clearing', bitDiameter: 3,
     stepoverPct: 50, depth: 5, depthOfCut: 5
   }));
-  assert.match(gcode, /Polygon \(6-sided, clearing\)/);
+  assert.match(gcode, /Polygon \[6-sided, clearing\]/);
   assert.match(gcode, /Stepover: 50%/);
   const g1Count = countG1XY(gcode);
   assert.ok(g1Count >= 30 && g1Count <= 40, `expected ~34 G1 XY moves, got ${g1Count}`);
@@ -1070,4 +1070,54 @@ test('imperial circle clearing, circles and rounded rectangles stay within grbl 
     const worst = maxArcRadiusDelta(gcode);
     assert.ok(worst < GRBL_ARC_TOLERANCE_INCH, `arc radius mismatch ${worst} in`);
   }
+});
+
+// ---------- Comments must not nest ----------
+// A G-code comment ends at the first ')'. "(Origin (start side): left)" left
+// ": left)" as G-code: error:1, and the job stopped on line 5.
+const nestedComment = /\([^)]*\(/;
+
+for (const origin of ['left', 'right', 'front', 'back']) {
+  test(`cutter program has no nested comments (origin ${origin})`, () => {
+    const gcode = makeQuickCutGenerator(false).generateCutterProgram(
+      cutterBase({ axis: origin === 'left' || origin === 'right' ? 'y' : 'x', origin }));
+    for (const line of gcode.split('\n')) assert.doesNotMatch(line, nestedComment, line);
+    assert.match(gcode, /^\(Origin \[start side\]: /m);
+  });
+}
+
+test('header comments turn any parentheses into brackets', () => {
+  const lines = makeQuickCutGenerator(false).programHeader(
+    { bitDiameter: 6, feedRate: 1000, spindleRpm: 15000, cutType: 'outside (profile)' },
+    { shapeLabel: 'Test (shape)', extraComments: ['a (b (c)) d'] });
+  for (const line of lines) assert.doesNotMatch(line, nestedComment, line);
+  assert.ok(lines.includes('(a [b [c]] d)'));
+  assert.ok(lines.includes('(QuickCut: Test [shape])'));
+});
+
+// ---------- Each pass plunges only its own step ----------
+// Every pass used to rapid to 2 mm above the surface and plunge slowly all
+// the way down, through material earlier passes had already removed.
+function approachHeights(gcode) {
+  // The G0 Z right before each slow plunge (G1 Z... with the plunge feed).
+  const lines = gcode.split('\n'), out = [];
+  for (let i = 1; i < lines.length; i++)
+    if (/^G1 Z-?[\d.]+ F250\b/.test(lines[i]) && /^G0 Z/.test(lines[i - 1]))
+      out.push(Number(lines[i - 1].slice(4)));
+  return out;
+}
+
+test('cutter: each pass rapids to 2 mm above the previous pass floor', () => {
+  const gcode = makeQuickCutGenerator(false).generateCutterProgram(
+    cutterBase({ depth: 6, depthOfCut: 2 }));
+  assert.deepEqual(approachHeights(gcode), [2, 0, -2]);
+  assert.match(gcode, /^G1 Z-6\.000 F250/m);
+});
+
+test('cutter imperial: the 2 mm clearance is in inches', () => {
+  const gcode = makeQuickCutGenerator(true).generateCutterProgram(
+    cutterBase({ depth: 0.3, depthOfCut: 0.1 }));
+  const h = approachHeights(gcode);
+  assert.equal(h.length, 3);
+  assert.ok(Math.abs(h[0] - 0.079) < 1e-3 && Math.abs(h[1] - (0.079 - 0.1)) < 1e-3, String(h));
 });

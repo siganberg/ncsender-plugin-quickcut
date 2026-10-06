@@ -3411,15 +3411,22 @@
       }
     }
 
+    // A G-code comment ends at the first ')', and comments can't nest:
+    // "(Origin (start side): left)" left ": left)" as G-code and the
+    // controller rejected it (error:1), stopping the job on line 5.
+    function comment(text) {
+      return '(' + String(text).replace(/\(/g, '[').replace(/\)/g, ']') + ')';
+    }
+
     function programHeader(params, opts) {
       var unitsCode = isImperial ? 'G20' : 'G21';
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var lines = [];
-      lines.push('(QuickCut: ' + opts.shapeLabel + ')');
+      lines.push(comment('QuickCut: ' + opts.shapeLabel));
       if (opts.extraComments) {
-        for (var i = 0; i < opts.extraComments.length; i++) lines.push('(' + opts.extraComments[i] + ')');
+        for (var i = 0; i < opts.extraComments.length; i++) lines.push(comment(opts.extraComments[i]));
       }
-      if (params.cutType) lines.push('(Cut Type: ' + params.cutType + ')');
+      if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + ')');
       lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
       lines.push('');
@@ -4280,7 +4287,7 @@
         lines.push('G0 Z' + safeHopWork);
         var approachZ = isThickness
           ? (startingThickness - currentDepth + 0.5).toFixed(3)
-          : slowPlungeStart;
+          : (parseFloat(slowPlungeStart) - currentDepth).toFixed(3);   // depth mode: just above the previous pass's floor
         lines.push('G0 Z' + approachZ);
         lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
         emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, stepoverDist, feedRate);
@@ -4356,7 +4363,9 @@
           lines.push('(Trim ' + (i + 1) + '/' + numTrims + ')');
           lines.push('G0 X' + fromX.toFixed(xyDp) + ' Y' + fromY.toFixed(xyDp));
           lines.push('G0 Z' + safeHeight);
-          lines.push('G0 Z' + slowPlungeStart);
+          // Rapid to just above the floor the previous pass left: this spot
+          // is already cut that deep, so only the new step is plunged slowly.
+          lines.push('G0 Z' + (parseFloat(slowPlungeStart) - currentDepth).toFixed(3));
           lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
           lines.push('G1 X' + toX.toFixed(xyDp) + ' Y' + toY.toFixed(xyDp) + ' F' + feedRate);
           lines.push('G0 Z' + safeHeight);
@@ -4430,7 +4439,9 @@
         lines.push('(Pass Z' + z.toFixed(3) + ')');
         lines.push('G0 X' + fromX.toFixed(xyDp) + ' Y' + fromY.toFixed(xyDp));
         lines.push('G0 Z' + safeHeight);
-        lines.push('G0 Z' + slowPlungeStart);
+        // Rapid to just above the floor the previous pass left: this spot
+        // is already cut that deep, so only the new step is plunged slowly.
+        lines.push('G0 Z' + (parseFloat(slowPlungeStart) - currentDepth).toFixed(3));
         lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
         lines.push('G1 X' + toX.toFixed(xyDp) + ' Y' + toY.toFixed(xyDp) + ' F' + feedRate);
         lines.push('G0 Z' + safeHeight);
