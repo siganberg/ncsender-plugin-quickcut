@@ -1,4 +1,5 @@
 ## What's Changed
 
 ### 🐛 Bug Fixes
-- Fixed an "error 33" alarm when running imperial (inch) programs that contain arcs, caused by the move before an arc being rounded to 3 decimal places
+- Fixed jobs stopping unexpectedly when the generated program contained nested comments
+- Fixed multi-pass cuts plunging deeper than intended; each pass now plunges only its own step depth
