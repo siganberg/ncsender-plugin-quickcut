@@ -26,7 +26,7 @@ Every shape can be repeated with a [pattern](#patterns). Rectangle, Circle, and 
 - Safe Z — honors ncSender's core `safeZHeight` setting; falls back to machine Z0 when unset
 - Pattern (shapes only) — Linear, Honeycomb, or Circular; see [Patterns](#patterns)
 - Unit entry — type `.25in`, `1/4"`, or `6.35mm` into size and feed fields; see [Typing units](#typing-units)
-- Angle tab — measures the angle of a line from the work origin to a second point, typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
+- Measure pattern angle — the **Measure** link on a Linear/Honeycomb pattern measures the angle of a line on the workpiece, from a point typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
 
 ## Keyhole
@@ -80,7 +80,7 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Dril
 
 ### Linear and Honeycomb at an angle
 
-Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Angle tab](#measuring-an-angle) to measure the angle on the machine. At 0° the pattern runs along the machine axes, and the fields read *X Distance / Y Distance / X Count / Y Count*.
+Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Measure Pattern Angle](#measuring-an-angle) page to measure the angle on the machine. At 0° the pattern runs along the machine axes, and the fields read *X Distance / Y Distance / X Count / Y Count*.
 
 At any other angle the whole grid is turned about the first copy, and the fields change to:
 
@@ -97,18 +97,20 @@ Rectangles, polygons, and keyholes also get a **Rotate shapes with angle** switc
 
 ## Measuring an angle
 
-The **Angle** tab shows the angle and distance of a line from the work origin (X0 Y0) to a second point on it. Use it to match a pattern to a line on the workpiece, such as an edge that isn't square to the machine. This can be helpful for patterns that don't align with the X or Y-axis.
+The **Measure Pattern Angle** page shows the angle and distance of a line from the work origin (X0 Y0) to a second point on it. Use it to match a pattern to a line on the workpiece, such as an edge that isn't square to the machine. This can be helpful for patterns that don't align with the X or Y-axis.
+
+It has no sidebar button: open it with the **Measure** link beside a Linear or Honeycomb pattern's **Angle (°)** field. The page title names the shape it was opened from.
 
 1. Jog to a point on the line and zero X and Y in your work coordinate system.
-2. Set the **Second Point** further along the same line. Farther apart gives a more accurate angle. Either:
-   - jog to it and press **Grab Current**, which copies the machine's work X/Y into the **Work X** and **Work Y** fields; or
+2. Set the **Second Point Coordinate** further along the same line. Farther apart gives a more accurate angle. Either:
+   - jog to it and press **Grab Current**, which copies the machine's work X/Y into the **Second Point Coordinate** X and Y fields; or
    - type its work X/Y into those fields (units like `1in` or `25.4mm` are accepted, as in the other size fields).
 
    The point only changes when you type or press **Grab Current**, so jogging afterwards doesn't change the angle.
 3. Read the **Angle** (counter-clockwise from +X, between −180° and 180°) and **Distance**.
-4. Press **Rectangle**, **Circle**, **Polygon**, **Keyhole**, or **Drill** under *Apply to Pattern*. That shape's pattern is turned on, set to Linear if it was Circular, and given the measured angle. If you came here from a pattern's **Measure** link, that shape's button is highlighted, and pressing it takes you back to the shape.
+4. Press **Use …° for** *shape* to put the angle in that shape's pattern and go back to it. **Back** returns without changing anything.
 
-Below the result, **Live machine position** shows the current work, machine, and origin (WCO) X/Y. It updates about twice a second while the tab is open; it's for reference and doesn't change the angle. **Grab Current** reads a fresh position before copying it.
+Below the result, **Live machine position** shows the current work, machine, and origin (WCO) X/Y. It updates about twice a second while the page is open; it's for reference and doesn't change the angle. **Grab Current** reads a fresh position before copying it.
 
 ncSender reports positions in mm and assumes the controller does too (grblHAL `$13=0`). With `$13=1` the angle is still correct, but the distance and coordinates are not.
 

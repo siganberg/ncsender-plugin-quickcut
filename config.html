@@ -930,13 +930,22 @@
     color: var(--color-text-primary);
     font-variant-numeric: tabular-nums;
   }
-  .qc-measure-capture {
-    display: flex;
+  /* Second Point: X [ ] Y [ ] [Grab Current] on one line. */
+  .qc-coord-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 12px;
+    gap: 10px;
   }
+  .qc-coord-row > label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+  }
+  .qc-coord-row .qc-input { min-width: 0; width: 100%; box-sizing: border-box; }
+  .qc-coord-row .qc-primary-btn { white-space: nowrap; }
+  #qc-meas-captured:empty { display: none; }
+  #qc-meas-for { font-weight: 400; color: var(--color-text-secondary); }
   .qc-measure-subtitle {
     margin: 16px 0 6px;
     font-size: 0.78rem;
@@ -962,11 +971,6 @@
     font-weight: 600;
   }
   .qc-measure-table thead th { color: var(--color-text-secondary); font-weight: 600; }
-  .qc-measure-apply {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
   .qc-secondary-btn {
     -webkit-appearance: none;
     appearance: none;
@@ -982,10 +986,8 @@
   }
   .qc-secondary-btn:hover { border-color: var(--color-accent) !important; }
   .qc-secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  /* The Apply button for the shape whose "Measure" link opened this tab. */
-  /* Angle tab buttons are primary (filled) for contrast. Disabled ones
-     (no valid point yet) are dimmed and inert; the Apply button a
-     Measure link came from gets a ring. */
+  /* Measure page buttons are primary (filled) for contrast. Disabled
+     ones (no valid point yet) are dimmed and inert. */
   .qc-primary-btn:disabled,
   .qc-primary-btn:disabled:hover {
     opacity: 0.5;
@@ -994,11 +996,6 @@
     transform: none;
     box-shadow: none;
   }
-  .qc-primary-btn.qc-apply-suggested,
-  .qc-primary-btn.qc-apply-suggested:hover {
-    box-shadow: 0 0 0 3px var(--color-surface, #fff), 0 0 0 5px var(--color-accent);
-  }
-  .qc-secondary-btn.qc-apply-suggested { border-color: var(--color-accent) !important; color: var(--color-accent) !important; }
   /* "Measure" link beside each pattern Angle label. */
   .qc-measure-link {
     margin-left: 6px;
@@ -1062,10 +1059,6 @@
         <button type="button" class="qc-nav-btn" data-tab="cutter">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
           <span class="qc-nav-label">Cutter</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="measure">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M4 20 18 7"/><path d="M11 20a7 7 0 0 0-2-5"/></svg></span>
-          <span class="qc-nav-label">Angle</span>
         </button>
       </nav>
       <div class="qc-sidebar-footer">
@@ -2180,36 +2173,31 @@
       </div>
     </section>
 
-    <!-- Angle tab: measures the angle from the work origin to a second
-         point (typed, or grabbed from the machine), for use as a
-         Linear/Honeycomb pattern angle. -->
+    <!-- Measure pattern angle: no sidebar button; opened only from a
+         pattern's "Measure" link. Measures the angle from the work origin
+         to a second point (typed, or grabbed from the machine) and hands
+         it back to that shape's Linear/Honeycomb pattern. -->
     <section class="qc-content" data-view="measure">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title">Angle</h2>
+          <h2 class="qc-panel-title">Measure Pattern Angle<span id="qc-meas-for"></span></h2>
           <p class="qc-panel-sub">Measure the angle of a line from the work origin (X0 Y0) to a second point on it. This can be helpful for patterns that don't align with the X or Y-axis.</p>
         </div>
       </header>
 
       <div class="qc-panel">
-        <div class="qc-card">
-          <h3 class="qc-card-title">Second Point</h3>
-          <div class="qc-row-2">
-            <div class="qc-field">
-              <label for="qc-meas-px">Work X</label>
-              <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-px" placeholder="—">
-            </div>
-            <div class="qc-field">
-              <label for="qc-meas-py">Work Y</label>
-              <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-py" placeholder="—">
-            </div>
-          </div>
-          <div class="qc-measure-capture">
+        <div class="qc-header-card">
+          <h3 class="qc-card-title">Second Point Coordinate</h3>
+          <div class="qc-coord-row">
+            <label for="qc-meas-px">X</label>
+            <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-px" placeholder="—">
+            <label for="qc-meas-py">Y</label>
+            <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-py" placeholder="—">
             <button type="button" class="qc-primary-btn" id="qc-meas-capture">Grab Current</button>
-            <span class="qc-mode-hint" id="qc-meas-captured"></span>
           </div>
+          <p class="qc-mode-hint" id="qc-meas-captured"></p>
           <p class="qc-mode-hint">
-            Zero X/Y at the first point on the line. Then type the work X/Y of a second point on the same line,
+            Zero X/Y at the first point on the line. Then type the work coordinates of a second point on the same line,
             or jog to it and press <strong>Grab Current</strong>. The point only changes when you type or press the button,
             so jogging afterwards won&rsquo;t change the angle.
           </p>
@@ -2242,19 +2230,10 @@
           </table>
           <p class="qc-mode-hint" id="qc-meas-live-status"></p>
         </div>
-
-        <div class="qc-card">
-          <h3 class="qc-card-title">Apply to Pattern</h3>
-          <p class="qc-mode-hint">Sets the Linear pattern angle on a shape and turns its pattern on.</p>
-          <div class="qc-measure-apply">
-            <button type="button" class="qc-primary-btn" data-apply-angle="rect">Rectangle</button>
-            <button type="button" class="qc-primary-btn" data-apply-angle="circ">Circle</button>
-            <button type="button" class="qc-primary-btn" data-apply-angle="poly">Polygon</button>
-            <button type="button" class="qc-primary-btn" data-apply-angle="key">Keyhole</button>
-            <button type="button" class="qc-primary-btn" data-apply-angle="drl">Drill</button>
-          </div>
-          <p class="qc-mode-hint" id="qc-meas-applied"></p>
-        </div>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-secondary-btn" id="qc-meas-back">Back</button>
+        <button type="button" class="qc-primary-btn" id="qc-meas-use">Use Angle</button>
       </div>
     </section>
   </div>
@@ -2347,34 +2326,47 @@
 
   var LAST_TAB_KEY = 'ncsender.quickcut.lastTab';
 
-  function wireTabs() {
+  // Show a view. Sidebar buttons call this, and so does the Measure
+  // link: the measure view has no sidebar button, so the button of the
+  // shape it was opened from stays highlighted.
+  function switchTab(target) {
     var btns = document.querySelectorAll('.qc-nav-btn');
     var panels = document.querySelectorAll('.qc-content');
+    // Snapshot the current tab's tool inputs BEFORE we swap the DOM
+    // over to the new tab — otherwise the new tab would inherit the
+    // previous tab's edits.
+    if (TOOL_SHAPES.indexOf(state.currentTab) >= 0) {
+      state.toolByShape[state.currentTab] = readToolFromInputs();
+    }
+    if (target !== 'measure') {
+      btns.forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-tab') === target); });
+    }
+    panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
+    relocateCommonCards(target);
+    // Load the new tab's tool values into the (now-relocated) inputs.
+    if (TOOL_SHAPES.indexOf(target) >= 0) {
+      writeToolToInputs(state.toolByShape[target]);
+    }
+    if (target === 'keyhole') updateKeyholePreview();
+    if (target === 'drill') updateDrillPreview();
+    state.currentTab = target;
+    if (target === 'measure') {
+      startMeasurePolling();
+      return;
+    }
+    stopMeasurePolling();
+    measure.returnTo = null;
+    // Remember which tab the operator was on so the next dialog open
+    // lands on it (never the measure view, which needs a shape to
+    // return to). Wrapped in try/catch because some browser contexts
+    // (private mode, storage quota) can throw here.
+    try { localStorage.setItem(LAST_TAB_KEY, target); } catch (e) {}
+  }
+
+  function wireTabs() {
+    var btns = document.querySelectorAll('.qc-nav-btn');
     btns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var target = btn.getAttribute('data-tab');
-        // Snapshot the current tab's tool inputs BEFORE we swap the DOM
-        // over to the new tab — otherwise the new tab would inherit the
-        // previous tab's edits.
-        if (TOOL_SHAPES.indexOf(state.currentTab) >= 0) {
-          state.toolByShape[state.currentTab] = readToolFromInputs();
-        }
-        btns.forEach(function(b) { b.classList.toggle('active', b === btn); });
-        panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
-        relocateCommonCards(target);
-        // Load the new tab's tool values into the (now-relocated) inputs.
-        if (TOOL_SHAPES.indexOf(target) >= 0) {
-          writeToolToInputs(state.toolByShape[target]);
-        }
-        if (target === 'keyhole') updateKeyholePreview();
-        if (target === 'drill') updateDrillPreview();
-        state.currentTab = target;
-        if (target === 'measure') startMeasurePolling(); else { stopMeasurePolling(); clearMeasureReturn(); }
-        // Remember which tab the operator was on so the next dialog
-        // open lands on it. Wrapped in try/catch because some browser
-        // contexts (private mode, storage quota) can throw here.
-        try { localStorage.setItem(LAST_TAB_KEY, target); } catch (e) {}
-      });
+      btn.addEventListener('click', function() { switchTab(btn.getAttribute('data-tab')); });
     });
     // Restore the last-selected tab. If the saved tab no longer exists
     // (e.g., renamed / removed), silently fall back to the default.
@@ -5062,7 +5054,7 @@
       status = 'Enter the second point, or jog to it and press Grab Current.';
       $('qc-meas-dist').textContent = '—';
     } else if (px == null || py == null) {
-      status = 'Work X and Work Y must both be numbers.';
+      status = 'X and Y must both be numbers.';
       $('qc-meas-dist').textContent = '—';
     } else {
       var dist = Math.hypot(px, py);
@@ -5076,8 +5068,11 @@
     }
     $('qc-meas-angle').textContent = measure.angleDeg == null ? '—' : measure.angleDeg.toFixed(3) + '°';
     $('qc-meas-status').textContent = status;
-    var applyBtns = document.querySelectorAll('[data-apply-angle]');
-    for (var i = 0; i < applyBtns.length; i++) applyBtns[i].disabled = measure.angleDeg == null;
+    var use = $('qc-meas-use');
+    use.disabled = measure.angleDeg == null;
+    use.textContent = measure.angleDeg == null
+      ? 'Use Angle'
+      : 'Use ' + measure.angleDeg.toFixed(3) + '° for ' + (SHAPE_NAMES[measure.returnTo] || 'Pattern');
   }
 
   // Copy a fresh reading of the machine's work position into the Second
@@ -5098,38 +5093,29 @@
   var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole', drl: 'Drill' };
   var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', key: 'keyhole', drl: 'drill' };
 
-  function showTab(tab) {
-    var btn = document.querySelector('.qc-nav-btn[data-tab="' + tab + '"]');
-    if (btn) btn.click();
-  }
-
-  // A pattern's "Measure" link opens this tab with that shape's Apply
-  // button highlighted; applying then returns to the shape.
-  function clearMeasureReturn() {
-    measure.returnTo = null;
-    var btns = document.querySelectorAll('[data-apply-angle]');
-    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('qc-apply-suggested');
-  }
-
+  // A pattern's "Measure" link is the only way in; Use Angle and Back
+  // both return to that shape.
   function openMeasureFor(prefix) {
-    showTab('measure');
+    switchTab('measure');
     measure.returnTo = prefix;
-    var btn = document.querySelector('[data-apply-angle="' + prefix + '"]');
-    if (btn) btn.classList.add('qc-apply-suggested');
-    $('qc-meas-applied').textContent = 'Set a second point on the line, then press ' + SHAPE_NAMES[prefix] + ' to use the angle.';
+    $('qc-meas-for').textContent = ' — ' + SHAPE_NAMES[prefix];
+    renderMeasurement();
   }
 
-  function applyMeasuredAngle(prefix) {
-    if (measure.angleDeg == null) return;
+  function closeMeasure() {
+    switchTab(SHAPE_TABS[measure.returnTo] || 'rectangle');
+  }
+
+  function useMeasuredAngle() {
+    var prefix = measure.returnTo;
+    if (measure.angleDeg == null || !prefix) return;
     var pre = 'qc-' + prefix + '-pattern-';
     $(pre + 'angle').value = measure.angleDeg;
     $(pre + 'enable').checked = true;
     var styleEl = $(pre + 'style');
     if (styleEl.value !== 'linear' && styleEl.value !== 'honeycomb') styleEl.value = 'linear';
     updatePatternVisibility(prefix);
-    $('qc-meas-applied').textContent = 'Applied ' + measure.angleDeg.toFixed(3) + '° to the ' +
-      SHAPE_NAMES[prefix] + ' pattern.';
-    if (measure.returnTo === prefix) showTab(SHAPE_TABS[prefix]);
+    closeMeasure();
   }
 
   function wireMeasureTab() {
@@ -5153,12 +5139,8 @@
         openMeasureFor(this.getAttribute('data-measure-for'));
       });
     }
-    var applyBtns = document.querySelectorAll('[data-apply-angle]');
-    for (var i = 0; i < applyBtns.length; i++) {
-      applyBtns[i].addEventListener('click', function() {
-        applyMeasuredAngle(this.getAttribute('data-apply-angle'));
-      });
-    }
+    $('qc-meas-use').addEventListener('click', useMeasuredAngle);
+    $('qc-meas-back').addEventListener('click', closeMeasure);
     renderMeasurement();
   }
 
