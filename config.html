@@ -1932,6 +1932,7 @@
       console.warn('[QuickCut] firmware fetch failed, wasteboard limits unknown:', err);
     }
     renderOriginPickers();
+    if (state.isImperial) convertDefaultsToInches();
     hydrateSavedSettings();
     updateUnitBadges();
     wireUnitFields();
@@ -2439,6 +2440,18 @@
     if (v == null || String(v) === el.value.trim()) return;
     el.value = v;
     el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // The starting values in the markup are mm (and mm/min). On an imperial
+  // install with nothing saved yet they'd be read as inches, e.g. Plunge
+  // Rate 1000 in/min, over the 500 limit. Convert them once, before saved
+  // settings (stored in mm, converted on hydrate) are applied on top.
+  function convertDefaultsToInches() {
+    var fields = ROOT.querySelectorAll('[data-unit]');
+    for (var i = 0; i < fields.length; i++) {
+      var v = parseFloat(fields[i].value);
+      if (isFinite(v)) fields[i].value = roundDisplay(mmToDisplay(v));
+    }
   }
 
   function wireUnitFields() {
