@@ -1,5 +1,5 @@
 ## What's Changed
 
-### 🐛 Bug Fixes
-- Fixed jobs stopping unexpectedly when the generated program contained nested comments
-- Fixed multi-pass cuts plunging deeper than intended; each pass now plunges only its own step depth
+### ✨ New Features
+- Added a 3D cutter preview that shows the tool path direction and work coordinate axes
+- You can click a side of the 3D preview to choose it
