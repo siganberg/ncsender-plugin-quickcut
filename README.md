@@ -34,7 +34,7 @@ Every shape can be repeated with a [pattern](#patterns). Rectangle, Circle, and 
 Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or picture on a screw. The bit's head is wider than its neck, so it can only enter and leave the wood through the plunge hole:
 
 1. Plunge straight down to **Total Depth** at the Plunge Rate.
-2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y).
+2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y). Slot Angle starts at 90°; like the other settings, the value you last generated with is remembered.
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
