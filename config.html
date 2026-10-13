@@ -2025,6 +2025,20 @@
   }
 
   var $ = function(id) { return document.getElementById(id); };
+  // The tool-menu dialog runs this script inline in the host page, and
+  // every open runs it again. Page-wide listeners and timers from an
+  // earlier open would otherwise keep firing against the NEW dialog's
+  // elements (same ids) with that earlier open's state, e.g. its units.
+  // So they check this open's own root and switch themselves off once
+  // it's gone.
+  var ROOT = (function() {
+    var cs = document.currentScript;
+    var prev = cs && cs.previousElementSibling;
+    if (prev && prev.classList && prev.classList.contains('qc-wrapper')) return prev;
+    var all = document.querySelectorAll('.qc-wrapper');
+    return all[all.length - 1];
+  })();
+  function rootAlive() { return !!(ROOT && ROOT.isConnected); }
   var num = function(id, def) {
     var el = $(id);
     var v = el.getAttribute('data-unit')
@@ -2069,6 +2083,10 @@
   var _tooltip = null;
   function showTooltip(el, message) {
     if (!_tooltip) _tooltip = createTooltip();
+    // Focus first: it scrolls the field into view, and the bubble must be
+    // placed from the field's position AFTER that scroll, or it lands
+    // off-screen or over an unrelated field.
+    el.focus();
     var rect = el.getBoundingClientRect();
     _tooltip.firstChild && (_tooltip.textContent = message);
     _tooltip.textContent = message;
@@ -2080,7 +2098,6 @@
     _tooltip.style.transform = 'translate(-50%, -100%)';
     _tooltip.style.opacity = '1';
     el.style.borderColor = '#d32f2f';
-    el.focus();
   }
   function hideTooltip() {
     if (!_tooltip) return;
@@ -2423,10 +2440,12 @@
         fields[i].title = hint + ' — converted to ' + u + (fields[i].getAttribute('data-unit') === 'feed' ? '/min' : '');
       }
     }
-    document.addEventListener('blur', function(evt) {
+    function onBlur(evt) {
+      if (!rootAlive()) { document.removeEventListener('blur', onBlur, true); return; }
       var el = evt.target;
-      if (el && el.getAttribute && el.getAttribute('data-unit')) normalizeUnitField(el);
-    }, true);
+      if (el && el.getAttribute && el.getAttribute('data-unit') && ROOT.contains(el)) normalizeUnitField(el);
+    }
+    document.addEventListener('blur', onBlur, true);
   }
   function mmToDisplay(mm)  { return state.isImperial ? mm * MM_TO_INCH : mm; }
   function displayToMm(val) { return state.isImperial ? val * INCH_TO_MM : val; }
@@ -4002,11 +4021,10 @@
     return { x: parts[0], y: parts[1] };
   }
 
-  // The tool-menu dialog runs this script inline in the host page, so the
-  // timer and message listener outlive the dialog. Once our DOM is gone,
-  // stop polling and ignore updates.
+  // The timer and message listener outlive the dialog (see ROOT). Once
+  // this open's DOM is gone, stop polling and ignore updates.
   function measureTabAlive() {
-    if ($('qc-meas-angle')) return true;
+    if (rootAlive()) return true;
     stopMeasurePolling();
     return false;
   }
@@ -4119,10 +4137,12 @@
   }
 
   function wireMeasureTab() {
-    window.addEventListener('message', function(evt) {
+    function onMessage(evt) {
+      if (!rootAlive()) { window.removeEventListener('message', onMessage); return; }
       if (!evt.data || evt.data.type !== 'server-state-update') return;
       mergeMachineState(evt.data.state);
-    });
+    }
+    window.addEventListener('message', onMessage);
     $('qc-meas-refresh').addEventListener('click', fetchMeasureState);
     var links = document.querySelectorAll('[data-measure-for]');
     for (var j = 0; j < links.length; j++) {
