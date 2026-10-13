@@ -9,8 +9,9 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 - Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass
 - Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
+- Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
 
-Every shape can be repeated with a [pattern](#patterns).
+Every shape can be repeated with a [pattern](#patterns). Rectangle, Circle, and Polygon profile cuts can leave [holding tabs](#holding-tabs).
 
 **Ops:**
 - Planer — surface a flat region with zigzag or spiral raster. Three modes:
@@ -42,9 +43,33 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 - There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.
 - Patterns work as on the other shapes. With **Circular (Path Direction)**, or **Rotate shapes with angle** on an angled Linear pattern, each slot turns with its copy.
 
+## Drill
+
+Plunges a hole the size of the bit at X0 Y0, or at every position of a [pattern](#patterns): shelf-pin rows, threaded-insert grids, pilot holes.
+
+- **X0 Y0 is the first hole.** There's no origin picker.
+- Hole diameter is the **Bit Diameter**. Every Z move uses the **Plunge Rate**; Feed Rate isn't used and is greyed out on this tab.
+- **Peck Depth** 0 drills in one plunge. Otherwise each peck goes that much deeper, then:
+  - **Full (clear chips)** rapids up to 2 mm (0.079") above the surface to clear chips, then rapids back down to 0.5 mm (0.02") above the bottom of the hole and continues.
+  - **Short (break chips)** backs off 0.5 mm (0.02") to snap the chip and continues.
+- **Dwell at Bottom** pauses at full depth to clean up the hole floor.
+
+The moves are written out in full rather than as G81/G83 canned cycles, which plain grbl doesn't support and which the visualizer wouldn't show.
+
+## Holding tabs
+
+A through cut frees the part, or the drop-out of an inner cut, on the last pass, where it can shift into the bit. Turn on **Holding Tabs** (in the Depth card of Rectangle, Circle, and Polygon) to leave small bridges that hold it until you cut them with a knife or saw.
+
+- **Tabs** is how many per shape, **Tab Width** is each tab's width at the part edge, and **Tab Height** is how much material each tab leaves standing above the bottom of the cut. Tab Height has to be less than Total Depth.
+- A pass is added at exactly Total Depth − Tab Height, so tabs come out at the height you set. Passes below that lift over each tab; passes above it are unchanged.
+- On the tool path each tab spans Tab Width + Bit Diameter, because the bit takes a radius off each side of the tab.
+- Tabs go on straight edges rather than corners: each side gets a share by its length, centred along it, so 4 tabs on a rectangle give one in the middle of each side. A circle's tabs are evenly spaced, and so are any that don't fit on the sides. Tabs that won't fit at all (too many, too wide) are dropped, with a warning in the G-code.
+- Tabs apply to Inner (perimeter) and Outer cuts. They're hidden for clearing, which never frees anything.
+- The shape previews show where the tabs will be. With a pattern, every copy gets its own tabs, and they turn with the copy.
+
 ## Patterns
 
-Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, or Keyhole to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole has no origin picker: its first plunge hole is X0 Y0.)
+Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole and Drill have no origin picker: the first hole is X0 Y0.)
 
 | Style | What it does |
 | --- | --- |
@@ -77,7 +102,7 @@ The **Angle** tab reads the live machine position from ncSender and shows the an
 1. Jog to a point on the line and zero X and Y in your work coordinate system.
 2. Jog to a second point further along the same line. Farther apart gives a more accurate angle.
 3. Read the **Angle** (counter-clockwise from +X, between −180° and 180°) and **Distance**.
-4. Press **Rectangle**, **Circle**, **Polygon**, or **Keyhole** under *Apply to Pattern*. That shape's pattern is turned on, set to Linear if it was Circular, and given the measured angle. If you came here from a pattern's **Measure** link, that shape's button is highlighted, and pressing it takes you back to the shape.
+4. Press **Rectangle**, **Circle**, **Polygon**, **Keyhole**, or **Drill** under *Apply to Pattern*. That shape's pattern is turned on, set to Linear if it was Circular, and given the measured angle. If you came here from a pattern's **Measure** link, that shape's button is highlighted, and pressing it takes you back to the shape.
 
 The tab also shows the work, machine, and origin (WCO) X/Y so you can confirm what the angle was measured from. It updates about twice a second while it's open, and **Refresh** reads the position immediately.
 

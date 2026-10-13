@@ -1346,3 +1346,226 @@ test('circular-follow with a corner origin keeps every cut inside the origin cor
   const br = extents(gen(params('back-right')));
   assert.ok(Math.abs(br.maxX) < 0.001 && Math.abs(br.maxY) < 0.001, JSON.stringify(br));
 });
+
+// ---------- Holding tabs ----------
+
+// Walk the program and return every cutting move as { z, len, inTab },
+// where len is the XY length (arcs measured along the arc) and inTab
+// marks moves between a "; Tab" lift and the drop back down.
+function cutPieces(gcode) {
+  let pos = { x: 0, y: 0 }, z = null, inTab = false;
+  const out = [];
+  for (const raw of gcode.split('\n')) {
+    const line = raw.replace(/;.*$/, '').trim();
+    if (!/^G[0123]\b/.test(line) || /^G53/.test(line)) continue;
+    const zm = line.match(/Z(-?[\d.]+)/);
+    if (zm) { z = parseFloat(zm[1]); inTab = /; Tab/.test(raw); }
+    if (/^G[23]\b/.test(line)) {
+      const a = parseArc(line);
+      const cx = pos.x + a.i, cy = pos.y + a.j;
+      let sweep = Math.atan2(a.endY - cy, a.endX - cx) - Math.atan2(pos.y - cy, pos.x - cx);
+      if (sweep <= 1e-9) sweep += 2 * Math.PI;
+      out.push({ z, len: Math.hypot(a.i, a.j) * sweep, inTab });
+      pos = { x: a.endX, y: a.endY };
+      continue;
+    }
+    const next = parseXY(line, pos);
+    if (line.startsWith('G1')) out.push({ z, len: Math.hypot(next.x - pos.x, next.y - pos.y), inTab });
+    pos = next;
+  }
+  return out;
+}
+
+const tabSpan = (gcode) => cutPieces(gcode).filter(q => q.inTab).reduce((s, q) => s + q.len, 0);
+
+const TABS = { count: 4, width: 5, height: 2 };
+
+for (const [name, gen, extra] of [
+  ['rectangle', 'generateRectangleProgram', { width: 60, height: 40 }],
+  ['rounded rectangle', 'generateRectangleProgram', { width: 60, height: 40, cornerRadius: 10 }],
+  ['circle', 'generateCircleProgram', { diameter: 50 }],
+  ['polygon', 'generatePolygonProgram', { diameter: 50, sides: 6 }]
+]) {
+  test(`tabs on a ${name}: final passes lift over each tab for tab width + bit`, () => {
+    const g = makeQuickCutGenerator(false);
+    const p = baseParams(Object.assign({ depth: 6, depthOfCut: 2.5, tabs: TABS }, extra));
+    const gcode = g[gen](p);
+    assert.match(gcode, /\(Tabs: 4 x 5mm wide, 2mm high\)/);
+    assert.ok(maxArcRadiusDelta(gcode) < GRBL_ARC_TOLERANCE_MM, 'arcs stay consistent');
+    // Passes reach 4 (the tab top) untabbed; the 5 and 6 passes are tabbed.
+    // A tab across the start point lifts twice (start and end of the lap).
+    const lifts = (gcode.match(/; Tab$/mg) || []).length;
+    assert.ok(lifts === 2 * TABS.count || lifts === 2 * (TABS.count + 1), String(lifts));
+    for (const q of cutPieces(gcode)) {
+      if (q.inTab) assert.equal(q.z, -4);
+    }
+    assert.ok(cutPieces(gcode).some(q => q.z === -6 && !q.inTab));
+    const expected = 2 * TABS.count * (TABS.width + p.bitDiameter);
+    assert.ok(Math.abs(tabSpan(gcode) - expected) < 0.01, `${tabSpan(gcode)} vs ${expected}`);
+  });
+}
+
+test('tabs off, or on a clearing cut, leave the program unchanged', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const [gen, extra] of [
+    ['generateRectangleProgram', { cornerRadius: 5 }],
+    ['generateCircleProgram', { diameter: 40 }],
+    ['generatePolygonProgram', { diameter: 40, sides: 5 }]
+  ]) {
+    const p = baseParams(extra);
+    const plain = g[gen](p);
+    assert.equal(g[gen](Object.assign({}, p, { tabs: null })), plain);
+    assert.equal(g[gen](Object.assign({}, p, { tabs: Object.assign({}, TABS, { height: 5 }) })), plain,
+      'tab height ≥ depth is ignored');
+    const clearing = Object.assign({}, p, { cutType: 'clearing' });
+    assert.equal(g[gen](Object.assign({}, clearing, { tabs: TABS })), g[gen](clearing));
+  }
+});
+
+test('rotated rectangle tabs follow the shape', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = baseParams({
+    width: 60, height: 40, cornerRadius: 6, depth: 3, depthOfCut: 3, tabs: TABS,
+    pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 100, angle: 33, rotateShapes: true }
+  });
+  const gcode = g.generateRectangleProgram(p);
+  assert.ok(maxArcRadiusDelta(gcode) < GRBL_ARC_TOLERANCE_MM);
+  assert.equal((gcode.match(/; Tab$/mg) || []).length, 2 * (TABS.count + 1), 'bottom tab spans the start');
+  const span = tabSpan(gcode);
+  assert.ok(Math.abs(span - 2 * TABS.count * (TABS.width + p.bitDiameter)) < 0.01, String(span));
+});
+
+test('circle tabs: helix stops at the tab top, deeper passes plunge at the start', () => {
+  const g = makeQuickCutGenerator(false);
+  const gcode = g.generateCircleProgram(baseParams({ diameter: 50, depth: 6, depthOfCut: 2.5, tabs: TABS }));
+  const helixZ = [...gcode.matchAll(/^G3 .* Z(-?[\d.]+) F/mg)].map(m => +m[1]);
+  assert.equal(Math.min(...helixZ), -4);
+  assert.match(gcode, /^G1 Z-5\.000 F200$/m);
+  assert.match(gcode, /^G1 Z-6\.000 F200$/m);
+});
+
+test('tabs too wide for the path warn and are dropped', () => {
+  const g = makeQuickCutGenerator(false);
+  const some = g.generateCircleProgram(baseParams({ diameter: 20, depth: 3, tabs: { count: 8, width: 6, height: 1 } }));
+  assert.match(some, /WARNING: only \d of 8 tabs fit/);
+  const none = g.generateCircleProgram(baseParams({ diameter: 10, depth: 3, cutType: 'inner', tabs: { count: 2, width: 20, height: 1 } }));
+  assert.match(none, /WARNING: tabs too wide/);
+  assert.doesNotMatch(none, /; Tab/);
+});
+
+test('imperial tabs use inch Z values', () => {
+  const g = makeQuickCutGenerator(true);
+  const gcode = g.generateRectangleProgram(baseParams({
+    width: 3, height: 2, bitDiameter: 0.25, depth: 0.75, depthOfCut: 0.25,
+    feedRate: 60, plungeFeedRate: 20, tabs: { count: 4, width: 0.25, height: 0.125 }
+  }));
+  assert.match(gcode, /^G1 Z-0\.625 F20 ; Tab$/m);
+  assert.ok(maxArcRadiusDelta(gcode) < GRBL_ARC_TOLERANCE_INCH);
+});
+
+// ---------- Drill ----------
+
+function drillBase(overrides) {
+  return Object.assign({
+    bitDiameter: 5, depth: 10, peckDepth: 0, peckMode: 'clear', dwell: 0,
+    feedRate: 600, plungeFeedRate: 150,
+    spindleRpm: 18000, spindleDelay: 1,
+    mistM7: false, floodM8: false
+  }, overrides || {});
+}
+
+test('drill without peck: one plunge per hole, then retract', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase());
+  const z = keyholeMoves(gcode).filter(m => m.z != null).map(m => m.cmd + m.z);
+  assert.deepEqual(z, ['G05', 'G02', 'G1-10', 'G05']);
+  assert.match(gcode, /\(Peck: none\)/);
+});
+
+test('drill full-retract peck clears chips and re-enters just above the bottom', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase({ peckDepth: 4 }));
+  const z = keyholeMoves(gcode).filter(m => m.z != null).map(m => m.cmd + m.z);
+  assert.deepEqual(z, ['G05', 'G02', 'G1-4', 'G02', 'G0-3.5', 'G1-8', 'G02', 'G0-7.5', 'G1-10', 'G05']);
+});
+
+test('drill short-retract peck only backs off to break the chip', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase({ peckDepth: 4, peckMode: 'break', dwell: 0.5 }));
+  const z = keyholeMoves(gcode).filter(m => m.z != null).map(m => m.cmd + m.z);
+  assert.deepEqual(z, ['G05', 'G02', 'G1-4', 'G0-3.5', 'G1-8', 'G0-7.5', 'G1-10', 'G05']);
+  assert.match(gcode, /^G1 Z-10\.000 F150\nG4 P0\.5 ; Dwell\nG0 Z5\.000$/m);
+});
+
+test('drill pattern: first hole at X0 Y0, angled row', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 32, angle: 90 }
+  }));
+  const holes = [...gcode.matchAll(/^G0 X(-?[\d.]+) Y(-?[\d.]+)$/mg)].map(m => [+m[1], +m[2]]);
+  assert.deepEqual(holes, [[0, 0], [0, 32], [0, 64]]);
+  assert.equal((gcode.match(/^G1 Z-10\.000/mg) || []).length, 3);
+});
+
+test('drill imperial scales clearance and back-off to inches', () => {
+  const gcode = makeQuickCutGenerator(true).generateDrillProgram(drillBase({ depth: 0.5, peckDepth: 0.2, plungeFeedRate: 10 }));
+  assert.match(gcode, /^G20\b/m);
+  assert.match(gcode, /^G0 Z0\.079 ; Clear chips$/m);
+  assert.match(gcode, /^G0 Z-0\.180$/m);
+  assert.match(gcode, /^G1 Z-0\.500 F10$/m);
+});
+
+test('drill with zero depth warns and cuts nothing', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase({ depth: 0 }));
+  assert.match(gcode, /WARNING/);
+  assert.ok(!/^G1 /m.test(gcode));
+});
+
+// The middle of each tab's lifted span on the final pass, which starts
+// at the first plunge to full depth (always 3 in these tests).
+function tabEnds(gcode) {
+  const lines = gcode.split('\n');
+  const finalPass = Math.max(lines.indexOf('G1 Z-3.000 F200'), lines.indexOf('G1 Z-1.000 F200 ; Tab') + 1);
+  let pos = { x: 0, y: 0 };
+  for (let i = 0; i < finalPass; i++) if (/^G[0123] /.test(lines[i])) pos = parseXY(lines[i], pos);
+  const tabs = [];
+  for (let i = finalPass + 1; i < lines.length && !/^G0 Z/.test(lines[i]); i++) {
+    if (/; Tab$/.test(lines[i])) tabs.push({ from: pos });
+    else if (/^G1 Z/.test(lines[i]) && tabs.length && !tabs[tabs.length - 1].to) tabs[tabs.length - 1].to = pos;
+    if (/^G[0123] .*[XY]/.test(lines[i])) pos = parseXY(lines[i], pos);
+  }
+  return tabs.filter(t => t.to).map(t => ({ x: (t.from.x + t.to.x) / 2, y: (t.from.y + t.to.y) / 2 }));
+}
+
+test('4 tabs on a rectangle sit in the middle of each side, not on corners', () => {
+  const g = makeQuickCutGenerator(false);
+  const gcode = g.generateRectangleProgram(baseParams({ width: 50, height: 30, bitDiameter: 6, depth: 3, depthOfCut: 3, tabs: TABS }));
+  const mids = tabEnds(gcode).map(p => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100]);
+  // Outer path is 56 × 36 around the center: right, top and left tabs
+  // are whole spans mid-side.
+  assert.deepEqual(mids, [[28, 0], [0, 18], [-28, 0]]);
+  // The bottom tab is centered on the start point, so the tabbed pass
+  // starts and ends lifted over it: the plunge only reaches the tab top.
+  const lines = gcode.split('\n');
+  const pass = lines.indexOf('G1 Z-1.000 F200 ; Tab');
+  assert.ok(pass > 0);
+  assert.match(lines[pass + 1], /^G1 X5\.500 Y-18\.000 F800$/);
+  assert.ok(!lines.includes('G1 Z-3.000 F200 ; Tab'));
+  const lastZ = lines.slice(pass).filter(l => /^G[01] Z/.test(l));
+  assert.deepEqual(lastZ.slice(-2), ['G1 Z-1.000 F200 ; Tab', 'G0 Z5.000']);
+});
+
+test('polygon tabs sit mid-edge, away from the vertices', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = baseParams({ diameter: 60, sides: 6, bitDiameter: 6, depth: 3, depthOfCut: 3, tabs: Object.assign({}, TABS, { count: 3 }) });
+  const geomR = (30 * Math.cos(Math.PI / 6) + 3) / Math.cos(Math.PI / 6);
+  for (const m of tabEnds(g.generatePolygonProgram(p))) {
+    // A mid-edge point is the apothem from the center.
+    assert.ok(Math.abs(Math.hypot(m.x, m.y) - geomR * Math.cos(Math.PI / 6)) < 0.01, JSON.stringify(m));
+  }
+});
+
+test('rounded rectangle tabs move off the corner arcs onto the sides', () => {
+  const g = makeQuickCutGenerator(false);
+  const gcode = g.generateRectangleProgram(baseParams({ width: 60, height: 40, cornerRadius: 10, bitDiameter: 6, depth: 3, depthOfCut: 3, tabs: Object.assign({}, TABS, { count: 8 }) }));
+  for (const m of tabEnds(gcode)) {
+    // On a side: x or y sits on the 66 × 46 path's straight edges.
+    assert.ok(Math.abs(Math.abs(m.x) - 33) < 0.01 || Math.abs(Math.abs(m.y) - 23) < 0.01, JSON.stringify(m));
+  }
+});

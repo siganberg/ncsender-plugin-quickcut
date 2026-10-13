@@ -654,6 +654,17 @@
     stroke-width: 1.8;
     stroke-linejoin: round;
   }
+  /* Holding-tab positions on the Rectangle / Circle / Polygon previews. */
+  .qc-shape-preview-cell .qc-tab-mark {
+    fill: var(--color-accent);
+    stroke: var(--color-surface-muted, var(--color-surface));
+    stroke-width: 1;
+  }
+  /* Drill preview: the first hole (X0 Y0) gets a crosshair. */
+  .qc-shape-preview-cell .qc-origin-mark {
+    stroke: var(--color-accent);
+    stroke-width: 1;
+  }
   .qc-shape-preview-cell .qc-shape-inscribed {
     fill: none;
     stroke: currentColor;
@@ -886,6 +897,10 @@
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
           <span class="qc-nav-label">Keyhole</span>
         </button>
+        <button type="button" class="qc-nav-btn" data-tab="drill">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span>
+          <span class="qc-nav-label">Drill</span>
+        </button>
         <button type="button" class="qc-nav-btn" data-tab="planer">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"/><path d="M6 14v6M10 14v6M14 14v6M18 14v6"/></svg></span>
           <span class="qc-nav-label">Planer</span>
@@ -1038,6 +1053,29 @@
                 <label for="qc-rect-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-step" min="0.001" step="0.01" value="1" required>
               </div>
+            <div class="qc-tabs-block" id="qc-rect-tabs-block">
+              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-rect-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+              <div class="qc-row-3" id="qc-rect-tabs-fields" style="display: none;">
+                <div class="qc-field">
+                  <label for="qc-rect-tabs-count">Tabs</label>
+                  <input class="qc-input" type="number" id="qc-rect-tabs-count" min="1" max="24" step="1" value="4">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-rect-tabs-width">Tab Width</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tabs-width" step="0.1" value="6" title="Width of each tab at the part edge.">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-rect-tabs-height">Tab Height</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
+                </div>
+              </div>
+            </div>
             </div>
           </div>
 
@@ -1189,6 +1227,29 @@
                 <label for="qc-circ-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-step" min="0.001" step="0.01" value="1" required>
               </div>
+            <div class="qc-tabs-block" id="qc-circ-tabs-block">
+              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-circ-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+              <div class="qc-row-3" id="qc-circ-tabs-fields" style="display: none;">
+                <div class="qc-field">
+                  <label for="qc-circ-tabs-count">Tabs</label>
+                  <input class="qc-input" type="number" id="qc-circ-tabs-count" min="1" max="24" step="1" value="4">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-circ-tabs-width">Tab Width</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-tabs-width" step="0.1" value="6" title="Width of each tab at the part edge.">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-circ-tabs-height">Tab Height</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
+                </div>
+              </div>
+            </div>
             </div>
           </div>
 
@@ -1342,6 +1403,29 @@
                 <label for="qc-poly-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-step" min="0.001" step="0.01" value="1" required>
               </div>
+            <div class="qc-tabs-block" id="qc-poly-tabs-block">
+              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-poly-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+              <div class="qc-row-3" id="qc-poly-tabs-fields" style="display: none;">
+                <div class="qc-field">
+                  <label for="qc-poly-tabs-count">Tabs</label>
+                  <input class="qc-input" type="number" id="qc-poly-tabs-count" min="1" max="24" step="1" value="4">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-poly-tabs-width">Tab Width</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-tabs-width" step="0.1" value="6" title="Width of each tab at the part edge.">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-poly-tabs-height">Tab Height</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
+                </div>
+              </div>
+            </div>
             </div>
           </div>
 
@@ -1571,6 +1655,135 @@
       </div>
       <div class="qc-panel-footer">
         <button type="button" class="qc-primary-btn" id="qc-key-generate">Generate</button>
+      </div>
+    </section>
+    <!-- Drill tab -->
+    <section class="qc-content" data-view="drill">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Drill</h2>
+          <p class="qc-panel-sub">Plunge holes the size of the bit, with optional pecking. Use a pattern for shelf-pin rows or insert grids.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-drl-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Hole</h3>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-depth">Total Depth</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-depth" min="0.001" step="0.01" value="10" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-drl-peck">Peck Depth</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-peck" min="0" step="0.01" value="0" title="Depth of each peck. 0 = one plunge to full depth.">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-peck-mode">Peck Retract</label>
+                    <select class="qc-select" id="qc-drl-peck-mode">
+                      <option value="clear" selected>Full (clear chips)</option>
+                      <option value="break">Short (break chips)</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-drl-dwell">Dwell at Bottom (s)</label>
+                    <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0">
+                  </div>
+                </div>
+                <p class="qc-mode-hint">
+                  <strong>X0 Y0 is the first hole.</strong> Hole diameter is the <strong>Bit Diameter</strong>.
+                  Every Z move uses the Plunge Rate; Feed Rate isn&rsquo;t used.
+                </p>
+              </div>
+              <div class="qc-shape-preview-cell">
+                <svg id="qc-drl-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this hole">
+                <input type="checkbox" id="qc-drl-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-drl-pattern-body" style="display: none;">
+              <div class="qc-field">
+                <label for="qc-drl-pattern-style">Pattern Style</label>
+                <div class="qc-select-with-toggle">
+                  <select class="qc-select" id="qc-drl-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="honeycomb">Honeycomb</option>
+                    <option value="circular">Circular</option>
+                  </select>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-drl-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields" data-shape="drl">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="drl" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Measure it on the Angle tab.">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-x-dist" step="0.1" value="32">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-y-dist" step="0.1" value="32">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-x-count" data-pattern-label="x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-y-count" data-pattern-label="y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" data-shape="drl" style="display: none;">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-radius">Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-radius" min="0.1" step="0.1" value="32" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-start-angle" step="1" value="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-drl-generate">Generate</button>
       </div>
     </section>
     <section class="qc-content" data-view="planer">
@@ -1862,6 +2075,7 @@
             <button type="button" class="qc-secondary-btn" data-apply-angle="circ">Circle</button>
             <button type="button" class="qc-secondary-btn" data-apply-angle="poly">Polygon</button>
             <button type="button" class="qc-secondary-btn" data-apply-angle="key">Keyhole</button>
+            <button type="button" class="qc-secondary-btn" data-apply-angle="drl">Drill</button>
           </div>
           <p class="qc-mode-hint" id="qc-meas-applied"></p>
         </div>
@@ -1904,7 +2118,7 @@
     currentTab: 'rectangle',
     toolByShape: {}
   };
-  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'keyhole'];
+  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'keyhole', 'drill'];
 
   async function init() {
     try {
@@ -1945,6 +2159,10 @@
     wireCutterForm();
     wirePolygonForm();
     wireKeyholeForm();
+    wireDrillForm();
+    wireHoldingTabs('rect', updateRectanglePreview);
+    wireHoldingTabs('circ', updateCirclePreview);
+    wireHoldingTabs('poly', updatePolygonPreview);
     wireMeasureTab();
     wireCloseButton();
   }
@@ -1976,6 +2194,7 @@
           writeToolToInputs(state.toolByShape[target]);
         }
         if (target === 'keyhole') updateKeyholePreview();
+        if (target === 'drill') updateDrillPreview();
         state.currentTab = target;
         if (target === 'measure') startMeasurePolling(); else { stopMeasurePolling(); clearMeasureReturn(); }
         // Remember which tab the operator was on so the next dialog
@@ -2014,6 +2233,12 @@
     var noCommon = view === 'measure';
     cards.style.display = noCommon ? 'none' : '';
     if (saveToggle) saveToggle.style.display = noCommon ? 'none' : '';
+    // Drilling only moves in Z, at the Plunge Rate.
+    var feed = $('qc-feed');
+    if (feed) {
+      feed.disabled = view === 'drill';
+      feed.title = view === 'drill' ? 'Not used for drilling: every move is at the Plunge Rate.' : '';
+    }
   }
 
   function wireCloseButton() {
@@ -2190,7 +2415,29 @@
         'qc-key-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
         'qc-key-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
         'qc-key-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
-        'qc-key-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' }
+        'qc-key-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
+        // Holding tabs
+        'qc-rect-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+        'qc-rect-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
+        'qc-rect-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        'qc-circ-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+        'qc-circ-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
+        'qc-circ-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        'qc-poly-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+        'qc-poly-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
+        'qc-poly-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        // Drill
+        'qc-drl-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
+        'qc-drl-peck':   { min: 0,     max: 20, label: 'Peck Depth' },
+        'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
+        'qc-drl-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
+        'qc-drl-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-drl-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
+        'qc-drl-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
+        'qc-drl-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
+        'qc-drl-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-drl-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-drl-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' }
       };
     }
     return {
@@ -2273,7 +2520,29 @@
       'qc-key-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
       'qc-key-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
       'qc-key-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
-      'qc-key-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' }
+      'qc-key-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
+      // Holding tabs
+      'qc-rect-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+      'qc-rect-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
+      'qc-rect-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      'qc-circ-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+      'qc-circ-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
+      'qc-circ-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      'qc-poly-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+      'qc-poly-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
+      'qc-poly-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      // Drill
+      'qc-drl-depth':  { min: 0.01, max: 100, label: 'Total Depth' },
+      'qc-drl-peck':   { min: 0,    max: 100, label: 'Peck Depth' },
+      'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
+      'qc-drl-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
+      'qc-drl-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-drl-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
+      'qc-drl-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
+      'qc-drl-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
+      'qc-drl-pattern-radius':  { min: 0.1, max: 5000, label: 'Pattern Radius' },
+      'qc-drl-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-drl-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' }
     };
   }
 
@@ -2304,6 +2573,15 @@
     if (id === 'qc-join-step') {
       var jTot = num('qc-join-depth', NaN);
       if (isFinite(jTot) && n > jTot) return 'Depth of Cut must not exceed Total Depth (' + jTot + ')';
+    }
+    var tabDepth = /^qc-(rect|circ|poly)-tabs-height$/.exec(id);
+    if (tabDepth) {
+      var tTot = num('qc-' + tabDepth[1] + '-depth', NaN);
+      if (isFinite(tTot) && n >= tTot) return 'Tab Height must be less than Total Depth (' + tTot + ')';
+    }
+    if (id === 'qc-drl-peck') {
+      var dTot = num('qc-drl-depth', NaN);
+      if (isFinite(dTot) && n > dTot) return 'Peck Depth must not exceed Total Depth (' + dTot + ')';
     }
     if (id === 'qc-cut-step') {
       var kTot = num('qc-cut-depth', NaN);
@@ -2498,6 +2776,7 @@
       height:       num('qc-rect-height', 0),
       cornerRadius: num('qc-rect-corner', 0),
       cutType:      $('qc-rect-cut-type').value,
+      tabs:         readTabsForm('rect'),
       origin:       $('qc-rect-origin').value,
       depth:        num('qc-rect-depth', 0),
       depthOfCut:   num('qc-rect-step', 0),
@@ -2515,6 +2794,7 @@
     return Object.assign({}, common, {
       diameter:     num('qc-circ-diameter', 0),
       cutType:      $('qc-circ-cut-type').value,
+      tabs:         readTabsForm('circ'),
       origin:       $('qc-circ-origin').value,
       depth:        num('qc-circ-depth', 0),
       depthOfCut:   num('qc-circ-step', 0),
@@ -2692,6 +2972,7 @@
       radius:        diameter / 2,
       startAngleDeg: num('qc-poly-start-angle', 0),
       cutType:       $('qc-poly-cut-type').value,
+      tabs:          readTabsForm('poly'),
       origin:        $('qc-poly-origin').value,
       depth:         num('qc-poly-depth', 0),
       depthOfCut:    num('qc-poly-step', 0),
@@ -2771,6 +3052,112 @@
     var isClearing = $('qc-' + prefix + '-cut-type').value === 'clearing';
     var els = document.querySelectorAll('.qc-' + prefix + '-clearing-only');
     for (var i = 0; i < els.length; i++) els[i].style.display = isClearing ? '' : 'none';
+    updateTabsVisibility(prefix);
+  }
+
+  // Holding tabs are hidden for clearing (a pocket frees nothing). The
+  // Tabs / Width / Height row shows only while the switch is on.
+  function updateTabsVisibility(prefix) {
+    var block = $('qc-' + prefix + '-tabs-block');
+    if (!block) return;
+    block.style.display = $('qc-' + prefix + '-cut-type').value === 'clearing' ? 'none' : '';
+    $('qc-' + prefix + '-tabs-fields').style.display = $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
+  }
+
+  // Generator tab settings, or null when the switch is off.
+  function readTabsForm(prefix) {
+    if (!$('qc-' + prefix + '-tabs-enable').checked) return null;
+    return {
+      count:  Math.floor(num('qc-' + prefix + '-tabs-count', 4)),
+      width:  num('qc-' + prefix + '-tabs-width', 0),
+      height: num('qc-' + prefix + '-tabs-height', 0)
+    };
+  }
+
+  // Saved even while off, so turning tabs back on restores the values.
+  function packTabsForm(prefix) {
+    return {
+      enabled: $('qc-' + prefix + '-tabs-enable').checked,
+      count:   Math.floor(num('qc-' + prefix + '-tabs-count', 4)),
+      width:   displayToMm(num('qc-' + prefix + '-tabs-width', 0)),
+      height:  displayToMm(num('qc-' + prefix + '-tabs-height', 0))
+    };
+  }
+
+  function hydrateTabs(prefix, t) {
+    if (!t) return;
+    $('qc-' + prefix + '-tabs-enable').checked = !!t.enabled;
+    if (t.count != null)  $('qc-' + prefix + '-tabs-count').value  = t.count;
+    if (t.width != null)  $('qc-' + prefix + '-tabs-width').value  = roundDisplay(mmToDisplay(t.width));
+    if (t.height != null) $('qc-' + prefix + '-tabs-height').value = roundDisplay(mmToDisplay(t.height));
+  }
+
+  function wireHoldingTabs(prefix, updatePreview) {
+    $('qc-' + prefix + '-tabs-enable').addEventListener('change', function() {
+      updateTabsVisibility(prefix);
+      updatePreview();
+    });
+    // Tab placement depends on the tab width and the bit size too.
+    $('qc-' + prefix + '-tabs-count').addEventListener('input', updatePreview);
+    $('qc-' + prefix + '-tabs-width').addEventListener('input', updatePreview);
+    $('qc-bit').addEventListener('input', updatePreview);
+    updateTabsVisibility(prefix);
+  }
+
+  // Dots on a shape preview where the holding tabs will be, placed by
+  // the generator's own tabIntervals. `segs` is the outline in preview
+  // coordinates, starting where the cut starts and running the way it
+  // cuts, with each segment's `len` set to its REAL length, so the dots
+  // land where the tabs will even though the preview isn't to scale.
+  function tabMarks(prefix, segs) {
+    var tabs = readTabsForm(prefix);
+    if (!tabs || !(tabs.count >= 1) || $('qc-' + prefix + '-cut-type').value === 'clearing') return '';
+    tabs.count = Math.min(24, tabs.count);
+    tabs.width = Math.max(0, tabs.width);
+    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, Math.max(0, num('qc-bit', 0)));
+    var total = 0;
+    segs.forEach(function(s) { total += s.len; });
+    // A tab across the start point comes back as two pieces (one at
+    // each end of the lap); draw it once, at its middle.
+    var centers = intervals.map(function(iv) { return (iv.start + iv.end) / 2; });
+    var first = intervals[0], last = intervals[intervals.length - 1];
+    if (intervals.length > 1 && first.start < 1e-9 && last.end > total - 1e-9) {
+      var mid = (last.start + first.end + total) / 2;
+      centers = centers.slice(1, -1).concat([mid >= total ? mid - total : mid]);
+    }
+    var out = '';
+    centers.forEach(function(target) {
+      var walked = 0;
+      for (var i = 0; i < segs.length; i++) {
+        var s = segs[i];
+        if (walked + s.len >= target || i === segs.length - 1) {
+          var t = s.len > 0 ? (target - walked) / s.len : 0, x, y;
+          if (s.type === 'line') {
+            x = s.x0 + (s.x1 - s.x0) * t;
+            y = s.y0 + (s.y1 - s.y0) * t;
+          } else {
+            // Preview arcs are CCW in machine terms; SVG y points down.
+            var a = s.a0 + (s.a1 - s.a0) * t;
+            x = s.cx + s.r * Math.cos(a);
+            y = s.cy - s.r * Math.sin(a);
+          }
+          out += '<circle class="qc-tab-mark" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) + '" r="2.8"/>';
+          break;
+        }
+        walked += s.len;
+      }
+    });
+    return out;
+  }
+
+  // Preview outline as generator-style line segments: preview
+  // coordinates, real lengths.
+  function previewLines(pts, lens) {
+    var segs = [];
+    for (var i = 0; i < lens.length; i++) {
+      segs.push({ type: 'line', x0: pts[i].x, y0: pts[i].y, x1: pts[i + 1].x, y1: pts[i + 1].y, len: lens[i] });
+    }
+    return segs;
   }
 
   function updatePatternVisibility(prefix) {
@@ -2957,6 +3344,7 @@
     if (rect.depthOfCut != null)    $('qc-rect-step').value   = roundDisplay(mmToDisplay(rect.depthOfCut));
     // Stepover is a percent — unitless, stored as-is.
     if (rect.stepoverPct != null)   $('qc-rect-stepover').value = rect.stepoverPct;
+    hydrateTabs('rect', rect.tabs);
     hydratePattern('rect', rect.pattern);
 
     var circ = saved.circle || {};
@@ -2966,6 +3354,7 @@
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
+    hydrateTabs('circ', circ.tabs);
     hydratePattern('circ', circ.pattern);
 
     var plan = saved.planer || {};
@@ -3015,6 +3404,7 @@
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
     if (poly.depthOfCut != null)    $('qc-poly-step').value     = roundDisplay(mmToDisplay(poly.depthOfCut));
     if (poly.stepoverPct != null)   $('qc-poly-stepover').value = poly.stepoverPct;
+    hydrateTabs('poly', poly.tabs);
     hydratePattern('poly', poly.pattern);
 
     var key = saved.keyhole || {};
@@ -3023,6 +3413,13 @@
     if (key.depth != null)          $('qc-key-depth').value       = roundDisplay(mmToDisplay(key.depth));
     hydratePattern('key', key.pattern);
 
+    var drl = saved.drill || {};
+    if (drl.depth != null)     $('qc-drl-depth').value     = roundDisplay(mmToDisplay(drl.depth));
+    if (drl.peckDepth != null) $('qc-drl-peck').value      = roundDisplay(mmToDisplay(drl.peckDepth));
+    if (drl.peckMode)          $('qc-drl-peck-mode').value = drl.peckMode;
+    if (drl.dwell != null)     $('qc-drl-dwell').value     = drl.dwell;
+    hydratePattern('drl', drl.pattern);
+
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
     updateClearingVisibility('circ');
@@ -3030,10 +3427,12 @@
     updateClearingVisibility('poly');
     updatePatternVisibility('poly');
     updatePatternVisibility('key');
+    updatePatternVisibility('drl');
     updateRectanglePreview();
     updateCirclePreview();
     updatePolygonPreview();
     updateKeyholePreview();
+    updateDrillPreview();
     updatePlanerPreview();
     updateJointerPreview();
   }
@@ -3091,6 +3490,7 @@
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
+        tabs:         packTabsForm('rect'),
         pattern:      packPattern(params.pattern)
       };
     } else if (params.shape === 'circle') {
@@ -3102,6 +3502,7 @@
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
+        tabs:         packTabsForm('circ'),
         pattern:      packPattern(params.pattern)
       };
     } else if (params.shape === 'planer') {
@@ -3153,6 +3554,7 @@
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
+        tabs:          packTabsForm('poly'),
         pattern:       packPattern(params.pattern)
       };
     } else if (params.shape === 'keyhole') {
@@ -3161,6 +3563,15 @@
         slotLength:    displayToMm(params.slotLength),
         startAngleDeg: params.startAngleDeg,
         depth:         displayToMm(params.depth),
+        pattern:       packPattern(params.pattern)
+      };
+    } else if (params.shape === 'drill') {
+      body.drill = {
+        tool:          toolForShape,
+        depth:         displayToMm(params.depth),
+        peckDepth:     displayToMm(params.peckDepth),
+        peckMode:      params.peckMode,
+        dwell:         params.dwell,
         pattern:       packPattern(params.pattern)
       };
     }
@@ -3514,7 +3925,20 @@
       shapePreviewDefs('qc-rect') +
       hatched +
       '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
-      wLine + hLine + wLabel + hLabel;
+      wLine + hLine + wLabel + hLabel +
+      // The cut starts mid-bottom and runs CCW (right along the bottom).
+      tabMarks('rect', previewLines(
+        [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
+         { x: x, y: y + h }, { x: 0, y: y + h }],
+        rectTabLens()));
+
+    // Edge lengths of the tool path (the part size grown or shrunk by
+    // the bit), which is what the generator spaces the tabs along.
+    function rectTabLens() {
+      var grow = (cutType === 'outer' ? 1 : -1) * Math.max(0, num('qc-bit', 0));
+      var pw = Math.max(W + grow, 0.001), ph = Math.max(H + grow, 0.001);
+      return [pw / 2, ph, pw, ph, pw / 2];
+    }
   }
 
   // Planer preview — side view of the material being surfaced. The
@@ -3797,7 +4221,9 @@
       shapePreviewDefs('qc-circ') +
       hatched +
       '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
-      dLine + dLabel;
+      dLine + dLabel +
+      // The cut starts at the rightmost point and runs CCW.
+      tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]);
   }
 
   // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
@@ -3924,6 +4350,90 @@
     });
   }
 
+  function readDrillForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      depth:         num('qc-drl-depth', 0),
+      peckDepth:     num('qc-drl-peck', 0),
+      peckMode:      $('qc-drl-peck-mode').value,
+      dwell:         num('qc-drl-dwell', 0),
+      pattern:       readPatternForm('drl'),
+      isImperial:    state.isImperial,
+      safeZHeightMm: state.safeZHeightMm
+    });
+  }
+
+  // Drill preview: plan view of every hole, to scale. Hole size is the
+  // Bit Diameter and the spacing comes from the pattern, both scaled
+  // together to fit the box. The first hole (X0 Y0) gets a crosshair.
+  function updateDrillPreview() {
+    var svg = document.getElementById('qc-drl-preview');
+    if (!svg) return;
+    var dia = num('qc-bit', 0);
+    var D = dia > 0 ? dia : 1;
+    var positions = makeQuickCutGenerator(state.isImperial).computePatternPositions(readPatternForm('drl'));
+    // Huge grids would mean thousands of SVG nodes; the shape of the
+    // first part of the grid is enough for a preview.
+    positions = positions.slice(0, 1500);
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    positions.forEach(function(p) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    });
+    var extent = Math.max(maxX - minX, maxY - minY) + D;
+    var scale = Math.min(76 / extent, 30 / D);
+    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    var r = Math.max(0.8, D * scale / 2);
+    var holes = positions.map(function(p) {
+      return '<circle class="qc-shape-fill" cx="' + ((p.x - cx) * scale).toFixed(2) +
+             '" cy="' + (-(p.y - cy) * scale).toFixed(2) + '" r="' + r.toFixed(2) + '"/>';
+    }).join('');
+    var ox = (positions[0].x - cx) * scale, oy = -(positions[0].y - cy) * scale, arm = r + 4;
+    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm).toFixed(2) + ',' + oy.toFixed(2) +
+                 ' H' + (ox + arm).toFixed(2) + ' M' + ox.toFixed(2) + ',' + (oy - arm).toFixed(2) +
+                 ' V' + (oy + arm).toFixed(2) + '"/>';
+    var text = positions.length > 1 ? positions.length + ' × ⌀' + (dia > 0 ? dia : '?') : '⌀' + (dia > 0 ? dia : '?');
+    svg.innerHTML =
+      shapePreviewDefs('qc-drl') + holes + origin +
+      '<text class="qc-shape-dim-label" x="0" y="47" text-anchor="middle">' + text + '</text>';
+  }
+
+  function wireDrillForm() {
+    // Bit Diameter lives in the shared Tool card; it sets the hole size.
+    $('qc-bit').addEventListener('input', updateDrillPreview);
+    $('qc-drl-pattern-enable').addEventListener('change', function() {
+      updatePatternVisibility('drl');
+      updateDrillPreview();
+    });
+    $('qc-drl-pattern-style').addEventListener('change', function() {
+      updatePatternVisibility('drl');
+      updateDrillPreview();
+    });
+    $('qc-drl-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('drl'); });
+    $('qc-drl-pattern-body').addEventListener('input', updateDrillPreview);
+    $('qc-drl-pattern-body').addEventListener('change', updateDrillPreview);
+    updateDrillPreview();
+    updatePatternVisibility('drl');
+
+    $('qc-drl-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readDrillForm();
+      params.shape = 'drill';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generateDrillProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Drill.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
   function updatePolygonPreview() {
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
@@ -3987,7 +4497,11 @@
       '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
             'x2="' + armX.toFixed(2) + '" y2="0" ' +
             'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-      '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>';
+      '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>' +
+      // The cut starts at the first vertex and runs CCW.
+      tabMarks('poly', previewLines(pts.concat([pts[0]]), pts.map(function() {
+        return Math.max(diameter, 0.001) * Math.sin(Math.PI / n);
+      })));
   }
 
   function wirePolygonForm() {
@@ -4122,8 +4636,8 @@
     for (var i = 0; i < applyBtns.length; i++) applyBtns[i].disabled = measure.angleDeg == null;
   }
 
-  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole' };
-  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', key: 'keyhole' };
+  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole', drl: 'Drill' };
+  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', key: 'keyhole', drl: 'drill' };
 
   function showTab(tab) {
     var btn = document.querySelector('.qc-nav-btn[data-tab="' + tab + '"]');
@@ -4508,6 +5022,279 @@
       return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
     }
 
+    // === HOLDING TABS =======================================================
+    //
+    // Tabs leave small bridges of material on the final passes of an
+    // inner/outer profile so the part (or drop-out) stays attached.
+    //
+    // The profile is described as a list of segments along the tool path,
+    // in work coordinates (already rotated):
+    //   { type: 'line', x0, y0, x1, y1, len }
+    //   { type: 'arc',  cx, cy, r, a0, a1, len }   (radians, CCW like G3)
+    // On the tool path each tab spans tabWidth + bitDiameter: the cutter
+    // takes a radius off each side, which leaves tabWidth of material at
+    // the part. A tab may cover the start point (a rectangle's
+    // middle-bottom tab does); the tabbed passes then start and end
+    // lifted over it.
+
+    // The tab settings to use, or null when tabs are off or don't apply.
+    function tabSettings(params) {
+      var t = params.tabs;
+      if (!t || (params.cutType || 'inner') === 'clearing') return null;
+      var count = Math.floor(t.count || 0);
+      if (!(count >= 1) || !(t.width > 0) || !(t.height > 0) || !(t.height < params.depth)) return null;
+      return { count: count, width: t.width, height: t.height };
+    }
+
+    function tabsComment(tabs, unitsLabel) {
+      return 'Tabs: ' + tabs.count + ' x ' + tabs.width + unitsLabel + ' wide, ' +
+             tabs.height + unitsLabel + ' high';
+    }
+
+    // Depths of each pass. With tabTop set, a pass is added at exactly
+    // tabTop so the tabs come out at the requested height.
+    function depthLevels(depth, depthOfCut, tabTop) {
+      var levels = [];
+      var current = 0;
+      while (current < depth - 1e-6) {
+        var next = Math.min(depth, current + depthOfCut);
+        if (tabTop != null && current < tabTop - 1e-6 && next > tabTop + 1e-6) levels.push(tabTop);
+        levels.push(next);
+        current = next;
+      }
+      return levels;
+    }
+
+    function pushLine(segs, a, b) {
+      var len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len > 1e-9) segs.push({ type: 'line', x0: a.x, y0: a.y, x1: b.x, y1: b.y, len: len });
+    }
+
+    // Same path as emitRectanglePath: mid-bottom start, CCW.
+    function rectangleSegments(geom) {
+      var cx = geom.cx, cy = geom.cy;
+      var rot = geom.rotationDeg || 0;
+      var xR = cx + geom.halfW, xL = cx - geom.halfW;
+      var yT = cy + geom.halfH, yB = cy - geom.halfH;
+      var r = geom.cornerR;
+      var segs = [];
+      var px = cx, py = yB;
+      function lineTo(x, y) {
+        pushLine(segs, rotatePoint(cx, cy, px, py, rot), rotatePoint(cx, cy, x, y, rot));
+        px = x; py = y;
+      }
+      function arcTo(x, y, ctrX, ctrY, startDeg) {
+        var c = rotatePoint(cx, cy, ctrX, ctrY, rot);
+        var a0 = (startDeg + rot) * Math.PI / 180;
+        segs.push({ type: 'arc', cx: c.x, cy: c.y, r: r, a0: a0, a1: a0 + Math.PI / 2, len: r * Math.PI / 2 });
+        px = x; py = y;
+      }
+      if (r <= 0) {
+        lineTo(xR, yB); lineTo(xR, yT); lineTo(xL, yT); lineTo(xL, yB); lineTo(cx, yB);
+        return segs;
+      }
+      var xRt = xR - r, xLt = xL + r, yTt = yT - r, yBt = yB + r;
+      lineTo(xRt, yB); arcTo(xR, yBt, xRt, yBt, -90);
+      lineTo(xR, yTt); arcTo(xRt, yT, xRt, yTt, 0);
+      lineTo(xLt, yT); arcTo(xL, yTt, xLt, yTt, 90);
+      lineTo(xL, yBt); arcTo(xLt, yB, xLt, yBt, 180);
+      lineTo(cx, yB);
+      return segs;
+    }
+
+    // Full circle from the rightmost point, CCW (as emitOneCircle cuts it).
+    function circleSegments(geom) {
+      var r = geom.pathRadius;
+      return [{ type: 'arc', cx: geom.cx, cy: geom.cy, r: r, a0: 0, a1: 2 * Math.PI, len: 2 * Math.PI * r }];
+    }
+
+    function polygonSegments(geom) {
+      var verts = polygonVertices(geom.cx, geom.cy, geom.pathRadius, geom.sides, geom.startAngle);
+      var segs = [];
+      for (var i = 0; i < verts.length; i++) pushLine(segs, verts[i], verts[(i + 1) % verts.length]);
+      return segs;
+    }
+
+    // Tab spans along the path as [{start, end}] distances. Tabs that
+    // would leave no cut between them are dropped, so the result can be
+    // shorter than tabs.count (or empty).
+    //
+    // Evenly spaced tabs can land on a corner, where a tab is weak and
+    // awkward to clean up. So each evenly spaced position picks the
+    // straight edge it falls on (or the nearest one, from a corner arc),
+    // and the tabs on each edge are then spread evenly along it: 4 tabs
+    // on a rectangle give one in the middle of each side. A circle has
+    // no straight edges and keeps the even spacing, as does any shape
+    // whose edges are too short for their tabs.
+    function tabIntervals(segs, tabs, bitDiameter) {
+      var total = 0;
+      for (var i = 0; i < segs.length; i++) total += segs[i].len;
+      var lift = tabs.width + bitDiameter;
+      var n = tabs.count;
+      while (n > 0 && lift >= total / n) n--;
+      var nominal = [];
+      for (var k = 0; k < n; k++) nominal.push((k + 0.5) * total / n);
+      var centers = (n && tabsOnEdges(segs, nominal, lift, total)) || nominal;
+      // A tab across the start point is split into its two ends of the lap.
+      var out = [];
+      centers.forEach(function(c) {
+        var a = c - lift / 2, b = c + lift / 2;
+        if (a < 0) out.push({ start: a + total, end: total }, { start: 0, end: b });
+        else if (b > total) out.push({ start: a, end: total }, { start: 0, end: b - total });
+        else out.push({ start: a, end: b });
+      });
+      return out.sort(function(x, y) { return x.start - y.start; });
+    }
+
+    // Straight runs of the path as { start, end } distances. Collinear
+    // neighbours are merged, including the last line into the first when
+    // the path starts mid-edge (a rectangle's bottom edge then runs from a
+    // negative start, i.e. it wraps through the start point).
+    function straightEdges(segs, total) {
+      var edges = [];
+      var d = 0;
+      function dir(s) { return { x: (s.x1 - s.x0) / s.len, y: (s.y1 - s.y0) / s.len }; }
+      function collinear(a, b) {
+        return Math.abs(a.x * b.y - a.y * b.x) < 1e-6 && a.x * b.x + a.y * b.y > 0;
+      }
+      for (var i = 0; i < segs.length; i++) {
+        var s = segs[i];
+        if (s.type === 'line') {
+          var last = edges[edges.length - 1];
+          if (last && Math.abs(last.end - d) < 1e-9 && collinear(last.dir, dir(s))) {
+            last.end += s.len;
+          } else {
+            edges.push({ start: d, end: d + s.len, dir: dir(s) });
+          }
+        }
+        d += s.len;
+      }
+      if (edges.length > 1) {
+        var first = edges[0], tail = edges[edges.length - 1];
+        if (first.start < 1e-9 && Math.abs(tail.end - total) < 1e-9 && collinear(tail.dir, first.dir)) {
+          first.start = tail.start - total;
+          edges.pop();
+        }
+      }
+      return edges;
+    }
+
+    // Tab centers spread along straight edges, or null to keep the even
+    // spacing. Each edge gets a share of the tabs by its length (largest
+    // remainder); ties go to the edges the evenly spaced positions fall
+    // on, so 3 tabs on a hexagon take every other side. Centers can be
+    // negative on an edge that wraps through the start point.
+    function tabsOnEdges(segs, nominal, lift, total) {
+      var edges = straightEdges(segs, total);
+      if (!edges.length) return null;
+      var hits = edges.map(function() { return 0; });
+      nominal.forEach(function(c) {
+        var best = -1, bestDist = Infinity;
+        for (var e = 0; e < edges.length; e++) {
+          // Distance from c to the edge, also trying c one lap back for
+          // an edge that wraps through the start.
+          var cs = [c, c - total];
+          for (var j = 0; j < 2; j++) {
+            var dist = Math.max(edges[e].start - cs[j], 0, cs[j] - edges[e].end);
+            if (dist < bestDist - 1e-9) { bestDist = dist; best = e; }
+          }
+        }
+        hits[best]++;
+      });
+      var straight = 0;
+      edges.forEach(function(edge) { straight += edge.end - edge.start; });
+      var quota = edges.map(function(edge) { return nominal.length * (edge.end - edge.start) / straight; });
+      var counts = quota.map(function(q) { return Math.floor(q + 1e-9); });
+      var left = nominal.length - counts.reduce(function(a, b) { return a + b; }, 0);
+      var order = edges.map(function(edge, i) { return i; }).sort(function(a, b) {
+        var rem = (quota[b] - counts[b]) - (quota[a] - counts[a]);
+        if (Math.abs(rem) > 1e-9) return rem;
+        return (hits[b] - hits[a]) || (a - b);
+      });
+      for (var o = 0; o < left; o++) counts[order[o]]++;
+      var centers = [];
+      for (var e = 0; e < edges.length; e++) {
+        var k = counts[e];
+        var len = edges[e].end - edges[e].start;
+        if (!k) continue;
+        if (k * lift >= len) return null;
+        for (var i = 0; i < k; i++) {
+          centers.push(edges[e].start + (i + 0.5) * len / k);
+        }
+      }
+      return centers;
+    }
+
+    // toFixed without "-0.000" for values that round to zero.
+    function fixed(v, dp) {
+      var str = v.toFixed(dp);
+      return /^-0\.0*$/.test(str) ? str.slice(1) : str;
+    }
+
+    // Emit the part of `seg` from distance s to e along it.
+    function emitSegmentPiece(lines, seg, s, e, feedSuffix) {
+      if (seg.type === 'line') {
+        var f = e / seg.len;
+        lines.push('G1 X' + fixed(seg.x0 + (seg.x1 - seg.x0) * f, xyDp) +
+                   ' Y' + fixed(seg.y0 + (seg.y1 - seg.y0) * f, xyDp) + feedSuffix);
+        return;
+      }
+      var as = seg.a0 + s / seg.r, ae = seg.a0 + e / seg.r;
+      var sx = seg.cx + seg.r * Math.cos(as), sy = seg.cy + seg.r * Math.sin(as);
+      lines.push('G3 X' + fixed(seg.cx + seg.r * Math.cos(ae), 5) +
+                 ' Y' + fixed(seg.cy + seg.r * Math.sin(ae), 5) +
+                 ' I' + fixed(seg.cx - sx, 5) + ' J' + fixed(seg.cy - sy, 5) + feedSuffix);
+    }
+
+    // One lap of the path at cutZ, rising to tabZ over each tab. The lap
+    // makes its own entry plunge at the start point: to cutZ, or only to
+    // tabZ when a tab covers the start (the lap then also ends lifted).
+    function emitTabbedLap(lines, segs, intervals, cutZ, tabZ, feedRate, plungeFeedRate) {
+      var dist = 0;
+      var inTab = null;
+      var needFeed = true;
+      for (var i = 0; i < segs.length; i++) {
+        var seg = segs[i];
+        var cuts = [0, seg.len];
+        for (var j = 0; j < intervals.length; j++) {
+          var edges = [intervals[j].start - dist, intervals[j].end - dist];
+          for (var k = 0; k < 2; k++) {
+            if (edges[k] > 1e-9 && edges[k] < seg.len - 1e-9) cuts.push(edges[k]);
+          }
+        }
+        cuts.sort(function(a, b) { return a - b; });
+        for (var c = 0; c < cuts.length - 1; c++) {
+          var s = cuts[c], e = cuts[c + 1];
+          if (e - s < 1e-9) continue;
+          var mid = dist + (s + e) / 2;
+          var tab = false;
+          for (var t = 0; t < intervals.length; t++) {
+            if (mid > intervals[t].start && mid < intervals[t].end) tab = true;
+          }
+          if (tab !== inTab) {
+            lines.push('G1 Z' + (tab ? tabZ : cutZ).toFixed(3) + ' F' + plungeFeedRate + (tab ? ' ; Tab' : ''));
+            inTab = tab;
+            needFeed = true;
+          }
+          emitSegmentPiece(lines, seg, s, e, needFeed ? ' F' + feedRate : '');
+          needFeed = false;
+        }
+        dist += seg.len;
+      }
+    }
+
+    // Header comment and warning lines for a profile's tabs.
+    function tabHeaderNotes(params, segs, extras) {
+      var tabs = tabSettings(params);
+      if (!tabs) return [];
+      extras.push(tabsComment(tabs, isImperial ? 'inch' : 'mm'));
+      var fit = tabIntervals(segs, tabs, params.bitDiameter).length;
+      if (fit >= tabs.count) return [];
+      return [fit
+        ? '(WARNING: only ' + fit + ' of ' + tabs.count + ' tabs fit; using ' + fit + ')'
+        : '(WARNING: tabs too wide for this path; no tabs cut)'];
+    }
+
     function patternDescription(p) {
       if (!p || !p.enabled) return '';
       if (p.style === 'linear' || p.style === 'honeycomb') {
@@ -4537,6 +5324,7 @@
         'Origin: ' + (params.origin || 'center')
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var tabNotes = tabHeaderNotes(params, rectangleSegments(baseGeom), extras);
 
       var lines = programHeader(params, {
         shapeLabel: 'Rectangle' + (positions.length > 1 ? ' × ' + positions.length : ''),
@@ -4545,12 +5333,15 @@
 
       if (baseGeom.halfW <= 0 || baseGeom.halfH <= 0) {
         lines.push('(WARNING: shape smaller than tool diameter; nothing to cut)');
-        Array.prototype.push.apply(lines, programFooter(params));
+        lines.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }
 
-      Array.prototype.push.apply(lines, startupBlock(params));
+      lines.push.apply(lines, tabNotes);
+      lines.push.apply(lines, startupBlock(params));
 
+      // Origin is applied to the WHOLE pattern's aggregate bounding box,
+      // not to each instance individually — see computePatternAnchorShift.
       var shift = computePatternAnchorShift(params.origin || 'center', positions, rectangleShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
@@ -4565,7 +5356,7 @@
       }
 
       lines.push('');
-      Array.prototype.push.apply(lines, programFooter(params));
+      lines.push.apply(lines, programFooter(params));
       return lines.join('\n');
     }
 
@@ -4576,6 +5367,7 @@
       var feedRate = params.feedRate;
       var plungeFeedRate = params.plungeFeedRate;
 
+      // Start point (mid-bottom) — rotated with the shape.
       var s0 = rotatePoint(geom.cx, geom.cy, geom.cx, geom.cy - geom.halfH, geom.rotationDeg);
       var startX = s0.x, startY = s0.y;
       lines.push('G0 X' + startX.toFixed(xyDp) + ' Y' + startY.toFixed(xyDp));
@@ -4584,13 +5376,21 @@
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
       lines.push('G0 Z' + slowPlungeStart);
 
-      var currentDepth = 0;
-      while (currentDepth < depth - 1e-6) {
-        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
-        lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
+      var tabs = tabSettings(params);
+      var segs = tabs ? rectangleSegments(geom) : null;
+      var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
+      var tabTop = intervals.length ? depth - tabs.height : null;
+
+      var levels = depthLevels(depth, depthOfCut, tabTop);
+      for (var i = 0; i < levels.length; i++) {
+        if (tabTop != null && levels[i] > tabTop + 1e-6) {
+          emitTabbedLap(lines, segs, intervals, -levels[i], -tabTop, feedRate, plungeFeedRate);
+          continue;
+        }
+        lines.push('G1 Z' + (-levels[i]).toFixed(3) + ' F' + plungeFeedRate);
         emitRectanglePath(lines, geom, feedRate);
-        currentDepth = nextDepth;
       }
+
       lines.push('G0 Z' + safeHeight);
     }
 
@@ -4781,6 +5581,7 @@
         'Origin: ' + (params.origin || 'center')
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var tabNotes = tabHeaderNotes(params, circleSegments(baseGeom), extras);
 
       var lines = programHeader(params, {
         shapeLabel: 'Circle' + (positions.length > 1 ? ' × ' + positions.length : ''),
@@ -4789,11 +5590,12 @@
 
       if (baseGeom.pathRadius <= 0) {
         lines.push('(WARNING: circle smaller than tool diameter; nothing to cut)');
-        Array.prototype.push.apply(lines, programFooter(params));
+        lines.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }
 
-      Array.prototype.push.apply(lines, startupBlock(params));
+      lines.push.apply(lines, tabNotes);
+      lines.push.apply(lines, startupBlock(params));
 
       var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
@@ -4808,7 +5610,7 @@
       }
 
       lines.push('');
-      Array.prototype.push.apply(lines, programFooter(params));
+      lines.push.apply(lines, programFooter(params));
       return lines.join('\n');
     }
 
@@ -4820,34 +5622,52 @@
       var feedRate = params.feedRate;
       var plungeFeedRate = params.plungeFeedRate;
 
+      // Position at rightmost point of tool path.
       lines.push('G0 X' + (cx + pathRadius).toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
       var safeHeight = safeHopDelta.toFixed(3);
       lines.push('G0 Z' + safeHeight);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
       lines.push('G0 Z' + slowPlungeStart);
 
+      // Helical descent: each revolution = two semicircles descending by
+      // DOC/2 each. This is a CUTTING motion (spiraling around the
+      // perimeter while descending) so it uses the cutting feed rate, not
+      // plunge rate — plunge rate is reserved for straight-Z entries.
+      // With tabs, the helix stops at the top of the tabs; the passes
+      // below that are flat tabbed laps entered by a plunge at the start.
+      var tabs = tabSettings(params);
+      var segs = tabs ? circleSegments(geom) : null;
+      var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
+      var tabTop = intervals.length ? depth - tabs.height : null;
+      var levels = depthLevels(depth, depthOfCut, tabTop);
+
       var prevZ = parseFloat(slowPlungeStart);
-      var currentDepth = 0;
-      while (currentDepth < depth - 1e-6) {
-        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
-        var targetZ = -nextDepth;
+      for (var i = 0; i < levels.length; i++) {
+        if (tabTop != null && levels[i] > tabTop + 1e-6) break;
+        var targetZ = -levels[i];
         var midZ = (prevZ + targetZ) / 2;
-        // Helical descent is a cutting motion (spiraling perimeter as
-        // it drops), so it uses feed rate, not plunge rate.
+        // Top-half semicircle: (right, cy) → (left, cy), CCW.
         lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                    ' I' + (-pathRadius).toFixed(5) + ' J0' +
                    ' Z' + midZ.toFixed(3) + ' F' + feedRate);
+        // Bottom-half semicircle: (left, cy) → (right, cy), CCW.
         lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                    ' I' + pathRadius.toFixed(5) + ' J0' +
                    ' Z' + targetZ.toFixed(3) + ' F' + feedRate);
         prevZ = targetZ;
-        currentDepth = nextDepth;
       }
-      // Final cleanup circle at target Z.
+
+      // Final cleanup full-circle at target Z — removes spiral marks from
+      // the descending pass.
       lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                  ' I' + (-pathRadius).toFixed(5) + ' J0 F' + feedRate);
       lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                  ' I' + pathRadius.toFixed(5) + ' J0');
+
+      for (; i < levels.length; i++) {
+        emitTabbedLap(lines, segs, intervals, -levels[i], -tabTop, feedRate, plungeFeedRate);
+      }
+
       lines.push('G0 Z' + safeHeight);
     }
 
@@ -5352,6 +6172,7 @@
         'Origin: ' + (params.origin || 'center')
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var tabNotes = tabHeaderNotes(params, polygonSegments(baseGeom), extras);
 
       var lines = programHeader(params, {
         shapeLabel: 'Polygon (' + baseGeom.sides + '-sided)' + (positions.length > 1 ? ' × ' + positions.length : ''),
@@ -5360,11 +6181,12 @@
 
       if (baseGeom.pathRadius <= 0) {
         lines.push('(WARNING: polygon smaller than tool diameter; nothing to cut)');
-        Array.prototype.push.apply(lines, programFooter(params));
+        lines.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }
 
-      Array.prototype.push.apply(lines, startupBlock(params));
+      lines.push.apply(lines, tabNotes);
+      lines.push.apply(lines, startupBlock(params));
 
       var shift = computePatternAnchorShift(params.origin || 'center', positions, polygonShapeBbox(params));
       for (var p = 0; p < positions.length; p++) {
@@ -5381,7 +6203,7 @@
       }
 
       lines.push('');
-      Array.prototype.push.apply(lines, programFooter(params));
+      lines.push.apply(lines, programFooter(params));
       return lines.join('\n');
     }
 
@@ -5398,15 +6220,22 @@
       lines.push('G0 Z' + safeHeight);
       lines.push('G0 Z' + slowPlungeStart);
 
-      var currentDepth = 0;
-      while (currentDepth < depth - 1e-6) {
-        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
-        lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
+      var tabs = tabSettings(params);
+      var segs = tabs ? polygonSegments(geom) : null;
+      var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
+      var tabTop = intervals.length ? depth - tabs.height : null;
+
+      var levels = depthLevels(depth, depthOfCut, tabTop);
+      for (var l = 0; l < levels.length; l++) {
+        if (tabTop != null && levels[l] > tabTop + 1e-6) {
+          emitTabbedLap(lines, segs, intervals, -levels[l], -tabTop, feedRate, plungeFeedRate);
+          continue;
+        }
+        lines.push('G1 Z' + (-levels[l]).toFixed(3) + ' F' + plungeFeedRate);
         for (var i = 1; i <= verts.length; i++) {
           var v = verts[i % verts.length];
           lines.push('G1 X' + v.x.toFixed(xyDp) + ' Y' + v.y.toFixed(xyDp) + ' F' + feedRate);
         }
-        currentDepth = nextDepth;
       }
 
       lines.push('G0 Z' + safeHeight);
@@ -5608,6 +6437,82 @@
       lines.push('G0 Z' + safeHeight);
     }
 
+    // === DRILL ==============================================================
+    //
+    // Point holes at each pattern position, hole diameter = bit diameter.
+    // The first hole is X0 Y0 (no anchor shift, like Keyhole).
+    //
+    // Pecking uses explicit moves, not G81/G83 canned cycles: plain grbl
+    // doesn't support those, and explicit moves show in the visualizer.
+    //   clear: after each peck, rapid out to the 2mm clearance to clear
+    //          chips, then rapid back to 0.5mm above the bottom.
+    //   break: after each peck, back off 0.5mm to snap the chip.
+    // An optional dwell at the bottom cleans up the hole floor.
+    function generateDrillProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var peck = params.peckDepth > 0 && params.peckDepth < params.depth ? params.peckDepth : 0;
+      var mode = params.peckMode === 'break' ? 'break' : 'clear';
+
+      var extras = [
+        'Depth: ' + params.depth + unitsLabel,
+        'Peck: ' + (peck ? peck + unitsLabel + ', ' + (mode === 'break' ? 'short retract' : 'full retract') : 'none'),
+        'Origin: first hole center'
+      ];
+      if (params.dwell > 0) extras.push('Dwell: ' + params.dwell + 's');
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Drill' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (!(params.depth > 0)) {
+        lines.push('(WARNING: depth must be greater than 0; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      lines.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          lines.push('(Hole ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + ')');
+        }
+        emitOneHole(lines, params, pos.x, pos.y, peck, mode);
+      }
+
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneHole(lines, params, x, y, peck, mode) {
+      var safeHeight = safeHopDelta.toFixed(3);
+      var clearance = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      var backoff = isImperial ? 0.5 * 0.0393701 : 0.5;
+      var depth = params.depth;
+
+      lines.push('G0 X' + x.toFixed(xyDp) + ' Y' + y.toFixed(xyDp));
+      lines.push('G0 Z' + safeHeight);
+      lines.push('G0 Z' + clearance);
+
+      var d = 0;
+      while (d < depth - 1e-6) {
+        var next = peck ? Math.min(depth, d + peck) : depth;
+        lines.push('G1 Z' + (-next).toFixed(3) + ' F' + params.plungeFeedRate);
+        if (next < depth - 1e-6) {
+          if (mode === 'clear') lines.push('G0 Z' + clearance + ' ; Clear chips');
+          lines.push('G0 Z' + (backoff - next).toFixed(3) + (mode === 'break' ? ' ; Break chip' : ''));
+        }
+        d = next;
+      }
+      if (params.dwell > 0) lines.push('G4 P' + params.dwell + ' ; Dwell');
+      lines.push('G0 Z' + safeHeight);
+    }
+
     return {
       generateRectangleProgram: generateRectangleProgram,
       generateCircleProgram: generateCircleProgram,
@@ -5615,7 +6520,10 @@
       generateJointerProgram: generateJointerProgram,
       generateCutterProgram: generateCutterProgram,
       generatePolygonProgram: generatePolygonProgram,
-      generateKeyholeProgram: generateKeyholeProgram
+      generateKeyholeProgram: generateKeyholeProgram,
+      generateDrillProgram: generateDrillProgram,
+      computePatternPositions: computePatternPositions,
+      tabIntervals: tabIntervals
     };
   }
 
