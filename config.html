@@ -2381,7 +2381,8 @@
    * number in the active units (inches when isImperial, else mm):
    *   6.35        → 6.35 (no unit: already in active units, untouched)
    *   .25in  .25"  1/4"  1-1/2"  1 1/2 in  6.35mm  0.635cm
-   *   feeds also: 100ipm  100 in/min  2540 mm/min
+   *   feeds also: 100ipm  100 in/min  2540 mm/min  1500mm/m
+   *               42.333mm/s  1.667ips  (per second → per minute)
    * Converted values are rounded like roundDisplay (4 dp inch, 3 dp mm).
    * Returns null when the text can't be read as a value.
    */
@@ -2407,10 +2408,19 @@
 
     var MM_PER = { mm: 1, cm: 10, 'in': 25.4, inch: 25.4, inches: 25.4, '"': 25.4 };
     if (kind === 'feed') {
+      // Per minute (what G94 feeds use); "/m" is read as per minute.
       MM_PER['mm/min'] = 1;
+      MM_PER['mm/m'] = 1;
       MM_PER['in/min'] = 25.4;
+      MM_PER['in/m'] = 25.4;
       MM_PER['inch/min'] = 25.4;
       MM_PER.ipm = 25.4;
+      // Per second, scaled to per minute.
+      MM_PER['mm/s'] = 60;
+      MM_PER['mm/sec'] = 60;
+      MM_PER['in/s'] = 25.4 * 60;
+      MM_PER['in/sec'] = 25.4 * 60;
+      MM_PER.ips = 25.4 * 60;
     }
     var unit = m[6];
     if (!unit) return value;

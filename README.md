@@ -94,9 +94,11 @@ Size, depth, distance, and feed fields accept a unit. When you leave the field, 
 | `1-1/2"` or `1 1/2 in` | 38.1 | 1.5 |
 | `1/4` (no unit) | 0.25 | 0.25 |
 | `100ipm`, `100 in/min` (feed fields) | 2540 | 100 |
-| `2540 mm/min` (feed fields) | 2540 | 100 |
+| `2540 mm/min` or `2540mm/m` (feed fields) | 2540 | 100 |
+| `25mm/s`, `25 mm/sec` (feed fields) | 1500 | 59.0551 |
+| `1ips`, `1 in/s` (feed fields) | 1524 | 60 |
 
-A number with no unit is taken to be in the current units already. Text that can't be read is left as typed, and the field shows a "must be a number" warning. Counts, angles, RPM, and percentages are plain numbers.
+Feeds are always per minute, so per-second entries are multiplied by 60, and `/m` means per minute. A number with no unit is taken to be in the current units already. Text that can't be read is left as typed, and the field shows a "must be a number" warning. Counts, angles, RPM, and percentages are plain numbers.
 
 ## Install
 

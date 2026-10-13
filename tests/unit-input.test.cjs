@@ -43,6 +43,19 @@ test('feed fields accept per-minute units', () => {
   assert.equal(parseUnitValue('100ipm', METRIC, 'length'), null, 'ipm is a feed unit only');
 });
 
+test('feed fields accept /m as per minute and per-second units', () => {
+  assert.equal(parseUnitValue('1500mm/m', IMPERIAL, 'feed'), 59.0551);
+  assert.equal(parseUnitValue('1500 mm/m', METRIC, 'feed'), 1500);
+  assert.equal(parseUnitValue('60in/m', METRIC, 'feed'), 1524);
+  assert.equal(parseUnitValue('25mm/s', IMPERIAL, 'feed'), 59.0551);
+  assert.equal(parseUnitValue('25 mm/sec', METRIC, 'feed'), 1500);
+  assert.equal(parseUnitValue('1ips', METRIC, 'feed'), 1524);
+  assert.equal(parseUnitValue('1 in/s', IMPERIAL, 'feed'), 60);
+  assert.equal(parseUnitValue('0.5in/sec', IMPERIAL, 'feed'), 30);
+  assert.equal(parseUnitValue('25mm/s', METRIC, 'length'), null, 'per-second units are feed-only');
+  assert.equal(parseUnitValue('25mm/h', METRIC, 'feed'), null);
+});
+
 test('unreadable text returns null', () => {
   for (const bad of ['', 'abc', '1/0', '1.5/2', '1-1/0', '6.35 furlongs', '1..2', '--1', '1/4/2']) {
     assert.equal(parseUnitValue(bad, METRIC, 'length'), null, JSON.stringify(bad));
