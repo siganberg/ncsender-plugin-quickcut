@@ -1252,21 +1252,6 @@
               <div class="qc-pattern-linear-fields">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-rect-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="rect" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                  <div class="qc-pattern-rotate-cell">
-                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
-                      <span>Rotate shapes with angle</span>
-                      <span class="qc-switch">
-                        <input type="checkbox" id="qc-rect-pattern-rotate-shapes">
-                        <span class="qc-switch-track"></span>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                <div class="qc-row-2">
-                  <div class="qc-field">
                     <label for="qc-rect-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-x-dist" step="0.1" value="60">
                   </div>
@@ -1283,6 +1268,21 @@
                   <div class="qc-field">
                     <label for="qc-rect-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="rect" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                  </div>
+                  <div class="qc-pattern-rotate-cell">
+                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                      <span>Rotate shapes with angle</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-rect-pattern-rotate-shapes">
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1425,12 +1425,6 @@
               <div class="qc-pattern-linear-fields" data-shape="circ">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-circ-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="circ" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                </div>
-                <div class="qc-row-2">
-                  <div class="qc-field">
                     <label for="qc-circ-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-x-dist" step="0.1" value="40">
                   </div>
@@ -1447,6 +1441,12 @@
                   <div class="qc-field">
                     <label for="qc-circ-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="circ" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                   </div>
                 </div>
               </div>
@@ -1602,21 +1602,6 @@
               <div class="qc-pattern-linear-fields" data-shape="poly">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-poly-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="poly" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                  <div class="qc-pattern-rotate-cell">
-                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
-                      <span>Rotate shapes with angle</span>
-                      <span class="qc-switch">
-                        <input type="checkbox" id="qc-poly-pattern-rotate-shapes">
-                        <span class="qc-switch-track"></span>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                <div class="qc-row-2">
-                  <div class="qc-field">
                     <label for="qc-poly-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-x-dist" step="0.1" value="40">
                   </div>
@@ -1633,6 +1618,21 @@
                   <div class="qc-field">
                     <label for="qc-poly-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="poly" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                  </div>
+                  <div class="qc-pattern-rotate-cell">
+                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                      <span>Rotate shapes with angle</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-poly-pattern-rotate-shapes">
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1746,21 +1746,6 @@
               <div class="qc-pattern-linear-fields" data-shape="key">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-key-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="key" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                  <div class="qc-pattern-rotate-cell">
-                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
-                      <span>Rotate shapes with angle</span>
-                      <span class="qc-switch">
-                        <input type="checkbox" id="qc-key-pattern-rotate-shapes">
-                        <span class="qc-switch-track"></span>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                <div class="qc-row-2">
-                  <div class="qc-field">
                     <label for="qc-key-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-x-dist" step="0.1" value="40">
                   </div>
@@ -1777,6 +1762,21 @@
                   <div class="qc-field">
                     <label for="qc-key-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-key-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="key" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                  </div>
+                  <div class="qc-pattern-rotate-cell">
+                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                      <span>Rotate shapes with angle</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-key-pattern-rotate-shapes">
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1890,12 +1890,6 @@
               <div class="qc-pattern-linear-fields" data-shape="drl">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-drl-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="drl" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                </div>
-                <div class="qc-row-2">
-                  <div class="qc-field">
                     <label for="qc-drl-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-x-dist" step="0.1" value="32">
                   </div>
@@ -1912,6 +1906,12 @@
                   <div class="qc-field">
                     <label for="qc-drl-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-drl-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-drl-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="drl" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                   </div>
                 </div>
               </div>
