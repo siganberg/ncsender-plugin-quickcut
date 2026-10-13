@@ -461,6 +461,9 @@
     line-height: 1.5;
     color: var(--color-text-secondary);
   }
+  /* A hint in the empty column beside a single field (Keyhole Depth),
+     smaller so it stays close to the field's height. */
+  .qc-mode-hint.qc-side-hint { font-size: 0.8rem; line-height: 1.4; align-self: center; }
   .qc-mode-hint strong {
     color: var(--color-text-primary);
     font-weight: 600;
@@ -1712,8 +1715,8 @@
                 <label for="qc-key-depth">Total Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required>
               </div>
+              <p class="qc-mode-hint qc-side-hint">One plunge to full depth at the Plunge Rate. The slot is always a single pass &mdash; a shallower pass would cut the narrow neck slot out to the full head width. Depth is to the bottom of the head.</p>
             </div>
-            <p class="qc-mode-hint">One plunge to full depth at the Plunge Rate. The slot is always a single pass &mdash; a shallower pass would cut the narrow neck slot out to the full head width. Depth is to the bottom of the head.</p>
           </div>
 
           <div class="qc-card">
