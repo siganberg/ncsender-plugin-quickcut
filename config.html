@@ -983,6 +983,21 @@
   .qc-secondary-btn:hover { border-color: var(--color-accent) !important; }
   .qc-secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   /* The Apply button for the shape whose "Measure" link opened this tab. */
+  /* Angle tab buttons are primary (filled) for contrast. Disabled ones
+     (no valid point yet) are dimmed and inert; the Apply button a
+     Measure link came from gets a ring. */
+  .qc-primary-btn:disabled,
+  .qc-primary-btn:disabled:hover {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: none;
+    transform: none;
+    box-shadow: none;
+  }
+  .qc-primary-btn.qc-apply-suggested,
+  .qc-primary-btn.qc-apply-suggested:hover {
+    box-shadow: 0 0 0 3px var(--color-surface, #fff), 0 0 0 5px var(--color-accent);
+  }
   .qc-secondary-btn.qc-apply-suggested { border-color: var(--color-accent) !important; color: var(--color-accent) !important; }
   /* "Measure" link beside each pattern Angle label. */
   .qc-measure-link {
@@ -2165,8 +2180,9 @@
       </div>
     </section>
 
-    <!-- Angle tab: measures the angle from the work origin to the
-         current position, for use as a Linear/Honeycomb pattern angle. -->
+    <!-- Angle tab: measures the angle from the work origin to a second
+         point (typed, or grabbed from the machine), for use as a
+         Linear/Honeycomb pattern angle. -->
     <section class="qc-content" data-view="measure">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
@@ -2189,7 +2205,7 @@
             </div>
           </div>
           <div class="qc-measure-capture">
-            <button type="button" class="qc-secondary-btn" id="qc-meas-capture">Grab Current</button>
+            <button type="button" class="qc-primary-btn" id="qc-meas-capture">Grab Current</button>
             <span class="qc-mode-hint" id="qc-meas-captured"></span>
           </div>
           <p class="qc-mode-hint">
@@ -2231,11 +2247,11 @@
           <h3 class="qc-card-title">Apply to Pattern</h3>
           <p class="qc-mode-hint">Sets the Linear pattern angle on a shape and turns its pattern on.</p>
           <div class="qc-measure-apply">
-            <button type="button" class="qc-secondary-btn" data-apply-angle="rect">Rectangle</button>
-            <button type="button" class="qc-secondary-btn" data-apply-angle="circ">Circle</button>
-            <button type="button" class="qc-secondary-btn" data-apply-angle="poly">Polygon</button>
-            <button type="button" class="qc-secondary-btn" data-apply-angle="key">Keyhole</button>
-            <button type="button" class="qc-secondary-btn" data-apply-angle="drl">Drill</button>
+            <button type="button" class="qc-primary-btn" data-apply-angle="rect">Rectangle</button>
+            <button type="button" class="qc-primary-btn" data-apply-angle="circ">Circle</button>
+            <button type="button" class="qc-primary-btn" data-apply-angle="poly">Polygon</button>
+            <button type="button" class="qc-primary-btn" data-apply-angle="key">Keyhole</button>
+            <button type="button" class="qc-primary-btn" data-apply-angle="drl">Drill</button>
           </div>
           <p class="qc-mode-hint" id="qc-meas-applied"></p>
         </div>
