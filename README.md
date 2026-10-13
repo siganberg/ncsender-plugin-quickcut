@@ -5,9 +5,12 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 ## What it makes
 
 **Shapes** (inner/outer cut, corner radius where applicable, origin selection):
-- Rectangle — Inner (perimeter), Inner (clearing), Outer, with optional Linear or Circular pattern
+- Rectangle — Inner (perimeter), Inner (clearing), Outer
 - Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass
-- Polygon — *coming soon*
+- Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer
+- Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
+
+Every shape can be repeated with a [pattern](#patterns).
 
 **Ops:**
 - Planer — surface a flat region with zigzag or spiral raster. Three modes:
@@ -20,8 +23,80 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 **Common:**
 - Units — metric + imperial (honors ncSender's `unitsPreference`)
 - Safe Z — honors ncSender's core `safeZHeight` setting; falls back to machine Z0 when unset
-- Pattern (shapes only) — Linear (X × Y with signed distances) or Circular (N around a radius)
+- Pattern (shapes only) — Linear, Honeycomb, or Circular; see [Patterns](#patterns)
+- Unit entry — type `.25in`, `1/4"`, or `6.35mm` into size and feed fields; see [Typing units](#typing-units)
+- Angle tab — measures the angle from the work origin to the current machine position; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
+
+## Keyhole
+
+Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or picture on a screw. The bit's head is wider than its neck, so it can only enter and leave the wood through the plunge hole:
+
+1. Plunge straight down to **Total Depth** at the Plunge Rate.
+2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y).
+3. Retrace exactly back to the plunge hole.
+4. Retract.
+
+- **X0 Y0 is the plunge hole** (the first one, when a pattern is on). There's no origin picker.
+- Set **Bit Diameter** to the bit's head diameter.
+- There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.
+- Patterns work as on the other shapes. With **Circular (Path Direction)**, or **Rotate shapes with angle** on an angled Linear pattern, each slot turns with its copy.
+
+## Patterns
+
+Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, or Keyhole to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole has no origin picker: its first plunge hole is X0 Y0.)
+
+| Style | What it does |
+| --- | --- |
+| Linear | A grid of rows and columns. |
+| Honeycomb | Like Linear, plus a shifted row (offset by half a step in both directions) between each pair of rows. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. |
+| Circular (Identical) | *Count* copies spaced evenly on a circle of *Radius*, starting at *Start Angle*. Every copy keeps the same orientation. |
+| Circular (Path Direction) | Same as above, but each copy is turned to face outward from the center. |
+
+### Linear and Honeycomb at an angle
+
+Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Angle tab](#measuring-an-angle) to read the angle off the machine. At 0° the pattern runs along the machine axes, and the fields read *X Distance / Y Distance / X Count / Y Count*.
+
+At any other angle the whole grid is turned about the first copy, and the fields change to:
+
+- **Spacing (along N°)** — center-to-center distance between copies along the angled row
+- **Row Spacing (⊥)** — distance between rows, at right angles to the row
+- **Count (along)** — copies per row
+- **Rows** — number of rows
+
+For example, 5 circles at 36° with a spacing of 20 places every center exactly 20 apart on a 36° line. You don't need to work out X and Y offsets yourself.
+
+Distances can be negative to run the row (or the rows) the other way.
+
+Rectangles, polygons, and keyholes also get a **Rotate shapes with angle** switch. Off, each copy stays square to the machine axes and only its position follows the angle. On, each copy is turned by the same angle so it sits square to the row. Circles look the same either way, so they don't have the switch.
+
+## Measuring an angle
+
+The **Angle** tab reads the live machine position from ncSender and shows the angle and distance from the current work origin to where the spindle is now. Use it to match a pattern to a line on the workpiece, such as an edge that isn't square to the machine. This can be helpful for patterns that don't align with the X or Y-axis.
+
+1. Jog to a point on the line and zero X and Y in your work coordinate system.
+2. Jog to a second point further along the same line. Farther apart gives a more accurate angle.
+3. Read the **Angle** (counter-clockwise from +X, between −180° and 180°) and **Distance**.
+4. Press **Rectangle**, **Circle**, **Polygon**, or **Keyhole** under *Apply to Pattern*. That shape's pattern is turned on, set to Linear if it was Circular, and given the measured angle. If you came here from a pattern's **Measure** link, that shape's button is highlighted, and pressing it takes you back to the shape.
+
+The tab also shows the work, machine, and origin (WCO) X/Y so you can confirm what the angle was measured from. It updates about twice a second while it's open, and **Refresh** reads the position immediately.
+
+ncSender reports positions in mm and assumes the controller does too (grblHAL `$13=0`). With `$13=1` the angle is still correct, but the distance and coordinates are not.
+
+## Typing units
+
+Size, depth, distance, and feed fields accept a unit. When you leave the field, it's converted to a plain number in the units QuickCut is using (inches with G20, mm with G21, following ncSender's units setting):
+
+| You type | Metric shows | Imperial shows |
+| --- | --- | --- |
+| `.25in`, `.25"`, `1/4"`, `0.25 inch` | 6.35 | 0.25 |
+| `6.35mm`, `0.635cm` | 6.35 | 0.25 |
+| `1-1/2"` or `1 1/2 in` | 38.1 | 1.5 |
+| `1/4` (no unit) | 0.25 | 0.25 |
+| `100ipm`, `100 in/min` (feed fields) | 2540 | 100 |
+| `2540 mm/min` (feed fields) | 2540 | 100 |
+
+A number with no unit is taken to be in the current units already. Text that can't be read is left as typed, and the field shows a "must be a number" warning. Counts, angles, RPM, and percentages are plain numbers.
 
 ## Install
 
@@ -37,7 +112,7 @@ Generators live in two places on purpose:
 - `config.html` — the copy the browser dialog runs (ncSenderPro V2's plugin server serves this HTML directly; external `<script src>` won't resolve)
 - `lib/*.cjs` — Node-loadable twin used by tests, kept in sync by hand
 
-Every fix to a generator must be applied to BOTH.
+Every fix to a generator must be applied to BOTH. The same goes for the unit-entry parser (`parseUnitValue` in `config.html` and `lib/unit-input.cjs`); `tests/unit-input.test.cjs` fails if the two copies differ.
 
 ## License
 

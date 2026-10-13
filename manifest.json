@@ -5,7 +5,7 @@
   "minAppVersion": "2.0.88",
   "configUi": "config.html",
   "author": "ncSender",
-  "description": "G-code generator for common CNC ops: rectangles + circles (perimeter/clearing/outer, with Linear or Circular patterns), Planer (target-depth/thickness/wasteboard-surfacing), Jointer (straight reference edge), and Cutter (cold-saw parting cut to exact dimension). Metric + imperial, honors core safeZHeight.",
+  "description": "G-code generator for common CNC ops: rectangles + circles (perimeter/clearing/outer, with Linear (any angle) or Circular patterns), Planer (target-depth/thickness/wasteboard-surfacing), Jointer (straight reference edge), Cutter (cold-saw parting cut to exact dimension), Keyhole (hanging slots with a keyhole bit), and Angle (measure origin-to-position angle for patterns). Metric + imperial, honors core safeZHeight.",
   "category": "gcode-generator",
   "repository": "https://github.com/siganberg/ncsender-plugin-quickcut",
   "icon": "logo.png",

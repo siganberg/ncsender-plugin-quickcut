@@ -551,6 +551,103 @@ test('pattern applies to clearing too — one helix per instance', () => {
   assert.equal(instanceLines, 2, `expected 2 instance comments, got ${instanceLines}`);
 });
 
+// ---------- Pattern angle ----------
+//
+// Linear/Honeycomb accept an angle: xDist becomes the center-to-center
+// step ALONG the angled row and yDist the step across it.
+function instanceCenters(gcode) {
+  return [...gcode.matchAll(/\(Instance \d+\/\d+ at X(-?[\d.]+) Y(-?[\d.]+)/g)]
+    .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+}
+
+test('pattern angle 0 is identical to no angle', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const pattern = { enabled: true, style: 'linear', xDist: 50, yDist: 40, xCount: 2, yCount: 2 };
+  const plain = gen(baseParams({ origin: 'back-left', pattern }));
+  const zero = gen(baseParams({ origin: 'back-left', pattern: Object.assign({ angle: 0, rotateShapes: true }, pattern) }));
+  assert.equal(zero, plain);
+});
+
+test('linear pattern at 36° puts centers on a 36° line, xDist apart', () => {
+  const gen = makeQuickCutGenerator(false).generateCircleProgram;
+  const gcode = gen(circleBase({
+    diameter: 10,
+    pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 3, yCount: 1, angle: 36 }
+  }));
+  assert.match(gcode, /^\(Pattern: Linear 3x1 \[dX=40, dY=0\] angle=36°\)/m);
+  const c = instanceCenters(gcode);
+  assert.equal(c.length, 3);
+  for (let i = 1; i < c.length; i++) {
+    const dx = c[i].x - c[i - 1].x, dy = c[i].y - c[i - 1].y;
+    assert.ok(Math.abs(Math.hypot(dx, dy) - 40) < 0.002, `step ${i} length ${Math.hypot(dx, dy)}`);
+    assert.ok(Math.abs(Math.atan2(dy, dx) * 180 / Math.PI - 36) < 0.01, `step ${i} angle`);
+  }
+  // origin=center: middle instance lands on (0, 0).
+  assert.ok(Math.abs(c[1].x) < 0.001 && Math.abs(c[1].y) < 0.001);
+});
+
+test('linear pattern at 90° matches the old Y-column layout', () => {
+  const gen = makeQuickCutGenerator(false).generateCircleProgram;
+  const angled = gen(circleBase({
+    diameter: 10, origin: 'front-left',
+    pattern: { enabled: true, style: 'linear', xDist: 30, yDist: 0, xCount: 3, yCount: 1, angle: 90 }
+  }));
+  const column = gen(circleBase({
+    diameter: 10, origin: 'front-left',
+    pattern: { enabled: true, style: 'linear', xDist: 0, yDist: 30, xCount: 1, yCount: 3 }
+  }));
+  assert.deepEqual(
+    instanceCenters(angled).map(p => [p.x, p.y]),
+    instanceCenters(column).map(p => [Math.abs(p.x), p.y])
+  );
+});
+
+test('honeycomb at an angle rotates the shifted rows too', () => {
+  const gen = makeQuickCutGenerator(false).generateCircleProgram;
+  const gcode = gen(circleBase({
+    diameter: 5, bitDiameter: 3,
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 2, yCount: 2, angle: 90 }
+  }));
+  // Local (0,0),(40,0) | shifted (20,20),(60,20) | (0,40),(40,40),
+  // rotated 90° → x = -v, y = u. Shifted item 3 sits 20 left of row 0.
+  const c = instanceCenters(gcode);
+  assert.equal(c.length, 6);
+  assert.ok(Math.abs((c[2].x - c[0].x) - (-20)) < 0.001);
+  assert.ok(Math.abs((c[2].y - c[0].y) - 20) < 0.001);
+});
+
+test('rotateShapes turns each rectangle with the row; arcs stay in tolerance', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const params = {
+    width: 20, height: 10, cornerRadius: 3, cutType: 'outer', bitDiameter: 3,
+    depth: 1, depthOfCut: 1, origin: 'back-left'
+  };
+  const rotated = gen(baseParams(Object.assign({}, params, {
+    pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 3, yCount: 1, angle: 36, rotateShapes: true }
+  })));
+  assert.match(rotated, /angle=36° rotated/);
+  assert.match(rotated, /\(Instance 2\/3 at X\S+ Y\S+ rot=36\.000°\)/);
+  assert.ok(maxArcRadiusDelta(rotated) < GRBL_ARC_TOLERANCE_MM);
+
+  const plain = gen(baseParams(Object.assign({}, params, {
+    pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 3, yCount: 1, angle: 36 }
+  })));
+  assert.ok(!/rot=/.test(plain), 'rotateShapes off must not rotate instances');
+});
+
+test('rotated instances anchor origin on their rotated extents', () => {
+  // A single 20×10 rect rotated 90° is 10 wide × 20 tall, so with
+  // origin=front-left its center sits at (5, 10), not (10, 5).
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 20, height: 10, cutType: 'outer', bitDiameter: 0, depth: 1, depthOfCut: 1,
+    origin: 'front-left',
+    pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 2, yCount: 1, angle: 90, rotateShapes: true }
+  }));
+  assert.match(gcode, /\(Instance 1\/2 at X5\.000 Y10\.000 rot=90\.000°\)/);
+  assert.match(gcode, /\(Instance 2\/2 at X5\.000 Y50\.000 rot=90\.000°\)/);
+});
+
 // ---------- Circle ----------
 //
 // Circle perimeter: helical descent (semicircles per revolution) + final
@@ -1120,4 +1217,132 @@ test('cutter imperial: the 2 mm clearance is in inches', () => {
   const h = approachHeights(gcode);
   assert.equal(h.length, 3);
   assert.ok(Math.abs(h[0] - 0.079) < 1e-3 && Math.abs(h[1] - (0.079 - 0.1)) < 1e-3, String(h));
+});
+
+// ---------- Keyhole ----------
+//
+// Single plunge at the hole, forward along the slot, retrace to the
+// hole, retract there. X0 Y0 is the (first) plunge hole.
+function keyholeBase(overrides) {
+  return Object.assign({
+    bitDiameter: 9.5, slotLength: 10, startAngleDeg: 90, depth: 8,
+    feedRate: 600, plungeFeedRate: 150,
+    spindleRpm: 18000, spindleDelay: 1,
+    mistM7: false, floodM8: false
+  }, overrides || {});
+}
+
+// Motion lines after the startup block, as [cmd, x, y, z] with modal X/Y.
+function keyholeMoves(gcode) {
+  let pos = { x: null, y: null };
+  const out = [];
+  for (const raw of gcode.split('\n')) {
+    const line = raw.replace(/;.*$/, '').trim();
+    if (!/^G[01]\b/.test(line) || /^G53/.test(line)) continue;
+    const z = line.match(/Z(-?[\d.]+)/);
+    pos = parseXY(line, pos);
+    out.push({ cmd: line.slice(0, 2), x: pos.x, y: pos.y, z: z ? parseFloat(z[1]) : null, xy: /[XY]/.test(line) });
+  }
+  return out;
+}
+
+test('keyhole: single plunge, slot out, retrace, retract at the hole', () => {
+  const gcode = makeQuickCutGenerator(false).generateKeyholeProgram(keyholeBase());
+  const lines = gcode.split('\n').map(l => l.trim());
+  const plunges = lines.filter(l => /^G1 Z-/.test(l));
+  assert.deepEqual(plunges, ['G1 Z-8.000 F150']);
+  const i = lines.indexOf('G1 Z-8.000 F150');
+  assert.equal(lines[i + 1], 'G1 X0.000 Y10.000 F600');
+  assert.equal(lines[i + 2], 'G1 X0.000 Y0.000 ; Retrace to plunge hole');
+  assert.equal(lines[i + 3], 'G0 Z5.000');
+  assert.match(gcode, /\(Origin: plunge hole center\)/);
+});
+
+test('keyhole: slot follows startAngleDeg', () => {
+  const gcode = makeQuickCutGenerator(false).generateKeyholeProgram(keyholeBase({ startAngleDeg: 30, slotLength: 20 }));
+  const m = gcode.match(/^G1 X(-?[\d.]+) Y(-?[\d.]+) F600$/m);
+  assert.ok(Math.abs(parseFloat(m[1]) - 20 * Math.cos(Math.PI / 6)) < 0.001);
+  assert.ok(Math.abs(parseFloat(m[2]) - 10) < 0.001);
+});
+
+test('keyhole pattern: first hole at X0 Y0, every retract at its own hole', () => {
+  const gcode = makeQuickCutGenerator(false).generateKeyholeProgram(keyholeBase({
+    origin: 'back-left',
+    pattern: { enabled: true, style: 'linear', xDist: 50, yDist: 0, xCount: 3, yCount: 1, angle: 36 }
+  }));
+  assert.match(gcode, /\(Instance 1\/3 at X0\.000 Y0\.000\)/);
+  const moves = keyholeMoves(gcode);
+  const plunges = moves.filter(m => m.cmd === 'G1' && m.z !== null && m.z < 0);
+  assert.equal(plunges.length, 3);
+  // Retract (G0 Z after a cut) always happens where that instance plunged.
+  for (let k = 0; k < moves.length; k++) {
+    if (moves[k].cmd === 'G1' && moves[k].z !== null && moves[k].z < 0) {
+      const hole = moves[k];
+      const retract = moves.slice(k).find(m => m.cmd === 'G0' && m.z !== null);
+      assert.equal(retract.x, hole.x);
+      assert.equal(retract.y, hole.y);
+    }
+  }
+  // Holes 50 apart along 36°.
+  const dx = plunges[1].x - plunges[0].x, dy = plunges[1].y - plunges[0].y;
+  assert.ok(Math.abs(Math.hypot(dx, dy) - 50) < 0.002);
+  assert.ok(Math.abs(Math.atan2(dy, dx) * 180 / Math.PI - 36) < 0.01);
+});
+
+test('keyhole pattern rotation turns each slot', () => {
+  const gen = makeQuickCutGenerator(false).generateKeyholeProgram;
+  const circ = gen(keyholeBase({
+    startAngleDeg: 0, slotLength: 10,
+    pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 40, startAngle: 0 }
+  }));
+  // Instance 2 sits at 90°, so its slot points +Y from (0, 40).
+  assert.match(circ, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000°\)\nG0 X0\.000 Y40\.000\n[\s\S]*?G1 X-?0\.000 Y50\.000 F600/);
+
+  const row = gen(keyholeBase({
+    startAngleDeg: 90, slotLength: 10,
+    pattern: { enabled: true, style: 'linear', xDist: 30, yDist: 0, xCount: 2, yCount: 1, angle: 36, rotateShapes: true }
+  }));
+  const ends = [...row.matchAll(/^G1 X(-?[\d.]+) Y(-?[\d.]+) F600$/mg)];
+  // First slot: 10 at 90°+36° from the origin.
+  assert.ok(Math.abs(parseFloat(ends[0][1]) - 10 * Math.cos(126 * Math.PI / 180)) < 0.001);
+  assert.ok(Math.abs(parseFloat(ends[0][2]) - 10 * Math.sin(126 * Math.PI / 180)) < 0.001);
+});
+
+test('keyhole imperial scales clearance heights to inches', () => {
+  const gcode = makeQuickCutGenerator(true).generateKeyholeProgram(keyholeBase({ slotLength: 0.5, depth: 0.375 }));
+  assert.match(gcode, /^G20\b/m);
+  assert.match(gcode, /^G0 Z0\.197$/m);
+  assert.match(gcode, /^G0 Z0\.079$/m);
+  assert.match(gcode, /^G1 Z-0\.375 F150$/m);
+});
+
+test('keyhole with zero slot length warns and cuts nothing', () => {
+  const gcode = makeQuickCutGenerator(false).generateKeyholeProgram(keyholeBase({ slotLength: 0 }));
+  assert.match(gcode, /WARNING/);
+  assert.ok(!/^G1 /m.test(gcode));
+});
+
+// Regression: Circular (Path Direction) turns each copy, so the pattern's
+// outer boundary must use each copy's rotated footprint. The old anchor
+// used the unrotated 20×10 size for every copy, so with origin=front-left
+// the 90°-turned bottom copy (20 tall) overhung Y0 by 5 mm.
+test('circular-follow with a corner origin keeps every cut inside the origin corner', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const extents = (gcode) => {
+    const pts = [...gcode.matchAll(/^G1 X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+    return {
+      minX: Math.min(...pts.map(p => p[0])), maxX: Math.max(...pts.map(p => p[0])),
+      minY: Math.min(...pts.map(p => p[1])), maxY: Math.max(...pts.map(p => p[1]))
+    };
+  };
+  const params = (origin) => baseParams({
+    width: 20, height: 10, cornerRadius: 0, cutType: 'outer', bitDiameter: 0,
+    depth: 1, depthOfCut: 1, origin,
+    pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 40, startAngle: 0 }
+  });
+  const fl = extents(gen(params('front-left')));
+  assert.ok(Math.abs(fl.minX) < 0.001 && Math.abs(fl.minY) < 0.001, JSON.stringify(fl));
+  assert.ok(Math.abs(fl.maxY - 100) < 0.001, JSON.stringify(fl));
+  const br = extents(gen(params('back-right')));
+  assert.ok(Math.abs(br.maxX) < 0.001 && Math.abs(br.maxY) < 0.001, JSON.stringify(br));
 });

@@ -520,6 +520,13 @@
     gap: 12px;
   }
 
+  /* Rotate-shapes switch sits beside the Angle input, aligned with it. */
+  .qc-pattern-rotate-cell {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 9px;
+  }
+
   .qc-row-2, .qc-row-3, .qc-row-4 {
     display: grid;
     gap: 12px;
@@ -764,6 +771,82 @@
     cursor: pointer;
   }
 
+  /* Angle tab */
+  .qc-measure-result {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .qc-measure-big {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+  }
+  .qc-measure-big-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+  }
+  .qc-measure-big-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .qc-measure-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .qc-measure-table th,
+  .qc-measure-table td {
+    padding: 6px 8px;
+    text-align: right;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+  }
+  .qc-measure-table th:first-child {
+    text-align: left;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+  }
+  .qc-measure-table thead th { color: var(--color-text-secondary); font-weight: 600; }
+  .qc-measure-apply {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .qc-secondary-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 8px 18px;
+    background: var(--color-surface) !important;
+    color: var(--color-text-primary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 10px !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .qc-secondary-btn:hover { border-color: var(--color-accent) !important; }
+  .qc-secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* The Apply button for the shape whose "Measure" link opened this tab. */
+  .qc-secondary-btn.qc-apply-suggested { border-color: var(--color-accent) !important; color: var(--color-accent) !important; }
+  /* "Measure" link beside each pattern Angle label. */
+  .qc-measure-link {
+    margin-left: 6px;
+    color: var(--color-accent);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
   .qc-soon {
     text-align: center;
     padding: 60px 30px;
@@ -799,6 +882,10 @@
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
           <span class="qc-nav-label">Polygon</span>
         </button>
+        <button type="button" class="qc-nav-btn" data-tab="keyhole">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
+          <span class="qc-nav-label">Keyhole</span>
+        </button>
         <button type="button" class="qc-nav-btn" data-tab="planer">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"/><path d="M6 14v6M10 14v6M14 14v6M18 14v6"/></svg></span>
           <span class="qc-nav-label">Planer</span>
@@ -810,6 +897,10 @@
         <button type="button" class="qc-nav-btn" data-tab="cutter">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
           <span class="qc-nav-label">Cutter</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="measure">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M4 20 18 7"/><path d="M11 20a7 7 0 0 0-2-5"/></svg></span>
+          <span class="qc-nav-label">Angle</span>
         </button>
       </nav>
       <div class="qc-sidebar-footer">
@@ -845,15 +936,15 @@
             <div class="qc-row-3">
               <div class="qc-field">
                 <label for="qc-bit">Bit Diameter</label>
-                <input class="qc-input" type="number" id="qc-bit" min="0.001" step="0.01" value="3.175" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-bit" min="0.001" step="0.01" value="3.175" required>
               </div>
               <div class="qc-field">
                 <label for="qc-feed">Feed Rate</label>
-                <input class="qc-input" type="number" id="qc-feed" min="1" step="1" value="2000" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required>
               </div>
               <div class="qc-field">
                 <label for="qc-plunge">Plunge Rate</label>
-                <input class="qc-input" type="number" id="qc-plunge" min="1" step="1" value="1000" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-plunge" min="1" step="1" value="1000" required>
               </div>
             </div>
           </div>
@@ -898,15 +989,15 @@
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-rect-width">Width</label>
-                    <input class="qc-input" type="number" id="qc-rect-width" min="0.001" step="0.01" value="50" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-width" min="0.001" step="0.01" value="50" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-height">Height</label>
-                    <input class="qc-input" type="number" id="qc-rect-height" min="0.001" step="0.01" value="30" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-corner">Corner Radius</label>
-                    <input class="qc-input" type="number" id="qc-rect-corner" min="0" step="0.01" value="0">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0">
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -941,11 +1032,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-rect-depth">Total Depth</label>
-                <input class="qc-input" type="number" id="qc-rect-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-depth" min="0.001" step="0.01" value="5" required>
               </div>
               <div class="qc-field">
                 <label for="qc-rect-step">Depth of Cut</label>
-                <input class="qc-input" type="number" id="qc-rect-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-step" min="0.001" step="0.01" value="1" required>
               </div>
             </div>
           </div>
@@ -980,21 +1071,36 @@
               <div class="qc-pattern-linear-fields">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-rect-pattern-x-dist">X Distance</label>
-                    <input class="qc-input" type="number" id="qc-rect-pattern-x-dist" step="0.1" value="60">
+                    <label for="qc-rect-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="rect" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Measure it on the Angle tab.">
                   </div>
-                  <div class="qc-field">
-                    <label for="qc-rect-pattern-y-dist">Y Distance</label>
-                    <input class="qc-input" type="number" id="qc-rect-pattern-y-dist" step="0.1" value="40">
+                  <div class="qc-pattern-rotate-cell">
+                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                      <span>Rotate shapes with angle</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-rect-pattern-rotate-shapes">
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
                   </div>
                 </div>
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-rect-pattern-x-count">X Count</label>
+                    <label for="qc-rect-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-x-dist" step="0.1" value="60">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-rect-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-rect-pattern-y-count">Y Count</label>
+                    <label for="qc-rect-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
                 </div>
@@ -1007,7 +1113,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-pattern-radius">Radius</label>
-                    <input class="qc-input" type="number" id="qc-rect-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -1044,7 +1150,7 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-circ-diameter">Diameter</label>
-                    <input class="qc-input" type="number" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
@@ -1077,11 +1183,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-circ-depth">Total Depth</label>
-                <input class="qc-input" type="number" id="qc-circ-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-depth" min="0.001" step="0.01" value="5" required>
               </div>
               <div class="qc-field">
                 <label for="qc-circ-step">Depth of Cut</label>
-                <input class="qc-input" type="number" id="qc-circ-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-step" min="0.001" step="0.01" value="1" required>
               </div>
             </div>
           </div>
@@ -1115,21 +1221,27 @@
               <div class="qc-pattern-linear-fields" data-shape="circ">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-circ-pattern-x-dist">X Distance</label>
-                    <input class="qc-input" type="number" id="qc-circ-pattern-x-dist" step="0.1" value="40">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-circ-pattern-y-dist">Y Distance</label>
-                    <input class="qc-input" type="number" id="qc-circ-pattern-y-dist" step="0.1" value="40">
+                    <label for="qc-circ-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="circ" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Measure it on the Angle tab.">
                   </div>
                 </div>
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-circ-pattern-x-count">X Count</label>
+                    <label for="qc-circ-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-circ-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-circ-pattern-y-count">Y Count</label>
+                    <label for="qc-circ-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
                 </div>
@@ -1142,7 +1254,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-pattern-radius">Radius</label>
-                    <input class="qc-input" type="number" id="qc-circ-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -1185,7 +1297,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-diameter">Diameter</label>
-                    <input class="qc-input" type="number" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -1224,11 +1336,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-poly-depth">Total Depth</label>
-                <input class="qc-input" type="number" id="qc-poly-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-depth" min="0.001" step="0.01" value="5" required>
               </div>
               <div class="qc-field">
                 <label for="qc-poly-step">Depth of Cut</label>
-                <input class="qc-input" type="number" id="qc-poly-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-step" min="0.001" step="0.01" value="1" required>
               </div>
             </div>
           </div>
@@ -1263,21 +1375,36 @@
               <div class="qc-pattern-linear-fields" data-shape="poly">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-poly-pattern-x-dist">X Distance</label>
-                    <input class="qc-input" type="number" id="qc-poly-pattern-x-dist" step="0.1" value="40">
+                    <label for="qc-poly-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="poly" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Measure it on the Angle tab.">
                   </div>
-                  <div class="qc-field">
-                    <label for="qc-poly-pattern-y-dist">Y Distance</label>
-                    <input class="qc-input" type="number" id="qc-poly-pattern-y-dist" step="0.1" value="40">
+                  <div class="qc-pattern-rotate-cell">
+                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                      <span>Rotate shapes with angle</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-poly-pattern-rotate-shapes">
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
                   </div>
                 </div>
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-poly-pattern-x-count">X Count</label>
+                    <label for="qc-poly-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-poly-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-poly-pattern-y-count">Y Count</label>
+                    <label for="qc-poly-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
                 </div>
@@ -1290,7 +1417,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-pattern-radius">Radius</label>
-                    <input class="qc-input" type="number" id="qc-poly-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -1306,6 +1433,144 @@
       </div>
       <div class="qc-panel-footer">
         <button type="button" class="qc-primary-btn" id="qc-poly-generate">Generate</button>
+      </div>
+    </section>
+
+    <!-- Keyhole tab -->
+    <section class="qc-content" data-view="keyhole">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Keyhole</h2>
+          <p class="qc-panel-sub">Hanging slot with a keyhole bit: plunge, cut the slot, retrace to the hole, retract.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-key-form" onsubmit="return false">
+          <div class="qc-card">
+            <h3 class="qc-card-title">Slot</h3>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-length">Slot Length</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-length" min="0.001" step="0.01" value="10" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-key-start-angle">Slot Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-key-start-angle" step="1" value="90" title="Direction the slot runs from the plunge hole, CCW from +X. 90° = toward the back (+Y).">
+                  </div>
+                </div>
+                <p class="qc-mode-hint">
+                  <strong>X0 Y0 is the plunge hole</strong> (the first one, with a pattern). The slot runs Slot Length from there.
+                  Set <strong>Bit Diameter</strong> to the keyhole bit&rsquo;s head diameter.
+                </p>
+              </div>
+              <div class="qc-shape-preview-cell">
+                <svg id="qc-key-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-key-depth">Total Depth</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required>
+              </div>
+            </div>
+            <p class="qc-mode-hint">One plunge to full depth at the Plunge Rate. The slot is always a single pass &mdash; a shallower pass would cut the narrow neck slot out to the full head width. Depth is to the bottom of the head.</p>
+          </div>
+
+          <div class="qc-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this shape">
+                <input type="checkbox" id="qc-key-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-key-pattern-body" style="display: none;">
+              <div class="qc-field">
+                <label for="qc-key-pattern-style">Pattern Style</label>
+                <div class="qc-select-with-toggle">
+                  <select class="qc-select" id="qc-key-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="honeycomb">Honeycomb</option>
+                    <option value="circular">Circular (Identical)</option>
+                    <option value="circular-follow">Circular (Path Direction)</option>
+                  </select>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-key-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields" data-shape="key">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="key" title="Measure the angle on the machine">Measure</a></label>
+                    <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Measure it on the Angle tab.">
+                  </div>
+                  <div class="qc-pattern-rotate-cell">
+                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                      <span>Rotate shapes with angle</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-key-pattern-rotate-shapes">
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-x-count" data-pattern-label="x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-key-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-y-count" data-pattern-label="y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-key-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" data-shape="key" style="display: none;">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-key-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-radius">Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-radius" min="0.1" step="0.1" value="40" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-key-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-key-pattern-start-angle" step="1" value="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-key-generate">Generate</button>
       </div>
     </section>
     <section class="qc-content" data-view="planer">
@@ -1333,22 +1598,22 @@
                   </div>
                   <div class="qc-field qc-plan-thickness-only" style="display: none;">
                     <label for="qc-plan-start-thickness">Starting Thickness</label>
-                    <input class="qc-input" type="number" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20">
                   </div>
                 </div>
                 <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-plan-width">Width (X)</label>
-                    <input class="qc-input" type="number" id="qc-plan-width" min="0.001" step="0.01" value="100" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-width" min="0.001" step="0.01" value="100" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-plan-height">Height (Y)</label>
-                    <input class="qc-input" type="number" id="qc-plan-height" min="0.001" step="0.01" value="80" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-height" min="0.001" step="0.01" value="80" required>
                   </div>
                   <div class="qc-field qc-plan-overrun-field">
                     <label for="qc-plan-overrun">Overrun</label>
-                    <input class="qc-input" type="number" id="qc-plan-overrun" min="0" step="0.1" value="2">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-overrun" min="0" step="0.1" value="2">
                   </div>
                 </div>
                 <div class="qc-row-3">
@@ -1381,11 +1646,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-plan-depth" id="qc-plan-depth-label">Total Depth</label>
-                <input class="qc-input" type="number" id="qc-plan-depth" min="0.001" step="0.01" value="2" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-depth" min="0.001" step="0.01" value="2" required>
               </div>
               <div class="qc-field">
                 <label for="qc-plan-step">Depth of Cut</label>
-                <input class="qc-input" type="number" id="qc-plan-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-step" min="0.001" step="0.01" value="1" required>
               </div>
             </div>
           </div>
@@ -1413,11 +1678,11 @@
                 <div class="qc-row-4">
                   <div class="qc-field">
                     <label for="qc-join-length">Length</label>
-                    <input class="qc-input" type="number" id="qc-join-length" min="0.001" step="0.01" value="150" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-length" min="0.001" step="0.01" value="150" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-width">Trim Width</label>
-                    <input class="qc-input" type="number" id="qc-join-width" min="0.001" step="0.01" value="1" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-width" min="0.001" step="0.01" value="1" required>
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-trims">Number of Trims</label>
@@ -1425,7 +1690,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-overrun">Overrun</label>
-                    <input class="qc-input" type="number" id="qc-join-overrun" min="0" step="0.1" value="2">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-overrun" min="0" step="0.1" value="2">
                   </div>
                 </div>
                 <div class="qc-row-3">
@@ -1466,11 +1731,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-join-depth">Total Depth</label>
-                <input class="qc-input" type="number" id="qc-join-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required>
               </div>
               <div class="qc-field">
                 <label for="qc-join-step">Depth of Cut</label>
-                <input class="qc-input" type="number" id="qc-join-step" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-step" min="0.001" step="0.01" value="5" required>
               </div>
             </div>
           </div>
@@ -1503,11 +1768,11 @@
               </div>
               <div class="qc-field">
                 <label for="qc-cut-target">Target Size</label>
-                <input class="qc-input" type="number" id="qc-cut-target" min="0.001" step="0.01" value="100" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-target" min="0.001" step="0.01" value="100" required>
               </div>
               <div class="qc-field">
                 <label for="qc-cut-length">Cutting Length</label>
-                <input class="qc-input" type="number" id="qc-cut-length" min="0.001" step="0.01" value="200" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required>
               </div>
             </div>
             <div class="qc-row-3">
@@ -1536,11 +1801,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-cut-depth">Total Depth</label>
-                <input class="qc-input" type="number" id="qc-cut-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required>
               </div>
               <div class="qc-field">
                 <label for="qc-cut-step">Depth of Cut</label>
-                <input class="qc-input" type="number" id="qc-cut-step" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-step" min="0.001" step="0.01" value="5" required>
               </div>
             </div>
           </div>
@@ -1548,6 +1813,61 @@
       </div>
       <div class="qc-panel-footer">
         <button type="button" class="qc-primary-btn" id="qc-cut-generate">Generate</button>
+      </div>
+    </section>
+
+    <!-- Angle tab: measures the angle from the work origin to the
+         current position, for use as a Linear/Honeycomb pattern angle. -->
+    <section class="qc-content" data-view="measure">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Angle</h2>
+          <p class="qc-panel-sub">Measure the angle from the work origin to the current machine position. This can be helpful for patterns that don't align with the X or Y-axis.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <div class="qc-card">
+          <h3 class="qc-card-title">Measurement</h3>
+          <div class="qc-measure-result">
+            <div class="qc-measure-big">
+              <span class="qc-measure-big-label">Angle</span>
+              <span class="qc-measure-big-value" id="qc-meas-angle">—</span>
+            </div>
+            <div class="qc-measure-big">
+              <span class="qc-measure-big-label">Distance</span>
+              <span class="qc-measure-big-value" id="qc-meas-dist">—</span>
+            </div>
+          </div>
+          <table class="qc-measure-table">
+            <thead><tr><th></th><th>X</th><th>Y</th></tr></thead>
+            <tbody>
+              <tr><th>Work (<span id="qc-meas-wcs">G54</span>)</th><td id="qc-meas-wx">—</td><td id="qc-meas-wy">—</td></tr>
+              <tr><th>Machine</th><td id="qc-meas-mx">—</td><td id="qc-meas-my">—</td></tr>
+              <tr><th>Origin (WCO)</th><td id="qc-meas-ox">—</td><td id="qc-meas-oy">—</td></tr>
+            </tbody>
+          </table>
+          <p class="qc-mode-hint" id="qc-meas-status"></p>
+          <p class="qc-mode-hint">
+            Zero X/Y at the first point on the line, jog to a second point on the same line, and read the angle.
+            It is measured counter-clockwise from <strong>+X</strong>.
+          </p>
+        </div>
+
+        <div class="qc-card">
+          <h3 class="qc-card-title">Apply to Pattern</h3>
+          <p class="qc-mode-hint">Sets the Linear pattern angle on a shape and turns its pattern on.</p>
+          <div class="qc-measure-apply">
+            <button type="button" class="qc-secondary-btn" data-apply-angle="rect">Rectangle</button>
+            <button type="button" class="qc-secondary-btn" data-apply-angle="circ">Circle</button>
+            <button type="button" class="qc-secondary-btn" data-apply-angle="poly">Polygon</button>
+            <button type="button" class="qc-secondary-btn" data-apply-angle="key">Keyhole</button>
+          </div>
+          <p class="qc-mode-hint" id="qc-meas-applied"></p>
+        </div>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-meas-refresh">Refresh</button>
       </div>
     </section>
   </div>
@@ -1584,7 +1904,7 @@
     currentTab: 'rectangle',
     toolByShape: {}
   };
-  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon'];
+  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'keyhole'];
 
   async function init() {
     try {
@@ -1614,6 +1934,7 @@
     renderOriginPickers();
     hydrateSavedSettings();
     updateUnitBadges();
+    wireUnitFields();
     wireTabs();
     wireValidation();
     wireRectangleForm();
@@ -1622,6 +1943,8 @@
     wireJointerForm();
     wireCutterForm();
     wirePolygonForm();
+    wireKeyholeForm();
+    wireMeasureTab();
     wireCloseButton();
   }
 
@@ -1651,7 +1974,9 @@
         if (TOOL_SHAPES.indexOf(target) >= 0) {
           writeToolToInputs(state.toolByShape[target]);
         }
+        if (target === 'keyhole') updateKeyholePreview();
         state.currentTab = target;
+        if (target === 'measure') startMeasurePolling(); else { stopMeasurePolling(); clearMeasureReturn(); }
         // Remember which tab the operator was on so the next dialog
         // open lands on it. Wrapped in try/catch because some browser
         // contexts (private mode, storage quota) can throw here.
@@ -1684,6 +2009,10 @@
     header.appendChild(cards);
     var saveToggle = $('qc-save-toggle');
     if (saveToggle) header.appendChild(saveToggle);
+    // The Angle tab generates no g-code, so Tool / Spindle / Save don't apply.
+    var noCommon = view === 'measure';
+    cards.style.display = noCommon ? 'none' : '';
+    if (saveToggle) saveToggle.style.display = noCommon ? 'none' : '';
   }
 
   function wireCloseButton() {
@@ -1696,7 +2025,13 @@
   }
 
   var $ = function(id) { return document.getElementById(id); };
-  var num = function(id, def) { var v = parseFloat($(id).value); return isFinite(v) ? v : def; };
+  var num = function(id, def) {
+    var el = $(id);
+    var v = el.getAttribute('data-unit')
+      ? parseUnitValue(el.value, state.isImperial, el.getAttribute('data-unit'))
+      : parseFloat(el.value);
+    return (v != null && isFinite(v)) ? v : def;
+  };
 
   // ===== Validation (ported from ToolBench) =====
   // Red-callout tooltip anchored above the offending field, matching the
@@ -1777,6 +2112,7 @@
         'qc-rect-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
         'qc-rect-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
         'qc-rect-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-rect-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
         // Circle
         'qc-circ-diameter': { min: 0.004, max: 200, label: 'Diameter' },
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
@@ -1789,6 +2125,7 @@
         'qc-circ-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
         'qc-circ-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
         'qc-circ-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-circ-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
         // Planer
         'qc-plan-width':    { min: 0.004, max: 200, label: 'Width' },
         'qc-plan-height':   { min: 0.004, max: 200, label: 'Height' },
@@ -1822,7 +2159,20 @@
         'qc-poly-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
         'qc-poly-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
         'qc-poly-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
-        'qc-poly-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' }
+        'qc-poly-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-poly-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
+        // Keyhole
+        'qc-key-length':    { min: 0.004, max: 20,  label: 'Slot Length' },
+        'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
+        'qc-key-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
+        'qc-key-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
+        'qc-key-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-key-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
+        'qc-key-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
+        'qc-key-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
+        'qc-key-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-key-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-key-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' }
       };
     }
     return {
@@ -1845,6 +2195,7 @@
       'qc-rect-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
       'qc-rect-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
       'qc-rect-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-rect-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
       // Circle
       'qc-circ-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
@@ -1857,6 +2208,7 @@
       'qc-circ-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
       'qc-circ-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
       'qc-circ-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-circ-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
       // Planer
       'qc-plan-width':    { min: 0.1,  max: 5000, label: 'Width' },
       'qc-plan-height':   { min: 0.1,  max: 5000, label: 'Height' },
@@ -1890,15 +2242,29 @@
       'qc-poly-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
       'qc-poly-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
       'qc-poly-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
-      'qc-poly-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' }
+      'qc-poly-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-poly-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
+      // Keyhole
+      'qc-key-length':    { min: 0.1,  max: 500,  label: 'Slot Length' },
+      'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
+      'qc-key-depth':     { min: 0.01, max: 100,  label: 'Total Depth' },
+      'qc-key-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
+      'qc-key-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-key-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
+      'qc-key-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
+      'qc-key-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
+      'qc-key-pattern-radius':  { min: 0.1,   max: 5000, label: 'Pattern Radius' },
+      'qc-key-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-key-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' }
     };
   }
 
   function validateField(id, value) {
     var rules = validationRules()[id];
     if (!rules) return null;
-    var n = parseFloat(value);
-    if (isNaN(n))                                  return rules.label + ' must be a number';
+    var unitKind = $(id) && $(id).getAttribute('data-unit');
+    var n = unitKind ? parseUnitValue(value, state.isImperial, unitKind) : parseFloat(value);
+    if (n == null || isNaN(n))                                  return rules.label + ' must be a number';
     if (rules.integer && !Number.isInteger(n))     return rules.label + ' must be a whole number';
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min;
     if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max;
@@ -1906,28 +2272,30 @@
     // Cross-field: Depth of Cut can't be deeper than Total Depth — a
     // single pass to that depth would overshoot the requested total.
     if (id === 'qc-rect-step') {
-      var rTot = parseFloat($('qc-rect-depth').value);
+      var rTot = num('qc-rect-depth', NaN);
       if (isFinite(rTot) && n > rTot) return 'Depth of Cut must not exceed Total Depth (' + rTot + ')';
     }
     if (id === 'qc-circ-step') {
-      var cTot = parseFloat($('qc-circ-depth').value);
+      var cTot = num('qc-circ-depth', NaN);
       if (isFinite(cTot) && n > cTot) return 'Depth of Cut must not exceed Total Depth (' + cTot + ')';
     }
     if (id === 'qc-plan-step') {
-      var pTot = parseFloat($('qc-plan-depth').value);
+      var pTot = num('qc-plan-depth', NaN);
       if (isFinite(pTot) && n > pTot) return 'Depth of Cut must not exceed Total Depth (' + pTot + ')';
     }
     if (id === 'qc-join-step') {
-      var jTot = parseFloat($('qc-join-depth').value);
+      var jTot = num('qc-join-depth', NaN);
       if (isFinite(jTot) && n > jTot) return 'Depth of Cut must not exceed Total Depth (' + jTot + ')';
     }
     if (id === 'qc-cut-step') {
-      var kTot = parseFloat($('qc-cut-depth').value);
+      var kTot = num('qc-cut-depth', NaN);
       if (isFinite(kTot) && n > kTot) return 'Depth of Cut must not exceed Total Depth (' + kTot + ')';
     }
     return null;
   }
   function validateAll() {
+    var unitFields = document.querySelectorAll('[data-unit]');
+    for (var u = 0; u < unitFields.length; u++) normalizeUnitField(unitFields[u]);
     var rules = validationRules();
     for (var id in rules) {
       var el = document.getElementById(id);
@@ -1985,6 +2353,81 @@
   //     converts back to mm before sending.
   var INCH_TO_MM = 25.4;
   var MM_TO_INCH = 1 / INCH_TO_MM;
+
+  /**
+   * QuickCut unit-aware field parsing.
+   *
+   * MUST STAY IN SYNC WITH lib/unit-input.cjs (the Node-loadable twin
+   * that tests/unit-input.test.cjs checks this copy against).
+   *
+   * Turns what an operator types into a length or feed field into a plain
+   * number in the active units (inches when isImperial, else mm):
+   *   6.35        → 6.35 (no unit: already in active units, untouched)
+   *   .25in  .25"  1/4"  1-1/2"  1 1/2 in  6.35mm  0.635cm
+   *   feeds also: 100ipm  100 in/min  2540 mm/min
+   * Converted values are rounded like roundDisplay (4 dp inch, 3 dp mm).
+   * Returns null when the text can't be read as a value.
+   */
+  function parseUnitValue(text, isImperial, kind) {
+    var t = String(text == null ? '' : text).trim().toLowerCase()
+      .replace(/[”″]/g, '"').replace(/''/g, '"');
+    var m = t.match(/^([+-])?\s*(\d+(?:\.\d*)?|\.\d+)(?:(?:\s+|-)(\d+)\/(\d+)|\/(\d+))?\s*([a-z"/]*)$/);
+    if (!m) return null;
+    var whole = parseFloat(m[2]);
+    var value;
+    if (m[3] != null) {
+      // Mixed number: 1-1/2 or 1 1/2. The whole part must be an integer.
+      if (/\./.test(m[2]) || +m[4] === 0) return null;
+      value = whole + (+m[3]) / (+m[4]);
+    } else if (m[5] != null) {
+      // Plain fraction: 1/4.
+      if (/\./.test(m[2]) || +m[5] === 0) return null;
+      value = whole / (+m[5]);
+    } else {
+      value = whole;
+    }
+    if (m[1] === '-') value = -value;
+
+    var MM_PER = { mm: 1, cm: 10, 'in': 25.4, inch: 25.4, inches: 25.4, '"': 25.4 };
+    if (kind === 'feed') {
+      MM_PER['mm/min'] = 1;
+      MM_PER['in/min'] = 25.4;
+      MM_PER['inch/min'] = 25.4;
+      MM_PER.ipm = 25.4;
+    }
+    var unit = m[6];
+    if (!unit) return value;
+    if (!Object.prototype.hasOwnProperty.call(MM_PER, unit)) return null;
+    var mm = value * MM_PER[unit];
+    var out = isImperial ? mm / 25.4 : mm;
+    return parseFloat(out.toFixed(isImperial ? 4 : 3));
+  }
+
+  // Length / feed fields are type="text" (a number input throws away
+  // "1/4\"" before JS can see it). On blur, rewrite what was typed as a
+  // plain number in the active units. Capture phase on document runs
+  // before each field's own blur validation, so that sees the number.
+  function normalizeUnitField(el) {
+    var v = parseUnitValue(el.value, state.isImperial, el.getAttribute('data-unit'));
+    if (v == null || String(v) === el.value.trim()) return;
+    el.value = v;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function wireUnitFields() {
+    var u = state.unitLabel;
+    var hint = state.isImperial ? 'Accepts 0.25, 1/4, 6.35mm' : 'Accepts 6.35, .25in, 1/4"';
+    var fields = document.querySelectorAll('[data-unit]');
+    for (var i = 0; i < fields.length; i++) {
+      if (!fields[i].title) {
+        fields[i].title = hint + ' — converted to ' + u + (fields[i].getAttribute('data-unit') === 'feed' ? '/min' : '');
+      }
+    }
+    document.addEventListener('blur', function(evt) {
+      var el = evt.target;
+      if (el && el.getAttribute && el.getAttribute('data-unit')) normalizeUnitField(el);
+    }, true);
+  }
   function mmToDisplay(mm)  { return state.isImperial ? mm * MM_TO_INCH : mm; }
   function displayToMm(val) { return state.isImperial ? val * INCH_TO_MM : val; }
   function roundDisplay(v)  {
@@ -2262,6 +2705,7 @@
   function readPatternForm(prefix) {
     var pre = 'qc-' + prefix + '-pattern-';
     var hexTrimEl = $(pre + 'hex-trim');
+    var rotateEl = $(pre + 'rotate-shapes');
     return {
       enabled: $(pre + 'enable').checked,
       style:   $(pre + 'style').value,
@@ -2272,6 +2716,9 @@
       count:      Math.max(1, Math.floor(num(pre + 'count', 1))),
       radius:     num(pre + 'radius', 0),
       startAngle: num(pre + 'start-angle', 0),
+      // Linear/Honeycomb row direction (degrees, CCW from +X).
+      angle:        num(pre + 'angle', 0),
+      rotateShapes: rotateEl ? rotateEl.checked : false,
       // Honeycomb-only: trim one item from shifted rows so both ends
       // of the pattern line up (no dangling shifted-row overhang).
       hexTrim:    hexTrimEl ? hexTrimEl.checked : false
@@ -2298,7 +2745,28 @@
       if (linear) linear.style.display = isGrid ? '' : 'none';
       if (circ)   circ.style.display   = isCircular ? '' : 'none';
       if (honey)  honey.style.display  = (style === 'honeycomb') ? '' : 'none';
+      updatePatternAngleLabels(prefix);
     }
+  }
+
+  // At 0° the grid runs along the machine axes, so X/Y labels are
+  // accurate. At any other angle the distances are measured along and
+  // across the angled row, so the labels say that instead.
+  var PATTERN_LABELS = {
+    axis:   { 'x-dist': 'X Distance', 'y-dist': 'Y Distance', 'x-count': 'X Count', 'y-count': 'Y Count' },
+    angled: { 'x-dist': 'Spacing (along {a}°)', 'y-dist': 'Row Spacing (⊥)', 'x-count': 'Count (along)', 'y-count': 'Rows' }
+  };
+  function updatePatternAngleLabels(prefix) {
+    var body = $('qc-' + prefix + '-pattern-body');
+    var angle = num('qc-' + prefix + '-pattern-angle', 0);
+    var set = angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
+    var labels = body.querySelectorAll('[data-pattern-label]');
+    for (var i = 0; i < labels.length; i++) {
+      var key = labels[i].getAttribute('data-pattern-label');
+      labels[i].textContent = set[key].replace('{a}', angle);
+    }
+    var rotate = body.querySelector('.qc-pattern-angled-only');
+    if (rotate) rotate.style.display = angle ? '' : 'none';
   }
 
   // Read/write helpers for the per-shape Tool card. Values in state are
@@ -2507,15 +2975,23 @@
     if (poly.stepoverPct != null)   $('qc-poly-stepover').value = poly.stepoverPct;
     hydratePattern('poly', poly.pattern);
 
+    var key = saved.keyhole || {};
+    if (key.slotLength != null)     $('qc-key-length').value      = roundDisplay(mmToDisplay(key.slotLength));
+    if (key.startAngleDeg != null)  $('qc-key-start-angle').value = key.startAngleDeg;
+    if (key.depth != null)          $('qc-key-depth').value       = roundDisplay(mmToDisplay(key.depth));
+    hydratePattern('key', key.pattern);
+
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
     updateClearingVisibility('poly');
     updatePatternVisibility('poly');
+    updatePatternVisibility('key');
     updateRectanglePreview();
     updateCirclePreview();
     updatePolygonPreview();
+    updateKeyholePreview();
     updatePlanerPreview();
     updateJointerPreview();
   }
@@ -2534,6 +3010,9 @@
     if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
     var hexTrimEl = $(pre + 'hex-trim');
     if (hexTrimEl && p.hexTrim != null) hexTrimEl.checked = !!p.hexTrim;
+    if (p.angle != null)    $(pre + 'angle').value = p.angle;
+    var rotateEl = $(pre + 'rotate-shapes');
+    if (rotateEl && p.rotateShapes != null) rotateEl.checked = !!p.rotateShapes;
   }
 
   function saveSettings(params) {
@@ -2634,6 +3113,14 @@
         stepoverPct:   params.stepoverPct,
         pattern:       packPattern(params.pattern)
       };
+    } else if (params.shape === 'keyhole') {
+      body.keyhole = {
+        tool:          toolForShape,
+        slotLength:    displayToMm(params.slotLength),
+        startAngleDeg: params.startAngleDeg,
+        depth:         displayToMm(params.depth),
+        pattern:       packPattern(params.pattern)
+      };
     }
     // Mirror to state so a tab-switch away doesn't lose the fresh values.
     if (TOOL_SHAPES.indexOf(params.shape) >= 0) {
@@ -2678,7 +3165,9 @@
       count:      p.count,
       radius:     displayToMm(p.radius),
       startAngle: p.startAngle,
-      hexTrim:    !!p.hexTrim
+      hexTrim:    !!p.hexTrim,
+      angle:        p.angle || 0,
+      rotateShapes: !!p.rotateShapes
     };
   }
 
@@ -2736,6 +3225,7 @@
     });
     $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); });
     $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); });
+    $('qc-rect-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('rect'); });
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -2854,6 +3344,7 @@
     });
     $('qc-circ-pattern-enable').addEventListener('change', function() { updatePatternVisibility('circ'); });
     $('qc-circ-pattern-style').addEventListener('change', function() { updatePatternVisibility('circ'); });
+    $('qc-circ-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('circ'); });
     $('qc-circ-diameter').addEventListener('input', updateCirclePreview);
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
@@ -3275,6 +3766,122 @@
   // orientation so 0° matches what the generator emits. The dimension
   // arrow across the middle labels the polygon's circumscribed
   // diameter (vertex-to-opposite-vertex distance).
+  function readKeyholeForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      slotLength:    num('qc-key-length', 0),
+      startAngleDeg: num('qc-key-start-angle', 90),
+      depth:         num('qc-key-depth', 0),
+      pattern:       readPatternForm('key'),
+      isImperial:    state.isImperial,
+      safeZHeightMm: state.safeZHeightMm
+    });
+  }
+
+  // Keyhole preview — plan view drawn to scale. The plunge hole is the
+  // Bit Diameter (head) and the hole-to-end spacing is the Slot Length,
+  // both scaled together to fit the box, then turned to the Slot Angle.
+  // The undercut channel the head cuts below the surface is hatched
+  // with a dashed outline; the plunge hole is the solid circle.
+  function updateKeyholePreview() {
+    var svg = document.getElementById('qc-key-preview');
+    if (!svg) return;
+    var len = num('qc-key-length', 0);
+    var dia = num('qc-bit', 0);
+    var angle = num('qc-key-start-angle', 90);
+    var L = Math.max(0, len), D = Math.max(0, dia);
+    // Fit the full extent (slot length + head diameter) into ~62 units,
+    // leaving the rest of the -50…50 box for the labels.
+    var extent = L + D;
+    // The hole is also capped at ~44 units across so a very short slot
+    // still leaves room for the labels.
+    var scale = extent > 0 ? Math.min(62 / extent, D > 0 ? 44 / D : Infinity) : 1;
+    var r = D > 0 ? D * scale / 2 : 4;
+    var Ls = L * scale;
+    // SVG is y-down, so a CCW machine angle flips the y component.
+    var rad = angle * Math.PI / 180;
+    var u = { x: Math.cos(rad), y: -Math.sin(rad) };
+    var n = { x: -u.y, y: u.x };
+    function pt(base, k, v) { return { x: base.x + k * v.x, y: base.y + k * v.y }; }
+    function f(p) { return p.x.toFixed(2) + ',' + p.y.toFixed(2); }
+    var H = { x: -Ls / 2 * u.x, y: -Ls / 2 * u.y };
+    var E = { x: Ls / 2 * u.x, y: Ls / 2 * u.y };
+
+    var channel = 'M' + f(pt(H, r, n)) + ' L' + f(pt(E, r, n)) +
+                  ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 0 0 ' + f(pt(E, -r, n)) +
+                  ' L' + f(pt(H, -r, n)) +
+                  ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 0 0 ' + f(pt(H, r, n)) + ' Z';
+
+    // Slot Length dimension: hole center to slot-end center, offset to
+    // the +n side. Diameter label on the opposite side of the hole.
+    var dimOff = r + 5;
+    var d1 = pt(H, dimOff, n), d2 = pt(E, dimOff, n);
+    var lenLabel = pt(pt(H, Ls / 2, u), r + 9, n);
+    var diaLabel = pt(H, -(r + 3), n);
+    // Anchor each label on the side facing the shape, so text grows away
+    // from it instead of being centered over it.
+    function anchor(dx) { return dx > 0.4 ? 'start' : (dx < -0.4 ? 'end' : 'middle'); }
+    function baseline(dy) { return dy > 0.4 ? 'hanging' : (dy < -0.4 ? 'auto' : 'middle'); }
+    // Keep a label inside the -50…50 box. Width is estimated from the
+    // 9px monospace label font (~5.5 units per character).
+    function label(p, dir, text) {
+      var a = anchor(dir.x), b = baseline(dir.y);
+      var w = String(text).length * 5.5, edge = 47;
+      var minX = a === 'start' ? -edge : (a === 'end' ? -edge + w : -edge + w / 2);
+      var maxX = a === 'start' ? edge - w : (a === 'end' ? edge : edge - w / 2);
+      var minY = b === 'hanging' ? -edge : (b === 'auto' ? -edge + 9 : -edge + 4.5);
+      var maxY = b === 'hanging' ? edge - 9 : (b === 'auto' ? edge : edge - 4.5);
+      var x = Math.min(maxX, Math.max(minX, p.x));
+      var y = Math.min(maxY, Math.max(minY, p.y));
+      return '<text class="qc-shape-dim-label" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '" ' +
+             'text-anchor="' + a + '" dominant-baseline="' + b + '">' + text + '</text>';
+    }
+    var dimLine = Ls > 8
+      ? '<line class="qc-shape-dim-line" x1="' + d1.x.toFixed(2) + '" y1="' + d1.y.toFixed(2) +
+        '" x2="' + d2.x.toFixed(2) + '" y2="' + d2.y.toFixed(2) + '" ' +
+        'marker-start="url(#qc-key-arr)" marker-end="url(#qc-key-arr)"/>'
+      : '';
+
+    svg.innerHTML =
+      shapePreviewDefs('qc-key') +
+      '<path class="qc-shape-hatch" fill="url(#qc-key-hatch)" d="' + channel + '"/>' +
+      '<path class="qc-shape-inscribed" d="' + channel + '"/>' +
+      '<circle class="qc-shape-fill" cx="' + H.x.toFixed(2) + '" cy="' + H.y.toFixed(2) + '" r="' + r.toFixed(2) + '"/>' +
+      dimLine +
+      label(lenLabel, n, len > 0 ? len : '?') +
+      label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?'));
+  }
+
+  function wireKeyholeForm() {
+    $('qc-key-length').addEventListener('input', updateKeyholePreview);
+    $('qc-key-start-angle').addEventListener('input', updateKeyholePreview);
+    // Bit Diameter lives in the shared Tool card; it sets the hole size.
+    $('qc-bit').addEventListener('input', updateKeyholePreview);
+    $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
+    $('qc-key-pattern-style').addEventListener('change', function() { updatePatternVisibility('key'); });
+    $('qc-key-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('key'); });
+    updateKeyholePreview();
+    updatePatternVisibility('key');
+
+    $('qc-key-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readKeyholeForm();
+      params.shape = 'keyhole';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var gcode = gen.generateKeyholeProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Keyhole.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
   function updatePolygonPreview() {
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
@@ -3352,6 +3959,7 @@
     updateClearingVisibility('poly');
     $('qc-poly-pattern-enable').addEventListener('change', function() { updatePatternVisibility('poly'); });
     $('qc-poly-pattern-style').addEventListener('change', function() { updatePatternVisibility('poly'); });
+    $('qc-poly-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('poly'); });
     updatePolygonPreview();
     updatePatternVisibility('poly');
 
@@ -3372,6 +3980,164 @@
         alert('QuickCut Generate failed: ' + err.message);
       }
     });
+  }
+
+  // ================== Angle tab ==================
+  //
+  // Reads the live position from ncSender's machineState (MPos / WCO /
+  // WPos, comma-separated "x,y,z" strings in mm — ncSender assumes $13=0)
+  // and reports the angle of the vector from the work origin to the
+  // current position. Two sources, because neither covers every host:
+  //   - 'server-state-update' messages arrive when the dialog is opened
+  //     from the tool menu (later ones are partial deltas, so merge).
+  //   - polling /api/server-state while this tab is open covers the
+  //     Plugins-tab iframe, which never receives those messages.
+  var measure = { machine: {}, timer: null, angleDeg: null, returnTo: null };
+  var MEASURE_POLL_MS = 500;
+
+  function parseCoords(v) {
+    if (typeof v !== 'string') return null;
+    var parts = v.split(',').map(parseFloat);
+    if (parts.length < 2 || !isFinite(parts[0]) || !isFinite(parts[1])) return null;
+    return { x: parts[0], y: parts[1] };
+  }
+
+  // The tool-menu dialog runs this script inline in the host page, so the
+  // timer and message listener outlive the dialog. Once our DOM is gone,
+  // stop polling and ignore updates.
+  function measureTabAlive() {
+    if ($('qc-meas-angle')) return true;
+    stopMeasurePolling();
+    return false;
+  }
+
+  function mergeMachineState(serverState) {
+    if (!measureTabAlive()) return;
+    var ms = serverState && serverState.machineState;
+    if (!ms) return;
+    ['MPos', 'WPos', 'WCO', 'workspace', 'status', 'connected'].forEach(function(k) {
+      if (ms[k] != null) measure.machine[k] = ms[k];
+    });
+    if (state.currentTab === 'measure') renderMeasurement();
+  }
+
+  async function fetchMeasureState() {
+    if (!measureTabAlive()) return;
+    try {
+      var res = await fetch(BASE_URL + '/api/server-state');
+      if (res.ok) mergeMachineState(await res.json());
+    } catch (err) {
+      console.warn('[QuickCut] server-state fetch failed:', err);
+    }
+  }
+
+  function startMeasurePolling() {
+    if (measure.timer) return;
+    fetchMeasureState();
+    measure.timer = setInterval(fetchMeasureState, MEASURE_POLL_MS);
+  }
+
+  function stopMeasurePolling() {
+    if (measure.timer) clearInterval(measure.timer);
+    measure.timer = null;
+  }
+
+  function renderMeasurement() {
+    var ms = measure.machine;
+    var mpos = parseCoords(ms.MPos);
+    var wco = parseCoords(ms.WCO);
+    // MPos − WCO keeps work and machine readouts consistent when deltas
+    // update only some fields; fall back to the server's WPos.
+    var wpos = (mpos && wco) ? { x: mpos.x - wco.x, y: mpos.y - wco.y } : parseCoords(ms.WPos);
+    function len(v) { return v == null ? '—' : roundDisplay(mmToDisplay(v)).toString(); }
+
+    $('qc-meas-wcs').textContent = ms.workspace || 'G54';
+    $('qc-meas-wx').textContent = len(wpos && wpos.x);
+    $('qc-meas-wy').textContent = len(wpos && wpos.y);
+    $('qc-meas-mx').textContent = len(mpos && mpos.x);
+    $('qc-meas-my').textContent = len(mpos && mpos.y);
+    $('qc-meas-ox').textContent = len(wco && wco.x);
+    $('qc-meas-oy').textContent = len(wco && wco.y);
+
+    var status = '';
+    measure.angleDeg = null;
+    if (!wpos) {
+      status = ms.connected === false ? 'Machine not connected.' : 'Waiting for machine position…';
+      $('qc-meas-dist').textContent = '—';
+    } else {
+      var dist = Math.hypot(wpos.x, wpos.y);
+      $('qc-meas-dist').textContent = len(dist) + ' ' + state.unitLabel;
+      // Below ~0.01 mm the direction is just noise around the origin.
+      if (dist < 0.01) {
+        status = 'At the work origin — jog away from X0 Y0 along the line to measure an angle.';
+      } else {
+        measure.angleDeg = Math.round(Math.atan2(wpos.y, wpos.x) * 180 / Math.PI * 1000) / 1000;
+      }
+      if (ms.status) status = (status ? status + ' ' : '') + 'Status: ' + ms.status + '.';
+    }
+    $('qc-meas-angle').textContent = measure.angleDeg == null ? '—' : measure.angleDeg.toFixed(3) + '°';
+    $('qc-meas-status').textContent = status;
+    var applyBtns = document.querySelectorAll('[data-apply-angle]');
+    for (var i = 0; i < applyBtns.length; i++) applyBtns[i].disabled = measure.angleDeg == null;
+  }
+
+  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole' };
+  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', key: 'keyhole' };
+
+  function showTab(tab) {
+    var btn = document.querySelector('.qc-nav-btn[data-tab="' + tab + '"]');
+    if (btn) btn.click();
+  }
+
+  // A pattern's "Measure" link opens this tab with that shape's Apply
+  // button highlighted; applying then returns to the shape.
+  function clearMeasureReturn() {
+    measure.returnTo = null;
+    var btns = document.querySelectorAll('[data-apply-angle]');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('qc-apply-suggested');
+  }
+
+  function openMeasureFor(prefix) {
+    showTab('measure');
+    measure.returnTo = prefix;
+    var btn = document.querySelector('[data-apply-angle="' + prefix + '"]');
+    if (btn) btn.classList.add('qc-apply-suggested');
+    $('qc-meas-applied').textContent = 'Jog to a point on the line, then press ' + SHAPE_NAMES[prefix] + ' to use the angle.';
+  }
+
+  function applyMeasuredAngle(prefix) {
+    if (measure.angleDeg == null) return;
+    var pre = 'qc-' + prefix + '-pattern-';
+    $(pre + 'angle').value = measure.angleDeg;
+    $(pre + 'enable').checked = true;
+    var styleEl = $(pre + 'style');
+    if (styleEl.value !== 'linear' && styleEl.value !== 'honeycomb') styleEl.value = 'linear';
+    updatePatternVisibility(prefix);
+    $('qc-meas-applied').textContent = 'Applied ' + measure.angleDeg.toFixed(3) + '° to the ' +
+      SHAPE_NAMES[prefix] + ' pattern.';
+    if (measure.returnTo === prefix) showTab(SHAPE_TABS[prefix]);
+  }
+
+  function wireMeasureTab() {
+    window.addEventListener('message', function(evt) {
+      if (!evt.data || evt.data.type !== 'server-state-update') return;
+      mergeMachineState(evt.data.state);
+    });
+    $('qc-meas-refresh').addEventListener('click', fetchMeasureState);
+    var links = document.querySelectorAll('[data-measure-for]');
+    for (var j = 0; j < links.length; j++) {
+      links[j].addEventListener('click', function(evt) {
+        evt.preventDefault();
+        openMeasureFor(this.getAttribute('data-measure-for'));
+      });
+    }
+    var applyBtns = document.querySelectorAll('[data-apply-angle]');
+    for (var i = 0; i < applyBtns.length; i++) {
+      applyBtns[i].addEventListener('click', function() {
+        applyMeasuredAngle(this.getAttribute('data-apply-angle'));
+      });
+    }
+    renderMeasurement();
   }
 
   // ================== QuickCut generator (INLINE COPY) ==================
@@ -3553,6 +4319,18 @@
       };
     }
 
+    // See lib/quickcut-gcode.cjs::applyGridAngle — rotates a Linear /
+    // Honeycomb grid by pattern.angle so xDist runs along the angled row.
+    function applyGridAngle(positions, pattern) {
+      var angle = Number(pattern.angle) || 0;
+      if (!angle) return positions;
+      var rotDeg = pattern.rotateShapes ? angle : 0;
+      return positions.map(function(p) {
+        var r = rotatePoint(0, 0, p.x, p.y, angle);
+        return { x: r.x, y: r.y, rotDeg: rotDeg };
+      });
+    }
+
     function computePatternPositions(pattern) {
       if (!pattern || !pattern.enabled) return [{ x: 0, y: 0, rotDeg: 0 }];
       var positions = [];
@@ -3584,14 +4362,14 @@
               }
             }
           }
-          return positions;
+          return applyGridAngle(positions, pattern);
         }
         for (var jj = 0; jj < yCount; jj++) {
           for (var ii = 0; ii < xCount; ii++) {
             positions.push({ x: ii * xDist, y: jj * yDist, rotDeg: 0 });
           }
         }
-        return positions;
+        return applyGridAngle(positions, pattern);
       }
       if (pattern.style === 'circular' || pattern.style === 'circular-follow') {
         var count = Math.max(1, Math.floor(pattern.count || 1));
@@ -3613,6 +4391,23 @@
       return [{ x: 0, y: 0, rotDeg: 0 }];
     }
 
+    // Axis-aligned extents of a shape bbox after rotating it by `deg`
+    // about the instance center. deg=0 returns the bbox unchanged.
+    function rotatedBbox(bbox, deg) {
+      if (!deg) return bbox;
+      var corners = [[bbox.minX, bbox.minY], [bbox.maxX, bbox.minY],
+                     [bbox.maxX, bbox.maxY], [bbox.minX, bbox.maxY]];
+      var out = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+      for (var i = 0; i < corners.length; i++) {
+        var r = rotatePoint(0, 0, corners[i][0], corners[i][1], deg);
+        if (r.x < out.minX) out.minX = r.x;
+        if (r.x > out.maxX) out.maxX = r.x;
+        if (r.y < out.minY) out.minY = r.y;
+        if (r.y > out.maxY) out.maxY = r.y;
+      }
+      return out;
+    }
+
     // See lib/quickcut-gcode.cjs::computePatternAnchorShift for
     // documentation. Origin is applied to the aggregate bounding
     // box of the whole pattern, not to a single instance.
@@ -3621,10 +4416,11 @@
       var minY = Infinity, maxY = -Infinity;
       for (var i = 0; i < positions.length; i++) {
         var p = positions[i];
-        if (p.x + shapeBbox.minX < minX) minX = p.x + shapeBbox.minX;
-        if (p.x + shapeBbox.maxX > maxX) maxX = p.x + shapeBbox.maxX;
-        if (p.y + shapeBbox.minY < minY) minY = p.y + shapeBbox.minY;
-        if (p.y + shapeBbox.maxY > maxY) maxY = p.y + shapeBbox.maxY;
+        var b = rotatedBbox(shapeBbox, p.rotDeg);
+        if (p.x + b.minX < minX) minX = p.x + b.minX;
+        if (p.x + b.maxX > maxX) maxX = p.x + b.maxX;
+        if (p.y + b.minY < minY) minY = p.y + b.minY;
+        if (p.y + b.maxY > maxY) maxY = p.y + b.maxY;
       }
       var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
       var anchorX, anchorY;
@@ -3673,8 +4469,10 @@
       if (!p || !p.enabled) return '';
       if (p.style === 'linear' || p.style === 'honeycomb') {
         var label = p.style === 'honeycomb' ? 'Honeycomb' : 'Linear';
+        var angle = Number(p.angle) || 0;
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
-               ' (dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0) + ')';
+               ' (dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0) + ')' +
+               (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
       return 'Circular' + (follow ? ' (Path Direction)' : ' (Identical)') + ' n=' + (p.count || 1) +
@@ -4697,13 +5495,84 @@
       lines.push('G0 Z' + safeHeight);
     }
 
+    // === KEYHOLE ============================================================
+    //
+    // Hanging slot cut with a keyhole / T-slot bit. The head is wider than
+    // the neck, so the bit can only enter and leave the wood through the
+    // plunge hole: plunge straight down to full depth, cut forward along
+    // the slot, retrace back to the hole, and only then retract. There is
+    // no Depth of Cut — a shallower slot pass would cut the narrow neck
+    // slot out to the full head width.
+    //
+    // X0 Y0 is the plunge-hole center (of the first instance when a
+    // pattern is on), so there's no origin picker / anchor shift. The slot
+    // runs slotLength from the hole at startAngleDeg (CCW from +X); a
+    // pattern's per-instance rotDeg turns the slot with it.
+    function generateKeyholeProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var slotLength = params.slotLength || 0;
+      var startDeg = params.startAngleDeg || 0;
+
+      var extras = [
+        'Slot Length: ' + slotLength + unitsLabel + ', Slot Angle: ' + startDeg + '°',
+        'Depth: ' + params.depth + unitsLabel,
+        'Origin: plunge hole center',
+        'Entry: single plunge, retrace to hole before retract'
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+
+      var lines = programHeader(params, {
+        shapeLabel: 'Keyhole' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      if (!(slotLength > 0) || !(params.depth > 0)) {
+        lines.push('(WARNING: slot length and depth must be greater than 0; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+
+      lines.push.apply(lines, startupBlock(params));
+
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + pos.x.toFixed(3) + ' Y' + pos.y.toFixed(3) + rotStr + ')');
+        }
+        emitOneKeyhole(lines, params, pos.x, pos.y, startDeg + (pos.rotDeg || 0));
+      }
+
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneKeyhole(lines, params, cx, cy, angleDeg) {
+      var end = rotatePoint(cx, cy, cx + params.slotLength, cy, angleDeg);
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      var hole = 'X' + cx.toFixed(xyDp) + ' Y' + cy.toFixed(xyDp);
+
+      lines.push('G0 ' + hole);
+      lines.push('G0 Z' + safeHeight);
+      lines.push('G0 Z' + slowPlungeStart);
+      lines.push('G1 Z' + (-params.depth).toFixed(3) + ' F' + params.plungeFeedRate);
+      lines.push('G1 X' + end.x.toFixed(xyDp) + ' Y' + end.y.toFixed(xyDp) + ' F' + params.feedRate);
+      lines.push('G1 ' + hole + ' ; Retrace to plunge hole');
+      lines.push('G0 Z' + safeHeight);
+    }
+
     return {
       generateRectangleProgram: generateRectangleProgram,
       generateCircleProgram: generateCircleProgram,
       generatePlanerProgram: generatePlanerProgram,
       generateJointerProgram: generateJointerProgram,
       generateCutterProgram: generateCutterProgram,
-      generatePolygonProgram: generatePolygonProgram
+      generatePolygonProgram: generatePolygonProgram,
+      generateKeyholeProgram: generateKeyholeProgram
     };
   }
 
