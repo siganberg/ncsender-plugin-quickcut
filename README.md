@@ -106,7 +106,7 @@ It has no sidebar button: open it with the **Measure** link beside a Linear or H
    - jog to it and press **Grab Current**, which copies the machine's work X/Y into the **Second Point Coordinate** X and Y fields; or
    - type its work X/Y into those fields (units like `1in` or `25.4mm` are accepted, as in the other size fields).
 
-   The point only changes when you type or press **Grab Current**, so jogging afterwards doesn't change the angle.
+   The point only changes when you type or press **Grab Current**, so jogging afterwards doesn't change the angle. It's remembered with QuickCut's settings, so the next time you open the page, from any shape or after restarting, it starts with the same point. Clear both fields to forget it.
 3. Read the **Angle** (counter-clockwise from +X, between −180° and 180°) and **Distance**.
 4. Press **Use …° for** *shape* to put the angle in that shape's pattern and go back to it. **Back** returns without changing anything.
 

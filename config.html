@@ -3586,6 +3586,13 @@
     if (key.depth != null)          $('qc-key-depth').value       = roundDisplay(mmToDisplay(key.depth));
     hydratePattern('key', key.pattern);
 
+    // Second point on the measure page (saved in mm).
+    var meas = saved.measure;
+    if (meas && meas.x != null && meas.y != null) {
+      $('qc-meas-px').value = roundDisplay(mmToDisplay(meas.x));
+      $('qc-meas-py').value = roundDisplay(mmToDisplay(meas.y));
+    }
+
     var drl = saved.drill || {};
     if (drl.depth != null)     $('qc-drl-depth').value     = roundDisplay(mmToDisplay(drl.depth));
     if (drl.peckDepth != null) $('qc-drl-peck').value      = roundDisplay(mmToDisplay(drl.peckDepth));
@@ -5075,6 +5082,25 @@
       : 'Use ' + measure.angleDeg.toFixed(3) + '° for ' + (SHAPE_NAMES[measure.returnTo] || 'Pattern');
   }
 
+  // The second point is saved with the plugin settings (in mm, like the
+  // shapes) so the next dialog open, or a Measure link from another
+  // shape, starts with the same point. Saved only when it changes; a
+  // half-filled or unreadable point isn't saved, and clearing both
+  // fields clears it.
+  function saveSecondPoint() {
+    var pxText = $('qc-meas-px').value.trim(), pyText = $('qc-meas-py').value.trim();
+    var point = null;
+    if (pxText || pyText) {
+      var px = parseUnitValue(pxText, state.isImperial, 'length');
+      var py = parseUnitValue(pyText, state.isImperial, 'length');
+      if (px == null || py == null) return;
+      point = { x: displayToMm(px), y: displayToMm(py) };
+    }
+    var prev = (initialConfig || {}).measure || null;
+    if (JSON.stringify(prev) === JSON.stringify(point)) return;
+    persistSettings({ measure: point });
+  }
+
   // Copy a fresh reading of the machine's work position into the Second
   // Point fields.
   async function captureCurrentPosition() {
@@ -5088,6 +5114,7 @@
     $('qc-meas-py').value = roundDisplay(mmToDisplay(wpos.y));
     $('qc-meas-captured').textContent = 'Copied from the machine.';
     renderMeasurement();
+    saveSecondPoint();
   }
 
   var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole', drl: 'Drill' };
@@ -5109,6 +5136,7 @@
   function useMeasuredAngle() {
     var prefix = measure.returnTo;
     if (measure.angleDeg == null || !prefix) return;
+    saveSecondPoint();
     var pre = 'qc-' + prefix + '-pattern-';
     $(pre + 'angle').value = measure.angleDeg;
     $(pre + 'enable').checked = true;
@@ -5131,6 +5159,7 @@
         $('qc-meas-captured').textContent = '';
         renderMeasurement();
       });
+      $(id).addEventListener('change', saveSecondPoint);
     });
     var links = document.querySelectorAll('[data-measure-for]');
     for (var j = 0; j < links.length; j++) {
