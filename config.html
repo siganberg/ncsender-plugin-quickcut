@@ -755,6 +755,97 @@
     text-transform: uppercase;
     opacity: 0.75;
   }
+  /* Jointer / Cutter side picker: edges of the top-view preview are
+     the control. */
+  .qc-shape-preview-cell .qc-side-hit {
+    stroke: transparent;
+    stroke-width: 12;
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+  .qc-shape-preview-cell .qc-side-hit:hover {
+    stroke: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+  .qc-shape-preview-cell .qc-feed-hit {
+    stroke: transparent;
+    stroke-width: 10;
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+  .qc-shape-preview-cell .qc-feed-hit:hover {
+    stroke: color-mix(in srgb, var(--color-accent) 25%, transparent);
+  }
+  .qc-shape-preview-cell .qc-side-active {
+    stroke: var(--color-accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .qc-shape-preview-cell .qc-cut-feed {
+    color: var(--color-accent);
+    stroke: var(--color-accent);
+    stroke-width: 1.8;
+  }
+  /* Cutter: fields on the left, drawing on the right. The viewBox
+     leaves room above the stock for the axis triad on a back-corner
+     zero, so nothing is clipped and the drawing never shifts. */
+  .qc-cut-grid {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .qc-shape-preview-cell.qc-cut-preview-cell {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 212 / 128;
+  }
+  @media (max-width: 600px) {
+    .qc-cut-grid { grid-template-columns: 1fr; }
+  }
+  .qc-cut-preview-cell .qc-plan-caption { font-size: 7px; }
+  .qc-shape-preview-cell .qc-cut-side-face {
+    fill: color-mix(in srgb, var(--color-accent) 4%, var(--color-surface-muted, var(--color-surface)));
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linejoin: round;
+  }
+  .qc-shape-preview-cell .qc-cut-length-label {
+    fill: var(--color-accent);
+    font-size: 9px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    paint-order: stroke;
+    stroke: var(--color-surface-muted, var(--color-surface));
+    stroke-width: 2px;
+  }
+  .qc-shape-preview-cell .qc-cut-kerf {
+    stroke: var(--color-accent);
+    stroke-width: 1.8;
+  }
+  .qc-shape-preview-cell .qc-side-hit-face {
+    fill: transparent;
+    cursor: pointer;
+  }
+  /* Work-offset axis triad on the Cutter preview: X red, Y green,
+     Z blue, as in CAD viewers. */
+  .qc-shape-preview-cell .qc-wcs-axis { stroke-width: 1.8; stroke-linecap: round; }
+  .qc-shape-preview-cell line.qc-wcs-x { stroke: #e5534b; }
+  .qc-shape-preview-cell line.qc-wcs-y { stroke: #57ab5a; }
+  .qc-shape-preview-cell line.qc-wcs-z { stroke: #4c8fe0; }
+  .qc-shape-preview-cell .qc-wcs-axis-label {
+    font-size: 8px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .qc-shape-preview-cell text.qc-wcs-x { fill: #e5534b; }
+  .qc-shape-preview-cell text.qc-wcs-y { fill: #57ab5a; }
+  .qc-shape-preview-cell text.qc-wcs-z { fill: #4c8fe0; }
+  .qc-shape-preview-cell .qc-wcs-origin {
+    fill: #fff;
+    stroke: var(--color-surface-muted, var(--color-surface));
+    stroke-width: 0.8;
+  }
   @media (max-width: 600px) {
     .qc-shape-grid { grid-template-columns: 1fr; }
     .qc-shape-preview-cell { order: -1; }
@@ -1962,7 +2053,7 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-overrun" min="0" step="0.1" value="2">
                   </div>
                 </div>
-                <div class="qc-row-3">
+                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-join-axis">Trim Axis</label>
                     <select class="qc-select" id="qc-join-axis">
@@ -1977,20 +2068,14 @@
                       <option value="climb">Climb</option>
                     </select>
                   </div>
-                  <div class="qc-field">
-                    <label for="qc-join-origin">Side to Cut</label>
-                    <select class="qc-select" id="qc-join-origin">
-                      <option value="front" data-axis="x" selected>Front</option>
-                      <option value="back" data-axis="x">Back</option>
-                      <option value="left" data-axis="y">Left</option>
-                      <option value="right" data-axis="y">Right</option>
-                    </select>
-                  </div>
                 </div>
+                <!-- Picked by clicking an edge of the preview; the edge also
+                     sets Trim Axis (front/back = X, left/right = Y). -->
+                <input type="hidden" id="qc-join-origin" value="front">
                 <p class="qc-mode-hint" id="qc-join-hint"></p>
               </div>
               <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
-                <svg id="qc-join-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                <svg id="qc-join-preview" viewBox="-50 -50 100 100" aria-label="Click the edge to trim"></svg>
               </div>
             </div>
           </div>
@@ -2027,56 +2112,51 @@
         <form id="qc-cut-form" onsubmit="return false">
           <div class="qc-card">
             <h3 class="qc-card-title">Cut</h3>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label for="qc-cut-axis">Cut Axis</label>
-                <select class="qc-select" id="qc-cut-axis">
-                  <option value="x" selected>X-axis</option>
-                  <option value="y">Y-axis</option>
-                </select>
+            <div class="qc-cut-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-cut-target">Target Size</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-target" min="0.001" step="0.01" value="100" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-cut-length">Cutting Length</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required>
+                  </div>
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-cut-depth">Total Depth</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-cut-step">Depth of Cut</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-step" min="0.001" step="0.01" value="5" required>
+                  </div>
+                </div>
+                <div class="qc-field">
+                  <label for="qc-cut-axis">Cut Axis</label>
+                  <select class="qc-select" id="qc-cut-axis">
+                    <option value="x" selected>X-axis</option>
+                    <option value="y">Y-axis</option>
+                  </select>
+                </div>
+                <div class="qc-field">
+                  <label for="qc-cut-direction">Cut Direction</label>
+                  <select class="qc-select" id="qc-cut-direction">
+                    <option value="conventional" selected>Conventional</option>
+                    <option value="climb">Climb</option>
+                  </select>
+                </div>
+                <!-- Picked by clicking an edge of the preview; the edge also
+                     sets Cut Axis (front/back = X, left/right = Y). -->
+                <input type="hidden" id="qc-cut-origin" value="front">
               </div>
-              <div class="qc-field">
-                <label for="qc-cut-target">Target Size</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-target" min="0.001" step="0.01" value="100" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-cut-length">Cutting Length</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required>
-              </div>
-            </div>
-            <div class="qc-row-3">
-              <div class="qc-field">
-                <label for="qc-cut-direction">Cut Direction</label>
-                <select class="qc-select" id="qc-cut-direction">
-                  <option value="conventional" selected>Conventional</option>
-                  <option value="climb">Climb</option>
-                </select>
-              </div>
-              <div class="qc-field">
-                <label for="qc-cut-origin">Origin (start side)</label>
-                <select class="qc-select" id="qc-cut-origin">
-                  <option value="front" data-axis="x" selected>Front</option>
-                  <option value="back" data-axis="x">Back</option>
-                  <option value="left" data-axis="y">Left</option>
-                  <option value="right" data-axis="y">Right</option>
-                </select>
+              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless qc-cut-preview-cell">
+                <svg id="qc-cut-preview" viewBox="-106 -66 212 128" aria-label="Click the edge your XY zero is on"></svg>
               </div>
             </div>
             <p class="qc-mode-hint" id="qc-cut-hint"></p>
-          </div>
-
-          <div class="qc-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
-              <div class="qc-field">
-                <label for="qc-cut-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required>
-              </div>
-              <div class="qc-field">
-                <label for="qc-cut-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-step" min="0.001" step="0.01" value="5" required>
-              </div>
-            </div>
           </div>
         </form>
       </div>
@@ -2983,22 +3063,42 @@
     });
   }
 
-  function updateCutterOriginOptions() {
-    var axis = $('qc-cut-axis').value;
-    var origin = $('qc-cut-origin');
-    var opts = origin.querySelectorAll('option');
-    var currentValid = false;
-    for (var i = 0; i < opts.length; i++) {
-      var ok = opts[i].dataset.axis === axis;
-      opts[i].hidden = !ok;
-      opts[i].disabled = !ok;
-      if (ok && opts[i].value === origin.value) currentValid = true;
+  // Side pickers (Jointer / Cutter): the side is picked by clicking an
+  // edge of the top-view preview. Front/back edges run along X and
+  // left/right along Y, so the side also decides the axis.
+  var SIDE_AXIS = { front: 'x', back: 'x', left: 'y', right: 'y' };
+  function syncSideToAxis(sideId, axis) {
+    var side = $(sideId);
+    if (SIDE_AXIS[side.value] !== axis) side.value = axis === 'x' ? 'front' : 'left';
+  }
+  function setSide(sideId, axisId, side) {
+    $(sideId).value = side;
+    $(axisId).value = SIDE_AXIS[side];
+    $(sideId).dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  // Wide transparent click bands over the four material edges, plus an
+  // accent line on the picked one. Appended last so they sit on top.
+  // `edges` maps side -> [x1, y1, x2, y2] in the preview's coordinates.
+  function sideEdgesSvg(active, edges) {
+    var out = '';
+    for (var k in edges) {
+      var e = edges[k];
+      var xy = 'x1="' + e[0].toFixed(2) + '" y1="' + e[1].toFixed(2) +
+               '" x2="' + e[2].toFixed(2) + '" y2="' + e[3].toFixed(2) + '"';
+      if (k === active) out += '<line class="qc-side-active" ' + xy + '/>';
+      out += '<line class="qc-side-hit" data-side="' + k + '" ' + xy + '><title>' +
+             k.charAt(0).toUpperCase() + k.slice(1) + '</title></line>';
     }
-    if (!currentValid) {
-      for (var j = 0; j < opts.length; j++) {
-        if (opts[j].dataset.axis === axis) { origin.value = opts[j].value; break; }
-      }
-    }
+    return out;
+  }
+  function rectEdges(l, r, t, b) {
+    return { back: [l, t, r, t], front: [l, b, r, b], left: [l, t, l, b], right: [r, t, r, b] };
+  }
+  function wireSidePicker(svgId, sideId, axisId) {
+    $(svgId).addEventListener('click', function(e) {
+      var hit = e.target.closest && e.target.closest('.qc-side-hit, .qc-side-hit-face');
+      if (hit) setSide(sideId, axisId, hit.getAttribute('data-side'));
+    });
   }
 
   function updateCutterHint() {
@@ -3015,9 +3115,10 @@
       ? '<strong>Climb</strong> — cutter teeth engage <em>with</em> the feed direction. Cleaner finish, but needs a rigid machine.'
       : '<strong>Conventional</strong> — cutter teeth engage <em>against</em> the feed direction. Safer and less chatter.';
     hint.innerHTML =
+      'XY zero is on the <strong>' + origin + '</strong> edge — click an edge in the preview to change it. ' +
       'Tool feeds <strong>' + length + ' ' + u + '</strong> along the ' + feedAxis.toUpperCase() +
-      '-axis, starting from the <strong>' + origin + '</strong> side. Single cut line at ' + perpAxis +
-      '=<strong>' + target + ' ' + u + '</strong> — the final <strong>' + perpAxis +
+      '-axis from ' + feedAxis.toUpperCase() + '0. Single cut line <strong>' + target + ' ' + u +
+      '</strong> in from that edge — the final <strong>' + perpAxis +
       '-dimension</strong> of the kept material. Depth passes reduce bit load.<br>' + dirText;
   }
 
@@ -3060,24 +3161,6 @@
     });
   }
 
-  function updateJointerOriginOptions() {
-    var axis = $('qc-join-axis').value;
-    var origin = $('qc-join-origin');
-    var opts = origin.querySelectorAll('option');
-    var currentValid = false;
-    for (var i = 0; i < opts.length; i++) {
-      var ok = opts[i].dataset.axis === axis;
-      opts[i].hidden = !ok;
-      opts[i].disabled = !ok;
-      if (ok && opts[i].value === origin.value) currentValid = true;
-    }
-    if (!currentValid) {
-      for (var j = 0; j < opts.length; j++) {
-        if (opts[j].dataset.axis === axis) { origin.value = opts[j].value; break; }
-      }
-    }
-  }
-
   function updateJointerHint() {
     var hint = $('qc-join-hint');
     if (!hint) return;
@@ -3094,7 +3177,7 @@
       '</strong> per pass × <strong>' + n + '</strong> pass' + (n === 1 ? '' : 'es') +
       ' = <strong>' + total + ' ' + state.unitLabel + '</strong> total off the edge. Each pass ' +
       'travels <strong>' + length + ' ' + state.unitLabel + '</strong> along the ' + axis.toUpperCase() +
-      '-axis.<br>' + dirText;
+      '-axis. Click an edge in the preview to pick the side to trim.<br>' + dirText;
   }
 
   // Pattern form is in DISPLAY units for distances; angle/counts unitless.
@@ -3518,6 +3601,7 @@
     updateDrillPreview();
     updatePlanerPreview();
     updateJointerPreview();
+    updateCutterPreview();
   }
 
   function hydratePattern(prefix, p) {
@@ -3824,9 +3908,24 @@
       if (el) el.addEventListener('input', updateCutterHint);
       if (el) el.addEventListener('change', updateCutterHint);
     });
-    $('qc-cut-axis').addEventListener('change', function() { updateCutterOriginOptions(); updateCutterHint(); });
-    updateCutterOriginOptions();
+    $('qc-cut-axis').addEventListener('change', function() {
+      syncSideToAxis('qc-cut-origin', $('qc-cut-axis').value); updateCutterHint(); updateCutterPreview();
+    });
+    $('qc-cut-origin').addEventListener('change', updateCutterPreview);
+    ['qc-cut-target', 'qc-cut-length', 'qc-cut-direction', 'qc-cut-depth'].forEach(function(id) {
+      $(id).addEventListener('input', updateCutterPreview);
+      $(id).addEventListener('change', updateCutterPreview);
+    });
+    wireSidePicker('qc-cut-preview', 'qc-cut-origin', 'qc-cut-axis');
+    $('qc-cut-preview').addEventListener('click', function(e) {
+      if (!(e.target.closest && e.target.closest('.qc-feed-hit'))) return;
+      var dir = $('qc-cut-direction');
+      dir.value = dir.value === 'climb' ? 'conventional' : 'climb';
+      dir.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    syncSideToAxis('qc-cut-origin', $('qc-cut-axis').value);
     updateCutterHint();
+    updateCutterPreview();
 
     $('qc-cut-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
@@ -3850,13 +3949,16 @@
       if (el) el.addEventListener('change', updateJointerHint);
     });
     // Feed axis toggles which origin options are valid.
-    $('qc-join-axis').addEventListener('change', function() { updateJointerOriginOptions(); updateJointerHint(); updateJointerPreview(); });
+    $('qc-join-axis').addEventListener('change', function() {
+      syncSideToAxis('qc-join-origin', $('qc-join-axis').value); updateJointerHint(); updateJointerPreview();
+    });
+    wireSidePicker('qc-join-preview', 'qc-join-origin', 'qc-join-axis');
     $('qc-join-origin').addEventListener('change', updateJointerPreview);
     ['qc-join-length', 'qc-join-width'].forEach(function(id) {
       var el = $(id);
       if (el) el.addEventListener('input', updateJointerPreview);
     });
-    updateJointerOriginOptions();
+    syncSideToAxis('qc-join-origin', $('qc-join-axis').value);
     updateJointerHint();
     updateJointerPreview();
 
@@ -4266,8 +4368,181 @@
       cutBorder +
       lengthLine + lengthLabel +
       trimWLabel +
-      caption;
+      caption +
+      sideEdgesSvg(side, rectEdges(matL, matR, matT, matB));
   }
+
+  // Cutter preview — the stock seen from the front, above and in
+  // perspective: top face (back edge narrower) plus the front face.
+  // The picked edge holds XY zero (dot on the corner the feed starts
+  // from); the accent arrow is the cut line, `target` in from that
+  // edge, pointing the way the tool feeds; the hatched part is the
+  // offcut. Proportions are fixed — only the labels carry numbers.
+  function updateCutterPreview() {
+    var svg = document.getElementById('qc-cut-preview');
+    if (!svg) return;
+    var side   = $('qc-cut-origin').value;
+    var target = num('qc-cut-target', 0);
+    var climb  = $('qc-cut-direction').value === 'climb';
+    var tl = (target > 0 ? target : '?') + ' ' + state.unitLabel;
+
+    // u: 0 = left .. 1 = right, v: 0 = front .. 1 = back (top face).
+    var FRONT_HALF = 76, BACK_HALF = 48, FRONT_Y = 10, DEPTH = 44, THICK = 38;
+    function P(u, v) {
+      var half = FRONT_HALF - (FRONT_HALF - BACK_HALF) * v;
+      return [-half + 2 * half * u, FRONT_Y - DEPTH * v];
+    }
+    function pts(list) {
+      return list.map(function(q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join(' ');
+    }
+    function down(q) { return [q[0], q[1] + THICK]; }
+
+    var fl = P(0, 0), fr = P(1, 0), bl = P(0, 1), br = P(1, 1);
+    var keep = 0.6;
+    var waste, frontWaste, cutA, cutB, zero, dimA, dimB, kerf = '';
+
+    if (side === 'front' || side === 'back') {
+      var cv = side === 'front' ? keep : 1 - keep;
+      waste = side === 'front'
+        ? [P(0, cv), P(1, cv), br, bl]
+        : [fl, fr, P(1, cv), P(0, cv)];
+      // Feed runs X0 -> +X (left to right); climb runs it back.
+      cutA = P(0, cv); cutB = P(1, cv);
+      // Back origin leaves the offcut at the front, so the whole front
+      // face is waste; front origin hides it behind the kept part.
+      frontWaste = side === 'back' ? [fl, fr, down(fr), down(fl)] : null;
+      zero = side === 'front' ? fl : bl;
+      var ev = side === 'front' ? 0 : 1;
+      dimA = P(0.12, ev); dimB = P(0.12, cv);
+    } else {
+      var cu = side === 'left' ? keep : 1 - keep;
+      waste = side === 'left'
+        ? [P(cu, 0), fr, br, P(cu, 1)]
+        : [fl, P(cu, 0), P(cu, 1), bl];
+      // Feed runs Y0 -> +Y (front to back); climb runs it back.
+      cutA = P(cu, 0); cutB = P(cu, 1);
+      frontWaste = side === 'left'
+        ? [P(cu, 0), fr, down(fr), down(P(cu, 0))]
+        : [fl, P(cu, 0), down(P(cu, 0)), down(fl)];
+      zero = side === 'left' ? fl : fr;
+      var eu = side === 'left' ? 0 : 1;
+      dimA = P(eu, 0.2); dimB = P(cu, 0.2);
+      // The cut also shows as a kerf down the front face.
+      kerf = '<line class="qc-cut-kerf" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
+             '" x2="' + cutA[0].toFixed(2) + '" y2="' + (cutA[1] + THICK).toFixed(2) + '"/>';
+    }
+    if (climb) { var t = cutA; cutA = cutB; cutB = t; }
+
+    // Cutting Length, written along the cut arrow on the offcut side
+    // (away from the Target Size dimension).
+    var lengthVal = num('qc-cut-length', 0);
+    var lmx = (cutA[0] + cutB[0]) / 2, lmy = (cutA[1] + cutB[1]) / 2;
+    var lengthLabel;
+    if (side === 'front' || side === 'back') {
+      var ly = side === 'front' ? lmy - 4 : lmy + 4;
+      lengthLabel = '<text class="qc-cut-length-label" x="' + lmx.toFixed(2) + '" y="' + ly.toFixed(2) +
+        '" text-anchor="middle" dominant-baseline="' + (side === 'front' ? 'auto' : 'hanging') + '">' +
+        (lengthVal > 0 ? lengthVal : '?') + ' ' + state.unitLabel + '</text>';
+    } else {
+      var lx = side === 'left' ? lmx + 7 : lmx - 7;
+      var ang = Math.atan2(cutB[1] - cutA[1], cutB[0] - cutA[0]) * 180 / Math.PI;
+      // Near-vertical line: always read bottom-to-top.
+      if (ang > 0) ang -= 180;
+      lengthLabel = '<text class="qc-cut-length-label" x="' + lx.toFixed(2) + '" y="' + lmy.toFixed(2) +
+        '" text-anchor="middle" dominant-baseline="central" transform="rotate(' +
+        ang.toFixed(1) + ' ' + lx.toFixed(2) + ' ' + lmy.toFixed(2) + ')">' +
+        (lengthVal > 0 ? lengthVal : '?') + ' ' + state.unitLabel + '</text>';
+    }
+
+    var mid = [(dimA[0] + dimB[0]) / 2, (dimA[1] + dimB[1]) / 2];
+    var label = '<text class="qc-shape-dim-label" x="' + mid[0].toFixed(2) + '" y="' + (mid[1] - 3).toFixed(2) +
+                '" text-anchor="middle">' + tl + '</text>';
+    if (side === 'front' || side === 'back') {
+      label = '<text class="qc-shape-dim-label" x="' + (mid[0] + 4).toFixed(2) + '" y="' + mid[1].toFixed(2) +
+              '" dominant-baseline="central">' + tl + '</text>';
+    }
+
+    var labelY = fl[1] + THICK + 6;
+    var edgeLabels =
+      '<text class="qc-plan-caption" x="' + ((bl[0] + br[0]) / 2).toFixed(2) + '" y="' + (bl[1] - 6) + '" text-anchor="middle">Back (Y+)</text>' +
+      '<text class="qc-plan-caption" x="' + ((fl[0] + fr[0]) / 2).toFixed(2) + '" y="' + labelY + '" text-anchor="middle" dominant-baseline="hanging">Front (Y\u2212)</text>' +
+      '<text class="qc-plan-caption" x="' + fl[0].toFixed(2) + '" y="' + labelY + '" dominant-baseline="hanging">Left (X\u2212)</text>' +
+      '<text class="qc-plan-caption" x="' + fr[0].toFixed(2) + '" y="' + labelY + '" text-anchor="end" dominant-baseline="hanging">Right (X+)</text>';
+
+    // Total Depth, measured down the front face from the top surface.
+    var depthVal = num('qc-cut-depth', 0);
+    var ddx = fl[0] - 7;
+    var depthDim =
+      '<line class="qc-shape-dim-line" x1="' + ddx.toFixed(2) + '" y1="' + fr[1].toFixed(2) +
+        '" x2="' + ddx.toFixed(2) + '" y2="' + (fr[1] + THICK).toFixed(2) + '" ' +
+        'marker-start="url(#qc-cut-arr)" marker-end="url(#qc-cut-arr)"/>' +
+      // Label reads along the dimension line (rotated) to stay narrow.
+      '<text class="qc-shape-dim-label" x="' + (ddx - 7).toFixed(2) + '" y="' + (fr[1] + THICK / 2).toFixed(2) +
+        '" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 ' + (ddx - 7).toFixed(2) + ' ' +
+        (fr[1] + THICK / 2).toFixed(2) + ')">' + (depthVal > 0 ? depthVal : '?') + ' ' + state.unitLabel + '</text>';
+
+    var edges = { back: bl.concat(br), front: fl.concat(fr), left: fl.concat(bl), right: fr.concat(br) };
+
+    // Work-offset zero: a CAD-style axis triad on the zero corner —
+    // X red, Y green, Z blue — with X and Y following the perspective.
+    var zu = zero === fr || zero === br ? 1 : 0;
+    var zv = zero === bl || zero === br ? 1 : 0;
+    var AXIS_LEN = 20;
+    function axisDir(tip) {
+      var dx = tip[0] - zero[0], dy = tip[1] - zero[1];
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      return [dx / len, dy / len];
+    }
+    function axisArrow(dir, cls, name) {
+      var tx = zero[0] + dir[0] * AXIS_LEN, ty = zero[1] + dir[1] * AXIS_LEN;
+      return '<line class="qc-wcs-axis ' + cls + '" x1="' + zero[0].toFixed(2) + '" y1="' + zero[1].toFixed(2) +
+             '" x2="' + tx.toFixed(2) + '" y2="' + ty.toFixed(2) + '" marker-end="url(#' + cls + '-arr)"/>' +
+             '<text class="qc-wcs-axis-label ' + cls + '" x="' + (tx + dir[0] * 6).toFixed(2) +
+             '" y="' + (ty + dir[1] * 6).toFixed(2) + '" text-anchor="middle" dominant-baseline="central">' +
+             name + '</text>';
+    }
+    var wcs =
+      '<g pointer-events="none">' +
+        axisArrow(axisDir(P(zu + 0.2, zv)), 'qc-wcs-x', 'X') +
+        axisArrow(axisDir(P(zu, zv + 0.4)), 'qc-wcs-y', 'Y') +
+        axisArrow([0, -1], 'qc-wcs-z', 'Z') +
+        '<circle class="qc-wcs-origin" cx="' + zero[0].toFixed(2) + '" cy="' + zero[1].toFixed(2) + '" r="2.4"/>' +
+      '</g>';
+
+    svg.innerHTML =
+      shapePreviewDefs('qc-cut') +
+      '<defs><marker id="qc-cut-feedarr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" ' +
+        'orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,5 L0,10" fill="none" ' +
+        'style="stroke: var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>' +
+        '<marker id="qc-wcs-x-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
+          'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#e5534b"/></marker>' +
+        '<marker id="qc-wcs-y-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
+          'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#57ab5a"/></marker>' +
+        '<marker id="qc-wcs-z-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
+          'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#4c8fe0"/></marker></defs>' +
+      // Front face first, then the top face over it.
+      '<polygon class="qc-cut-side-face" points="' + pts([fl, fr, down(fr), down(fl)]) + '"/>' +
+      (frontWaste ? '<polygon class="qc-shape-hatch" fill="url(#qc-cut-hatch)" points="' + pts(frontWaste) + '"/>' : '') +
+      '<polygon class="qc-shape-fill" points="' + pts([fl, fr, br, bl]) + '"/>' +
+      '<polygon class="qc-shape-hatch" fill="url(#qc-cut-hatch)" points="' + pts(waste) + '"/>' +
+      kerf + depthDim +
+      '<line class="qc-shape-dim-line" x1="' + dimA[0].toFixed(2) + '" y1="' + dimA[1].toFixed(2) +
+        '" x2="' + dimB[0].toFixed(2) + '" y2="' + dimB[1].toFixed(2) + '" ' +
+        'marker-start="url(#qc-cut-arr)" marker-end="url(#qc-cut-arr)"/>' + label +
+      '<line class="qc-cut-feed" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
+        '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '" marker-end="url(#qc-cut-feedarr)"/>' +
+      lengthLabel +
+      edgeLabels +
+      sideEdgesSvg(side, edges) +
+      // Click the cut arrow to flip Conventional / Climb.
+      '<line class="qc-feed-hit" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
+        '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '"><title>' +
+        (climb ? 'Climb' : 'Conventional') + ' \u2014 click to switch</title></line>' +
+      // The front face is a big target for "front" too.
+      '<polygon class="qc-side-hit-face" data-side="front" points="' + pts([fl, fr, down(fr), down(fl)]) + '"><title>Front</title></polygon>' +
+      wcs;
+  }
+
 
   // Circle preview — bordered viewport, hatched waste based on cut
   // type, horizontal dimension arrow labeling the diameter.
