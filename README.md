@@ -26,7 +26,7 @@ Every shape can be repeated with a [pattern](#patterns). Rectangle, Circle, and 
 - Safe Z — honors ncSender's core `safeZHeight` setting; falls back to machine Z0 when unset
 - Pattern (shapes only) — Linear, Honeycomb, or Circular; see [Patterns](#patterns)
 - Unit entry — type `.25in`, `1/4"`, or `6.35mm` into size and feed fields; see [Typing units](#typing-units)
-- Angle tab — measures the angle from the work origin to the current machine position; see [Measuring an angle](#measuring-an-angle)
+- Angle tab — measures the angle of a line from the work origin to a second point, typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
 
 ## Keyhole
@@ -38,16 +38,16 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
-- **X0 Y0 is the plunge hole** (the first one, when a pattern is on). There's no origin picker.
+- **Origin:** by default X0 Y0 is the plunge hole (the first one, when a pattern is on): the ring in the Origin picker. The picker's other points are the corners, edge midpoints, and center of the whole cut (every keyhole's head swept along its slot), as on the other shapes.
 - Set **Bit Diameter** to the bit's head diameter.
 - There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.
 - Patterns work as on the other shapes. With **Circular (Path Direction)**, or **Rotate shapes with angle** on an angled Linear pattern, each slot turns with its copy.
 
 ## Drill
 
-Plunges a hole the size of the bit at X0 Y0, or at every position of a [pattern](#patterns): shelf-pin rows, threaded-insert grids, pilot holes.
+Plunges a hole the size of the bit, or one at every position of a [pattern](#patterns): shelf-pin rows, threaded-insert grids, pilot holes.
 
-- **X0 Y0 is the first hole.** There's no origin picker.
+- **Origin** works as on Circle: the center (the default) puts a single hole at X0 Y0; with a pattern, each point is a corner, edge midpoint, or the center of the box around all the holes.
 - Hole diameter is the **Bit Diameter**. Every Z move uses the **Plunge Rate**; Feed Rate isn't used and is greyed out on this tab.
 - **Peck Depth** 0 drills in one plunge. Otherwise each peck goes that much deeper, then:
   - **Full (clear chips)** rapids up to 2 mm (0.079") above the surface to clear chips, then rapids back down to 0.5 mm (0.02") above the bottom of the hole and continues.
@@ -69,7 +69,7 @@ A through cut frees the part, or the drop-out of an inner cut, on the last pass,
 
 ## Patterns
 
-Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole and Drill have no origin picker: the first hole is X0 Y0.)
+Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole's picker also offers its plunge hole, the default.)
 
 | Style | What it does |
 | --- | --- |
@@ -80,7 +80,7 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Dril
 
 ### Linear and Honeycomb at an angle
 
-Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Angle tab](#measuring-an-angle) to read the angle off the machine. At 0° the pattern runs along the machine axes, and the fields read *X Distance / Y Distance / X Count / Y Count*.
+Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Angle tab](#measuring-an-angle) to measure the angle on the machine. At 0° the pattern runs along the machine axes, and the fields read *X Distance / Y Distance / X Count / Y Count*.
 
 At any other angle the whole grid is turned about the first copy, and the fields change to:
 
@@ -97,14 +97,18 @@ Rectangles, polygons, and keyholes also get a **Rotate shapes with angle** switc
 
 ## Measuring an angle
 
-The **Angle** tab reads the live machine position from ncSender and shows the angle and distance from the current work origin to where the spindle is now. Use it to match a pattern to a line on the workpiece, such as an edge that isn't square to the machine. This can be helpful for patterns that don't align with the X or Y-axis.
+The **Angle** tab shows the angle and distance of a line from the work origin (X0 Y0) to a second point on it. Use it to match a pattern to a line on the workpiece, such as an edge that isn't square to the machine. This can be helpful for patterns that don't align with the X or Y-axis.
 
 1. Jog to a point on the line and zero X and Y in your work coordinate system.
-2. Jog to a second point further along the same line. Farther apart gives a more accurate angle.
+2. Set the **Second Point** further along the same line. Farther apart gives a more accurate angle. Either:
+   - jog to it and press **Grab Current**, which copies the machine's work X/Y into the **Work X** and **Work Y** fields; or
+   - type its work X/Y into those fields (units like `1in` or `25.4mm` are accepted, as in the other size fields).
+
+   The point only changes when you type or press **Grab Current**, so jogging afterwards doesn't change the angle.
 3. Read the **Angle** (counter-clockwise from +X, between −180° and 180°) and **Distance**.
 4. Press **Rectangle**, **Circle**, **Polygon**, **Keyhole**, or **Drill** under *Apply to Pattern*. That shape's pattern is turned on, set to Linear if it was Circular, and given the measured angle. If you came here from a pattern's **Measure** link, that shape's button is highlighted, and pressing it takes you back to the shape.
 
-The tab also shows the work, machine, and origin (WCO) X/Y so you can confirm what the angle was measured from. It updates about twice a second while it's open, and **Refresh** reads the position immediately.
+Below the result, **Live machine position** shows the current work, machine, and origin (WCO) X/Y. It updates about twice a second while the tab is open; it's for reference and doesn't change the angle. **Grab Current** reads a fresh position before copying it.
 
 ncSender reports positions in mm and assumes the controller does too (grblHAL `$13=0`). With `$13=1` the angle is still correct, but the distance and coordinates are not.
 

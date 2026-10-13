@@ -1267,7 +1267,7 @@ test('keyhole: slot follows startAngleDeg', () => {
 
 test('keyhole pattern: first hole at X0 Y0, every retract at its own hole', () => {
   const gcode = makeQuickCutGenerator(false).generateKeyholeProgram(keyholeBase({
-    origin: 'back-left',
+    origin: 'hole',
     pattern: { enabled: true, style: 'linear', xDist: 50, yDist: 0, xCount: 3, yCount: 1, angle: 36 }
   }));
   assert.match(gcode, /\(Instance 1\/3 at X0\.000 Y0\.000\)/);
@@ -1494,13 +1494,23 @@ test('drill short-retract peck only backs off to break the chip', () => {
   assert.match(gcode, /^G1 Z-10\.000 F150\nG4 P0\.5 ; Dwell\nG0 Z5\.000$/m);
 });
 
-test('drill pattern: first hole at X0 Y0, angled row', () => {
-  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
-    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 32, angle: 90 }
-  }));
-  const holes = [...gcode.matchAll(/^G0 X(-?[\d.]+) Y(-?[\d.]+)$/mg)].map(m => [+m[1], +m[2]]);
-  assert.deepEqual(holes, [[0, 0], [0, 32], [0, 64]]);
-  assert.equal((gcode.match(/^G1 Z-10\.000/mg) || []).length, 3);
+test('drill pattern: origin anchors the box around all the holes, as on Circle', () => {
+  const g = makeQuickCutGenerator(false);
+  const params = (origin) => drillBase({
+    origin, pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 32, angle: 90 }
+  });
+  const holes = (gcode) => [...gcode.matchAll(/^G0 X(-?[\d.]+) Y(-?[\d.]+)$/mg)].map(m => [+m[1], +m[2]]);
+  // A row along +Y, 32 apart. Center (the default) is the middle hole.
+  assert.deepEqual(holes(g.generateDrillProgram(params())), [[0, -32], [0, 0], [0, 32]]);
+  assert.match(g.generateDrillProgram(params()), /\(Origin: center\)/);
+  // Front-left is the corner of the holes' box, a hole radius (2.5) out.
+  assert.deepEqual(holes(g.generateDrillProgram(params('front-left'))), [[2.5, 2.5], [2.5, 34.5], [2.5, 66.5]]);
+  assert.equal((g.generateDrillProgram(params()).match(/^G1 Z-10\.000/mg) || []).length, 3);
+});
+
+test('a single drill hole at the center origin is at X0 Y0', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase());
+  assert.match(gcode, /^G0 X0\.000 Y0\.000$/m);
 });
 
 test('drill imperial scales clearance and back-off to inches', () => {
@@ -1568,4 +1578,36 @@ test('rounded rectangle tabs move off the corner arcs onto the sides', () => {
     // On a side: x or y sits on the 66 × 46 path's straight edges.
     assert.ok(Math.abs(Math.abs(m.x) - 33) < 0.01 || Math.abs(Math.abs(m.y) - 23) < 0.01, JSON.stringify(m));
   }
+});
+
+test('keyhole origin defaults to the plunge hole', () => {
+  const g = makeQuickCutGenerator(false);
+  const params = keyholeBase({ pattern: { enabled: true, style: 'linear', xDist: 50, yDist: 0, xCount: 2, yCount: 1 } });
+  assert.equal(g.generateKeyholeProgram(params), g.generateKeyholeProgram(Object.assign({}, params, { origin: 'hole' })));
+  assert.match(g.generateKeyholeProgram(params), /\(Origin: plunge hole center\)/);
+});
+
+test('keyhole origin anchors the bounding box of the cut footprint', () => {
+  const g = makeQuickCutGenerator(false);
+  // Head 9.5 (R 4.75), slot 10 toward +Y: one keyhole spans 9.5 × 19.5.
+  const extents = (origin, extra) => {
+    const moves = keyholeMoves(g.generateKeyholeProgram(keyholeBase(Object.assign({ origin }, extra))))
+      .filter(m => m.cmd === 'G1' && m.xy);
+    const xs = moves.map(m => m.x), ys = moves.map(m => m.y);
+    // Tool-center extents grown by the head radius = the cut footprint.
+    return { minX: Math.min(...xs) - 4.75, maxX: Math.max(...xs) + 4.75,
+             minY: Math.min(...ys) - 4.75, maxY: Math.max(...ys) + 4.75 };
+  };
+  const near = (a, b) => Math.abs(a - b) < 0.002;
+  const fl = extents('front-left');
+  assert.ok(near(fl.minX, 0) && near(fl.minY, 0) && near(fl.maxX, 9.5) && near(fl.maxY, 19.5), JSON.stringify(fl));
+  const c = extents('center');
+  assert.ok(near(c.minX, -4.75) && near(c.maxY, 9.75), JSON.stringify(c));
+  // Circular (Path Direction) turns each slot with its copy (90° + the
+  // copy's angle, so tangent to the circle here). The whole pattern's
+  // footprint is anchored, with no overhang past the corner: holes and
+  // slot ends all lie within ±30, so it spans 60 + 9.5.
+  const br = extents('back-right', { pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 30, startAngle: 0 } });
+  assert.ok(near(br.maxX, 0) && near(br.maxY, 0), JSON.stringify(br));
+  assert.ok(near(br.minX, -69.5) && near(br.minY, -69.5), JSON.stringify(br));
 });
