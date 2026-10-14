@@ -4841,6 +4841,7 @@
   // Tapping a hole makes it the Origin (see wireDrillForm); the layout
   // is kept in drillPreviewMap so the tap can be mapped back to a hole.
   var drillPreviewMap = null;
+  var DRILL_PREVIEW_MAX = 2500;
   function updateDrillPreview() {
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
@@ -4850,10 +4851,17 @@
     var pattern = readPatternForm('drl');
     var positions = gen.computePatternPositions(pattern);
     var keys = gen.patternPositionKeys(pattern);
+    // Past 50 x 50 the holes merge into a solid block and the SVG gets
+    // slow, so the preview just gives the count (Generate still works).
+    if (positions.length > DRILL_PREVIEW_MAX) {
+      drillPreviewMap = null;
+      svg.classList.remove('qc-preview-pickable');
+      svg.innerHTML =
+        '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + positions.length + ' holes</text>' +
+        '<text class="qc-shape-dim-label" x="0" y="8" text-anchor="middle">too many to show</text>';
+      return;
+    }
     var picked = gen.resolveDrillOrigin($('qc-drl-origin').value, pattern, positions, D);
-    // Huge grids would mean thousands of SVG nodes; the shape of the
-    // first part of the grid is enough for a preview.
-    positions = positions.slice(0, 1500);
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     positions.forEach(function(p) {
       minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
