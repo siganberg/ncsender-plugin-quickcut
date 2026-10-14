@@ -134,14 +134,14 @@ Feeds are always per minute, so per-second entries are multiplied by 60, and `/m
 
 ### Arrow keys
 
-With a keyboard, Up / Down Arrow steps any number field, with the same modifiers as Chrome DevTools. Steps are in the units shown (mm or inches):
+With a keyboard, Up / Down Arrow steps any number field, with modifiers like Chrome DevTools (except Ctrl, which is a fine 0.001 step instead of 100). Steps are in the units shown (mm or inches):
 
 | Keys | Step |
 | --- | --- |
 | Up / Down | 1 |
 | Shift + Up / Down | 10 |
 | Alt (Option) + Up / Down | 0.1 |
-| Ctrl (Command) + Up / Down | 100 |
+| Ctrl (Command) + Up / Down | 0.001 |
 
 Unit text such as `1/4"` is converted first, so Up turns it into 7.35 in metric. Count fields always step by at least 1. A step that would go below a field's minimum stops at it if it's a whole number (1 on counts, 0 on Peck Depth); otherwise the value stays put, so Down from 1 mm never lands on an odd minimum like 0.1 mm.
 

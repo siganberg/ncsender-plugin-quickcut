@@ -2930,8 +2930,9 @@
     }
     document.addEventListener('blur', onBlur, true);
   }
-  // Up / Down arrows step a numeric field, with Chrome DevTools'
-  // modifiers: plain 1, Shift 10, Alt (Option) 0.1, Ctrl (Command) 100,
+  // Up / Down arrows step a numeric field, like Chrome DevTools: plain
+  // 1, Shift 10, Alt (Option) 0.1, and Ctrl (Command) 0.001 (DevTools
+  // uses 100 there; a fine step is more useful for sizes),
   // in the field's display units. Unit text like 1/4" is converted
   // first. Whole-number fields step at least 1. A step never goes below
   // the field's minimum (see below); going over the maximum is left to
@@ -2945,7 +2946,7 @@
       if (!unitKind && el.type !== 'number') return;
       var current = unitKind ? parseUnitValue(el.value, state.isImperial, unitKind) : parseFloat(el.value);
       if (current == null || !isFinite(current)) current = 0;
-      var step = evt.ctrlKey || evt.metaKey ? 100 : (evt.shiftKey ? 10 : (evt.altKey ? 0.1 : 1));
+      var step = evt.ctrlKey || evt.metaKey ? 0.001 : (evt.shiftKey ? 10 : (evt.altKey ? 0.1 : 1));
       var rules = validationRules()[el.id] || {};
       if (rules.integer) step = Math.max(1, step);
       var next = current + (evt.key === 'ArrowUp' ? step : -step);
