@@ -704,6 +704,12 @@
   .qc-shape-preview-cell svg.qc-preview-pickable {
     cursor: pointer;
   }
+  /* Keyhole preview: drag to set the Slot Angle. touch-action keeps a
+     drag on the touchscreen from scrolling the dialog instead. */
+  #qc-key-preview {
+    cursor: grab;
+    touch-action: none;
+  }
   .qc-shape-preview-cell .qc-shape-inscribed {
     fill: none;
     stroke: currentColor;
@@ -1695,7 +1701,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-key-start-angle">Slot Angle (°)</label>
-                    <input class="qc-input" type="number" id="qc-key-start-angle" step="1" value="90" title="Direction the slot runs from the plunge hole, CCW from +X. 90° = toward the back (+Y).">
+                    <input class="qc-input" type="number" id="qc-key-start-angle" step="1" value="90" title="Direction the slot runs from the plunge hole, CCW from +X. 90° = toward the back (+Y). You can also drag the preview to turn the slot.">
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -4747,9 +4753,47 @@
       label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?'));
   }
 
+  // Dragging on the Keyhole preview sets the Slot Angle: the slot end
+  // follows the pointer around the preview center (the slot is drawn
+  // centered there). Whole degrees, snapping to the nearest multiple of
+  // 90 within KEY_ANGLE_SNAP degrees.
+  var KEY_ANGLE_SNAP = 8;
+  function wireKeyholeAngleDrag() {
+    var svg = $('qc-key-preview');
+    var input = $('qc-key-start-angle');
+    var dragging = false;
+    function setFromPointer(ev) {
+      var ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      var pt = svg.createSVGPoint();
+      pt.x = ev.clientX; pt.y = ev.clientY;
+      pt = pt.matrixTransform(ctm.inverse());
+      if (Math.hypot(pt.x, pt.y) < 3) return;
+      // SVG y points down; the Slot Angle is CCW from +X.
+      var deg = Math.atan2(-pt.y, pt.x) * 180 / Math.PI;
+      var right = Math.round(deg / 90) * 90;
+      deg = Math.abs(deg - right) <= KEY_ANGLE_SNAP ? right : Math.round(deg);
+      deg = ((deg % 360) + 360) % 360;
+      if (String(deg) === input.value) return;
+      input.value = deg;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    svg.addEventListener('pointerdown', function(ev) {
+      dragging = true;
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* synthetic events */ }
+      setFromPointer(ev);
+      ev.preventDefault();
+    });
+    svg.addEventListener('pointermove', function(ev) { if (dragging) setFromPointer(ev); });
+    function end() { dragging = false; }
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
+  }
+
   function wireKeyholeForm() {
     $('qc-key-length').addEventListener('input', updateKeyholePreview);
     $('qc-key-start-angle').addEventListener('input', updateKeyholePreview);
+    wireKeyholeAngleDrag();
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
