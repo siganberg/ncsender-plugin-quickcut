@@ -143,7 +143,7 @@ With a keyboard, Up / Down Arrow steps any number field, with the same modifiers
 | Alt (Option) + Up / Down | 0.1 |
 | Ctrl (Command) + Up / Down | 100 |
 
-Unit text such as `1/4"` is converted first, so Up turns it into 7.35 in metric. Count fields always step by at least 1, and no field steps below its minimum.
+Unit text such as `1/4"` is converted first, so Up turns it into 7.35 in metric. Count fields always step by at least 1. A step that would go below a field's minimum stops at it if it's a whole number (1 on counts, 0 on Peck Depth); otherwise the value stays put, so Down from 1 mm never lands on an odd minimum like 0.1 mm.
 
 ## Install
 

@@ -2933,9 +2933,9 @@
   // Up / Down arrows step a numeric field, with Chrome DevTools'
   // modifiers: plain 1, Shift 10, Alt (Option) 0.1, Ctrl (Command) 100,
   // in the field's display units. Unit text like 1/4" is converted
-  // first. Whole-number fields step at least 1, and a step stops at the
-  // field's minimum; going over the maximum is left to validation. The
-  // listener is on ROOT, so it goes away with the dialog.
+  // first. Whole-number fields step at least 1. A step never goes below
+  // the field's minimum (see below); going over the maximum is left to
+  // validation. The listener is on ROOT, so it goes away with the dialog.
   function wireArrowKeySteps() {
     ROOT.addEventListener('keydown', function(evt) {
       if (evt.key !== 'ArrowUp' && evt.key !== 'ArrowDown') return;
@@ -2949,8 +2949,15 @@
       var rules = validationRules()[el.id] || {};
       if (rules.integer) step = Math.max(1, step);
       var next = current + (evt.key === 'ArrowUp' ? step : -step);
+      // Below the minimum: stop at it only when it's a whole number
+      // (1 on counts, 0 on Peck Depth); otherwise don't move. Clamping
+      // to an odd minimum (0.01, 0.004) would knock the value off the
+      // step grid, so the next Up would give 1.01.
       var min = rules.min != null ? rules.min : parseFloat(el.min);
-      if (isFinite(min) && next < min) next = min;
+      if (isFinite(min) && next < min) {
+        if (!Number.isInteger(min)) { evt.preventDefault(); return; }
+        next = min;
+      }
       next = parseFloat(next.toFixed(state.isImperial ? 4 : 3));
       evt.preventDefault();
       if (String(next) === el.value) return;
