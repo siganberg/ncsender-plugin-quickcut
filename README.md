@@ -48,6 +48,7 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 Plunges a hole the size of the bit, or one at every position of a [pattern](#patterns): shelf-pin rows, threaded-insert grids, pilot holes.
 
 - **Origin** works as on Circle: the center (the default) puts a single hole at X0 Y0; with a pattern, each point is a corner, edge midpoint, or the center of the box around all the holes.
+- With a pattern you can also **tap a hole in the preview** to make that hole X0 Y0. It's filled in, the crosshair moves onto it, and the 9 dots go blank; tap a dot to go back. The hole is remembered by its column and row (or its number on a Circular pattern), so it stays the same hole when you change a count. If the pattern no longer has that hole, the origin falls back to the center.
 - Hole diameter is the **Bit Diameter**. Every Z move uses the **Plunge Rate**; Feed Rate isn't used and is greyed out on this tab.
 - **Peck Depth** 0 drills in one plunge. Otherwise each peck goes that much deeper, then:
   - **Full (clear chips)** rapids up to 2 mm (0.079") above the surface to clear chips, then rapids back down to 0.5 mm (0.02") above the bottom of the hole and continues.

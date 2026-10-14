@@ -1508,6 +1508,39 @@ test('drill pattern: origin anchors the box around all the holes, as on Circle',
   assert.equal((g.generateDrillProgram(params()).match(/^G1 Z-10\.000/mg) || []).length, 3);
 });
 
+test('drill origin on a picked hole: column/row for grids, copy number for circular', () => {
+  const g = makeQuickCutGenerator(false);
+  const holes = (gcode) => [...gcode.matchAll(/^G0 X(-?[\d.]+) Y(-?[\d.]+)$/mg)].map(m => [+m[1], +m[2]]);
+  const grid = (xCount, origin) => drillBase({
+    origin, pattern: { enabled: true, style: 'linear', xCount, yCount: 2, xDist: 10, yDist: 20 }
+  });
+  // Column 2, row 2 of a 3 x 2 grid becomes X0 Y0.
+  const gcode = g.generateDrillProgram(grid(3, 'hole:2,2'));
+  assert.deepEqual(holes(gcode), [[-10, -20], [0, -20], [10, -20], [-10, 0], [0, 0], [10, 0]]);
+  assert.match(gcode, /\(Origin: hole at column 2, row 2\)/);
+  // Adding a column keeps the same hole as the origin.
+  assert.deepEqual(holes(g.generateDrillProgram(grid(4, 'hole:2,2')))[5], [0, 0]);
+  // A hole the pattern no longer has falls back to center.
+  const gone = g.generateDrillProgram(grid(3, 'hole:5,1'));
+  assert.match(gone, /\(Origin: center \[picked hole not in pattern\]\)/);
+  assert.deepEqual(holes(gone), holes(g.generateDrillProgram(grid(3, 'center'))));
+  // Circular: hole 3 of 4 (at 180 degrees) is X0 Y0.
+  const circ = g.generateDrillProgram(drillBase({
+    origin: 'hole:3', pattern: { enabled: true, style: 'circular', count: 4, radius: 50 }
+  }));
+  assert.deepEqual(holes(circ)[2], [0, 0]);
+  assert.deepEqual(holes(circ)[0], [100, 0]);
+  assert.match(circ, /\(Origin: hole 3\)/);
+});
+
+test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
+  const g = makeQuickCutGenerator(false);
+  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
+  assert.deepEqual(g.patternPositionKeys(honey), ['1,1', '2,1', '3,1', '1,2', '2,2', '1,3', '2,3', '3,3']);
+  assert.equal(g.patternPositionKeys(honey).length, g.computePatternPositions(honey).length);
+  assert.deepEqual(g.patternPositionKeys({ enabled: false }), ['1,1']);
+});
+
 test('a single drill hole at the center origin is at X0 Y0', () => {
   const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase());
   assert.match(gcode, /^G0 X0\.000 Y0\.000$/m);

@@ -692,10 +692,17 @@
     stroke: var(--color-surface-muted, var(--color-surface));
     stroke-width: 1;
   }
-  /* Drill preview: a crosshair marks the Origin (X0 Y0). */
+  /* Drill preview: a crosshair marks the Origin (X0 Y0), and a hole
+     tapped to be the Origin is filled. */
   .qc-shape-preview-cell .qc-origin-mark {
     stroke: var(--color-accent);
     stroke-width: 1;
+  }
+  .qc-shape-preview-cell .qc-shape-fill.qc-hole-picked {
+    fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+  .qc-shape-preview-cell svg.qc-preview-pickable {
+    cursor: pointer;
   }
   .qc-shape-preview-cell .qc-shape-inscribed {
     fill: none;
@@ -1854,8 +1861,8 @@
                   </div>
                 </div>
                 <p class="qc-mode-hint">
-                  Hole diameter is the <strong>Bit Diameter</strong>. With a pattern, the Origin is a point of the box around all the holes.
-                  Every Z move uses the Plunge Rate; Feed Rate isn&rsquo;t used.
+                  Hole diameter is the <strong>Bit Diameter</strong>. With a pattern, the Origin is a point of the box around the holes, or tap a hole in the preview.
+                  Every Z move uses the Plunge Rate.
                 </p>
               </div>
               <div class="qc-shape-preview-cell">
@@ -4787,12 +4794,19 @@
   // Drill preview: plan view of every hole, to scale. Hole size is the
   // Bit Diameter and the spacing comes from the pattern, both scaled
   // together to fit the box. A crosshair marks the Origin (X0 Y0).
+  // Tapping a hole makes it the Origin (see wireDrillForm); the layout
+  // is kept in drillPreviewMap so the tap can be mapped back to a hole.
+  var drillPreviewMap = null;
   function updateDrillPreview() {
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
     var dia = num('qc-bit', 0);
     var D = dia > 0 ? dia : 1;
-    var positions = makeQuickCutGenerator(state.isImperial).computePatternPositions(readPatternForm('drl'));
+    var gen = makeQuickCutGenerator(state.isImperial);
+    var pattern = readPatternForm('drl');
+    var positions = gen.computePatternPositions(pattern);
+    var keys = gen.patternPositionKeys(pattern);
+    var picked = gen.resolveDrillOrigin($('qc-drl-origin').value, pattern, positions, D);
     // Huge grids would mean thousands of SVG nodes; the shape of the
     // first part of the grid is enough for a preview.
     positions = positions.slice(0, 1500);
@@ -4805,13 +4819,17 @@
     var scale = Math.min(76 / extent, 30 / D);
     var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     var r = Math.max(0.8, D * scale / 2);
-    var holes = positions.map(function(p) {
-      return '<circle class="qc-shape-fill" cx="' + ((p.x - cx) * scale).toFixed(2) +
+    var holes = positions.map(function(p, i) {
+      return '<circle class="qc-shape-fill' + (i === picked.index ? ' qc-hole-picked' : '') +
+             '" cx="' + ((p.x - cx) * scale).toFixed(2) +
              '" cy="' + (-(p.y - cy) * scale).toFixed(2) + '" r="' + r.toFixed(2) + '"/>';
     }).join('');
+    drillPreviewMap = positions.length > 1
+      ? { positions: positions, keys: keys, cx: cx, cy: cy, scale: scale, r: r }
+      : null;
+    svg.classList.toggle('qc-preview-pickable', !!drillPreviewMap);
     // X0 Y0 sits at -shift in pattern coordinates.
-    var gen = makeQuickCutGenerator(state.isImperial);
-    var shift = gen.computePatternAnchorShift($('qc-drl-origin').value, positions, { minX: -D / 2, maxX: D / 2, minY: -D / 2, maxY: D / 2 });
+    var shift = picked.shift;
     var ox = (-shift.x - cx) * scale, oy = (shift.y + cy) * scale, arm = r + 4;
     var origin = '<path class="qc-origin-mark" d="M' + (ox - arm).toFixed(2) + ',' + oy.toFixed(2) +
                  ' H' + (ox + arm).toFixed(2) + ' M' + ox.toFixed(2) + ',' + (oy - arm).toFixed(2) +
@@ -4838,6 +4856,25 @@
     $('qc-drl-pattern-body').addEventListener('change', updateDrillPreview);
     // The crosshair follows the Origin picker.
     $('qc-drl-origin').addEventListener('change', updateDrillPreview);
+    // Tapping the preview makes the nearest hole the Origin. Holes in a
+    // big grid are tiny, so anything within a few px of one counts.
+    $('qc-drl-preview').addEventListener('click', function(ev) {
+      var map = drillPreviewMap;
+      var ctm = this.getScreenCTM();
+      if (!map || !ctm) return;
+      var pt = this.createSVGPoint();
+      pt.x = ev.clientX; pt.y = ev.clientY;
+      pt = pt.matrixTransform(ctm.inverse());
+      var best = -1, bestD = Math.max(map.r * 1.5, 6);
+      for (var i = 0; i < map.positions.length; i++) {
+        var d = Math.hypot((map.positions[i].x - map.cx) * map.scale - pt.x,
+                           -(map.positions[i].y - map.cy) * map.scale - pt.y);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      if (best < 0) return;
+      setOriginPickerValue('qc-drl-origin', 'hole:' + map.keys[best]);
+      updateDrillPreview();
+    });
     updateDrillPreview();
     updatePatternVisibility('drl');
 
@@ -5425,6 +5462,65 @@
         return positions;
       }
       return [{ x: 0, y: 0, rotDeg: 0 }];
+    }
+
+    // A stable name for each pattern position, in the same order as
+    // computePatternPositions: "column,row" (1-based) for Linear and
+    // Honeycomb, where Honeycomb's shifted rows are the even rows, and
+    // the copy number for Circular. Unlike a plain index, a column/row
+    // name keeps naming the same hole when a count changes.
+    function patternPositionKeys(pattern) {
+      if (!pattern || !pattern.enabled) return ['1,1'];
+      var keys = [];
+      if (pattern.style === 'linear' || pattern.style === 'honeycomb') {
+        var xCount = Math.max(1, Math.floor(pattern.xCount || 1));
+        var yCount = Math.max(1, Math.floor(pattern.yCount || 1));
+        var isHoney = pattern.style === 'honeycomb';
+        var shiftedCount = isHoney && pattern.hexTrim ? Math.max(0, xCount - 1) : xCount;
+        for (var j = 0; j < yCount; j++) {
+          var row = isHoney ? 2 * j + 1 : j + 1;
+          for (var i = 0; i < xCount; i++) keys.push((i + 1) + ',' + row);
+          if (isHoney && j < yCount - 1) {
+            for (var k = 0; k < shiftedCount; k++) keys.push((k + 1) + ',' + (row + 1));
+          }
+        }
+        return keys;
+      }
+      if (pattern.style === 'circular' || pattern.style === 'circular-follow') {
+        var count = Math.max(1, Math.floor(pattern.count || 1));
+        for (var c = 0; c < count; c++) keys.push(String(c + 1));
+        return keys;
+      }
+      return ['1,1'];
+    }
+
+    // Drill origin: one of the nine bbox points, or "hole:<key>" to put
+    // X0 Y0 on that hole's center (picked by clicking the preview). A
+    // hole the pattern no longer has falls back to center.
+    function resolveDrillOrigin(origin, pattern, positions, bitDiameter) {
+      origin = origin || 'center';
+      var note = '';
+      var m = /^hole:(.+)$/.exec(origin);
+      if (m) {
+        var idx = patternPositionKeys(pattern).indexOf(m[1]);
+        if (idx >= 0 && idx < positions.length) {
+          var parts = m[1].split(',');
+          return {
+            shift: { x: -positions[idx].x, y: -positions[idx].y },
+            index: idx,
+            label: parts.length === 2
+              ? 'hole at column ' + parts[0] + ', row ' + parts[1]
+              : 'hole ' + parts[0]
+          };
+        }
+        origin = 'center';
+        note = ' (picked hole not in pattern)';
+      }
+      return {
+        shift: computePatternAnchorShift(origin, positions, circleShapeBbox({ diameter: bitDiameter || 0 })),
+        index: -1,
+        label: origin + note
+      };
     }
 
     // Axis-aligned extents of a shape bbox after rotating it by `deg`
@@ -6955,10 +7051,12 @@
       var peck = params.peckDepth > 0 && params.peckDepth < params.depth ? params.peckDepth : 0;
       var mode = params.peckMode === 'break' ? 'break' : 'clear';
 
+      var origin = resolveDrillOrigin(params.origin, params.pattern, positions, params.bitDiameter);
+
       var extras = [
         'Depth: ' + params.depth + unitsLabel,
         'Peck: ' + (peck ? peck + unitsLabel + ', ' + (mode === 'break' ? 'short retract' : 'full retract') : 'none'),
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + origin.label
       ];
       if (params.dwell > 0) extras.push('Dwell: ' + params.dwell + 's');
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
@@ -6976,8 +7074,7 @@
 
       lines.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions,
-                                            circleShapeBbox({ diameter: params.bitDiameter || 0 }));
+      var shift = origin.shift;
       for (var p = 0; p < positions.length; p++) {
         var mx = positions[p].x + shift.x;
         var my = positions[p].y + shift.y;
@@ -7028,7 +7125,9 @@
       generateDrillProgram: generateDrillProgram,
       computePatternPositions: computePatternPositions,
       computePatternAnchorShift: computePatternAnchorShift,
-      tabIntervals: tabIntervals
+      tabIntervals: tabIntervals,
+      patternPositionKeys: patternPositionKeys,
+      resolveDrillOrigin: resolveDrillOrigin
     };
   }
 
