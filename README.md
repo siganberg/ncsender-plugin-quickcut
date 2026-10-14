@@ -132,6 +132,19 @@ Size, depth, distance, and feed fields accept a unit. When you leave the field, 
 
 Feeds are always per minute, so per-second entries are multiplied by 60, and `/m` means per minute. A number with no unit is taken to be in the current units already. Text that can't be read is left as typed, and the field shows a "must be a number" warning. Counts, angles, RPM, and percentages are plain numbers.
 
+### Arrow keys
+
+With a keyboard, Up / Down Arrow steps any number field, with the same modifiers as Chrome DevTools. Steps are in the units shown (mm or inches):
+
+| Keys | Step |
+| --- | --- |
+| Up / Down | 1 |
+| Shift + Up / Down | 10 |
+| Alt (Option) + Up / Down | 0.1 |
+| Ctrl (Command) + Up / Down | 100 |
+
+Unit text such as `1/4"` is converted first, so Up turns it into 7.35 in metric. Count fields always step by at least 1, and no field steps below its minimum.
+
 ## Install
 
 Install via ncSender's Plugin Manager, or drop the release zip into `~/Library/Application Support/ncSender/plugins/com.ncsender.quickcut/`.
