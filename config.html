@@ -232,7 +232,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--qc-section-gap);
-    padding: 15px 20px var(--qc-section-gap);
+    /* Half the section gap here and half at the top of the panel, so
+       the header cards sit one section gap (plus the divider) from the
+       first card, the same as card to card. */
+    padding: 15px 20px calc(var(--qc-section-gap) / 2);
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
   }
@@ -345,7 +348,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--qc-section-gap);
-    padding: var(--qc-section-gap) 20px 20px;
+    padding: calc(var(--qc-section-gap) / 2) 20px 20px;
   }
   /* Forms inside the panel need the same column-gap so cards stacked
      inside them get the same breathing room as direct panel children.
