@@ -42,7 +42,7 @@
       var(--color-surface-muted) 100%);
     border-radius: var(--radius-medium) 0 0 var(--radius-medium);
     padding: 22px 14px 14px;
-    overflow-y: auto;
+    overflow: hidden;
   }
   .qc-sidebar-header {
     display: flex;
@@ -98,6 +98,11 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    /* On a short window the tab list scrolls, so Help and Close stay
+       pinned at the bottom. */
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
   }
   .qc-nav-btn {
     -webkit-appearance: none;
@@ -182,7 +187,46 @@
     padding-top: 14px;
     border-top: 1px solid var(--color-border);
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  /* Help sits above Close, styled like a tab. */
+  .qc-sidebar-footer .qc-help-btn { width: 100%; }
+
+  /* Help page: one card per topic. */
+  .qc-help-card ul {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .qc-help-card li,
+  .qc-help-card p {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+  /* Field tips: the field name, then its tooltip text. */
+  .qc-help-tips {
+    display: grid;
+    grid-template-columns: minmax(110px, max-content) 1fr;
+    gap: 6px 14px;
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .qc-help-tips dt { font-weight: 600; color: var(--color-text-primary); }
+  .qc-help-tips dd { margin: 0; color: var(--color-text-primary); }
+  .qc-help-card kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8em;
+    padding: 1px 5px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface);
   }
   .qc-close-btn {
     -webkit-appearance: none;
@@ -1105,6 +1149,10 @@
         </button>
       </nav>
       <div class="qc-sidebar-footer">
+        <button type="button" class="qc-nav-btn qc-help-btn" id="qc-help-btn" title="More about this tab's settings">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.2-2.4 3.6"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg></span>
+          <span class="qc-nav-label">Help</span>
+        </button>
         <button type="button" class="qc-close-btn" id="qc-close-btn">Close</button>
       </div>
     </aside>
@@ -2308,6 +2356,21 @@
         <button type="button" class="qc-primary-btn" id="qc-meas-use">Use Angle</button>
       </div>
     </section>
+
+    <!-- Help: reached from the sidebar's Help button. Shows help for the
+         tab it was opened from (renderHelp) and Back returns there. -->
+    <section class="qc-content" data-view="help">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Help<span id="qc-help-for"></span></h2>
+          <p class="qc-panel-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</p>
+        </div>
+      </header>
+      <div class="qc-panel" id="qc-help-body"></div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-help-back">Back</button>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -2390,6 +2453,7 @@
     wireHoldingTabs('circ', updateCirclePreview);
     wireHoldingTabs('poly', updatePolygonPreview);
     wireMeasureTab();
+    wireHelp();
     wireCloseButton();
   }
 
@@ -2404,7 +2468,7 @@
   // link: the measure view has no sidebar button, so the button of the
   // shape it was opened from stays highlighted.
   function switchTab(target) {
-    var btns = document.querySelectorAll('.qc-nav-btn');
+    var btns = document.querySelectorAll('.qc-nav-btn[data-tab]');
     var panels = document.querySelectorAll('.qc-content');
     // Snapshot the current tab's tool inputs BEFORE we swap the DOM
     // over to the new tab — otherwise the new tab would inherit the
@@ -2415,6 +2479,8 @@
     if (target !== 'measure') {
       btns.forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-tab') === target); });
     }
+    var helpBtn = $('qc-help-btn');
+    if (helpBtn) helpBtn.classList.toggle('active', target === 'help');
     panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
     relocateCommonCards(target);
     // Load the new tab's tool values into the (now-relocated) inputs.
@@ -2429,6 +2495,9 @@
       return;
     }
     stopMeasurePolling();
+    // Help opened from the measure page goes back to it, so keep where
+    // the measure page returns to. Help is never the remembered tab.
+    if (target === 'help') return;
     measure.returnTo = null;
     // Remember which tab the operator was on so the next dialog open
     // lands on it (never the measure view, which needs a shape to
@@ -2438,7 +2507,7 @@
   }
 
   function wireTabs() {
-    var btns = document.querySelectorAll('.qc-nav-btn');
+    var btns = document.querySelectorAll('.qc-nav-btn[data-tab]');
     btns.forEach(function(btn) {
       btn.addEventListener('click', function() { switchTab(btn.getAttribute('data-tab')); });
     });
@@ -2469,7 +2538,7 @@
     var saveToggle = $('qc-save-toggle');
     if (saveToggle) header.appendChild(saveToggle);
     // The measure page generates no g-code, so Tool / Spindle / Save don't apply.
-    var noCommon = view === 'measure';
+    var noCommon = view === 'measure' || view === 'help';
     cards.style.display = noCommon ? 'none' : '';
     if (saveToggle) saveToggle.style.display = noCommon ? 'none' : '';
     // Drilling only moves in Z, at the Plunge Rate.
@@ -5237,6 +5306,176 @@
   //     from the tool menu (later ones are partial deltas, so merge).
   //   - polling /api/server-state while this tab is open covers the
   //     Plugins-tab iframe, which never receives those messages.
+  // ---------- Help ----------
+  //
+  // The sidebar's Help button opens help for the tab you're on. Each
+  // tab gets a few hand-written notes (HELP_TOPICS) and then the hover
+  // tooltips of its fields, read from the page itself (collectHelpTips)
+  // so they can't drift from what a mouse user sees. Touch users never
+  // see those tooltips otherwise. Shared topics follow.
+  // Keep HELP_TOPICS in step with the README when a feature changes.
+  var help = { returnTo: null };
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies.';
+  var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
+  var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
+  var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
+  var HELP_TOPICS = {
+    rectangle: { name: 'Rectangle', notes: [
+      '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
+      HELP_CUT_TYPES,
+      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius.',
+      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+    circle: { name: 'Circle', notes: [
+      '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
+      HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+    polygon: { name: 'Polygon', notes: [
+      '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon.',
+      HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+    keyhole: { name: 'Keyhole', notes: [
+      'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
+      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot; it snaps to 0, 90, 180 and 270&deg; when close.',
+      'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
+      'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
+    drill: { name: 'Drill', notes: [
+      'Holes the size of the <strong>Bit Diameter</strong>. Every move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
+      '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
+      'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.' ] },
+    planer: { name: 'Planer', notes: [
+      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it.',
+      '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
+      '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.' ] },
+    jointer: { name: 'Jointer', notes: [
+      'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong>Number of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
+      'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work.',
+      HELP_DEPTH ] },
+    cutter: { name: 'Cutter', notes: [
+      'A parting cut: one line <strong>Target Size</strong> in from the chosen edge, so what you keep is that size (the bit radius is allowed for). Tap an edge in the preview to choose it; X0 Y0 is on that edge.',
+      'The tool feeds <strong>Cutting Length</strong> along <strong>Cut Axis</strong>. ' + HELP_DEPTH,
+      '<strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine.' ] },
+    measure: { name: 'Measure Pattern Angle', notes: [
+      'Zero X and Y on a point on the line you want to follow. Then type the work coordinates of a second point on the same line, or jog there and press <strong>Grab Current</strong>.',
+      'The angle only changes when you type or grab, so jogging afterwards won&rsquo;t change it. The point is remembered for next time.',
+      '<strong>Use</strong> puts the angle into the pattern you came from; <strong>Back</strong> returns without changing it.' ] }
+  };
+  var HELP_SHARED = {
+    pattern: { title: 'Patterns', notes: [
+      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
+      '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
+      '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
+      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.' ] },
+    tool: { title: 'Tool, spindle, and saving', notes: [
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      'Each tab remembers its own tool settings, and the values you last generated with.',
+      '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.' ] },
+    units: { title: 'Typing units', notes: [
+      'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
+      'With a keyboard, <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> step a number by 1, with <kbd>Shift</kbd> 10, <kbd>Alt</kbd> 0.1, and <kbd>Ctrl</kbd> 0.001.' ] }
+  };
+
+  function helpEscape(t) {
+    return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Name for an element that has a tooltip: its label, the switch's
+  // text, or the card it sits in.
+  function helpTipName(el, cardTitle) {
+    var text = function(node) {
+      var c = node.cloneNode(true);
+      c.querySelectorAll('a, .qc-switch, input, select').forEach(function(x) { x.remove(); });
+      return c.textContent.replace(/\s+/g, ' ').trim();
+    };
+    if (el.matches('.qc-measure-link')) return 'Measure';
+    if (el.id) {
+      var lab = document.querySelector('label[for="' + el.id + '"]');
+      if (lab && text(lab)) return text(lab);
+    }
+    if (el.tagName === 'LABEL' && text(el)) return text(el);
+    var field = el.closest('.qc-field');
+    var fl = field && field.querySelector('label');
+    if (fl && text(fl)) return text(fl);
+    return cardTitle + ' switch';
+  }
+
+  // The tooltips in one part of the page, grouped by card. Skips the
+  // generic "Accepts 1/4" ..." unit hints (covered by Typing units) and
+  // the pattern labels' angle-dependent tooltips.
+  function collectHelpTips(root) {
+    var groups = [];
+    var cards = root.querySelectorAll('.qc-card, .qc-header-card');
+    var common = $('qc-common-cards');
+    cards.forEach(function(card) {
+      // The shared Tool / Spindle cards are moved into whichever tab is
+      // showing; they get their own topic, so skip them here.
+      if (root !== common && common && common.contains(card)) return;
+      var titleEl = card.querySelector('.qc-card-title, .qc-header-card-title');
+      var title = titleEl ? titleEl.textContent.trim() : '';
+      var seen = {}, tips = [];
+      card.querySelectorAll('[title]').forEach(function(el) {
+        var tip = el.getAttribute('title');
+        if (!tip || /^Accepts /.test(tip) || el.hasAttribute('data-pattern-label')) return;
+        var name = helpTipName(el, title);
+        if (seen[name + tip]) return;
+        seen[name + tip] = true;
+        tips.push({ name: name, tip: tip });
+      });
+      if (tips.length) groups.push({ title: title, tips: tips });
+    });
+    return groups;
+  }
+
+  function helpCard(title, inner) {
+    return '<div class="qc-card qc-section-card qc-help-card"><h3 class="qc-card-title">' + title + '</h3>' + inner + '</div>';
+  }
+  function helpNotes(notes) {
+    return '<ul>' + notes.map(function(n) { return '<li>' + n + '</li>'; }).join('') + '</ul>';
+  }
+  function helpTips(tips) {
+    return '<dl class="qc-help-tips">' + tips.map(function(t) {
+      return '<dt>' + helpEscape(t.name) + '</dt><dd>' + helpEscape(t.tip) + '</dd>';
+    }).join('') + '</dl>';
+  }
+
+  function renderHelp(tab) {
+    var topic = HELP_TOPICS[tab] || HELP_TOPICS.rectangle;
+    var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
+    var html = helpCard(topic.name, helpNotes(topic.notes));
+    if (section) {
+      collectHelpTips(section).forEach(function(g) {
+        html += helpCard(helpEscape(g.title) + ' &mdash; field tips', helpTips(g.tips));
+      });
+    }
+    var hasPattern = section && section.querySelector('.qc-pattern-body');
+    if (hasPattern) html += helpCard(HELP_SHARED.pattern.title, helpNotes(HELP_SHARED.pattern.notes));
+    if (tab !== 'measure') {
+      var common = collectHelpTips($('qc-common-cards'));
+      var save = $('qc-save-toggle');
+      var toolTips = [];
+      common.forEach(function(g) { toolTips = toolTips.concat(g.tips); });
+      if (save && save.title) toolTips.push({ name: 'Save to File Manager', tip: save.title });
+      html += helpCard(HELP_SHARED.tool.title, helpNotes(HELP_SHARED.tool.notes) + (toolTips.length ? helpTips(toolTips) : ''));
+    }
+    html += helpCard(HELP_SHARED.units.title, helpNotes(HELP_SHARED.units.notes));
+    $('qc-help-body').innerHTML = html;
+    $('qc-help-for').textContent = ' — ' + topic.name;
+  }
+
+  function openHelp() {
+    if (state.currentTab === 'help') return;
+    help.returnTo = state.currentTab;
+    // Rendered before switching, while the tab's own tooltips (e.g.
+    // Feed Rate on Drill) are still set for it.
+    renderHelp(help.returnTo);
+    switchTab('help');
+    $('qc-help-body').scrollTop = 0;
+  }
+  function closeHelp() {
+    switchTab(help.returnTo || 'rectangle');
+  }
+  function wireHelp() {
+    $('qc-help-btn').addEventListener('click', openHelp);
+    $('qc-help-back').addEventListener('click', closeHelp);
+  }
+
   var measure = { machine: {}, timer: null, angleDeg: null, returnTo: null };
   var MEASURE_POLL_MS = 500;
 
