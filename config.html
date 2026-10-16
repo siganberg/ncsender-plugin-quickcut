@@ -6,6 +6,10 @@
   .plugin-dialog-content { padding: 0 !important; }
 
   .qc-wrapper {
+    /* One spacing step between sections: title to header cards, header
+       cards to the header's edge, header to the first card, and card to
+       card. */
+    --qc-section-gap: 12px;
     width: 953px;
     max-width: 95vw;
     height: 85vh;
@@ -227,8 +231,8 @@
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 15px 20px;
+    gap: var(--qc-section-gap);
+    padding: 15px 20px var(--qc-section-gap);
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
   }
@@ -314,7 +318,7 @@
   .qc-header-cards {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 12px;
+    gap: var(--qc-section-gap);
   }
   .qc-header-card {
     display: flex;
@@ -340,8 +344,8 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--gap-lg, 16px);
-    padding: 15px 20px 20px;
+    gap: var(--qc-section-gap);
+    padding: var(--qc-section-gap) 20px 20px;
   }
   /* Forms inside the panel need the same column-gap so cards stacked
      inside them get the same breathing room as direct panel children.
@@ -350,19 +354,36 @@
   .qc-panel form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--qc-section-gap);
   }
 
   .qc-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-medium);
-    padding: var(--gap-md, 14px);
+    /* Same padding as the header cards. */
+    padding: 12px 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
     gap: 12px;
     min-width: 0;
+  }
+  /* Section cards in the scrolling panel take the header cards' muted
+     background, so white inputs stand out against them the same way.
+     Things that are muted on a plain card (previews, origin pickers,
+     the unit badge, label halos) flip to the surface colour so they
+     still read as separate from the card. */
+  .qc-section-card { background: var(--color-surface-muted); }
+  .qc-section-card .qc-shape-preview-cell,
+  .qc-section-card .qc-origin-grid,
+  .qc-section-card .qc-origin-point.qc-origin-hole,
+  .qc-section-card .qc-unit-badge {
+    background: var(--color-surface);
+  }
+  .qc-section-card .qc-shape-preview-cell .qc-tab-mark,
+  .qc-section-card .qc-shape-preview-cell .qc-shape-dim-label {
+    stroke: var(--color-surface);
   }
   .qc-wrapper *, .qc-wrapper *::before, .qc-wrapper *::after {
     box-sizing: border-box;
@@ -1159,7 +1180,7 @@
 
       <div class="qc-panel">
         <form id="qc-rect-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -1204,7 +1225,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Depth</h3>
             <div class="qc-row-2">
               <div class="qc-field">
@@ -1241,7 +1262,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
               <label class="qc-switch" title="Repeat this shape">
@@ -1348,7 +1369,7 @@
 
       <div class="qc-panel">
         <form id="qc-circ-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -1383,7 +1404,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Depth</h3>
             <div class="qc-row-2">
               <div class="qc-field">
@@ -1420,7 +1441,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
               <label class="qc-switch" title="Repeat this shape">
@@ -1521,7 +1542,7 @@
 
       <div class="qc-panel">
         <form id="qc-poly-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -1566,7 +1587,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Depth</h3>
             <div class="qc-row-2">
               <div class="qc-field">
@@ -1603,7 +1624,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
               <label class="qc-switch" title="Repeat this shape">
@@ -1710,7 +1731,7 @@
 
       <div class="qc-panel">
         <form id="qc-key-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Slot</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -1741,7 +1762,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Depth</h3>
             <div class="qc-row-2">
               <div class="qc-field">
@@ -1752,7 +1773,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
               <label class="qc-switch" title="Repeat this shape">
@@ -1858,7 +1879,7 @@
 
       <div class="qc-panel">
         <form id="qc-drl-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Hole</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -1902,7 +1923,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
               <label class="qc-switch" title="Repeat this hole">
@@ -1999,7 +2020,7 @@
 
       <div class="qc-panel">
         <form id="qc-plan-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Region</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -2057,7 +2078,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title" id="qc-plan-depth-title">Depth</h3>
             <div class="qc-row-2">
               <div class="qc-field">
@@ -2087,7 +2108,7 @@
 
       <div class="qc-panel">
         <form id="qc-join-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Trim</h3>
             <div class="qc-shape-grid">
               <div class="qc-shape-fields">
@@ -2136,7 +2157,7 @@
             </div>
           </div>
 
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Depth</h3>
             <div class="qc-row-2">
               <div class="qc-field">
@@ -2166,7 +2187,7 @@
 
       <div class="qc-panel">
         <form id="qc-cut-form" onsubmit="return false">
-          <div class="qc-card">
+          <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Cut</h3>
             <div class="qc-cut-grid">
               <div class="qc-shape-fields">
@@ -2251,7 +2272,7 @@
           </p>
         </div>
 
-        <div class="qc-card">
+        <div class="qc-card qc-section-card">
           <h3 class="qc-card-title">Measurement</h3>
           <div class="qc-measure-result">
             <div class="qc-measure-big">
