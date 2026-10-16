@@ -28,7 +28,7 @@ Every shape can be repeated with a [pattern](#patterns). Rectangle, Circle, and 
 - Unit entry — type `.25in`, `1/4"`, or `6.35mm` into size and feed fields; see [Typing units](#typing-units)
 - Measure pattern angle — the **Measure** link on a Linear/Honeycomb pattern measures the angle of a line on the workpiece, from a point typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
-- Help — the **Help** button at the bottom of the sidebar explains the tab you're on, including the tips that otherwise only show when you hover over a field with a mouse (so touchscreen users can read them too). **Back** returns to the tab with everything as you left it.
+- Help — the **Help** button at the bottom of the sidebar explains the tab you're on, including the tips that otherwise only show when you hover over a field with a mouse (so touchscreen users can read them too). **Back** returns to the tab with everything as you left it. It ends with links to the matching sections of the [ncSender manual's QuickCut page](https://docs.ncsender.xyz/plugins/quickcut/).
 
 ## Keyhole
 

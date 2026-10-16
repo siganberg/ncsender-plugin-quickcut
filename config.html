@@ -220,6 +220,7 @@
   }
   .qc-help-tips dt { font-weight: 600; color: var(--color-text-primary); }
   .qc-help-tips dd { margin: 0; color: var(--color-text-primary); }
+  .qc-help-card a { color: var(--color-accent); overflow-wrap: anywhere; }
   .qc-help-card kbd {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.8em;
@@ -5321,39 +5322,39 @@
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
-    rectangle: { name: 'Rectangle', notes: [
+    rectangle: { doc: 'shapes-rectangle-circle-polygon', name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
-    circle: { name: 'Circle', notes: [
+    circle: { doc: 'shapes-rectangle-circle-polygon', name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
-    polygon: { name: 'Polygon', notes: [
+    polygon: { doc: 'shapes-rectangle-circle-polygon', name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
-    keyhole: { name: 'Keyhole', notes: [
+    keyhole: { doc: '', name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot; it snaps to 0, 90, 180 and 270&deg; when close.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
-    drill: { name: 'Drill', notes: [
+    drill: { doc: '', name: 'Drill', notes: [
       'Holes the size of the <strong>Bit Diameter</strong>. Every move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
       'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.' ] },
-    planer: { name: 'Planer', notes: [
+    planer: { doc: 'planer', name: 'Planer', notes: [
       '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.' ] },
-    jointer: { name: 'Jointer', notes: [
+    jointer: { doc: 'jointer', name: 'Jointer', notes: [
       'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong>Number of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
       'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work.',
       HELP_DEPTH ] },
-    cutter: { name: 'Cutter', notes: [
+    cutter: { doc: 'cutter', name: 'Cutter', notes: [
       'A parting cut: one line <strong>Target Size</strong> in from the chosen edge, so what you keep is that size (the bit radius is allowed for). Tap an edge in the preview to choose it; X0 Y0 is on that edge.',
       'The tool feeds <strong>Cutting Length</strong> along <strong>Cut Axis</strong>. ' + HELP_DEPTH,
       '<strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine.' ] },
-    measure: { name: 'Measure Pattern Angle', notes: [
+    measure: { doc: '', name: 'Measure Pattern Angle', notes: [
       'Zero X and Y on a point on the line you want to follow. Then type the work coordinates of a second point on the same line, or jog there and press <strong>Grab Current</strong>.',
       'The angle only changes when you type or grab, so jogging afterwards won&rsquo;t change it. The point is remembered for next time.',
       '<strong>Use</strong> puts the angle into the pattern you came from; <strong>Back</strong> returns without changing it.' ] }
@@ -5372,6 +5373,11 @@
       'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
       'With a keyboard, <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> step a number by 1, with <kbd>Shift</kbd> 10, <kbd>Alt</kbd> 0.1, and <kbd>Ctrl</kbd> 0.001.' ] }
   };
+
+  // The ncSender manual's QuickCut page has the long version. Anchors are
+  // its MkDocs heading ids ('' = top of the page, for tabs it doesn't
+  // cover yet); one that's missing just opens the top.
+  var HELP_DOCS = 'https://docs.ncsender.xyz/plugins/quickcut/';
 
   function helpEscape(t) {
     return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -5456,6 +5462,20 @@
       html += helpCard(HELP_SHARED.tool.title, helpNotes(HELP_SHARED.tool.notes) + (toolTips.length ? helpTips(toolTips) : ''));
     }
     html += helpCard(HELP_SHARED.units.title, helpNotes(HELP_SHARED.units.notes));
+    // Links to the manual for this tab. The full URL is shown as text
+    // too, so it can be typed on another device (e.g. from a kiosk
+    // screen with no browser).
+    var links = [[topic.name, topic.doc]];
+    if (hasPattern) links.push(['Patterns', 'pattern']);
+    if (tab !== 'measure') links.push(['Settings on every tab', 'settings-on-every-tab']);
+    var seenLink = {};
+    var items = links.filter(function(l) {
+      var key = l[1] || 'top'; if (seenLink[key]) return false; seenLink[key] = true; return true;
+    }).map(function(l) {
+      var url = HELP_DOCS + (l[1] ? '#' + l[1] : '');
+      return '<li>' + helpEscape(l[0]) + ': <a href="' + url + '" target="_blank" rel="noopener">' + url + '</a></li>';
+    });
+    html += helpCard('More detail', '<p>The QuickCut page of the ncSender manual explains more:</p><ul>' + items.join('') + '</ul>');
     $('qc-help-body').innerHTML = html;
     $('qc-help-for').textContent = ' — ' + topic.name;
   }
