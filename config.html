@@ -4377,14 +4377,17 @@
     // The corner you'll get: an inner cut can't be tighter than the bit.
     var CR = previewCornerRadius(num('qc-rect-corner', 0), cutType);
 
-    // Rectangle is drawn at a FIXED size regardless of the user's
-    // Width/Height values — the preview's job is to communicate
-    // where the WASTE lives (inside vs. outside) and how the arrows
-    // relate to Width/Height, not to be an accurate scale drawing.
-    // Dim labels still show the real numeric values. The corner radius
-    // is drawn in proportion to the shorter side, and the Start Angle
-    // turns the whole drawing (CCW, like the machine).
-    var w = 76, h = 46;
+    // Drawn to the shape's proportions, fitted into the box with room for
+    // the dimension arrows (at most 76 wide by 60 tall, or an 80 diagonal
+    // when turned, so every corner stays inside). A side never goes below
+    // 14, so very thin rectangles still show their arrows. The corner
+    // radius is drawn in proportion too, and the Start Angle turns the
+    // whole drawing (CCW, like the machine). Dim labels show the real
+    // values.
+    var aspect = W > 0 && H > 0 ? W / H : 76 / 46;
+    var fit = Math.min(76 / aspect, 60);
+    if (turn % 180) fit = Math.min(fit, 80 / Math.hypot(aspect, 1));
+    var w = Math.max(14, aspect * fit), h = Math.max(14, fit);
     var shortSide = Math.min(W, H);
     var cr = CR > 0 && shortSide > 0 ? Math.min(CR / shortSide * Math.min(w, h), Math.min(w, h) / 2) : 0;
     var centerY = 0;
