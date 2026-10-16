@@ -1691,6 +1691,35 @@ test('inner corners tighter than the bit say what the bit leaves, outer ones do 
   assert.equal(strip(rect({ cutType: 'inner', cornerRadius: 2 })), strip(rect({ cutType: 'inner', cornerRadius: 0 })));
 });
 
+test('origin on a picked corner or the polygon center', () => {
+  const g = makeQuickCutGenerator(false);
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  // Rectangle 50 x 30, Outer, bit 6: corner 1 (front-left) at X0 Y0 puts
+  // the tool path's corner 3 out on both axes, like the front-left dot.
+  const rect = (o) => g.generateRectangleProgram(baseParams(Object.assign({ width: 50, height: 30, cutType: 'outer', bitDiameter: 6 }, o)));
+  assert.deepEqual(xy(rect({ origin: 'corner:1' })), xy(rect({ origin: 'front-left' })));
+  assert.match(rect({ origin: 'corner:3' }), /\(Origin: corner 3\)/);
+  assert.deepEqual(xy(rect({ origin: 'corner:3' })), xy(rect({ origin: 'back-right' })));
+  // Turned 90: corner 1 (was front-left) is now at the front-right of the box.
+  const turned = xy(rect({ origin: 'corner:1', startAngleDeg: 90 }));
+  assert.ok(Math.abs(Math.max(...turned.map(q => q[0])) - 3) < 1e-3 && Math.abs(Math.min(...turned.map(q => q[1])) + 3) < 1e-3, JSON.stringify(turned.slice(0, 3)));
+  // Polygon: a triangle's own center is not its box center.
+  const tri = (o) => g.generatePolygonProgram(baseParams(Object.assign({ sides: 3, diameter: 40, cutType: 'outer', bitDiameter: 2 }, o)));
+  assert.match(tri({ origin: 'shape-center' }), /\(Origin: shape center\)/);
+  assert.notDeepEqual(xy(tri({ origin: 'shape-center' })), xy(tri({ origin: 'center' })));
+  // Shape center: the vertices sit on a circle about X0 Y0 (path radius).
+  const pts = xy(tri({ origin: 'shape-center' })).slice(0, 4);
+  const r = pts.map(q => Math.hypot(q[0], q[1]));
+  assert.ok(r.every(v => Math.abs(v - r[0]) < 1e-3), r.join(','));
+  // Corner 2 of the triangle (the top one, at 90 degrees) is at X0 Y0: the
+  // sharp outer path's matching vertex is straight above it.
+  const c2 = xy(tri({ origin: 'corner:2' }));
+  assert.ok(c2.some(q => Math.abs(q[0]) < 1e-3 && q[1] > 0), JSON.stringify(c2.slice(0, 4)));
+  // A corner the shape doesn't have falls back to center.
+  assert.match(tri({ origin: 'corner:5' }), /\(Origin: center \[picked corner not on shape\]\)/);
+  assert.deepEqual(xy(tri({ origin: 'corner:5' })), xy(tri({ origin: 'center' })));
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };

@@ -774,6 +774,17 @@
     stroke: var(--color-accent);
     stroke-width: 1;
   }
+  /* Rectangle / Polygon previews: tap a corner (or the center) to make
+     it the Origin; the picked one is filled. */
+  .qc-shape-preview-cell .qc-origin-node {
+    fill: var(--color-surface);
+    stroke: var(--color-text-secondary, #888);
+    stroke-width: 1.2;
+  }
+  .qc-shape-preview-cell .qc-origin-node.qc-origin-node-picked {
+    fill: var(--color-accent);
+    stroke: var(--color-accent);
+  }
   .qc-shape-preview-cell .qc-shape-fill.qc-hole-picked {
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
@@ -4156,7 +4167,11 @@
     $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); });
     $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); });
     $('qc-rect-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('rect'); });
-    wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true);
+    wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, function(pt) {
+      pickPreviewNode(rectPreviewNodes, 'qc-rect-origin', pt, updateRectanglePreview);
+    });
+    // The filled node follows the 9-dot picker too.
+    $('qc-rect-origin').addEventListener('change', updateRectanglePreview);
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -4359,6 +4374,30 @@
            ' L' + P(x, y + r) + A + P(x + r, y) + ' Z';
   }
 
+  // Rectangle / Polygon previews mark the points a tap can make the
+  // Origin: each corner (where the edges meet, even if rounded) and the
+  // center. `nodes` is [{x, y, value}] in the SVG's coordinates; the one
+  // matching the Origin input is filled.
+  function previewNodes(nodes, inputId) {
+    var current = $(inputId).value;
+    return nodes.map(function(nd) {
+      return '<circle class="qc-origin-node' + (nd.value === current ? ' qc-origin-node-picked' : '') +
+             '" cx="' + nd.x.toFixed(2) + '" cy="' + nd.y.toFixed(2) + '" r="2.8"/>';
+    }).join('');
+  }
+  // A tap on the preview: the nearest node within reach becomes the Origin.
+  function pickPreviewNode(nodes, inputId, pt, redraw) {
+    var best = null, bestD = 8;
+    (nodes || []).forEach(function(nd) {
+      var d = Math.hypot(nd.x - pt.x, nd.y - pt.y);
+      if (d < bestD) { bestD = d; best = nd; }
+    });
+    if (!best) return;
+    setOriginPickerValue(inputId, best.value);
+    redraw();
+  }
+  var rectPreviewNodes = null, polyPreviewNodes = null;
+
   // Corner radius the cut will really leave: on an inner or clearing
   // cut, never less than the bit's radius.
   function previewCornerRadius(typed, cutType) {
@@ -4450,12 +4489,20 @@
     var tabPts = [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
                   { x: x, y: y + h }, { x: 0, y: y + h }].map(function(q) { return T(q.x, q.y); });
 
+    // Corners in the generator's order (front-left, front-right,
+    // back-right, back-left, before turning), then the center.
+    rectPreviewNodes = [[x, y + h], [x + w, y + h], [x + w, y], [x, y]].map(function(q, i) {
+      var t = T(q[0], q[1]);
+      return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
+    }).concat([{ x: 0, y: 0, value: 'center' }]);
+
     svg.innerHTML =
       shapePreviewDefs('qc-rect') +
       hatched +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       wLine + hLine + wLabel + hLabel +
-      tabMarks('rect', previewLines(tabPts, rectTabLens()));
+      tabMarks('rect', previewLines(tabPts, rectTabLens())) +
+      previewNodes(rectPreviewNodes, 'qc-rect-origin');
 
     // Edge lengths of the tool path (the part size grown or shrunk by
     // the bit), which is what the generator spaces the tabs along.
@@ -5066,19 +5113,24 @@
   // measured about the preview center, where the slot is drawn
   // centered; a tap works too. Relative (Rectangle / Polygon Start
   // Angle): the shape turns by however far the pointer is turned about
-  // the center, like a knob, so a tap changes nothing.
+  // the center, like a knob. In relative mode the twist only starts once
+  // the pointer has moved a few units, so a tap is left for onTap (point
+  // in the SVG's coordinates), e.g. picking a corner as the origin.
   var PREVIEW_ANGLE_SNAP = 8;
-  function wirePreviewAngleDrag(svgId, inputId, relative) {
+  function wirePreviewAngleDrag(svgId, inputId, relative, onTap) {
     var svg = $(svgId);
     var input = $(inputId);
-    var dragging = false, downDeg = null, baseDeg = 0;
-    function pointerDeg(ev) {
+    var dragging = false, downDeg = null, baseDeg = 0, downPt = null, twisting = false;
+    function svgPoint(ev) {
       var ctm = svg.getScreenCTM();
       if (!ctm) return null;
       var pt = svg.createSVGPoint();
       pt.x = ev.clientX; pt.y = ev.clientY;
-      pt = pt.matrixTransform(ctm.inverse());
-      if (Math.hypot(pt.x, pt.y) < 3) return null;
+      return pt.matrixTransform(ctm.inverse());
+    }
+    function pointerDeg(ev) {
+      var pt = svgPoint(ev);
+      if (!pt || Math.hypot(pt.x, pt.y) < 3) return null;
       // SVG y points down; the angles are CCW from +X.
       return Math.atan2(-pt.y, pt.x) * 180 / Math.PI;
     }
@@ -5086,6 +5138,11 @@
       var deg = pointerDeg(ev);
       if (deg == null) return;
       if (relative) {
+        var pt = svgPoint(ev);
+        if (!twisting) {
+          if (!downPt || Math.hypot(pt.x - downPt.x, pt.y - downPt.y) < 4) return;
+          twisting = true;
+        }
         if (downDeg == null) { downDeg = deg; return; }
         deg = baseDeg + (deg - downDeg);
       }
@@ -5099,16 +5156,21 @@
     }
     svg.addEventListener('pointerdown', function(ev) {
       dragging = true;
-      downDeg = null;
+      twisting = false;
+      downPt = svgPoint(ev);
+      // Relative: the twist is measured from where the pointer was pressed.
+      downDeg = relative ? pointerDeg(ev) : null;
       baseDeg = parseFloat(input.value) || 0;
       try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* synthetic events */ }
-      setFromPointer(ev);
+      if (!relative) setFromPointer(ev);
       ev.preventDefault();
     });
     svg.addEventListener('pointermove', function(ev) { if (dragging) setFromPointer(ev); });
-    function end() { dragging = false; }
-    svg.addEventListener('pointerup', end);
-    svg.addEventListener('pointercancel', end);
+    svg.addEventListener('pointerup', function(ev) {
+      if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
+      dragging = false;
+    });
+    svg.addEventListener('pointercancel', function() { dragging = false; });
   }
 
   function wireKeyholeForm() {
@@ -5331,6 +5393,9 @@
     // (and clearing implicitly, but clearing goes to the perimeter
     // branch UI-wise) leaves the surrounding box as waste. Even-odd
     // rule paints the box minus the polygon for the outer case.
+    // Vertices in the generator's order, then the polygon's own center.
+    polyPreviewNodes = pts.map(function(q, i) { return { x: q.x, y: q.y, value: 'corner:' + (i + 1) }; })
+      .concat([{ x: 0, y: 0, value: 'shape-center' }]);
     var hatchFill = 'fill="url(#qc-poly-hatch)"';
     var hatchedPath;
     if (cutType === 'inner' || cutType === 'clearing') {
@@ -5353,7 +5418,8 @@
             'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
       '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>' +
       // The cut starts at the first vertex (or its corner arc) and runs CCW.
-      tabMarks('poly', polyTabSegs());
+      tabMarks('poly', polyTabSegs()) +
+      previewNodes(polyPreviewNodes, 'qc-poly-origin');
 
     // The path the tabs are spaced along: in preview units, but with the
     // real tool path lengths, which is what the generator spaces them by.
@@ -5387,7 +5453,10 @@
   function wirePolygonForm() {
     $('qc-poly-sides').addEventListener('input', updatePolygonPreview);
     $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
-    wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true);
+    wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true, function(pt) {
+      pickPreviewNode(polyPreviewNodes, 'qc-poly-origin', pt, updatePolygonPreview);
+    });
+    $('qc-poly-origin').addEventListener('change', updatePolygonPreview);
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
@@ -5448,12 +5517,14 @@
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse.',
+      'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon (or twist the preview). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
+      'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
@@ -6522,6 +6593,47 @@
              (p.totalAngle != null && Number(p.totalAngle) !== 360 ? ' total=' + p.totalAngle + '°' : '');
     }
 
+    // Origin on a corner of the first copy ('corner:N', 1-based in cut
+    // order) or the shape's own center ('shape-center'), as picked by
+    // tapping the Rectangle / Polygon preview. A corner is where the two
+    // edges meet, even when the corners are rounded (the point found by
+    // probing two edges). Any other origin is a point of the pattern's
+    // box, as before. A corner the shape no longer has falls back to
+    // center.
+    function resolveShapeOrigin(params, positions, bbox, corners) {
+      var origin = params.origin || 'center';
+      var p0 = positions[0];
+      if (origin === 'shape-center') return { shift: { x: -p0.x, y: -p0.y }, label: 'shape center' };
+      var m = /^corner:(\d+)$/.exec(origin);
+      var note = '';
+      if (m) {
+        var c = corners(p0.rotDeg || 0)[+m[1] - 1];
+        if (c) return { shift: { x: -(p0.x + c.x), y: -(p0.y + c.y) }, label: 'corner ' + m[1] };
+        origin = 'center';
+        note = ' (picked corner not on shape)';
+      }
+      return { shift: computePatternAnchorShift(origin, positions, bbox), label: origin + note };
+    }
+
+    // A copy's corners about its own center, for a turn of rot degrees
+    // (the pattern's turn; Rectangle's Start Angle is already in it).
+    // Rectangle: front-left, front-right, back-right, back-left (CCW,
+    // before turning). Polygon: its vertices in cut order.
+    function rectangleCorners(params) {
+      return function(rot) {
+        var w = params.width / 2, h = params.height / 2;
+        return [[-w, -h], [w, -h], [w, h], [-w, h]].map(function(c) { return rotatePoint(0, 0, c[0], c[1], rot); });
+      };
+    }
+    function polygonCorners(params) {
+      return function(rot) {
+        var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
+        var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
+        var start = Math.PI / sides - Math.PI / 2 + ((params.startAngleDeg || 0) + rot) * Math.PI / 180;
+        return polygonVertices(0, 0, radius, sides, start);
+      };
+    }
+
     // On an inner or clearing cut a corner can't be tighter than the bit's
     // own radius; when the typed Corner Radius is smaller, the header says
     // what the bit leaves. The path itself is unchanged (sharp, so the bit
@@ -6557,7 +6669,7 @@
         'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel + bitCornerNote(params, unitsLabel) +
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
       var tabNotes = tabHeaderNotes(params, rectangleSegments(baseGeom), extras);
@@ -6578,7 +6690,7 @@
 
       // Origin is applied to the WHOLE pattern's aggregate bounding box,
       // not to each instance individually — see computePatternAnchorShift.
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, rectangleShapeBbox(params));
+      var shift = resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -6648,7 +6760,7 @@
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: helical bore then expanding outward',
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
@@ -6670,7 +6782,7 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, rectangleShapeBbox(params));
+      var shift = resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -7455,7 +7567,7 @@
           (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
       var tabNotes = tabHeaderNotes(params, polygonSegments(baseGeom), extras);
@@ -7474,7 +7586,7 @@
       lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, polygonShapeBbox(params));
+      var shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -7561,7 +7673,7 @@
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: straight plunge at innermost polygon start',
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
@@ -7584,7 +7696,7 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, polygonShapeBbox(params));
+      var shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -7906,7 +8018,9 @@
       computePatternAnchorShift: computePatternAnchorShift,
       tabIntervals: tabIntervals,
       patternPositionKeys: patternPositionKeys,
-      resolveDrillOrigin: resolveDrillOrigin
+      resolveDrillOrigin: resolveDrillOrigin,
+      rectangleCorners: rectangleCorners,
+      polygonCorners: polygonCorners
     };
   }
 
