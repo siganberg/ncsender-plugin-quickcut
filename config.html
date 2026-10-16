@@ -613,6 +613,8 @@
      outside thickness mode), so a third empty column just squeezed the
      select until "Wasteboard Surfacing" was clipped. */
   .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  /* Rectangle: Cut Type, Start Angle, then the origin picker at its own width. */
+  .qc-row-3.qc-rect-type-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
 
   /* Graphical origin picker — 3x3 grid of dots on the workpiece
@@ -1251,7 +1253,7 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0">
                   </div>
                 </div>
-                <div class="qc-row-2">
+                <div class="qc-row-3 qc-rect-type-row">
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-rect-cut-type">
@@ -1259,6 +1261,10 @@
                       <option value="clearing">Inner (clearing)</option>
                       <option value="outer" selected>Outer (part)</option>
                     </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-rect-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-rect-start-angle" step="1" value="0" title="Turns the rectangle about its center, CCW from +X (negative = CW). 90° = Width runs along Y.">
                   </div>
                   <div class="qc-field">
                     <label>Origin</label>
@@ -2649,6 +2655,7 @@
         'qc-rect-width':  { min: 0.004, max: 200,     label: 'Width' },
         'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
         'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
+        'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-rect-depth':  { min: 0.001, max: 20,      label: 'Total Depth' },
         'qc-rect-step':   { min: 0.001, max: 5,       label: 'Depth of Cut' },
         'qc-bit':         { min: 0.004, max: 4,       label: 'Bit Diameter' },
@@ -2759,6 +2766,7 @@
       'qc-rect-width':  { min: 0.1,   max: 5000,   label: 'Width' },
       'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
       'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
+      'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-rect-depth':  { min: 0.01,  max: 500,    label: 'Total Depth' },
       'qc-rect-step':   { min: 0.01,  max: 100,    label: 'Depth of Cut' },
       'qc-bit':         { min: 0.1,   max: 100,    label: 'Bit Diameter' },
@@ -3134,6 +3142,7 @@
       width:        num('qc-rect-width', 0),
       height:       num('qc-rect-height', 0),
       cornerRadius: num('qc-rect-corner', 0),
+      startAngleDeg: num('qc-rect-start-angle', 0),
       cutType:      $('qc-rect-cut-type').value,
       tabs:         readTabsForm('rect'),
       origin:       $('qc-rect-origin').value,
@@ -3766,6 +3775,7 @@
     if (rect.width != null)         $('qc-rect-width').value  = roundDisplay(mmToDisplay(rect.width));
     if (rect.height != null)        $('qc-rect-height').value = roundDisplay(mmToDisplay(rect.height));
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
+    if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
     if (rect.origin)                setOriginPickerValue('qc-rect-origin', migrateOrigin(rect.origin));
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
@@ -3926,6 +3936,7 @@
         width:        displayToMm(params.width),
         height:       displayToMm(params.height),
         cornerRadius: displayToMm(params.cornerRadius),
+        startAngleDeg: params.startAngleDeg,
         cutType:      params.cutType,
         origin:       params.origin,
         depth:        displayToMm(params.depth),
@@ -4124,7 +4135,7 @@
     $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); });
     $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); });
     $('qc-rect-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('rect'); });
-    ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner'].forEach(function(id) {
+    ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
     updateClearingVisibility('rect');
@@ -4313,46 +4324,57 @@
   // cut type, and two dimension arrows (horizontal for Width, vertical
   // for Height) labeled with the current values. Rectangle scales to
   // fit inside the fixed 100-unit viewBox with a small margin.
+  // Rounded-rectangle outline as an SVG path, every point passed
+  // through T (the preview's rotation). r = 0 gives square corners.
+  // The arcs run clockwise on screen (sweep 1), which rotation keeps.
+  function roundedRectPath(x, y, w, h, r, T) {
+    var P = function(px, py) { var q = T(px, py); return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
+    if (!(r > 0)) return 'M' + P(x, y) + ' L' + P(x + w, y) + ' L' + P(x + w, y + h) + ' L' + P(x, y + h) + ' Z';
+    var A = ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 0 1 ';
+    return 'M' + P(x + r, y) + ' L' + P(x + w - r, y) + A + P(x + w, y + r) +
+           ' L' + P(x + w, y + h - r) + A + P(x + w - r, y + h) +
+           ' L' + P(x + r, y + h) + A + P(x, y + h - r) +
+           ' L' + P(x, y + r) + A + P(x + r, y) + ' Z';
+  }
+
   function updateRectanglePreview() {
     var svg = document.getElementById('qc-rect-preview');
     if (!svg) return;
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
+    var CR = num('qc-rect-corner', 0);
+    var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
 
     // Rectangle is drawn at a FIXED size regardless of the user's
     // Width/Height values — the preview's job is to communicate
     // where the WASTE lives (inside vs. outside) and how the arrows
     // relate to Width/Height, not to be an accurate scale drawing.
-    // Dim labels still show the real numeric values.
+    // Dim labels still show the real numeric values. The corner radius
+    // is drawn in proportion to the shorter side, and the Start Angle
+    // turns the whole drawing (CCW, like the machine).
     var w = 76, h = 46;
-    var cr = 0;
-    // Rectangle is vertically centered in the container; the width
-    // dim arrow lives below the rect in the same visual band as the
-    // hatch, no vertical offset needed.
+    var shortSide = Math.min(W, H);
+    var cr = CR > 0 && shortSide > 0 ? Math.min(CR / shortSide * Math.min(w, h), Math.min(w, h) / 2) : 0;
     var centerY = 0;
     var x = -w / 2;
     var y = centerY - h / 2;
     var boxHalf = 50;
-
-    var shapeAttrs = 'x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
-                     '" width="' + w.toFixed(2) + '" height="' + h.toFixed(2) +
-                     (cr > 0 ? '" rx="' + cr.toFixed(2) + '" ry="' + cr.toFixed(2) : '') + '"';
+    // SVG y points down, so a CCW machine turn is this on screen.
+    var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
+    function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
+    var outline = roundedRectPath(x, y, w, h, cr, T);
 
     // Hatched waste area.
     var hatchFill = 'fill="url(#qc-rect-hatch)"';
     var hatched;
     if (cutType === 'inner' || cutType === 'clearing') {
-      hatched = '<rect class="qc-shape-hatch" ' + hatchFill + ' ' + shapeAttrs + '/>';
+      hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
     } else {
       var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
               ' L' + boxHalf + ',' + (-boxHalf) +
               ' L' + boxHalf + ',' + boxHalf +
-              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' +
-              'M' + x.toFixed(2) + ',' + y.toFixed(2) +
-              ' L' + (x + w).toFixed(2) + ',' + y.toFixed(2) +
-              ' L' + (x + w).toFixed(2) + ',' + (y + h).toFixed(2) +
-              ' L' + x.toFixed(2) + ',' + (y + h).toFixed(2) + ' Z';
+              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' + outline;
       hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
     }
 
@@ -4361,39 +4383,45 @@
     //   Height arrow INSIDE, near the right edge; label to the LEFT of the arrow.
     // Both arrow lines are inset from the shape edges so the arrow
     // tips (which extend past the line endpoints) don't touch the
-    // container border.
+    // container border. They turn with the shape; the labels stay
+    // upright.
     var dimGap = 4;
     var arrowInset = 5;
     var wY = y + h + dimGap;
     var hX = x + w - arrowInset;
-    var wLine = '<line class="qc-shape-dim-line" x1="' + (x + arrowInset).toFixed(2) +
-                '" y1="' + wY.toFixed(2) +
-                '" x2="' + (x + w - arrowInset).toFixed(2) + '" y2="' + wY.toFixed(2) + '" ' +
-                'marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
-    // dominant-baseline="hanging" makes `y` the TOP of the text, so
-    // the label sits fully below the arrow line instead of straddling it.
-    var wLabel = '<text class="qc-shape-dim-label" x="' + (x + w / 2).toFixed(2) +
-                 '" y="' + (wY + 2).toFixed(2) + '" text-anchor="middle" ' +
-                 'dominant-baseline="hanging">' +
-                 (W > 0 ? W : '?') + '</text>';
-    var hLine = '<line class="qc-shape-dim-line" x1="' + hX.toFixed(2) + '" y1="' + (y + arrowInset).toFixed(2) +
-                '" x2="' + hX.toFixed(2) + '" y2="' + (y + h - arrowInset).toFixed(2) + '" ' +
-                'marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
-    var hLabel = '<text class="qc-shape-dim-label" x="' + (hX - 4).toFixed(2) +
-                 '" y="' + centerY.toFixed(2) + '" text-anchor="end" ' +
-                 'dominant-baseline="middle">' +
-                 (H > 0 ? H : '?') + '</text>';
+    function line(x1, y1, x2, y2) {
+      var p1 = T(x1, y1), p2 = T(x2, y2);
+      return '<line class="qc-shape-dim-line" x1="' + p1.x.toFixed(2) + '" y1="' + p1.y.toFixed(2) +
+             '" x2="' + p2.x.toFixed(2) + '" y2="' + p2.y.toFixed(2) + '" ' +
+             'marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
+    }
+    function text(px, py, anchor, baseline, value) {
+      var q = T(px, py);
+      return '<text class="qc-shape-dim-label" x="' + q.x.toFixed(2) + '" y="' + q.y.toFixed(2) +
+             '" text-anchor="' + anchor + '" dominant-baseline="' + baseline + '">' + value + '</text>';
+    }
+    var wLine = line(x + arrowInset, wY, x + w - arrowInset, wY);
+    var hLine = line(hX, y + arrowInset, hX, y + h - arrowInset);
+    // Square to the axes: the original anchoring (label below the width
+    // arrow, left of the height arrow). Turned: centered on a point a
+    // little further out, since the text no longer lines up with them.
+    var wLabel = turn
+      ? text(x + w / 2, wY + 7, 'middle', 'middle', W > 0 ? W : '?')
+      : text(x + w / 2, wY + 2, 'middle', 'hanging', W > 0 ? W : '?');
+    var hLabel = turn
+      ? text(hX - 10, centerY, 'middle', 'middle', H > 0 ? H : '?')
+      : text(hX - 4, centerY, 'end', 'middle', H > 0 ? H : '?');
+
+    // The cut starts mid-bottom and runs CCW (right along the bottom).
+    var tabPts = [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
+                  { x: x, y: y + h }, { x: 0, y: y + h }].map(function(q) { return T(q.x, q.y); });
 
     svg.innerHTML =
       shapePreviewDefs('qc-rect') +
       hatched +
-      '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
+      '<path class="qc-shape-fill" d="' + outline + '"/>' +
       wLine + hLine + wLabel + hLabel +
-      // The cut starts mid-bottom and runs CCW (right along the bottom).
-      tabMarks('rect', previewLines(
-        [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
-         { x: x, y: y + h }, { x: 0, y: y + h }],
-        rectTabLens()));
+      tabMarks('rect', previewLines(tabPts, rectTabLens()));
 
     // Edge lengths of the tool path (the part size grown or shrunk by
     // the bit), which is what the generator spaces the tabs along.
@@ -5325,7 +5353,7 @@
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
-      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius.',
+      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
@@ -6389,17 +6417,29 @@
              (p.totalAngle != null && Number(p.totalAngle) !== 360 ? ' total=' + p.totalAngle + '°' : '');
     }
 
+    // Rectangle Start Angle: every copy is turned by `deg` about its own
+    // center, on top of any turn the pattern gives it. The emitters,
+    // tabs and anchor shift already handle a per-copy rotation.
+    function withShapeTurn(positions, deg) {
+      var turn = Number(deg) || 0;
+      if (!turn) return positions;
+      return positions.map(function(p) {
+        return { x: p.x, y: p.y, rotDeg: (p.rotDeg || 0) + turn };
+      });
+    }
+
     function generateRectangleProgram(params) {
       if ((params.cutType || 'inner') === 'clearing') {
         return generateRectangleClearingProgram(params);
       }
       var unitsLabel = isImperial ? 'inch' : 'mm';
-      var positions = computePatternPositions(params.pattern);
+      var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
       var baseGeom = computeRectangleGeom(params);
 
       var extras = [
         'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
-        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel,
+        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel +
+          (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Origin: ' + (params.origin || 'center')
       ];
@@ -6480,14 +6520,15 @@
     // bit — accepted trade-off vs true adaptive clearing).
     function generateRectangleClearingProgram(params) {
       var unitsLabel = isImperial ? 'inch' : 'mm';
-      var positions = computePatternPositions(params.pattern);
+      var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
       var baseGeom = computeRectangleGeom(params);
       var stepoverPct = params.stepoverPct || 40;
       var step = params.bitDiameter * (stepoverPct / 100);
 
       var extras = [
         'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
-        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel,
+        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel +
+          (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: helical bore then expanding outward',

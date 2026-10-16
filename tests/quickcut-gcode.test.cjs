@@ -1592,6 +1592,29 @@ test('circular Total Angle shows in the header only when it is not 360', () => {
   assert.match(g.generateDrillProgram(pat(360)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10°\)/);
 });
 
+test('rectangle Start Angle turns the cut about its center; 0 is unchanged', () => {
+  const g = makeQuickCutGenerator(false);
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  const ext = (pts) => [Math.max(...pts.map(q => Math.abs(q[0]))), Math.max(...pts.map(q => Math.abs(q[1])))];
+  for (const cutType of ['outer', 'inner', 'clearing']) {
+    const base = baseParams({ width: 50, height: 30, cornerRadius: 0, cutType, bitDiameter: 6 });
+    assert.equal(g.generateRectangleProgram(Object.assign({}, base, { startAngleDeg: 0 })), g.generateRectangleProgram(base), cutType);
+    // At 90 the 50-wide side runs along Y: the extents swap.
+    const [ex, ey] = ext(xy(g.generateRectangleProgram(base)));
+    const [rx, ry] = ext(xy(g.generateRectangleProgram(Object.assign({}, base, { startAngleDeg: 90 }))));
+    assert.ok(Math.abs(rx - ey) < 1e-3 && Math.abs(ry - ex) < 1e-3, cutType + ' ' + [ex, ey, rx, ry]);
+  }
+  const turned = g.generateRectangleProgram(baseParams({ width: 50, height: 30, cutType: 'outer', bitDiameter: 6, startAngleDeg: 30 }));
+  assert.match(turned, /\(Corner Radius: 0mm, Start Angle: 30°\)/);
+  // Front-left origin anchors the turned part's box (the part's own
+  // corners), so the Outer tool path's square corner, 3 out on each
+  // side, pokes past it by the difference of the two turned boxes.
+  const fl = xy(g.generateRectangleProgram(baseParams({ width: 50, height: 30, cutType: 'outer', bitDiameter: 6, startAngleDeg: 30, origin: 'front-left' })));
+  const c30 = Math.cos(Math.PI / 6), s30 = Math.sin(Math.PI / 6);
+  const poke = (28 * c30 + 18 * s30) - (25 * c30 + 15 * s30);
+  assert.ok(Math.abs(Math.min(...fl.map(q => q[0])) + poke) < 2e-3, String(Math.min(...fl.map(q => q[0]))));
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
