@@ -613,7 +613,8 @@
      outside thickness mode), so a third empty column just squeezed the
      select until "Wasteboard Surfacing" was clipped. */
   .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
-  /* Rectangle: Cut Type, Start Angle, then the origin picker at its own width. */
+  /* Rectangle / Polygon: Cut Type, Start Angle or Corner Radius, then the
+     origin picker at its own width. */
   .qc-row-3.qc-rect-type-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
 
@@ -1619,7 +1620,7 @@
                     <input class="qc-input" type="number" id="qc-poly-start-angle" step="1" value="0">
                   </div>
                 </div>
-                <div class="qc-row-2 qc-poly-origin-row">
+                <div class="qc-row-3 qc-rect-type-row qc-poly-origin-row">
                   <div class="qc-field">
                     <label for="qc-poly-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-poly-cut-type">
@@ -1627,6 +1628,10 @@
                       <option value="clearing">Inner (clearing)</option>
                       <option value="outer" selected>Outer (part)</option>
                     </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-poly-corner">Corner Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's own radius.">
                   </div>
                   <div class="qc-field">
                     <label>Origin</label>
@@ -2711,6 +2716,7 @@
         // Polygon
         'qc-poly-sides':    { min: 3,     max: 12,  label: 'Sides', integer: true },
         'qc-poly-diameter': { min: 0.004, max: 200, label: 'Diameter' },
+        'qc-poly-corner': { min: 0, max: 100, label: 'Corner Radius' },
         'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-poly-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
@@ -2822,6 +2828,7 @@
       // Polygon
       'qc-poly-sides':    { min: 3,    max: 12,   label: 'Sides', integer: true },
       'qc-poly-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
+      'qc-poly-corner': { min: 0, max: 2500, label: 'Corner Radius' },
       'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-poly-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
@@ -2904,6 +2911,13 @@
     }
     // A Total Angle of 0 would stack every circular copy on one spot.
     if (/-pattern-total-angle$/.test(id) && n === 0) return 'Total Angle must not be 0';
+    // A polygon's corner radius can't be more than half its across-flats size.
+    if (id === 'qc-poly-corner') {
+      var polyD = num('qc-poly-diameter', NaN);
+      var polyN = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
+      var polyA = polyD / 2 * Math.cos(Math.PI / polyN);
+      if (isFinite(polyA) && n > polyA + 1e-9) return 'Corner Radius must not exceed ' + roundDisplay(polyA) + ' (half the size across the flats)';
+    }
     var tabDepth = /^qc-(rect|circ|poly)-tabs-height$/.exec(id);
     if (tabDepth) {
       var tTot = num('qc-' + tabDepth[1] + '-depth', NaN);
@@ -3360,6 +3374,7 @@
       // stores/reads diameter for parity with the Circle tab.
       radius:        diameter / 2,
       startAngleDeg: num('qc-poly-start-angle', 0),
+      cornerRadius:  num('qc-poly-corner', 0),
       cutType:       $('qc-poly-cut-type').value,
       tabs:          readTabsForm('poly'),
       origin:        $('qc-poly-origin').value,
@@ -3837,6 +3852,7 @@
       : (poly.radius != null ? poly.radius * 2 : null);
     if (polyDiameterMm != null)     $('qc-poly-diameter').value = roundDisplay(mmToDisplay(polyDiameterMm));
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
+    if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
@@ -4001,6 +4017,7 @@
         sides:         params.sides,
         diameter:      displayToMm(params.diameter),
         startAngleDeg: params.startAngleDeg,
+        cornerRadius:  displayToMm(params.cornerRadius),
         cutType:       params.cutType,
         origin:        params.origin,
         depth:         displayToMm(params.depth),
@@ -5245,8 +5262,31 @@
         y: -R * Math.sin(theta)
       });
     }
-    var ptsStr = pts.map(function(p) { return p.x.toFixed(2) + ',' + p.y.toFixed(2); }).join(' ');
     var apothem = R * Math.cos(Math.PI / n);
+    // Corner Radius, drawn to the same scale as the outline: each corner
+    // is an arc about a vertex of the smaller "core" polygon, as in the
+    // generator. Machine CCW stays CCW on screen (sweep-flag 0).
+    var half = Math.PI / n;
+    var CR = num('qc-poly-corner', 0);
+    var crP = diameter > 0 && CR > 0 ? Math.min(CR * R / (diameter / 2), apothem) : 0;
+    var outline;
+    if (crP > 0) {
+      var coreR = (apothem - crP) / Math.cos(half);
+      var arcPt = function(i, a) {
+        var t = start + i * 2 * half;
+        return { x: coreR * Math.cos(t) + crP * Math.cos(a), y: -(coreR * Math.sin(t) + crP * Math.sin(a)) };
+      };
+      var f2 = function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
+      outline = 'M' + f2(arcPt(0, start - half));
+      for (var k = 0; k < n; k++) {
+        var tk = start + k * 2 * half;
+        outline += ' A' + crP.toFixed(2) + ',' + crP.toFixed(2) + ' 0 0 0 ' + f2(arcPt(k, tk + half)) +
+                   ' L' + f2(arcPt((k + 1) % n, tk + half));
+      }
+      outline += ' Z';
+    } else {
+      outline = 'M' + pts.map(function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(' L') + ' Z';
+    }
     var armX = apothem * 0.92;
     var label = diameter > 0 ? String(diameter) : '?';
 
@@ -5263,39 +5303,61 @@
     var hatchFill = 'fill="url(#qc-poly-hatch)"';
     var hatchedPath;
     if (cutType === 'inner' || cutType === 'clearing') {
-      hatchedPath = '<polygon class="qc-shape-hatch" ' + hatchFill + ' points="' + ptsStr + '"/>';
+      hatchedPath = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
     } else {
       var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
               ' L' + boxHalf + ',' + (-boxHalf) +
               ' L' + boxHalf + ',' + boxHalf +
-              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ';
-      d += 'M' + pts[0].x.toFixed(2) + ',' + pts[0].y.toFixed(2);
-      for (var i = 1; i < pts.length; i++) {
-        d += ' L' + pts[i].x.toFixed(2) + ',' + pts[i].y.toFixed(2);
-      }
-      d += ' Z';
+              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' + outline;
       hatchedPath = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
     }
 
     svg.innerHTML =
       shapePreviewDefs('qc-poly') +
       hatchedPath +
-      '<polygon class="qc-shape-fill" points="' + ptsStr + '"/>' +
+      '<path class="qc-shape-fill" d="' + outline + '"/>' +
       '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + apothem.toFixed(2) + '"/>' +
       '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
             'x2="' + armX.toFixed(2) + '" y2="0" ' +
             'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
       '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>' +
-      // The cut starts at the first vertex and runs CCW.
-      tabMarks('poly', previewLines(pts.concat([pts[0]]), pts.map(function() {
-        return Math.max(diameter, 0.001) * Math.sin(Math.PI / n);
-      })));
+      // The cut starts at the first vertex (or its corner arc) and runs CCW.
+      tabMarks('poly', polyTabSegs());
+
+    // The path the tabs are spaced along: in preview units, but with the
+    // real tool path lengths, which is what the generator spaces them by.
+    function polyTabSegs() {
+      var bit = Math.max(0, num('qc-bit', 0));
+      var a = Math.max(diameter, 0.001) / 2 * Math.cos(half);
+      var rc = Math.max(0, Math.min(CR, a));
+      var arcReal = rc > 0 ? (cutType === 'outer' ? a + bit / 2 : a - bit / 2) - (a - rc) : 0;
+      if (!(crP > 0) || !(arcReal > 1e-9)) {
+        return previewLines(pts.concat([pts[0]]), pts.map(function() {
+          return Math.max(diameter, 0.001) * Math.sin(Math.PI / n);
+        }));
+      }
+      var coreR = (apothem - crP) / Math.cos(half), segs = [];
+      for (var k = 0; k < n; k++) {
+        var tk = start + k * 2 * half, tn = start + (k + 1) * 2 * half;
+        var cx = coreR * Math.cos(tk), cy = -coreR * Math.sin(tk);
+        segs.push({ type: 'arc', cx: cx, cy: cy, r: crP, a0: tk - half, a1: tk + half, len: arcReal * 2 * half });
+        // A fully round polygon has no straight edges (the generator drops them too).
+        var edge = 2 * (a - rc) * Math.tan(half);
+        if (edge > 1e-9) {
+          segs.push({ type: 'line', x0: cx + crP * Math.cos(tk + half), y0: cy - crP * Math.sin(tk + half),
+                      x1: coreR * Math.cos(tn) + crP * Math.cos(tk + half), y1: -coreR * Math.sin(tn) - crP * Math.sin(tk + half),
+                      len: edge });
+        }
+      }
+      return segs;
+    }
   }
 
   function wirePolygonForm() {
     $('qc-poly-sides').addEventListener('input', updatePolygonPreview);
     $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
+    $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
       updateClearingVisibility('poly');
       updatePolygonPreview();
@@ -6097,6 +6159,14 @@
     function polygonShapeBbox(params) {
       var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
       var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
+      // Rounded corners: the box of the core polygon (see
+      // computePolygonGeom) grown by the corner radius.
+      var apothem = radius * Math.cos(Math.PI / sides);
+      var cornerR = Math.max(0, Math.min(params.cornerRadius || 0, apothem));
+      if (cornerR > 0) {
+        var core = polygonShapeBbox(Object.assign({}, params, { radius: (apothem - cornerR) / Math.cos(Math.PI / sides), cornerRadius: 0 }));
+        return { minX: core.minX - cornerR, maxX: core.maxX + cornerR, minY: core.minY - cornerR, maxY: core.maxY + cornerR };
+      }
       var startAngle = Math.PI / sides - Math.PI / 2 + (params.startAngleDeg || 0) * Math.PI / 180;
       var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       for (var i = 0; i < sides; i++) {
@@ -6198,6 +6268,7 @@
     }
 
     function polygonSegments(geom) {
+      if (geom.arcR > 0) return roundedPolygonSegments(geom.cx, geom.cy, geom.coreApothem, geom.arcR, geom.sides, geom.startAngle);
       var verts = polygonVertices(geom.cx, geom.cy, geom.pathRadius, geom.sides, geom.startAngle);
       var segs = [];
       for (var i = 0; i < verts.length; i++) pushLine(segs, verts[i], verts[(i + 1) % verts.length]);
@@ -7255,6 +7326,16 @@
       var startDeg = (params.startAngleDeg || 0) + (extraRotDeg || 0);
       var startAngle = Math.PI / sides - Math.PI / 2 + startDeg * Math.PI / 180;
 
+      // Corner Radius (on the part): each corner is an arc tangent to both
+      // edges. The arc centers are the vertices of a smaller "core" polygon
+      // whose apothem is the part's minus the radius, and the tool path is
+      // that core grown by (tool path apothem - core apothem). When that is
+      // 0 or less (an inner cut whose corner radius is no bigger than the
+      // bit's) the sharp path stays: the bit rounds the corner itself.
+      var cornerR = Math.max(0, Math.min(params.cornerRadius || 0, apothem));
+      var coreApothem = apothem - cornerR;
+      var arcR = cornerR > 0 ? newApothem - coreApothem : 0;
+
       // Origin is handled by the pattern loop via computePatternAnchorShift;
       // this fn just centers the polygon at the passed offset.
       return {
@@ -7263,7 +7344,10 @@
         pathRadius: pathRadius,
         sides: sides,
         toolRadius: toolRadius,
-        startAngle: startAngle
+        startAngle: startAngle,
+        cornerR: cornerR,
+        coreApothem: coreApothem,
+        arcR: arcR > 1e-9 ? arcR : 0
       };
     }
 
@@ -7274,6 +7358,40 @@
         pts.push({ x: cx + radius * Math.cos(theta), y: cy + radius * Math.sin(theta) });
       }
       return pts;
+    }
+
+    // A rounded polygon path, CCW, starting where vertex 0's corner arc
+    // begins: an arc of radius arcR about each core vertex (spanning the
+    // corner's 360/sides degrees), then a straight edge to the next arc.
+    function roundedPolygonSegments(cx, cy, coreApothem, arcR, sides, startAngle) {
+      var half = Math.PI / sides;
+      var core = polygonVertices(cx, cy, coreApothem / Math.cos(half), sides, startAngle);
+      var segs = [];
+      function at(i, a) { return { x: core[i].x + arcR * Math.cos(a), y: core[i].y + arcR * Math.sin(a) }; }
+      for (var i = 0; i < sides; i++) {
+        var theta = startAngle + i * 2 * half;
+        segs.push({ type: 'arc', cx: core[i].x, cy: core[i].y, r: arcR,
+                    a0: theta - half, a1: theta + half, len: arcR * 2 * half });
+        pushLine(segs, at(i, theta + half), at((i + 1) % sides, theta + half));
+      }
+      return segs;
+    }
+
+    // Start point of a segment path.
+    function segmentStart(seg) {
+      return seg.type === 'line' ? { x: seg.x0, y: seg.y0 }
+        : { x: seg.cx + seg.r * Math.cos(seg.a0), y: seg.cy + seg.r * Math.sin(seg.a0) };
+    }
+
+    // One full lap of a segment path at the current Z. Line ends are
+    // written at 5 decimals like the arcs, since each one is where an arc
+    // starts (see the note at the top of the file).
+    function emitSegmentLap(lines, segs, feedRate) {
+      for (var i = 0; i < segs.length; i++) {
+        var seg = segs[i], feed = i === 0 ? ' F' + feedRate : '';
+        if (seg.type === 'line') lines.push('G1 X' + fixed(seg.x1, 5) + ' Y' + fixed(seg.y1, 5) + feed);
+        else emitSegmentPiece(lines, seg, 0, seg.len, feed);
+      }
     }
 
     function generatePolygonProgram(params) {
@@ -7288,7 +7406,8 @@
       var extras = [
         'Sides: ' + baseGeom.sides,
         'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
-        'Start Angle: ' + (params.startAngleDeg || 0) + '°',
+        'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
+          (baseGeom.cornerR > 0 ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Origin: ' + (params.origin || 'center')
       ];
@@ -7337,12 +7456,19 @@
       var safeHeight = safeHopDelta.toFixed(3);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
 
-      lines.push('G0 X' + verts[0].x.toFixed(xyDp) + ' Y' + verts[0].y.toFixed(xyDp));
+      var rounded = geom.arcR > 0;
+      var roundSegs = rounded ? polygonSegments(geom) : null;
+      if (rounded) {
+        var start = segmentStart(roundSegs[0]);
+        lines.push('G0 X' + fixed(start.x, 5) + ' Y' + fixed(start.y, 5));
+      } else {
+        lines.push('G0 X' + verts[0].x.toFixed(xyDp) + ' Y' + verts[0].y.toFixed(xyDp));
+      }
       lines.push('G0 Z' + safeHeight);
       lines.push('G0 Z' + slowPlungeStart);
 
       var tabs = tabSettings(params);
-      var segs = tabs ? polygonSegments(geom) : null;
+      var segs = tabs ? (roundSegs || polygonSegments(geom)) : null;
       var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
       var tabTop = intervals.length ? depth - tabs.height : null;
 
@@ -7353,6 +7479,10 @@
           continue;
         }
         lines.push('G1 Z' + (-levels[l]).toFixed(3) + ' F' + plungeFeedRate);
+        if (rounded) {
+          emitSegmentLap(lines, roundSegs, feedRate);
+          continue;
+        }
         for (var i = 1; i <= verts.length; i++) {
           var v = verts[i % verts.length];
           lines.push('G1 X' + v.x.toFixed(xyDp) + ' Y' + v.y.toFixed(xyDp) + ' F' + feedRate);
@@ -7379,7 +7509,8 @@
       var extras = [
         'Sides: ' + baseGeom.sides,
         'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
-        'Start Angle: ' + (params.startAngleDeg || 0) + '°',
+        'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
+          (baseGeom.cornerR > 0 ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: straight plunge at innermost polygon start',
@@ -7426,6 +7557,7 @@
     }
 
     function emitOnePolygonClearing(lines, params, geom, step) {
+      if (geom.cornerR > 0) return emitOnePolygonClearingRounded(lines, params, geom, step);
       var depth = params.depth;
       var depthOfCut = params.depthOfCut;
       var feedRate = params.feedRate;
@@ -7481,6 +7613,62 @@
           // Retract to safe Z, hop back to innermost vertex for the next pass.
           lines.push('G0 Z' + safeHeight);
           lines.push('G0 X' + innerVerts[0].x.toFixed(xyDp) + ' Y' + innerVerts[0].y.toFixed(xyDp));
+          lines.push('G0 Z' + slowPlungeStart);
+        }
+      }
+
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    // Clearing with rounded corners: the same rings as above (tool path
+    // apothems stepping in from the outside), but each ring larger than
+    // the core polygon is a rounded path about the core vertices; the
+    // rings inside it stay sharp.
+    function emitOnePolygonClearingRounded(lines, params, geom, step) {
+      var depth = params.depth;
+      var depthOfCut = params.depthOfCut;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+      var half = Math.PI / geom.sides;
+
+      var apos = [];
+      var apo = geom.pathRadius * Math.cos(half);
+      while (apo > 0) {
+        apos.push(apo);
+        if (apo <= geom.toolRadius) break;
+        apo -= step;
+      }
+      apos.reverse();
+      var rings = apos.map(function(a) {
+        if (a > geom.coreApothem + 1e-9) {
+          return roundedPolygonSegments(geom.cx, geom.cy, geom.coreApothem, a - geom.coreApothem, geom.sides, geom.startAngle);
+        }
+        var v = polygonVertices(geom.cx, geom.cy, a / Math.cos(half), geom.sides, geom.startAngle), segs = [];
+        for (var i = 0; i < v.length; i++) pushLine(segs, v[i], v[(i + 1) % v.length]);
+        return segs;
+      });
+
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      var first = segmentStart(rings[0][0]);
+      function moveTo(cmd, p, feed) { lines.push(cmd + ' X' + fixed(p.x, 5) + ' Y' + fixed(p.y, 5) + (feed || '')); }
+
+      moveTo('G0', first);
+      lines.push('G0 Z' + safeHeight);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var currentDepth = 0;
+      while (currentDepth < depth - 1e-6) {
+        var nextDepth = Math.min(depth, currentDepth + depthOfCut);
+        lines.push('G1 Z' + (-nextDepth).toFixed(3) + ' F' + plungeFeedRate);
+        for (var r = 0; r < rings.length; r++) {
+          if (r > 0) moveTo('G1', segmentStart(rings[r][0]), ' F' + plungeFeedRate);
+          emitSegmentLap(lines, rings[r], feedRate);
+        }
+        currentDepth = nextDepth;
+        if (currentDepth < depth - 1e-6) {
+          lines.push('G0 Z' + safeHeight);
+          moveTo('G0', first);
           lines.push('G0 Z' + slowPlungeStart);
         }
       }

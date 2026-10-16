@@ -7,7 +7,7 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 **Shapes** (inner/outer cut, corner radius where applicable, origin selection):
 - Rectangle — Inner (perimeter), Inner (clearing), Outer; **Start Angle** turns it about its center (CCW). The preview shows the corner radius and the angle as you type
 - Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass
-- Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer
+- Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer; optional **Corner Radius** rounds every corner (up to fully round)
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
 - Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
 

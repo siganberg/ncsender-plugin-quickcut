@@ -1615,6 +1615,56 @@ test('rectangle Start Angle turns the cut about its center; 0 is unchanged', () 
   assert.ok(Math.abs(Math.min(...fl.map(q => q[0])) + poke) < 2e-3, String(Math.min(...fl.map(q => q[0]))));
 });
 
+test('polygon Corner Radius: arcs about the core polygon, offset by the bit; 0 is unchanged', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = (o) => baseParams(Object.assign({ sides: 6, diameter: 60, startAngleDeg: 0, cutType: 'outer', bitDiameter: 6, depth: 4, depthOfCut: 2 }, o));
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  const arcR = (gcode) => [...gcode.matchAll(/^G3 X-?[\d.]+ Y-?[\d.]+ I(-?[\d.]+) J(-?[\d.]+)/mg)].map(m => +Math.hypot(+m[1], +m[2]).toFixed(3));
+  for (const cutType of ['outer', 'inner', 'clearing']) {
+    assert.equal(g.generatePolygonProgram(base({ cutType, cornerRadius: 0 })), g.generatePolygonProgram(base({ cutType })), cutType);
+  }
+  // Outer, radius 5, bit 3 radius: every corner arc is 8; one per corner per pass.
+  const outer = g.generatePolygonProgram(base({ cornerRadius: 5 }));
+  assert.match(outer, /\(Start Angle: 0°, Corner Radius: 5mm\)/);
+  const radii = arcR(outer);
+  assert.equal(radii.length, 6 * 2);
+  assert.ok(radii.every(r => Math.abs(r - 8) < 2e-3), radii.join(','));
+  // The tool stays a bit radius outside the part's box: front-left origin puts it at -3.
+  // (Arcs are sampled: a corner's extreme point is partway round it.)
+  const traced = (gcode) => {
+    const pts = []; let x = 0, y = 0;
+    for (const m of gcode.matchAll(/^(G[0123]) X(-?[\d.]+) Y(-?[\d.]+)(?: I(-?[\d.]+) J(-?[\d.]+))?/mg)) {
+      const ex = +m[2], ey = +m[3];
+      if (m[1] === 'G3') {
+        const cx = x + +m[4], cy = y + +m[5], r = Math.hypot(x - cx, y - cy);
+        let a0 = Math.atan2(y - cy, x - cx), a1 = Math.atan2(ey - cy, ex - cx);
+        if (a1 <= a0) a1 += 2 * Math.PI;
+        for (let k = 0; k <= 32; k++) { const a = a0 + (a1 - a0) * k / 32; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+      } else pts.push([ex, ey]);
+      x = ex; y = ey;
+    }
+    return pts;
+  };
+  const fl = traced(g.generatePolygonProgram(base({ cornerRadius: 5, origin: 'front-left' })));
+  assert.ok(Math.abs(Math.min(...fl.map(q => q[0])) + 3) < 2e-3, String(Math.min(...fl.map(q => q[0]))));
+  assert.ok(Math.abs(Math.min(...fl.map(q => q[1])) + 3) < 2e-3, String(Math.min(...fl.map(q => q[1]))));
+  // Inner with a corner no bigger than the bit's radius: the sharp path.
+  const sharp = g.generatePolygonProgram(base({ cutType: 'inner', cornerRadius: 2 }));
+  assert.equal(arcR(sharp).length, 0);
+  assert.deepEqual(xy(sharp), xy(g.generatePolygonProgram(base({ cutType: 'inner' }))));
+  // Inner with a bigger corner: arcs of corner - bit radius.
+  assert.ok(arcR(g.generatePolygonProgram(base({ cutType: 'inner', cornerRadius: 7 }))).every(r => Math.abs(r - 4) < 2e-3));
+  // Clearing: the outer ring is rounded (radius 7 - 3), the inner rings sharp; ends lifted.
+  const clr = g.generatePolygonProgram(base({ cutType: 'clearing', cornerRadius: 7, stepoverPct: 40 }));
+  assert.ok(arcR(clr).length > 0 && arcR(clr).every(r => r <= 4 + 2e-3), arcR(clr).join(','));
+  assert.ok(!/NaN/.test(clr));
+  assert.match(clr.trim(), /M30/);
+  // Tabs follow the rounded path.
+  const tabbed = g.generatePolygonProgram(base({ cornerRadius: 5, tabs: { count: 3, width: 4, height: 2 } }));
+  assert.equal((tabbed.match(/; Tab$/mg) || []).length, 3);
+  assert.ok(!/NaN/.test(tabbed));
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
