@@ -19,6 +19,9 @@ test('inch input converts to mm on a metric machine', () => {
   assert.equal(parseUnitValue('0.25 inch', METRIC, 'length'), 6.35);
   assert.equal(parseUnitValue('1/4"', METRIC, 'length'), 6.35);
   assert.equal(parseUnitValue('1-1/2"', METRIC, 'length'), 38.1);
+  // Fractions over 1 work too.
+  assert.equal(parseUnitValue('5/4"', METRIC, 'length'), 31.75);
+  assert.equal(parseUnitValue('5/4"', IMPERIAL, 'length'), 1.25);
   assert.equal(parseUnitValue('1 1/2 in', METRIC, 'length'), 38.1);
   assert.equal(parseUnitValue('1/4”', METRIC, 'length'), 6.35);
 });

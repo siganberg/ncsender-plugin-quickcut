@@ -3056,7 +3056,7 @@
 
   function wireUnitFields() {
     var u = state.unitLabel;
-    var hint = state.isImperial ? 'Accepts 0.25, 1/4, 6.35mm' : 'Accepts 6.35, .25in, 1/4"';
+    var hint = state.isImperial ? 'Accepts 0.25, 1/4, 5/4", 6.35mm' : 'Accepts 6.35, .25in, 1/4", 5/4"';
     var fields = document.querySelectorAll('[data-unit]');
     for (var i = 0; i < fields.length; i++) {
       if (!fields[i].title) {
@@ -5370,7 +5370,7 @@
       'Each tab remembers its own tool settings, and the values you last generated with.',
       '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.' ] },
     units: { title: 'Typing units', notes: [
-      'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
+      'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>5/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
       'With a keyboard, <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> step a number by 1, with <kbd>Shift</kbd> 10, <kbd>Alt</kbd> 0.1, and <kbd>Ctrl</kbd> 0.001.' ] }
   };
 

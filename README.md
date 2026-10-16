@@ -144,6 +144,7 @@ Size, depth, distance, and feed fields accept a unit. When you leave the field, 
 | `.25in`, `.25"`, `1/4"`, `0.25 inch` | 6.35 | 0.25 |
 | `6.35mm`, `0.635cm` | 6.35 | 0.25 |
 | `1-1/2"` or `1 1/2 in` | 38.1 | 1.5 |
+| `5/4"` (fractions over 1 work too) | 31.75 | 1.25 |
 | `1/4` (no unit) | 0.25 | 0.25 |
 | `100ipm`, `100 in/min` (feed fields) | 2540 | 100 |
 | `2540 mm/min` or `2540mm/m` (feed fields) | 2540 | 100 |
