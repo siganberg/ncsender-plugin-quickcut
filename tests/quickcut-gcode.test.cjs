@@ -1533,6 +1533,40 @@ test('drill origin on a picked hole: column/row for grids, copy number for circu
   assert.match(circ, /\(Origin: hole 3\)/);
 });
 
+test('extent spacing spreads copies evenly from first to last center', () => {
+  const g = makeQuickCutGenerator(false);
+  const xs = (p) => g.computePatternPositions(p).map(q => +q.x.toFixed(6));
+  // 5 copies over 400: 100 apart, last one at 400.
+  const ext = { enabled: true, style: 'linear', xCount: 5, yCount: 1, xDist: 400, yDist: 0, spacing: 'extent' };
+  assert.deepEqual(xs(ext), [0, 100, 200, 300, 400]);
+  // Same positions as spacing mode with 100.
+  assert.deepEqual(g.computePatternPositions(ext),
+    g.computePatternPositions(Object.assign({}, ext, { xDist: 100, spacing: 'spacing' })));
+  // Y extent too, at an angle: the far corner is the extent along / across the row.
+  const ang = { enabled: true, style: 'linear', xCount: 3, yCount: 3, xDist: 60, yDist: 40, angle: 90, spacing: 'extent' };
+  const last = g.computePatternPositions(ang).pop();
+  assert.ok(Math.abs(last.x - -40) < 1e-9 && Math.abs(last.y - 60) < 1e-9, JSON.stringify(last));
+  // A count of 1 has no spacing.
+  assert.deepEqual(xs(Object.assign({}, ext, { xCount: 1 })), [0]);
+  // Honeycomb: the extent covers the primary rows.
+  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 3, xDist: 80, yDist: 60, spacing: 'extent' };
+  const pts = g.computePatternPositions(honey);
+  // Main (unshifted) rows run 0..80; the shifted rows overhang by half
+  // a spacing unless Symmetric Ends trims them.
+  assert.equal(Math.max(...pts.filter(q => q.y % 30 === 0).map(q => q.x)), 80);
+  assert.equal(Math.max(...pts.map(q => q.y)), 60);
+  assert.deepEqual(pts, g.computePatternPositions(Object.assign({}, honey, { xDist: 40, yDist: 30, spacing: 'spacing' })));
+  assert.ok(pts.some(q => q.x === 20 && q.y === 15), 'shifted row at half the worked-out spacing');
+});
+
+test('extent pattern header gives the extent and the spacing it works out to', () => {
+  const gcode = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
+    pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 2, xDist: 100, yDist: 25, spacing: 'extent' }
+  }));
+  assert.match(gcode, /\(Pattern: Linear 4x2 \[extent X=100, Y=25; dX=33\.3333, dY=25\]\)/);
+  assert.equal((gcode.match(/^\(Hole \d+\/8 /mg) || []).length, 8);
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };

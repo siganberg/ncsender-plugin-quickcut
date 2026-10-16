@@ -79,6 +79,15 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Dril
 | Circular (Identical) | *Count* copies spaced evenly on a circle of *Radius*, starting at *Start Angle*. Every copy keeps the same orientation. |
 | Circular (Path Direction) | Same as above, but each copy is turned to face outward from the center. |
 
+### Spacing or extent
+
+Linear and Honeycomb normally take a **Spacing**: the center-to-center distance between neighbouring copies. Turn on **Extent** to give the distance from the first copy's center to the last instead, and QuickCut spreads the copies evenly over it, like the Extent option in a CAD linear pattern. For example, X Count 5 with X Extent 400 puts the copies 100 apart; change the count and they re-space to fit the same 400. Hover the Extent label to see the spacing it works out to.
+
+- Flipping the switch converts the numbers so the pattern stays where it is (X Spacing 25 with X Count 5 becomes X Extent 100).
+- At an angle it works the same way, along and across the angled row (**Extent** / **Row Extent**).
+- On Honeycomb the extent covers the main rows; the shifted rows still sit half a step in between, and overhang by half a step unless **Symmetric Ends** is on.
+- The G-code header gives both, e.g. `Pattern: Linear 5x1 [extent X=400, Y=0; dX=100, dY=0]`.
+
 ### Linear and Honeycomb at an angle
 
 Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Measure Pattern Angle](#measuring-an-angle) page to measure the angle on the machine. At 0° the pattern runs along the machine axes, and the fields read *X Count / X Spacing / Y Count / Y Spacing*.

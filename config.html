@@ -1265,6 +1265,13 @@
                   <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-rect-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1432,6 +1439,13 @@
                   <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-circ-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1605,6 +1619,13 @@
                   <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-poly-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1743,6 +1764,13 @@
                   <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-key-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1881,6 +1909,13 @@
                   <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-drl-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -2296,6 +2331,7 @@
     updateUnitBadges();
     wireUnitFields();
     wireArrowKeySteps();
+    wirePatternExtent();
     wireTabs();
     wireValidation();
     wireRectangleForm();
@@ -3228,9 +3264,12 @@
     var pre = 'qc-' + prefix + '-pattern-';
     var hexTrimEl = $(pre + 'hex-trim');
     var rotateEl = $(pre + 'rotate-shapes');
+    var extentEl = $(pre + 'extent');
     return {
       enabled: $(pre + 'enable').checked,
       style:   $(pre + 'style').value,
+      // 'extent': xDist / yDist are first-to-last center, not spacing.
+      spacing: extentEl && extentEl.checked ? 'extent' : 'spacing',
       xDist:   num(pre + 'x-dist', 0),
       yDist:   num(pre + 'y-dist', 0),
       xCount:  Math.max(1, Math.floor(num(pre + 'x-count', 1))),
@@ -3384,7 +3423,10 @@
   // across the angled row, so the labels say that instead.
   var PATTERN_LABELS = {
     axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
-    angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' }
+    angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
+    // Extent mode renames only the distance fields.
+    axisExtent:   { 'x-dist': 'X Extent', 'y-dist': 'Y Extent' },
+    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' }
   };
   // The short angled labels need a word of explanation; it goes in the
   // label's tooltip so the narrow columns don't wrap.
@@ -3393,15 +3435,51 @@
     angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
               'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' }
   };
+  // Extent switch: flipping it converts both distance fields so the
+  // pattern stays where it is (spacing x (count - 1) = extent), then the
+  // labels and previews follow. A count of 1 has no spacing to convert,
+  // so its field is left alone. Any edit to a count or distance keeps
+  // the extent tooltip's worked-out spacing current.
+  function wirePatternExtent() {
+    ['rect', 'circ', 'poly', 'key', 'drl'].forEach(function(prefix) {
+      var pre = 'qc-' + prefix + '-pattern-';
+      var sw = $(pre + 'extent');
+      if (!sw) return;
+      sw.addEventListener('change', function() {
+        ['x', 'y'].forEach(function(axis) {
+          var count = Math.max(1, Math.floor(num(pre + axis + '-count', 1)));
+          var d = num(pre + axis + '-dist', NaN);
+          if (count < 2 || !isFinite(d)) return;
+          $(pre + axis + '-dist').value = roundDisplay(sw.checked ? d * (count - 1) : d / (count - 1));
+        });
+        updatePatternAngleLabels(prefix);
+        $(pre + 'x-dist').dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      $(pre + 'body').addEventListener('input', function(evt) {
+        if (/-(count|dist)$/.test(evt.target.id || '') && sw.checked) updatePatternAngleLabels(prefix);
+      });
+    });
+  }
+
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
     var angle = num('qc-' + prefix + '-pattern-angle', 0);
     var set = angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
+    var extentEl = $('qc-' + prefix + '-pattern-extent');
+    var extent = extentEl && extentEl.checked;
+    var extSet = angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
     var labels = body.querySelectorAll('[data-pattern-label]');
     for (var i = 0; i < labels.length; i++) {
       var key = labels[i].getAttribute('data-pattern-label');
-      labels[i].textContent = set[key].replace('{a}', angle);
+      labels[i].textContent = ((extent && extSet[key]) || set[key]).replace('{a}', angle);
       labels[i].title = (angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis)[key].replace('{a}', angle);
+      // In extent mode the tooltip gives the spacing it works out to.
+      if (extent && extSet[key]) {
+        var axis = key.charAt(0);
+        var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
+        var gap = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
+        labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
+      }
     }
     // The Rotate switch only means something for an angled grid; the
     // Angle field itself is hidden for Circular.
@@ -3409,14 +3487,10 @@
     var isGrid = style === 'linear' || style === 'honeycomb';
     var rotate = body.querySelector('.qc-pattern-angled-only');
     if (rotate) rotate.style.display = angle && isGrid ? '' : 'none';
-    // Hide the switch cell when neither switch shows, so the narrow
-    // layout (switches on their own line) doesn't leave an empty row.
-    var honey = body.querySelector('.qc-pattern-honeycomb-only');
+    // The switch cell (Extent, Symmetric Ends, Rotate shapes) is for the
+    // grid styles only; Circular hides it with the Angle field.
     var toggles = body.querySelector('.qc-pattern-toggle-cell');
-    if (toggles) {
-      var any = (rotate && rotate.style.display !== 'none') || (honey && honey.style.display !== 'none');
-      toggles.style.display = any ? '' : 'none';
-    }
+    if (toggles) toggles.style.display = isGrid ? '' : 'none';
   }
 
   // Read/write helpers for the per-shape Tool card. Values in state are
@@ -3689,6 +3763,8 @@
     if (p.angle != null)    $(pre + 'angle').value = p.angle;
     var rotateEl = $(pre + 'rotate-shapes');
     if (rotateEl && p.rotateShapes != null) rotateEl.checked = !!p.rotateShapes;
+    var extentEl = $(pre + 'extent');
+    if (extentEl && p.spacing != null) extentEl.checked = p.spacing === 'extent';
   }
 
   function saveSettings(params) {
@@ -3857,7 +3933,8 @@
       startAngle: p.startAngle,
       hexTrim:    !!p.hexTrim,
       angle:        p.angle || 0,
-      rotateShapes: !!p.rotateShapes
+      rotateShapes: !!p.rotateShapes,
+      spacing:      p.spacing === 'extent' ? 'extent' : 'spacing'
     };
   }
 
@@ -5501,6 +5578,12 @@
         var yCount = Math.max(1, Math.floor(pattern.yCount || 1));
         var xDist = pattern.xDist || 0;
         var yDist = pattern.yDist || 0;
+        // Extent mode (CAD's "Extent" linear pattern): the distances are
+        // first-to-last center, and the copies are spread evenly over it.
+        if (pattern.spacing === 'extent') {
+          xDist = patternStep(xDist, xCount);
+          yDist = patternStep(yDist, yCount);
+        }
         // Honeycomb: xCount × yCount = PRIMARY (un-shifted) items.
         // Shifted rows auto-insert between primary rows at Y = yDist/2
         // with X shifted by xDist/2. yCount stays the primary-row
@@ -5961,13 +6044,24 @@
         : '(WARNING: tabs too wide for this path; no tabs cut)'];
     }
 
+    // Spacing between copies when `extent` covers first to last center.
+    function patternStep(extent, count) {
+      return count > 1 ? extent / (count - 1) : 0;
+    }
+
     function patternDescription(p) {
       if (!p || !p.enabled) return '';
       if (p.style === 'linear' || p.style === 'honeycomb') {
         var label = p.style === 'honeycomb' ? 'Honeycomb' : 'Linear';
         var angle = Number(p.angle) || 0;
+        var xc = Math.max(1, Math.floor(p.xCount || 1)), yc = Math.max(1, Math.floor(p.yCount || 1));
+        var dims = p.spacing === 'extent'
+          ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0) +
+            '; dX=' + parseFloat(patternStep(p.xDist || 0, xc).toFixed(4)) +
+            ', dY=' + parseFloat(patternStep(p.yDist || 0, yc).toFixed(4))
+          : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
-               ' (dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0) + ')' +
+               ' (' + dims + ')' +
                (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
