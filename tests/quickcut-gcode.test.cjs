@@ -1665,6 +1665,21 @@ test('polygon Corner Radius: arcs about the core polygon, offset by the bit; 0 i
   assert.ok(!/NaN/.test(tabbed));
 });
 
+test('inner corners tighter than the bit say what the bit leaves, outer ones do not', () => {
+  const g = makeQuickCutGenerator(false);
+  const rect = (o) => g.generateRectangleProgram(baseParams(Object.assign({ width: 50, height: 30, bitDiameter: 6.35 }, o)));
+  assert.match(rect({ cutType: 'inner', cornerRadius: 2 }), /\(Corner Radius: 2mm \[the bit leaves 3\.175mm\]\)/);
+  assert.match(rect({ cutType: 'clearing', cornerRadius: 0 }), /\(Corner Radius: 0mm \[the bit leaves 3\.175mm\]\)/);
+  assert.match(rect({ cutType: 'inner', cornerRadius: 5 }), /\(Corner Radius: 5mm\)/);
+  assert.match(rect({ cutType: 'outer', cornerRadius: 0 }), /\(Corner Radius: 0mm\)/);
+  const poly = (o) => g.generatePolygonProgram(baseParams(Object.assign({ sides: 6, diameter: 60, bitDiameter: 6.35 }, o)));
+  assert.match(poly({ cutType: 'inner' }), /\(Start Angle: 0°, Corner Radius: 0mm \[the bit leaves 3\.175mm\]\)/);
+  assert.match(poly({ cutType: 'outer' }), /\(Start Angle: 0°\)/);
+  // The cut itself doesn't change.
+  const strip = (t) => t.split('\n').filter(l => !/^\(/.test(l)).join('\n');
+  assert.equal(strip(rect({ cutType: 'inner', cornerRadius: 2 })), strip(rect({ cutType: 'inner', cornerRadius: 0 })));
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };

@@ -1252,7 +1252,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-corner">Corner Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0" title="Rounds the corners (0 = square). On an Inner cut the corner can't be tighter than the bit's radius; the preview shows what you'll get.">
                   </div>
                 </div>
                 <div class="qc-row-3 qc-rect-type-row">
@@ -1632,7 +1632,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-corner">Corner Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's own radius.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get.">
                   </div>
                   <div class="qc-field">
                     <label>Origin</label>
@@ -2501,8 +2501,11 @@
     if (TOOL_SHAPES.indexOf(target) >= 0) {
       writeToolToInputs(state.toolByShape[target]);
     }
+    // Previews that depend on the tab's own bit (just loaded above).
     if (target === 'keyhole') updateKeyholePreview();
     if (target === 'drill') updateDrillPreview();
+    if (target === 'rectangle') updateRectanglePreview();
+    if (target === 'polygon') updatePolygonPreview();
     state.currentTab = target;
     if (target === 'measure') {
       startMeasurePolling();
@@ -4356,14 +4359,23 @@
            ' L' + P(x, y + r) + A + P(x + r, y) + ' Z';
   }
 
+  // Corner radius the cut will really leave: on an inner or clearing
+  // cut, never less than the bit's radius.
+  function previewCornerRadius(typed, cutType) {
+    var r = Math.max(0, typed || 0);
+    if (cutType === 'inner' || cutType === 'clearing') r = Math.max(r, Math.max(0, num('qc-bit', 0)) / 2);
+    return r;
+  }
+
   function updateRectanglePreview() {
     var svg = document.getElementById('qc-rect-preview');
     if (!svg) return;
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
-    var CR = num('qc-rect-corner', 0);
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
+    // The corner you'll get: an inner cut can't be tighter than the bit.
+    var CR = previewCornerRadius(num('qc-rect-corner', 0), cutType);
 
     // Rectangle is drawn at a FIXED size regardless of the user's
     // Width/Height values — the preview's job is to communicate
@@ -5283,7 +5295,7 @@
     // is an arc about a vertex of the smaller "core" polygon, as in the
     // generator. Machine CCW stays CCW on screen (sweep-flag 0).
     var half = Math.PI / n;
-    var CR = num('qc-poly-corner', 0);
+    var CR = previewCornerRadius(num('qc-poly-corner', 0), cutType);
     var crP = diameter > 0 && CR > 0 ? Math.min(CR * R / (diameter / 2), apothem) : 0;
     var outline;
     if (crP > 0) {
@@ -6505,6 +6517,17 @@
              (p.totalAngle != null && Number(p.totalAngle) !== 360 ? ' total=' + p.totalAngle + '°' : '');
     }
 
+    // On an inner or clearing cut a corner can't be tighter than the bit's
+    // own radius; when the typed Corner Radius is smaller, the header says
+    // what the bit leaves. The path itself is unchanged (sharp, so the bit
+    // rounds the corner).
+    function bitCornerNote(params, unitsLabel) {
+      var cut = params.cutType || 'inner';
+      var bitR = (params.bitDiameter || 0) / 2;
+      if ((cut !== 'inner' && cut !== 'clearing') || !(bitR > (params.cornerRadius || 0))) return '';
+      return ' (the bit leaves ' + parseFloat(bitR.toFixed(4)) + unitsLabel + ')';
+    }
+
     // Rectangle Start Angle: every copy is turned by `deg` about its own
     // center, on top of any turn the pattern gives it. The emitters,
     // tabs and anchor shift already handle a per-copy rotation.
@@ -6526,7 +6549,7 @@
 
       var extras = [
         'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
-        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel +
+        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel + bitCornerNote(params, unitsLabel) +
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Origin: ' + (params.origin || 'center')
@@ -6615,7 +6638,7 @@
 
       var extras = [
         'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
-        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel +
+        'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel + bitCornerNote(params, unitsLabel) +
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
@@ -7424,7 +7447,8 @@
         'Sides: ' + baseGeom.sides,
         'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
         'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
-          (baseGeom.cornerR > 0 ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel : ''),
+          (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
+            ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Origin: ' + (params.origin || 'center')
       ];
@@ -7527,7 +7551,8 @@
         'Sides: ' + baseGeom.sides,
         'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
         'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
-          (baseGeom.cornerR > 0 ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel : ''),
+          (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
+            ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: straight plunge at innermost polygon start',
