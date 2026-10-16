@@ -78,7 +78,7 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Dril
 | Linear | A grid of rows and columns. |
 | Honeycomb | Like Linear, plus a shifted row (offset by half a step in both directions) between each pair of rows. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. |
 | Circular (Identical) | *Count* copies on a circle of *Radius*, starting at *Start Angle* and spread over *Total Angle* (see below). Every copy keeps the same orientation. |
-| Circular (Path Direction) | Same as above, but each copy is turned to face outward from the center. |
+| Circular (Path Direction) | Same as above, but each copy turns with the circle: the first copy (at the Start Angle) looks like the shape preview, and each later copy is turned by how far round the circle it is from the first. |
 
 ### Circular Total Angle
 

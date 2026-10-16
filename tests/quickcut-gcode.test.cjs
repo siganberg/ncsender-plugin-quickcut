@@ -1585,6 +1585,17 @@ test('circular Total Angle: full circle unchanged, partial arc ends on both ends
   assert.deepEqual(follow.map(q => q.rotDeg), [0, 90, 180]);
 });
 
+test('Path Direction: the first copy is unturned whatever the Start Angle', () => {
+  const g = makeQuickCutGenerator(false);
+  const rots = (startAngle) => g.computePatternPositions({ enabled: true, style: 'circular-follow', count: 4, radius: 30, startAngle })
+    .map(q => +q.rotDeg.toFixed(6));
+  assert.deepEqual(rots(0), [0, 90, 180, 270]);
+  assert.deepEqual(rots(90), [0, 90, 180, 270]);
+  // The positions still start at the Start Angle.
+  const first = g.computePatternPositions({ enabled: true, style: 'circular-follow', count: 4, radius: 30, startAngle: 90 })[0];
+  assert.ok(Math.abs(first.x) < 1e-9 && Math.abs(first.y - 30) < 1e-9);
+});
+
 test('circular Total Angle shows in the header only when it is not 360', () => {
   const g = makeQuickCutGenerator(false);
   const pat = (t) => drillBase({ pattern: { enabled: true, style: 'circular', count: 4, radius: 30, startAngle: 10, totalAngle: t } });

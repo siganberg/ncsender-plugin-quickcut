@@ -6062,7 +6062,9 @@
           positions.push({
             x: radius * Math.cos(rad),
             y: radius * Math.sin(rad),
-            rotDeg: doRotate ? deg : 0
+            // Turned by how far round the circle the copy is from the
+            // first one, so the first copy matches the shape preview.
+            rotDeg: doRotate ? deg - startAngle : 0
           });
         }
         return positions;
