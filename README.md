@@ -76,8 +76,18 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Dril
 | --- | --- |
 | Linear | A grid of rows and columns. |
 | Honeycomb | Like Linear, plus a shifted row (offset by half a step in both directions) between each pair of rows. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. |
-| Circular (Identical) | *Count* copies spaced evenly on a circle of *Radius*, starting at *Start Angle*. Every copy keeps the same orientation. |
+| Circular (Identical) | *Count* copies on a circle of *Radius*, starting at *Start Angle* and spread over *Total Angle* (see below). Every copy keeps the same orientation. |
 | Circular (Path Direction) | Same as above, but each copy is turned to face outward from the center. |
+
+### Circular Total Angle
+
+**Total Angle** (default 360°) is the arc the circular copies are spread over, counter-clockwise from the Start Angle, as in a CAD circular pattern:
+
+- **360°** spaces the copies evenly all the way round (6 copies are 60° apart), the same as before.
+- **Less than 360°** puts the first and last copy at the two ends of the arc and spaces the rest evenly between: 5 copies over 90° are 22.5° apart, at 0°, 22.5°, 45°, 67.5°, and 90° from the Start Angle.
+- **Negative** runs clockwise. 0 isn't allowed, since every copy would land in the same place.
+
+The G-code header adds `total=90°` when it isn't 360.
 
 ### Spacing or extent
 

@@ -1567,6 +1567,31 @@ test('extent pattern header gives the extent and the spacing it works out to', (
   assert.equal((gcode.match(/^\(Hole \d+\/8 /mg) || []).length, 8);
 });
 
+test('circular Total Angle: full circle unchanged, partial arc ends on both ends, negative is clockwise', () => {
+  const g = makeQuickCutGenerator(false);
+  const degs = (p) => g.computePatternPositions(p).map(q => +(Math.atan2(q.y, q.x) * 180 / Math.PI).toFixed(6));
+  const base = { enabled: true, style: 'circular', count: 5, radius: 50, startAngle: 0 };
+  // Missing, 360 and the old behaviour all match.
+  assert.deepEqual(g.computePatternPositions(Object.assign({}, base, { totalAngle: 360 })), g.computePatternPositions(base));
+  assert.deepEqual(degs(base), [0, 72, 144, -144, -72]);
+  // 5 copies over 90: 22.5 apart, the last on 90.
+  assert.deepEqual(degs(Object.assign({}, base, { totalAngle: 90 })), [0, 22.5, 45, 67.5, 90]);
+  // Negative: clockwise from the start.
+  assert.deepEqual(degs(Object.assign({}, base, { startAngle: 90, totalAngle: -90 })), [90, 67.5, 45, 22.5, 0]);
+  // -360: full circle, clockwise.
+  assert.deepEqual(degs(Object.assign({}, base, { totalAngle: -360 })), [0, -72, -144, 144, 72]);
+  // Path Direction turns each copy to its own angle on the arc.
+  const follow = g.computePatternPositions(Object.assign({}, base, { style: 'circular-follow', totalAngle: 180, count: 3 }));
+  assert.deepEqual(follow.map(q => q.rotDeg), [0, 90, 180]);
+});
+
+test('circular Total Angle shows in the header only when it is not 360', () => {
+  const g = makeQuickCutGenerator(false);
+  const pat = (t) => drillBase({ pattern: { enabled: true, style: 'circular', count: 4, radius: 30, startAngle: 10, totalAngle: t } });
+  assert.match(g.generateDrillProgram(pat(120)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10° total=120°\)/);
+  assert.match(g.generateDrillProgram(pat(360)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10°\)/);
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
