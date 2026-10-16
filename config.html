@@ -2479,6 +2479,7 @@
     wireHoldingTabs('poly', updatePolygonPreview);
     wireMeasureTab();
     wireHelp();
+    wireOriginCrosshairs();
     wireCloseButton();
   }
 
@@ -4170,8 +4171,6 @@
     wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, function(pt) {
       pickPreviewNode(rectPreviewNodes, 'qc-rect-origin', pt, updateRectanglePreview);
     });
-    // The filled node follows the 9-dot picker too.
-    $('qc-rect-origin').addEventListener('change', updateRectanglePreview);
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -4374,18 +4373,32 @@
            ' L' + P(x, y + r) + A + P(x + r, y) + ' Z';
   }
 
+  // Origin crosshair for the shape previews, as on Drill: X0 Y0 at
+  // (px, py) in the SVG's coordinates. With a pattern the origin can lie
+  // outside the drawn copy; then there's nothing to mark, so no crosshair.
+  function originCross(px, py) {
+    if (!isFinite(px) || !isFinite(py) || Math.abs(px) > 50 || Math.abs(py) > 50) return '';
+    var arm = 5;
+    return '<path class="qc-origin-mark" d="M' + (px - arm).toFixed(2) + ',' + py.toFixed(2) +
+           ' H' + (px + arm).toFixed(2) + ' M' + px.toFixed(2) + ',' + (py - arm).toFixed(2) +
+           ' V' + (py + arm).toFixed(2) + '"/>';
+  }
+  // The crosshair follows the Origin picker and the pattern (with a
+  // pattern, the origin box is around every copy).
+  function wireOriginCrosshairs() {
+    [['rect', updateRectanglePreview], ['circ', updateCirclePreview],
+     ['poly', updatePolygonPreview], ['key', updateKeyholePreview]].forEach(function(t) {
+      $('qc-' + t[0] + '-origin').addEventListener('change', t[1]);
+      $('qc-' + t[0] + '-pattern-enable').addEventListener('change', t[1]);
+      $('qc-' + t[0] + '-pattern-body').addEventListener('input', t[1]);
+      $('qc-' + t[0] + '-pattern-body').addEventListener('change', t[1]);
+    });
+  }
+
   // Rectangle / Polygon previews: a tap on a corner (where the edges
   // meet, even if rounded) or the center makes it the Origin. `nodes` is
-  // [{x, y, value}] in the SVG's coordinates. The points stay hidden to
-  // keep the preview plain; only a tapped one (corner:N / shape-center)
-  // is drawn, filled. The 9-dot picker's own points aren't marked here.
-  function previewNodes(nodes, inputId) {
-    var current = $(inputId).value;
-    if (!/^(corner:\d+|shape-center)$/.test(current)) return '';
-    return nodes.filter(function(nd) { return nd.value === current; }).map(function(nd) {
-      return '<circle class="qc-origin-node qc-origin-node-picked" cx="' + nd.x.toFixed(2) + '" cy="' + nd.y.toFixed(2) + '" r="2.8"/>';
-    }).join('');
-  }
+  // [{x, y, value}] in the SVG's coordinates; they aren't drawn, the
+  // crosshair shows where the Origin is.
   // A tap on the preview: the nearest node within reach becomes the Origin.
   function pickPreviewNode(nodes, inputId, pt, redraw) {
     var best = null, bestD = 8;
@@ -4503,7 +4516,17 @@
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       wLine + hLine + wLabel + hLabel +
       tabMarks('rect', previewLines(tabPts, rectTabLens())) +
-      previewNodes(rectPreviewNodes, 'qc-rect-origin');
+      rectOriginCross();
+
+    // X0 Y0, from the generator: undo the turn, scale each local axis
+    // as drawn, then turn back.
+    function rectOriginCross() {
+      if (!(W > 0 && H > 0)) return '';
+      var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('rectangle', readRectangleForm());
+      var lx = off.x * c + off.y * sn, ly = -off.x * sn + off.y * c;
+      var q = T(lx * w / W, -ly * h / H);
+      return originCross(q.x, q.y);
+    }
 
     // Edge lengths of the tool path (the part size grown or shrunk by
     // the bit), which is what the generator spaces the tabs along.
@@ -4969,7 +4992,12 @@
       '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
       dLine + dLabel +
       // The cut starts at the rightmost point and runs CCW.
-      tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]);
+      tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]) +
+      (D > 0 ? (function() {
+        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
+        var k = r / (D / 2);
+        return originCross(off.x * k, -off.y * k);
+      })() : '');
   }
 
   // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
@@ -5105,7 +5133,12 @@
       '<circle class="qc-shape-fill" cx="' + H.x.toFixed(2) + '" cy="' + H.y.toFixed(2) + '" r="' + r.toFixed(2) + '"/>' +
       dimLine +
       label(lenLabel, n, len > 0 ? len : '?') +
-      label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?'));
+      label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?')) +
+      // X0 Y0 relative to the plunge hole (H), to the same scale.
+      (D > 0 || L > 0 ? (function() {
+        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('keyhole', readKeyholeForm());
+        return originCross(H.x + off.x * scale, H.y - off.y * scale);
+      })() : '');
   }
 
   // Dragging on a preview sets an angle field, in whole degrees,
@@ -5420,7 +5453,11 @@
       '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>' +
       // The cut starts at the first vertex (or its corner arc) and runs CCW.
       tabMarks('poly', polyTabSegs()) +
-      previewNodes(polyPreviewNodes, 'qc-poly-origin');
+      (diameter > 0 ? (function() {
+        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('polygon', readPolygonForm());
+        var k = R / (diameter / 2);
+        return originCross(off.x * k, -off.y * k);
+      })() : '');
 
     // The path the tabs are spaced along: in preview units, but with the
     // real tool path lengths, which is what the generator spaces them by.
@@ -5457,7 +5494,6 @@
     wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true, function(pt) {
       pickPreviewNode(polyPreviewNodes, 'qc-poly-origin', pt, updatePolygonPreview);
     });
-    $('qc-poly-origin').addEventListener('change', updatePolygonPreview);
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
@@ -5518,7 +5554,7 @@
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse.',
-      'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; a dot then marks it. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
+      'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
@@ -6633,6 +6669,30 @@
         var start = Math.PI / sides - Math.PI / 2 + ((params.startAngleDeg || 0) + rot) * Math.PI / 180;
         return polygonVertices(0, 0, radius, sides, start);
       };
+    }
+
+    // Where X0 Y0 sits relative to the first copy's center (Keyhole: its
+    // plunge hole), in machine units, worked out exactly as the program
+    // does. The previews draw their origin crosshair from it.
+    function shapeOriginOffset(shape, params) {
+      var positions = computePatternPositions(params.pattern);
+      var shift;
+      if (shape === 'rectangle') {
+        positions = withShapeTurn(positions, params.startAngleDeg);
+        shift = resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).shift;
+      } else if (shape === 'polygon') {
+        shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
+      } else if (shape === 'circle') {
+        shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
+      } else if (shape === 'keyhole') {
+        var startDeg = params.startAngleDeg || 0;
+        shift = (params.origin || 'hole') === 'hole' ? { x: 0, y: 0 } : computePatternAnchorShift(params.origin, positions, function(pos) {
+          return keyholeBbox(params, startDeg + (pos.rotDeg || 0));
+        });
+      } else {
+        return { x: 0, y: 0 };
+      }
+      return { x: -shift.x - positions[0].x, y: -shift.y - positions[0].y };
     }
 
     // On an inner or clearing cut a corner can't be tighter than the bit's
@@ -8021,7 +8081,8 @@
       patternPositionKeys: patternPositionKeys,
       resolveDrillOrigin: resolveDrillOrigin,
       rectangleCorners: rectangleCorners,
-      polygonCorners: polygonCorners
+      polygonCorners: polygonCorners,
+      shapeOriginOffset: shapeOriginOffset
     };
   }
 
