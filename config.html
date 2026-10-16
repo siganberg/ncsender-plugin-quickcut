@@ -4117,40 +4117,90 @@
   // renders it — same pattern the ToolBench plugins use. The operator
   // reviews the toolpath, then runs it from the main UI when ready.
   async function loadGcodeIntoVisualizer(gcode, filename) {
-    var res = await fetch(BASE_URL + '/api/gcode-files/load-temp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: filename, content: gcode })
-    });
-    // Saved before returning: every Generate closes the dialog as soon as this
-    // resolves, and a save still in flight would be abandoned.
+    // Show the tap registered: the dialog closes when this resolves, but
+    // the load (and a File Manager save) can take a moment. Put back if
+    // anything fails and the dialog stays open.
+    var btn = document.querySelector('.qc-content.active [id$="-generate"]');
+    var label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
     var saveBox = $('qc-save-files');
-    if (res.ok && saveBox && saveBox.checked) {
-      try {
-        await saveGeneratedProgram(gcode, filename);
-      } catch (err) {
-        alert('The program was loaded, but saving it to File Manager failed: ' + err.message);
+    var saving = saveBox && saveBox.checked;
+    // The free File Manager name is looked up while the program loads; it
+    // only reads, so it doesn't need to wait.
+    var pathLookup = saving ? freeSavePath(filename).catch(function(err) { return err; }) : null;
+    try {
+      var res = await fetch(BASE_URL + '/api/gcode-files/load-temp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: filename, content: gcode })
+      });
+      // Saved before returning: every Generate closes the dialog as soon as this
+      // resolves, and a save still in flight would be abandoned.
+      if (res.ok && saving) {
+        try {
+          var path = await pathLookup;
+          if (path instanceof Error) throw path;
+          await saveGeneratedProgram(gcode, path);
+        } catch (err) {
+          alert('The program was loaded, but saving it to File Manager failed: ' + err.message);
+        }
       }
+      if (btn) {
+        // On success the dialog is about to close; if it doesn't, don't
+        // leave the button stuck.
+        var restore = function() { btn.disabled = false; btn.textContent = label; };
+        if (res.ok) setTimeout(restore, 500); else restore();
+      }
+      return res;
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      throw err;
     }
-    return res;
   }
 
   // Saves into File Manager › QuickCut under the generated name. Every shape
   // generates the same name each time, so a name already taken gets " (2)",
   // " (3)" and so on rather than overwriting a program saved earlier. The
   // server creates the QuickCut folder on the first save.
-  async function saveGeneratedProgram(gcode, filename) {
+  //
+  // freeSavePath finds that name. Probing each candidate with
+  // GET /api/gcode-files/file downloads the whole file, so with many saved
+  // copies that got slow; instead one GET /api/gcode-files lists what's in
+  // QuickCut/ and the first free name is picked from it. That pick is
+  // still probed once (a 404 is quick) so a listing that looks different
+  // can never cause an overwrite; if it's taken after all, the probing
+  // carries on from there as before.
+  function savePathFor(filename, n) {
     var dot = filename.lastIndexOf('.');
     var stem = dot > 0 ? filename.slice(0, dot) : filename;
     var ext = dot > 0 ? filename.slice(dot) : '';
-    var path = 'QuickCut/' + filename;
-    for (var n = 2; ; n++) {
+    return 'QuickCut/' + (n < 2 ? filename : stem + ' (' + n + ')' + ext);
+  }
+  async function freeSavePath(filename) {
+    var taken = {};
+    try {
+      var res = await fetch(BASE_URL + '/api/gcode-files');
+      var list = res.ok ? await res.json() : null;
+      (function walk(entries) {
+        (entries || []).forEach(function(e) {
+          var path = e && (e.path != null ? e.path : e.Path);
+          if (typeof path === 'string') taken[path.replace(/\\/g, '/').replace(/^\//, '')] = true;
+          walk(e && (e.children || e.Children));
+        });
+      })(list && (list.tree || list.Tree));
+    } catch (e) { /* fall back to probing from the first name */ }
+    var n = 1;
+    while (taken[savePathFor(filename, n)] && n < 999) n = n < 2 ? 2 : n + 1;
+    for (;;) {
+      var path = savePathFor(filename, n);
       var probe = await fetch(BASE_URL + '/api/gcode-files/file?path=' + encodeURIComponent(path));
-      if (probe.status === 404) break;
+      if (probe.status === 404) return path;
       if (!probe.ok) throw new Error('could not check for an existing file (' + probe.status + ')');
       if (n > 999) throw new Error('too many saved copies of ' + filename);
-      path = 'QuickCut/' + stem + ' (' + n + ')' + ext;
+      n = n < 2 ? 2 : n + 1;
     }
+  }
+  async function saveGeneratedProgram(gcode, path) {
     var saved = await fetch(BASE_URL + '/api/gcode-files/file/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
