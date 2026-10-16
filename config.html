@@ -775,7 +775,7 @@
     stroke-width: 1;
   }
   /* Rectangle / Polygon previews: tap a corner (or the center) to make
-     it the Origin; the picked one is filled. */
+     it the Origin; only the picked one is drawn. */
   .qc-shape-preview-cell .qc-origin-node {
     fill: var(--color-surface);
     stroke: var(--color-text-secondary, #888);
@@ -4374,15 +4374,16 @@
            ' L' + P(x, y + r) + A + P(x + r, y) + ' Z';
   }
 
-  // Rectangle / Polygon previews mark the points a tap can make the
-  // Origin: each corner (where the edges meet, even if rounded) and the
-  // center. `nodes` is [{x, y, value}] in the SVG's coordinates; the one
-  // matching the Origin input is filled.
+  // Rectangle / Polygon previews: a tap on a corner (where the edges
+  // meet, even if rounded) or the center makes it the Origin. `nodes` is
+  // [{x, y, value}] in the SVG's coordinates. The points stay hidden to
+  // keep the preview plain; only a tapped one (corner:N / shape-center)
+  // is drawn, filled. The 9-dot picker's own points aren't marked here.
   function previewNodes(nodes, inputId) {
     var current = $(inputId).value;
-    return nodes.map(function(nd) {
-      return '<circle class="qc-origin-node' + (nd.value === current ? ' qc-origin-node-picked' : '') +
-             '" cx="' + nd.x.toFixed(2) + '" cy="' + nd.y.toFixed(2) + '" r="2.8"/>';
+    if (!/^(corner:\d+|shape-center)$/.test(current)) return '';
+    return nodes.filter(function(nd) { return nd.value === current; }).map(function(nd) {
+      return '<circle class="qc-origin-node qc-origin-node-picked" cx="' + nd.x.toFixed(2) + '" cy="' + nd.y.toFixed(2) + '" r="2.8"/>';
     }).join('');
   }
   // A tap on the preview: the nearest node within reach becomes the Origin.
@@ -5517,7 +5518,7 @@
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse.',
-      'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
+      'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; a dot then marks it. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
