@@ -492,21 +492,6 @@
   }
   .qc-z0-callout .qc-z0-target { font-weight: 700; }
 
-  /* Select + inline switch on the same line — used for the Pattern
-     Style field where the Symmetric Ends toggle sits to the right of
-     the dropdown control (not stacked above with its own label). */
-  .qc-select-with-toggle {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-  }
-  .qc-select-with-toggle > .qc-select {
-    flex: 0 0 240px;
-    width: 240px;
-    min-width: 0;
-  }
-
   /* Body that shows/hides based on the header switch. */
   .qc-pattern-body {
     display: flex;
@@ -523,11 +508,29 @@
     gap: 12px;
   }
 
-  /* Rotate-shapes switch sits beside the Angle input, aligned with it. */
-  .qc-pattern-rotate-cell {
+  /* Pattern card: Style, Angle and the Symmetric Ends / Rotate shapes
+     switches share the top row; the switches stack at the bottom of
+     the third column, level with the inputs. */
+  .qc-pattern-toggle-cell {
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 6px;
     padding-bottom: 9px;
+    min-width: 0;
+  }
+  /* X Count, X Spacing, Y Count, Y Spacing on one row; two per row when
+     the dialog is narrow. */
+  @media (max-width: 760px) {
+    .qc-row-4.qc-pattern-axis-row { grid-template-columns: repeat(2, 1fr); }
+    .qc-row-3.qc-pattern-top-row { grid-template-columns: repeat(2, 1fr); }
+    .qc-pattern-toggle-cell {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 6px 18px;
+      padding-bottom: 0;
+    }
   }
 
   .qc-row-2, .qc-row-3, .qc-row-4 {
@@ -1247,15 +1250,21 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-rect-pattern-body" style="display: none;">
-              <div class="qc-field">
-                <label for="qc-rect-pattern-style">Pattern Style</label>
-                <div class="qc-select-with-toggle">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-rect-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-rect-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-rect-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="rect" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1263,47 +1272,37 @@
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
+                  <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                    <span>Rotate shapes</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-rect-pattern-rotate-shapes">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                 </div>
               </div>
-              <div class="qc-pattern-linear-fields">
-                <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label for="qc-rect-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-x-dist" step="0.1" value="60">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-rect-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-y-dist" step="0.1" value="40">
-                  </div>
-                </div>
-                <div class="qc-row-2">
+              <div class="qc-pattern-linear-fields" data-shape="rect">
+                <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-rect-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
+                    <label for="qc-rect-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-x-dist" step="0.1" value="60">
+                  </div>
+                  <div class="qc-field">
                     <label for="qc-rect-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-rect-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="rect" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                  <div class="qc-pattern-rotate-cell">
-                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
-                      <span>Rotate shapes with angle</span>
-                      <span class="qc-switch">
-                        <input type="checkbox" id="qc-rect-pattern-rotate-shapes">
-                        <span class="qc-switch-track"></span>
-                      </span>
-                    </label>
+                    <label for="qc-rect-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-y-dist" step="0.1" value="40">
                   </div>
                 </div>
               </div>
-              <div class="qc-pattern-circular-fields" style="display: none;">
-                <div class="qc-row-2">
+              <div class="qc-pattern-circular-fields" data-shape="rect" style="display: none;">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-rect-pattern-count">Count</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-count" min="2" step="1" value="6" required>
@@ -1312,8 +1311,6 @@
                     <label for="qc-rect-pattern-radius">Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-rect-pattern-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-rect-pattern-start-angle" step="1" value="0">
@@ -1421,14 +1418,20 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-circ-pattern-body" style="display: none;">
-              <div class="qc-field">
-                <label for="qc-circ-pattern-style">Pattern Style</label>
-                <div class="qc-select-with-toggle">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-circ-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-circ-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular</option>
                   </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-circ-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="circ" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1439,35 +1442,27 @@
                 </div>
               </div>
               <div class="qc-pattern-linear-fields" data-shape="circ">
-                <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label for="qc-circ-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-x-dist" step="0.1" value="40">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-circ-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-y-dist" step="0.1" value="40">
-                  </div>
-                </div>
-                <div class="qc-row-2">
+                <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-circ-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
+                    <label for="qc-circ-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
                     <label for="qc-circ-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-circ-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="circ" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                    <label for="qc-circ-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-y-dist" step="0.1" value="40">
                   </div>
                 </div>
               </div>
               <div class="qc-pattern-circular-fields" data-shape="circ" style="display: none;">
-                <div class="qc-row-2">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-circ-pattern-count">Count</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-count" min="2" step="1" value="6" required>
@@ -1476,8 +1471,6 @@
                     <label for="qc-circ-pattern-radius">Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-circ-pattern-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-circ-pattern-start-angle" step="1" value="0">
@@ -1597,15 +1590,21 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-poly-pattern-body" style="display: none;">
-              <div class="qc-field">
-                <label for="qc-poly-pattern-style">Pattern Style</label>
-                <div class="qc-select-with-toggle">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-poly-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-poly-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-poly-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="poly" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1613,47 +1612,37 @@
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
+                  <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                    <span>Rotate shapes</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-poly-pattern-rotate-shapes">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                 </div>
               </div>
               <div class="qc-pattern-linear-fields" data-shape="poly">
-                <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label for="qc-poly-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-x-dist" step="0.1" value="40">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-poly-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-y-dist" step="0.1" value="40">
-                  </div>
-                </div>
-                <div class="qc-row-2">
+                <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-poly-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
+                    <label for="qc-poly-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
                     <label for="qc-poly-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-poly-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="poly" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                  <div class="qc-pattern-rotate-cell">
-                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
-                      <span>Rotate shapes with angle</span>
-                      <span class="qc-switch">
-                        <input type="checkbox" id="qc-poly-pattern-rotate-shapes">
-                        <span class="qc-switch-track"></span>
-                      </span>
-                    </label>
+                    <label for="qc-poly-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-y-dist" step="0.1" value="40">
                   </div>
                 </div>
               </div>
               <div class="qc-pattern-circular-fields" data-shape="poly" style="display: none;">
-                <div class="qc-row-2">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-poly-pattern-count">Count</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-count" min="2" step="1" value="6" required>
@@ -1662,8 +1651,6 @@
                     <label for="qc-poly-pattern-radius">Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-poly-pattern-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-poly-pattern-start-angle" step="1" value="0">
@@ -1741,15 +1728,21 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-key-pattern-body" style="display: none;">
-              <div class="qc-field">
-                <label for="qc-key-pattern-style">Pattern Style</label>
-                <div class="qc-select-with-toggle">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-key-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-key-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-key-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="key" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1757,47 +1750,37 @@
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
+                  <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                    <span>Rotate shapes</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-key-pattern-rotate-shapes">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
                 </div>
               </div>
               <div class="qc-pattern-linear-fields" data-shape="key">
-                <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label for="qc-key-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-x-dist" step="0.1" value="40">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-key-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-y-dist" step="0.1" value="40">
-                  </div>
-                </div>
-                <div class="qc-row-2">
+                <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-key-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-key-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
+                    <label for="qc-key-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
                     <label for="qc-key-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-key-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-key-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="key" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
-                  </div>
-                  <div class="qc-pattern-rotate-cell">
-                    <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
-                      <span>Rotate shapes with angle</span>
-                      <span class="qc-switch">
-                        <input type="checkbox" id="qc-key-pattern-rotate-shapes">
-                        <span class="qc-switch-track"></span>
-                      </span>
-                    </label>
+                    <label for="qc-key-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-y-dist" step="0.1" value="40">
                   </div>
                 </div>
               </div>
               <div class="qc-pattern-circular-fields" data-shape="key" style="display: none;">
-                <div class="qc-row-2">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-key-pattern-count">Count</label>
                     <input class="qc-input" type="number" id="qc-key-pattern-count" min="2" step="1" value="6" required>
@@ -1806,8 +1789,6 @@
                     <label for="qc-key-pattern-radius">Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-radius" min="0.1" step="0.1" value="40" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-key-pattern-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-key-pattern-start-angle" step="1" value="0">
@@ -1886,14 +1867,20 @@
               </label>
             </div>
             <div class="qc-pattern-body" id="qc-drl-pattern-body" style="display: none;">
-              <div class="qc-field">
-                <label for="qc-drl-pattern-style">Pattern Style</label>
-                <div class="qc-select-with-toggle">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-drl-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-drl-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular</option>
                   </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-drl-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="drl" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1904,35 +1891,27 @@
                 </div>
               </div>
               <div class="qc-pattern-linear-fields" data-shape="drl">
-                <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label for="qc-drl-pattern-x-dist" data-pattern-label="x-dist">X Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-x-dist" step="0.1" value="32">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-drl-pattern-y-dist" data-pattern-label="y-dist">Y Distance</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-y-dist" step="0.1" value="32">
-                  </div>
-                </div>
-                <div class="qc-row-2">
+                <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-drl-pattern-x-count" data-pattern-label="x-count">X Count</label>
                     <input class="qc-input" type="number" id="qc-drl-pattern-x-count" min="1" step="1" value="2" required>
                   </div>
                   <div class="qc-field">
+                    <label for="qc-drl-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-x-dist" step="0.1" value="32">
+                  </div>
+                  <div class="qc-field">
                     <label for="qc-drl-pattern-y-count" data-pattern-label="y-count">Y Count</label>
                     <input class="qc-input" type="number" id="qc-drl-pattern-y-count" min="1" step="1" value="2" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-drl-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="drl" title="Measure the angle on the machine">Measure</a></label>
-                    <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                    <label for="qc-drl-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-y-dist" step="0.1" value="32">
                   </div>
                 </div>
               </div>
               <div class="qc-pattern-circular-fields" data-shape="drl" style="display: none;">
-                <div class="qc-row-2">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-drl-pattern-count">Count</label>
                     <input class="qc-input" type="number" id="qc-drl-pattern-count" min="2" step="1" value="6" required>
@@ -1941,8 +1920,6 @@
                     <label for="qc-drl-pattern-radius">Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-radius" min="0.1" step="0.1" value="32" required>
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-drl-pattern-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-drl-pattern-start-angle" step="1" value="0">
@@ -2530,8 +2507,8 @@
         'qc-delay':       { min: 0,     max: 30,      label: 'Spindle Delay', integer: true },
         // Rectangle
         'qc-rect-stepover': { min: 1,   max: 90,      label: 'Stepover',      integer: true },
-        'qc-rect-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
-        'qc-rect-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-rect-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-rect-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
         'qc-rect-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
         'qc-rect-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
         'qc-rect-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
@@ -2543,8 +2520,8 @@
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
-        'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
-        'qc-circ-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-circ-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
         'qc-circ-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
         'qc-circ-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
         'qc-circ-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
@@ -2578,8 +2555,8 @@
         'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-poly-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-poly-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
-        'qc-poly-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
-        'qc-poly-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-poly-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-poly-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
         'qc-poly-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
         'qc-poly-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
         'qc-poly-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
@@ -2590,8 +2567,8 @@
         'qc-key-length':    { min: 0.004, max: 20,  label: 'Slot Length' },
         'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
         'qc-key-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
-        'qc-key-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
-        'qc-key-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-key-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-key-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
         'qc-key-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
         'qc-key-pattern-y-count': { min: 1,    max: 200, label: 'Y Count', integer: true },
         'qc-key-pattern-count':   { min: 2,    max: 360, label: 'Pattern Count', integer: true },
@@ -2612,8 +2589,8 @@
         'qc-drl-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-drl-peck':   { min: 0,     max: 20, label: 'Peck Depth' },
         'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
-        'qc-drl-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Distance' },
-        'qc-drl-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Distance' },
+        'qc-drl-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-drl-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
         'qc-drl-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
         'qc-drl-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
         'qc-drl-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
@@ -2635,8 +2612,8 @@
       'qc-delay':       { min: 0,     max: 30,     label: 'Spindle Delay', integer: true },
       // Rectangle
       'qc-rect-stepover': { min: 1,   max: 90,     label: 'Stepover',      integer: true },
-      'qc-rect-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
-      'qc-rect-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-rect-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-rect-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
       'qc-rect-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
       'qc-rect-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
       'qc-rect-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
@@ -2648,8 +2625,8 @@
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
-      'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
-      'qc-circ-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-circ-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
       'qc-circ-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
       'qc-circ-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
       'qc-circ-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
@@ -2683,8 +2660,8 @@
       'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-poly-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-poly-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
-      'qc-poly-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
-      'qc-poly-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-poly-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-poly-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
       'qc-poly-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
       'qc-poly-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
       'qc-poly-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
@@ -2695,8 +2672,8 @@
       'qc-key-length':    { min: 0.1,  max: 500,  label: 'Slot Length' },
       'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
       'qc-key-depth':     { min: 0.01, max: 100,  label: 'Total Depth' },
-      'qc-key-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
-      'qc-key-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-key-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-key-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
       'qc-key-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
       'qc-key-pattern-y-count': { min: 1,     max: 200,  label: 'Y Count', integer: true },
       'qc-key-pattern-count':   { min: 2,     max: 360,  label: 'Pattern Count', integer: true },
@@ -2717,8 +2694,8 @@
       'qc-drl-depth':  { min: 0.01, max: 100, label: 'Total Depth' },
       'qc-drl-peck':   { min: 0,    max: 100, label: 'Peck Depth' },
       'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
-      'qc-drl-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Distance' },
-      'qc-drl-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Distance' },
+      'qc-drl-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-drl-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
       'qc-drl-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
       'qc-drl-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
       'qc-drl-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
@@ -3393,8 +3370,10 @@
       var linear = body.querySelector('.qc-pattern-linear-fields');
       var circ = body.querySelector('.qc-pattern-circular-fields');
       var honey = body.querySelector('.qc-pattern-honeycomb-only');
+      var gridOnly = body.querySelectorAll('.qc-pattern-grid-only');
       if (linear) linear.style.display = isGrid ? '' : 'none';
       if (circ)   circ.style.display   = isCircular ? '' : 'none';
+      for (var g = 0; g < gridOnly.length; g++) gridOnly[g].style.display = isGrid ? '' : 'none';
       if (honey)  honey.style.display  = (style === 'honeycomb') ? '' : 'none';
       updatePatternAngleLabels(prefix);
     }
@@ -3404,8 +3383,15 @@
   // accurate. At any other angle the distances are measured along and
   // across the angled row, so the labels say that instead.
   var PATTERN_LABELS = {
-    axis:   { 'x-dist': 'X Distance', 'y-dist': 'Y Distance', 'x-count': 'X Count', 'y-count': 'Y Count' },
-    angled: { 'x-dist': 'Spacing (along {a}°)', 'y-dist': 'Row Spacing (⊥)', 'x-count': 'Count (along)', 'y-count': 'Rows' }
+    axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
+    angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' }
+  };
+  // The short angled labels need a word of explanation; it goes in the
+  // label's tooltip so the narrow columns don't wrap.
+  var PATTERN_TITLES = {
+    axis:   { 'x-dist': '', 'y-dist': '', 'x-count': '', 'y-count': '' },
+    angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
+              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' }
   };
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
@@ -3415,9 +3401,22 @@
     for (var i = 0; i < labels.length; i++) {
       var key = labels[i].getAttribute('data-pattern-label');
       labels[i].textContent = set[key].replace('{a}', angle);
+      labels[i].title = (angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis)[key].replace('{a}', angle);
     }
+    // The Rotate switch only means something for an angled grid; the
+    // Angle field itself is hidden for Circular.
+    var style = $('qc-' + prefix + '-pattern-style').value;
+    var isGrid = style === 'linear' || style === 'honeycomb';
     var rotate = body.querySelector('.qc-pattern-angled-only');
-    if (rotate) rotate.style.display = angle ? '' : 'none';
+    if (rotate) rotate.style.display = angle && isGrid ? '' : 'none';
+    // Hide the switch cell when neither switch shows, so the narrow
+    // layout (switches on their own line) doesn't leave an empty row.
+    var honey = body.querySelector('.qc-pattern-honeycomb-only');
+    var toggles = body.querySelector('.qc-pattern-toggle-cell');
+    if (toggles) {
+      var any = (rotate && rotate.style.display !== 'none') || (honey && honey.style.display !== 'none');
+      toggles.style.display = any ? '' : 'none';
+    }
   }
 
   // Read/write helpers for the per-shape Tool card. Values in state are

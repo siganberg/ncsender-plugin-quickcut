@@ -41,7 +41,7 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 - **Origin:** by default X0 Y0 is the plunge hole (the first one, when a pattern is on): the ring in the Origin picker. The picker's other points are the corners, edge midpoints, and center of the whole cut (every keyhole's head swept along its slot), as on the other shapes.
 - Set **Bit Diameter** to the bit's head diameter.
 - There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.
-- Patterns work as on the other shapes. With **Circular (Path Direction)**, or **Rotate shapes with angle** on an angled Linear pattern, each slot turns with its copy.
+- Patterns work as on the other shapes. With **Circular (Path Direction)**, or **Rotate shapes** on an angled Linear pattern, each slot turns with its copy.
 
 ## Drill
 
@@ -81,20 +81,20 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Dril
 
 ### Linear and Honeycomb at an angle
 
-Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Measure Pattern Angle](#measuring-an-angle) page to measure the angle on the machine. At 0° the pattern runs along the machine axes, and the fields read *X Distance / Y Distance / X Count / Y Count*.
+Linear and Honeycomb have an **Angle (°)** field, measured counter-clockwise from +X. The **Measure** link beside it opens the [Measure Pattern Angle](#measuring-an-angle) page to measure the angle on the machine. At 0° the pattern runs along the machine axes, and the fields read *X Count / X Spacing / Y Count / Y Spacing*.
 
-At any other angle the whole grid is turned about the first copy, and the fields change to:
+At any other angle the whole grid is turned about the first copy, and the fields change to (hover a label for a reminder):
 
-- **Spacing (along N°)** — center-to-center distance between copies along the angled row
-- **Row Spacing (⊥)** — distance between rows, at right angles to the row
-- **Count (along)** — copies per row
+- **Count** — copies per row
+- **Spacing** — center-to-center distance between copies along the angled row
 - **Rows** — number of rows
+- **Row Spacing** — distance between rows, at right angles to the row
 
 For example, 5 circles at 36° with a spacing of 20 places every center exactly 20 apart on a 36° line. You don't need to work out X and Y offsets yourself.
 
-Distances can be negative to run the row (or the rows) the other way.
+Spacings can be negative to run the row (or the rows) the other way.
 
-Rectangles, polygons, and keyholes also get a **Rotate shapes with angle** switch. Off, each copy stays square to the machine axes and only its position follows the angle. On, each copy is turned by the same angle so it sits square to the row. Circles look the same either way, so they don't have the switch.
+Rectangles, polygons, and keyholes also get a **Rotate shapes** switch, shown beside the Angle when it isn't 0. Off, each copy stays square to the machine axes and only its position follows the angle. On, each copy is turned by the same angle so it sits square to the row. Circles look the same either way, so they don't have the switch.
 
 ## Measuring an angle
 
