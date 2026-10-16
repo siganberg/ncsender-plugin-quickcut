@@ -277,11 +277,12 @@
     flex-direction: column;
     gap: var(--qc-section-gap);
     /* Half the section gap here and half at the top of the panel, so
-       the header cards sit one section gap (plus the divider) from the
-       first card, the same as card to card. */
+       the header cards sit one section gap from the first card, the
+       same as card to card. */
     padding: 15px 20px calc(var(--qc-section-gap) / 2);
     background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
+    /* No divider: every section below is a filled card, which already
+       separates it from the header. */
   }
   .qc-panel-title-row {
     display: flex;
