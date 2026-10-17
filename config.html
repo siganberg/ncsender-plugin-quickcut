@@ -4089,7 +4089,7 @@
     var params = tab.read();
     var copies = gen.computePatternPositions(params.pattern).length;
     if (copies > PATTERN_PREVIEW_MAX_COPIES) {
-      svg.innerHTML = patternPreviewCaption(copies + ' copies, too many to preview');
+      svg.innerHTML = patternPreviewCaption([copies + ' copies:', 'too many', 'to preview'], -9);
       return;
     }
     params.tabs = null;
@@ -4099,17 +4099,24 @@
     try {
       trace = traceProgram(gen[tab.gen](params));
     } catch (err) {
-      svg.innerHTML = patternPreviewCaption('Fix the shape to preview');
+      svg.innerHTML = patternPreviewCaption(['Fix the shape', 'to preview'], -3);
       return;
     }
     var outlines = copies <= PATTERN_PREVIEW_MAX_OUTLINES;
     if (!outlines) trace.moves = [];
-    svg.innerHTML = drawPatternTrace(trace, Math.max(0, params.bitDiameter || 0) / 2) +
-      patternPreviewCaption(copies + (copies === 1 ? ' copy' : ' copies') + (outlines ? '' : ', start points'));
+    var caption = [copies + (copies === 1 ? ' copy' : ' copies')];
+    if (!outlines) caption.push('start points');
+    svg.innerHTML = drawPatternTrace(trace, Math.max(0, params.bitDiameter || 0) / 2, caption.length) +
+      patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
-  function patternPreviewCaption(textValue) {
-    return '<text class="qc-shape-dim-label" x="0" y="46" text-anchor="middle">' + textValue + '</text>';
+  // SVG text doesn't wrap, so the caption is short lines, one per tspan.
+  var PATTERN_PREVIEW_LINE = 9;
+  function patternPreviewCaption(lines, y) {
+    return '<text class="qc-shape-dim-label" x="0" y="' + y + '" text-anchor="middle">' +
+      lines.map(function(line, i) {
+        return '<tspan x="0" dy="' + (i ? PATTERN_PREVIEW_LINE : 0) + '">' + line + '</tspan>';
+      }).join('') + '</text>';
   }
 
   // Cutting moves (XY below Z0) and plunge points from a QuickCut program,
@@ -4146,7 +4153,7 @@
     return { moves: moves, plunges: plunges };
   }
 
-  function drawPatternTrace(trace, bitRadius) {
+  function drawPatternTrace(trace, bitRadius, captionLines) {
     var xs = [0], ys = [0];
     trace.plunges.forEach(function(p) { xs.push(p.x); ys.push(p.y); });
     trace.moves.forEach(function(m) {
@@ -4159,9 +4166,11 @@
     var minX = Math.min.apply(null, xs) - bitRadius, maxX = Math.max.apply(null, xs) + bitRadius;
     var minY = Math.min.apply(null, ys) - bitRadius, maxY = Math.max.apply(null, ys) + bitRadius;
     var span = Math.max(maxX - minX, maxY - minY) || 1;
-    var s = 80 / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
+    // Each caption line past the first takes room from the bottom.
+    var extra = ((captionLines || 1) - 1) * PATTERN_PREVIEW_LINE;
+    var s = (80 - extra) / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
     var X = function(v) { return ((v - midX) * s).toFixed(2); };
-    var Y = function(v) { return ((midY - v) * s - 4).toFixed(2); };
+    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
 
     var d = '', penX = null, penY = null;
     trace.moves.forEach(function(m) {
