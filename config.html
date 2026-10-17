@@ -4236,11 +4236,17 @@
       return;
     }
     var outlines = copies <= PATTERN_PREVIEW_MAX_OUTLINES;
+    var bitRadius = Math.max(0, params.bitDiameter || 0) / 2;
+    // Overall size of the cut (where the bit reaches), from the full trace.
+    var size = traceBounds(trace, bitRadius);
     if (!outlines) trace.moves = [];
     var noun = params.pattern && params.pattern.style === 'grid' ? [' line', ' lines'] : [' copy', ' copies'];
     var caption = [copies + (copies === 1 ? noun[0] : noun[1])];
+    var dp = state.isImperial ? 3 : 2;
+    var sizeText = function(v) { return String(parseFloat(v.toFixed(dp))); };
+    if (size) caption.push(sizeText(size.maxX - size.minX) + ' × ' + sizeText(size.maxY - size.minY) + ' ' + state.unitLabel);
     if (!outlines) caption.push('start points');
-    svg.innerHTML = drawPatternTrace(trace, Math.max(0, params.bitDiameter || 0) / 2, caption.length) +
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
@@ -4287,18 +4293,37 @@
     return { moves: moves, plunges: plunges };
   }
 
-  function drawPatternTrace(trace, bitRadius, captionLines) {
-    var xs = [0], ys = [0];
-    trace.plunges.forEach(function(p) { xs.push(p.x); ys.push(p.y); });
+  // The area the bit touches: the tool path's box (arcs exact: their ends
+  // plus any 0/90/180/270° point they pass) grown by the bit radius.
+  function traceBounds(trace, bitRadius) {
+    var b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    var add = function(x, y) {
+      if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x;
+      if (y < b.minY) b.minY = y; if (y > b.maxY) b.maxY = y;
+    };
+    trace.plunges.forEach(function(p) { add(p.x, p.y); });
     trace.moves.forEach(function(m) {
-      xs.push(m.x0, m.x1); ys.push(m.y0, m.y1);
-      if (m.cx !== undefined) {
-        var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
-        xs.push(m.cx - r, m.cx + r); ys.push(m.cy - r, m.cy + r);
+      add(m.x0, m.y0); add(m.x1, m.y1);
+      if (m.cx === undefined) return;
+      var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+      var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+      var sweep = m.cw ? a0 - a1 : a1 - a0;
+      sweep = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
+      for (var k = 0; k < 4; k++) {
+        var a = k * Math.PI / 2;
+        var from = m.cw ? a0 - a : a - a0;
+        if (((from % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) <= sweep) add(m.cx + r * Math.cos(a), m.cy + r * Math.sin(a));
       }
     });
-    var minX = Math.min.apply(null, xs) - bitRadius, maxX = Math.max.apply(null, xs) + bitRadius;
-    var minY = Math.min.apply(null, ys) - bitRadius, maxY = Math.max.apply(null, ys) + bitRadius;
+    if (b.minX === Infinity) return null;
+    return { minX: b.minX - bitRadius, maxX: b.maxX + bitRadius, minY: b.minY - bitRadius, maxY: b.maxY + bitRadius };
+  }
+
+  function drawPatternTrace(trace, bitRadius, captionLines) {
+    // The drawing also keeps X0 Y0 in view.
+    var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+    var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
+    var minY = Math.min(tb.minY, 0), maxY = Math.max(tb.maxY, 0);
     var span = Math.max(maxX - minX, maxY - minY) || 1;
     // Each caption line past the first takes room from the bottom.
     var extra = ((captionLines || 1) - 1) * PATTERN_PREVIEW_LINE;
