@@ -825,7 +825,7 @@
     stroke-width: 0.6px;
   }
   .qc-shape-preview-cell.qc-pattern-preview-big::after {
-    content: 'Tap to return';
+    content: 'Tap or press Esc to return';
     position: absolute;
     top: 10px;
     left: 0;
@@ -4068,6 +4068,20 @@
     });
     ROOT.addEventListener('input', schedulePatternPreview);
     ROOT.addEventListener('change', schedulePatternPreview);
+    // Esc closes an enlarged preview, not the dialog: ncSender closes the
+    // dialog from a window keydown listener (bubble phase), so this one
+    // runs first in the capture phase and stops it. Page-wide, so it
+    // removes itself once this open's dialog is gone.
+    function closeEnlargedOnEscape(evt) {
+      if (!rootAlive()) { window.removeEventListener('keydown', closeEnlargedOnEscape, true); return; }
+      if (evt.key !== 'Escape') return;
+      var big = ROOT.querySelector('.qc-pattern-preview-big');
+      if (!big) return;
+      big.classList.remove('qc-pattern-preview-big');
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
+    window.addEventListener('keydown', closeEnlargedOnEscape, true);
     schedulePatternPreview();
   }
 
@@ -6612,7 +6626,7 @@
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
-      'The pattern preview shows every copy as you type. Tap it to enlarge it, and tap again to go back. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type. Tap it to enlarge it; tap again or press Esc to go back. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
