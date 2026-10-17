@@ -1877,7 +1877,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-start">Start Angle (°)</label>
-                    <input class="qc-input" type="number" id="qc-slt-start" step="1" value="45" title="Where the slot starts around the arc's center, CCW from +X. You can also twist the preview to turn it.">
+                    <input class="qc-input" type="number" id="qc-slt-start" step="1" value="45" title="Where the slot starts around the arc's center, CCW from +X. You can also twist the preview to turn it, in 15° steps.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-sweep">Sweep (°)</label>
@@ -5681,7 +5681,9 @@
   // the pointer has moved a few units, so a tap is left for onTap (point
   // in the SVG's coordinates), e.g. picking a corner as the origin.
   var PREVIEW_ANGLE_SNAP = 8;
-  function wirePreviewAngleDrag(svgId, inputId, relative, onTap) {
+  // snapStep (optional): every angle snaps to a multiple of it (Slot: 15°)
+  // instead of whole degrees with the 90° snap.
+  function wirePreviewAngleDrag(svgId, inputId, relative, onTap, snapStep) {
     var svg = $(svgId);
     // inputId may be a function, for a preview whose angle field changes
     // (Slot: Angle, Start Angle or the bulge Angle).
@@ -5714,7 +5716,8 @@
       }
       deg = ((deg % 360) + 360) % 360;
       var right = Math.round(deg / 90) * 90;
-      deg = Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? right : Math.round(deg);
+      deg = snapStep ? Math.round(deg / snapStep) * snapStep
+        : Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? right : Math.round(deg);
       deg = deg % 360;
       if (String(deg) === input.value) return;
       input.value = deg;
@@ -6234,7 +6237,7 @@
     $('qc-bit').addEventListener('input', updateSlotPreview);
     wirePreviewAngleDrag('qc-slt-preview', slotAngleInput, true, function(pt) {
       pickPreviewNode(slotPreviewNodes, 'qc-slt-origin', pt, updateSlotPreview);
-    });
+    }, 15);
     $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); });
     $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); });
     $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
@@ -6319,7 +6322,7 @@
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
-      'Twist the preview to turn the slot. Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
+      'Twist the preview to turn the slot, in 15&deg; steps. Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
