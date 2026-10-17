@@ -1378,7 +1378,6 @@
                   <select class="qc-select" id="qc-rect-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="pyramid">Pyramid</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
@@ -1406,13 +1405,6 @@
                     <span>Rotate shapes</span>
                     <span class="qc-switch">
                       <input type="checkbox" id="qc-rect-pattern-rotate-shapes">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
-                  <label class="qc-switch-label qc-pattern-flip-only" style="display: none;" title="Turn the copies in every other row 180° so shapes that aren't symmetric top to bottom nest. On Honeycomb that's the shifted rows.">
-                    <span>Flip alternate rows</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-rect-pattern-flip-rows">
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
@@ -1571,7 +1563,6 @@
                   <select class="qc-select" id="qc-circ-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="pyramid">Pyramid</option>
                     <option value="circular">Circular</option>
                   </select>
                 </div>
@@ -1765,7 +1756,6 @@
                   <select class="qc-select" id="qc-poly-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="pyramid">Pyramid</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
@@ -1793,13 +1783,6 @@
                     <span>Rotate shapes</span>
                     <span class="qc-switch">
                       <input type="checkbox" id="qc-poly-pattern-rotate-shapes">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
-                  <label class="qc-switch-label qc-pattern-flip-only" style="display: none;" title="Turn the copies in every other row 180° so shapes that aren't symmetric top to bottom nest. On Honeycomb that's the shifted rows.">
-                    <span>Flip alternate rows</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-poly-pattern-flip-rows">
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
@@ -2011,7 +1994,6 @@
                   <select class="qc-select" id="qc-slt-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="pyramid">Pyramid</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
@@ -2039,13 +2021,6 @@
                     <span>Rotate shapes</span>
                     <span class="qc-switch">
                       <input type="checkbox" id="qc-slt-pattern-rotate-shapes">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
-                  <label class="qc-switch-label qc-pattern-flip-only" style="display: none;" title="Turn the copies in every other row 180° so shapes that aren't symmetric top to bottom nest. On Honeycomb that's the shifted rows.">
-                    <span>Flip alternate rows</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-slt-pattern-flip-rows">
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
@@ -2174,7 +2149,6 @@
                   <select class="qc-select" id="qc-key-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="pyramid">Pyramid</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
                   </select>
@@ -2202,13 +2176,6 @@
                     <span>Rotate shapes</span>
                     <span class="qc-switch">
                       <input type="checkbox" id="qc-key-pattern-rotate-shapes">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
-                  <label class="qc-switch-label qc-pattern-flip-only" style="display: none;" title="Turn the copies in every other row 180° so shapes that aren't symmetric top to bottom nest. On Honeycomb that's the shifted rows.">
-                    <span>Flip alternate rows</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-key-pattern-flip-rows">
                       <span class="qc-switch-track"></span>
                     </span>
                   </label>
@@ -2338,7 +2305,6 @@
                   <select class="qc-select" id="qc-drl-pattern-style">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
-                    <option value="pyramid">Pyramid</option>
                     <option value="circular">Circular</option>
                   </select>
                 </div>
@@ -3871,7 +3837,6 @@
     var pre = 'qc-' + prefix + '-pattern-';
     var hexTrimEl = $(pre + 'hex-trim');
     var rotateEl = $(pre + 'rotate-shapes');
-    var flipEl = $(pre + 'flip-rows');
     var extentEl = $(pre + 'extent');
     return {
       enabled: $(pre + 'enable').checked,
@@ -3890,8 +3855,6 @@
       // Linear/Honeycomb row direction (degrees, CCW from +X).
       angle:        num(pre + 'angle', 0),
       rotateShapes: rotateEl ? rotateEl.checked : false,
-      // Linear/Honeycomb/Pyramid: every other row turned 180°.
-      flipRows: flipEl ? flipEl.checked : false,
       // Honeycomb-only: trim one item from shifted rows so both ends
       // of the pattern line up (no dangling shifted-row overhang).
       hexTrim:    hexTrimEl ? hexTrimEl.checked : false
@@ -4018,7 +3981,7 @@
     $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
     if (enabled) {
       var style = $('qc-' + prefix + '-pattern-style').value;
-      var isGrid = style === 'linear' || style === 'honeycomb' || style === 'pyramid';
+      var isGrid = style === 'linear' || style === 'honeycomb';
       var isCircular = style === 'circular' || style === 'circular-follow';
       var body = $('qc-' + prefix + '-pattern-body');
       var linear = body.querySelector('.qc-pattern-linear-fields');
@@ -4211,30 +4174,15 @@
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
     // Extent mode renames only the distance fields.
     axisExtent:   { 'x-dist': 'X Extent', 'y-dist': 'Y Extent' },
-    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' },
-    // Pyramid: the counts are the bottom and top rows.
-    pyramid:       { 'x-dist': 'X Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Bottom Row', 'y-count': 'Top Row' },
-    pyramidAngled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Bottom Row', 'y-count': 'Top Row' },
-    pyramidExtent: { 'x-dist': 'Width', 'y-dist': 'Height' }
+    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' }
   };
   // The short angled labels need a word of explanation; it goes in the
   // label's tooltip so the narrow columns don't wrap.
   var PATTERN_TITLES = {
     axis:   { 'x-dist': '', 'y-dist': '', 'x-count': '', 'y-count': '' },
     angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
-              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' },
-    pyramid: { 'x-dist': 'Center-to-center along each row', 'y-dist': 'Between rows',
-               'x-count': 'Copies in the bottom row', 'y-count': 'Copies in the top row; each row between has one more or fewer' }
+              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' }
   };
-  // The count an extent is spread over: X Count / Y Count, or for a
-  // Pyramid the widest row and the number of rows.
-  function patternExtentCount(prefix, axis) {
-    var pre = 'qc-' + prefix + '-pattern-';
-    var xc = Math.max(1, Math.floor(num(pre + 'x-count', 1)));
-    var yc = Math.max(1, Math.floor(num(pre + 'y-count', 1)));
-    if ($(pre + 'style').value === 'pyramid') return axis === 'x' ? Math.max(xc, yc) : Math.abs(xc - yc) + 1;
-    return axis === 'x' ? xc : yc;
-  }
   // Extent switch: flipping it converts both distance fields so the
   // pattern stays where it is (spacing x (count - 1) = extent), then the
   // labels and previews follow. A count of 1 has no spacing to convert,
@@ -4247,7 +4195,7 @@
       if (!sw) return;
       sw.addEventListener('change', function() {
         ['x', 'y'].forEach(function(axis) {
-          var count = patternExtentCount(prefix, axis);
+          var count = Math.max(1, Math.floor(num(pre + axis + '-count', 1)));
           var d = num(pre + axis + '-dist', NaN);
           if (count < 2 || !isFinite(d)) return;
           $(pre + axis + '-dist').value = roundDisplay(sw.checked ? d * (count - 1) : d / (count - 1));
@@ -4264,38 +4212,31 @@
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
     var angle = num('qc-' + prefix + '-pattern-angle', 0);
-    var style = $('qc-' + prefix + '-pattern-style').value;
-    var isPyramid = style === 'pyramid';
-    var set = isPyramid ? (angle ? PATTERN_LABELS.pyramidAngled : PATTERN_LABELS.pyramid)
-                        : (angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis);
-    var titles = isPyramid ? PATTERN_TITLES.pyramid : (angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis);
+    var set = angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
     var extentEl = $('qc-' + prefix + '-pattern-extent');
     var extent = extentEl && extentEl.checked;
-    var extSet = isPyramid ? PATTERN_LABELS.pyramidExtent : (angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent);
+    var extSet = angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
     var labels = body.querySelectorAll('[data-pattern-label]');
     for (var i = 0; i < labels.length; i++) {
       var key = labels[i].getAttribute('data-pattern-label');
       labels[i].textContent = ((extent && extSet[key]) || set[key]).replace('{a}', angle);
-      labels[i].title = titles[key].replace('{a}', angle);
+      labels[i].title = (angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis)[key].replace('{a}', angle);
       // In extent mode the tooltip gives the spacing it works out to.
       if (extent && extSet[key]) {
         var axis = key.charAt(0);
-        var count = patternExtentCount(prefix, axis);
+        var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
         var gap = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
-        var span = !isPyramid ? 'First to last center' : axis === 'x' ? 'First to last center of the widest row' : 'Bottom row to top row';
-        labels[i].title = span + (count > 1 ? '; ' + (isPyramid && axis === 'y' ? 'rows' : 'copies') + ' ' + gap + ' ' + state.unitLabel + ' apart' : '');
+        labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
       }
     }
     // The Rotate switch only means something for an angled grid; the
-    // Angle field itself is hidden for Circular. Flip alternate rows is
-    // for any grid style.
-    var isGrid = style === 'linear' || style === 'honeycomb' || isPyramid;
+    // Angle field itself is hidden for Circular.
+    var style = $('qc-' + prefix + '-pattern-style').value;
+    var isGrid = style === 'linear' || style === 'honeycomb';
     var rotate = body.querySelector('.qc-pattern-angled-only');
     if (rotate) rotate.style.display = angle && isGrid ? '' : 'none';
-    var flip = body.querySelector('.qc-pattern-flip-only');
-    if (flip) flip.style.display = isGrid ? '' : 'none';
-    // The switch cell (Extent, Symmetric Ends, Rotate shapes, Flip) is for
-    // the grid styles only; Circular hides it with the Angle field.
+    // The switch cell (Extent, Symmetric Ends, Rotate shapes) is for the
+    // grid styles only; Circular hides it with the Angle field.
     var toggles = body.querySelector('.qc-pattern-toggle-cell');
     if (toggles) toggles.style.display = isGrid ? '' : 'none';
   }
@@ -4599,8 +4540,6 @@
     if (p.angle != null)    $(pre + 'angle').value = p.angle;
     var rotateEl = $(pre + 'rotate-shapes');
     if (rotateEl && p.rotateShapes != null) rotateEl.checked = !!p.rotateShapes;
-    var flipEl = $(pre + 'flip-rows');
-    if (flipEl && p.flipRows != null) flipEl.checked = !!p.flipRows;
     var extentEl = $(pre + 'extent');
     if (extentEl && p.spacing != null) extentEl.checked = p.spacing === 'extent';
   }
@@ -4803,7 +4742,6 @@
       hexTrim:    !!p.hexTrim,
       angle:        p.angle || 0,
       rotateShapes: !!p.rotateShapes,
-      flipRows:     !!p.flipRows,
       spacing:      p.spacing === 'extent' ? 'extent' : 'spacing'
     };
   }
@@ -6612,8 +6550,7 @@
   };
   var HELP_SHARED = {
     pattern: { title: 'Patterns', notes: [
-      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Pyramid</strong> centres rows from a <strong>Bottom Row</strong> count to a <strong>Top Row</strong> count, one copy fewer (or more) per row; <strong>Circular</strong> places copies around a circle.',
-      'For evenly packed Pyramid or Honeycomb copies, set Row Spacing to 0.866 &times; the spacing along the row (&radic;3&frasl;2). <strong>Flip alternate rows</strong> turns every other row 180&deg; (Honeycomb&rsquo;s shifted rows) so shapes that aren&rsquo;t symmetric top to bottom nest.',
+      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.' ] },
@@ -6908,7 +6845,7 @@
     $(pre + 'angle').value = measure.angleDeg;
     $(pre + 'enable').checked = true;
     var styleEl = $(pre + 'style');
-    if (['linear', 'honeycomb', 'pyramid'].indexOf(styleEl.value) < 0) styleEl.value = 'linear';
+    if (styleEl.value !== 'linear' && styleEl.value !== 'honeycomb') styleEl.value = 'linear';
     updatePatternVisibility(prefix);
     closeMeasure();
   }
@@ -7127,27 +7064,8 @@
       var rotDeg = pattern.rotateShapes ? angle : 0;
       return positions.map(function(p) {
         var r = rotatePoint(0, 0, p.x, p.y, angle);
-        return { x: r.x, y: r.y, rotDeg: (p.rotDeg || 0) + rotDeg };
+        return { x: r.x, y: r.y, rotDeg: rotDeg };
       });
-    }
-
-    // Pyramid rows: the bottom row has xCount copies, the top row yCount,
-    // one copy more or fewer per row in between, so |xCount - yCount| + 1
-    // rows. Each row is centred on the bottom row.
-    function pyramidRowCounts(pattern) {
-      var bottom = Math.max(1, Math.floor(pattern.xCount || 1));
-      var top = Math.max(1, Math.floor(pattern.yCount || 1));
-      var step = top >= bottom ? 1 : -1;
-      var counts = [];
-      for (var c = bottom; c !== top + step; c += step) counts.push(c);
-      return counts;
-    }
-
-    // Flip alternate rows: copies in every other row turn 180° so shapes
-    // that aren't symmetric top to bottom nest. Honeycomb's shifted rows
-    // are its alternate rows.
-    function flipTurn(pattern, row) {
-      return pattern.flipRows && row % 2 === 1 ? 180 : 0;
     }
 
     function computePatternPositions(pattern) {
@@ -7182,7 +7100,7 @@
                 positions.push({
                   x: k * xDist + xDist / 2,
                   y: j * yDist + yDist / 2,
-                  rotDeg: flipTurn(pattern, 1)
+                  rotDeg: 0
                 });
               }
             }
@@ -7191,25 +7109,7 @@
         }
         for (var jj = 0; jj < yCount; jj++) {
           for (var ii = 0; ii < xCount; ii++) {
-            positions.push({ x: ii * xDist, y: jj * yDist, rotDeg: flipTurn(pattern, jj) });
-          }
-        }
-        return applyGridAngle(positions, pattern);
-      }
-      if (pattern.style === 'pyramid') {
-        var rows = pyramidRowCounts(pattern);
-        var widest = Math.max(rows[0], rows[rows.length - 1]);
-        var pxDist = pattern.xDist || 0;
-        var pyDist = pattern.yDist || 0;
-        // Extent: X is first to last center of the widest row, Y the height.
-        if (pattern.spacing === 'extent') {
-          pxDist = patternStep(pxDist, widest);
-          pyDist = patternStep(pyDist, rows.length);
-        }
-        for (var pr = 0; pr < rows.length; pr++) {
-          var startX = (rows[0] - rows[pr]) / 2 * pxDist;
-          for (var pc = 0; pc < rows[pr]; pc++) {
-            positions.push({ x: startX + pc * pxDist, y: pr * pyDist, rotDeg: flipTurn(pattern, pr) });
+            positions.push({ x: ii * xDist, y: jj * yDist, rotDeg: 0 });
           }
         }
         return applyGridAngle(positions, pattern);
@@ -7259,12 +7159,6 @@
             for (var k = 0; k < shiftedCount; k++) keys.push((k + 1) + ',' + (row + 1));
           }
         }
-        return keys;
-      }
-      if (pattern.style === 'pyramid') {
-        pyramidRowCounts(pattern).forEach(function(n, r) {
-          for (var pc = 0; pc < n; pc++) keys.push((pc + 1) + ',' + (r + 1));
-        });
         return keys;
       }
       if (pattern.style === 'circular' || pattern.style === 'circular-follow') {
@@ -7705,18 +7599,7 @@
           : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
                ' (' + dims + ')' +
-               (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '') +
-               (p.flipRows ? ' flip alternate rows' : '');
-      }
-      if (p.style === 'pyramid') {
-        var rows = pyramidRowCounts(p);
-        var pAngle = Number(p.angle) || 0;
-        var pDims = p.spacing === 'extent'
-          ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0)
-          : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
-        return 'Pyramid ' + rows[0] + '->' + rows[rows.length - 1] + ', ' + rows.length + ' rows (' + pDims + ')' +
-               (pAngle ? ' angle=' + pAngle + '°' + (p.rotateShapes ? ' rotated' : '') : '') +
-               (p.flipRows ? ' flip alternate rows' : '');
+               (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
       return 'Circular' + (follow ? ' (Path Direction)' : ' (Identical)') + ' n=' + (p.count || 1) +

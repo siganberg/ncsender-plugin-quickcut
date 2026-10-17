@@ -106,11 +106,8 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 | --- | --- |
 | Linear | A grid of rows and columns. |
 | Honeycomb | Like Linear, plus a shifted row (offset by half a step in both directions) between each pair of rows. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. |
-| Pyramid | Rows centred on each other, from **Bottom Row** copies to **Top Row** copies, one fewer (or more) per row: 5 and 1 gives 5, 4, 3, 2, 1. **Row Spacing** is between rows. For evenly packed copies set Row Spacing to 0.866 × X Spacing (√3⁄2). |
 | Circular (Identical) | *Count* copies on a circle of *Radius*, starting at *Start Angle* and spread over *Total Angle* (see below). Every copy keeps the same orientation. |
 | Circular (Path Direction) | Same as above, but each copy turns with the circle: the first copy (at the Start Angle) looks like the shape preview, and each later copy is turned by how far round the circle it is from the first. |
-
-**Flip alternate rows** (Rectangle, Polygon, Slot, Keyhole; Linear, Honeycomb and Pyramid) turns the copies in every other row 180° so shapes that aren't symmetric top to bottom, like keyholes or arc slots, nest closer. On Honeycomb the shifted rows are the ones flipped. With **Extent** on, a Pyramid's X is the first-to-last width of its widest row and Y its height.
 
 ### Pattern preview
 
