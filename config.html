@@ -826,6 +826,18 @@
     font-size: 3px;
     stroke-width: 0.6px;
   }
+  .qc-shape-preview-cell.qc-preview-big.qc-dragging::before {
+    content: attr(data-drag-angle);
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-accent, #1abc9c);
+    pointer-events: none;
+  }
   .qc-shape-preview-cell.qc-preview-big::after {
     content: attr(data-return-hint);
     position: absolute;
@@ -4112,6 +4124,19 @@
     window.addEventListener('keydown', closeEnlargedOnEscape, true);
   }
 
+  // While a drag turns an enlarged preview, the field it sets and its value
+  // (e.g. "Start Angle 22.5°") show at the top; only drawn when enlarged.
+  function showDragAngle(cell, input, deg) {
+    if (!cell) return;
+    var label = ROOT.querySelector('label[for="' + input.id + '"]');
+    var name = label ? label.textContent.replace(/\(°\)|Measure/g, '').trim() : '';
+    cell.setAttribute('data-drag-angle', (name ? name + ' ' : '') + deg + '°');
+    cell.classList.add('qc-dragging');
+  }
+  function hideDragAngle(cell) {
+    if (cell) cell.classList.remove('qc-dragging');
+  }
+
   // Dragging any preview moves in half degrees and sticks within a degree
   // of a miter stop (within 5° of square): multiples of 180/n for the common frames
   // (n = 3, 4, 5, 6, 8, 10, 12: 60, 45, 36, 30, 22.5, 18, 15°).
@@ -5988,6 +6013,7 @@
   // snapMiterAngle (half degrees and miter stops).
   function wirePreviewAngleDrag(svgId, inputId, relative, onTap, snapOffset, snap) {
     var svg = $(svgId);
+    var cell = svg.closest('.qc-shape-preview-cell');
     // inputId may be a function, for a preview whose angle field changes
     // (Slot: Angle, Start Angle or the bulge Angle).
     var input = typeof inputId === 'function' ? inputId() : $(inputId);
@@ -6024,6 +6050,7 @@
         : Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? parseFloat(right.toFixed(3)) : Math.round(deg);
       // With an offset the snapped angle can be just below 0.
       deg = ((deg % 360) + 360) % 360;
+      showDragAngle(cell, input, deg);
       if (String(deg) === input.value) return;
       input.value = deg;
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -6046,7 +6073,8 @@
       if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
       dragging = false;
     });
-    svg.addEventListener('pointercancel', function() { dragging = false; });
+    svg.addEventListener('pointerup', function() { hideDragAngle(cell); });
+    svg.addEventListener('pointercancel', function() { dragging = false; hideDragAngle(cell); });
   }
 
   function wireKeyholeForm() {
@@ -6681,7 +6709,7 @@
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
-      'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
