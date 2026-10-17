@@ -6701,9 +6701,11 @@
                    ' Y' + fixed(seg.y0 + (seg.y1 - seg.y0) * f, xyDp) + feedSuffix);
         return;
       }
-      var as = seg.a0 + s / seg.r, ae = seg.a0 + e / seg.r;
+      // dir -1: a clockwise arc (angles decrease), written as G2.
+      var sg = seg.dir === -1 ? -1 : 1;
+      var as = seg.a0 + sg * s / seg.r, ae = seg.a0 + sg * e / seg.r;
       var sx = seg.cx + seg.r * Math.cos(as), sy = seg.cy + seg.r * Math.sin(as);
-      lines.push('G3 X' + fixed(seg.cx + seg.r * Math.cos(ae), 5) +
+      lines.push((sg < 0 ? 'G2' : 'G3') + ' X' + fixed(seg.cx + seg.r * Math.cos(ae), 5) +
                  ' Y' + fixed(seg.cy + seg.r * Math.sin(ae), 5) +
                  ' I' + fixed(seg.cx - sx, 5) + ' J' + fixed(seg.cy - sy, 5) + feedSuffix);
     }
@@ -6844,6 +6846,11 @@
         shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
       } else if (shape === 'circle') {
         shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
+      } else if (shape === 'slot') {
+        var cl = slotCenterline(params);
+        if (slotProblem(params, cl, slotHalfWidth(params))) return { x: 0, y: 0 };
+        var op = slotOriginParts(params, cl);
+        shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
       } else if (shape === 'keyhole') {
         var startDeg = params.startAngleDeg || 0;
         shift = (params.origin || 'hole') === 'hole' ? { x: 0, y: 0 } : computePatternAnchorShift(params.origin, positions, function(pos) {
@@ -8056,6 +8063,293 @@
       lines.push('G0 Z' + safeHeight);
     }
 
+    // === SLOT ================================================================
+    //
+    // A straight or arc (kidney) slot of a set width. Straight: overall Length
+    // (end to end) at Angle. Arc: a centre line of Radius from Start Angle
+    // through Sweep (CCW; negative = CW), or the same arc given as Chord and
+    // Rise, bulging toward Angle. The outline is the centre line grown by half
+    // the width, with half-circle ends. Cut types:
+    //   center    one pass along the centre line; the slot is the bit's width
+    //   inner     the outline, a bit radius inside (holding tabs allowed)
+    //   clearing  rings from the centre line out to that outline
+    //   outer     the outline, a bit radius outside: a slot-shaped part
+    // Local coordinates: a straight slot is centred on (0, 0); an arc slot has
+    // the arc's centre at (0, 0), so origin 'shape-center' is its pivot.
+
+    // The centre line, normalised to run CCW: {type:'line', x0..y1, t} (t =
+    // its direction, radians) or {type:'arc', r, a0, a1} (a1 > a0, radians),
+    // or null when the numbers don't make a slot.
+    function slotCenterline(params) {
+      if ((params.slotType || 'straight') === 'arc') {
+        var r, a0, sweep;
+        if (params.arcMode === 'chord') {
+          var c = params.chord || 0, h = params.rise || 0;
+          if (!(c > 0 && h > 0)) return null;
+          r = (c * c / 4 + h * h) / (2 * h);
+          sweep = 4 * Math.atan(2 * h / c) * 180 / Math.PI;
+          a0 = (params.bulgeAngleDeg != null ? params.bulgeAngleDeg : 90) - sweep / 2;
+        } else {
+          r = params.radius || 0;
+          a0 = params.startAngleDeg || 0;
+          sweep = params.sweepDeg || 0;
+        }
+        if (!(r > 0) || !sweep) return null;
+        if (sweep < 0) { a0 += sweep; sweep = -sweep; }
+        return { type: 'arc', r: r, a0: a0 * Math.PI / 180, a1: (a0 + sweep) * Math.PI / 180 };
+      }
+      var half = Math.max(0, (params.length || 0) - (params.width || 0)) / 2;
+      var t = (params.angleDeg || 0) * Math.PI / 180;
+      return { type: 'line', t: t,
+               x0: -half * Math.cos(t), y0: -half * Math.sin(t),
+               x1: half * Math.cos(t), y1: half * Math.sin(t) };
+    }
+
+    // The centre line turned by rotDeg about the local origin and moved to
+    // (cx, cy): line ends get x0..y1, an arc gets its centre cx, cy.
+    function placeSlot(cl, cx, cy, rotDeg) {
+      var rot = (rotDeg || 0) * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
+      if (cl.type === 'line') {
+        return { type: 'line', t: cl.t + rot,
+                 x0: cx + cl.x0 * c - cl.y0 * s, y0: cy + cl.x0 * s + cl.y0 * c,
+                 x1: cx + cl.x1 * c - cl.y1 * s, y1: cy + cl.x1 * s + cl.y1 * c };
+      }
+      return { type: 'arc', cx: cx, cy: cy, r: cl.r, a0: cl.a0 + rot, a1: cl.a1 + rot };
+    }
+
+    function arcSeg(cx, cy, r, a0, a1, dir) {
+      var seg = { type: 'arc', cx: cx, cy: cy, r: r, a0: a0, a1: a1, len: r * Math.abs(a1 - a0) };
+      if (dir === -1) seg.dir = -1;
+      return seg;
+    }
+
+    // Closed outline at half-width d (> 0) around a placed centre line, CCW.
+    // Straight: from the middle of one long side. Arc: from the start of the
+    // outer arc; the inner arc runs back clockwise (dir -1, G2).
+    function slotOutline(pc, d) {
+      var segs = [];
+      if (pc.type === 'line') {
+        var nx = -Math.sin(pc.t), ny = Math.cos(pc.t);
+        var mx = (pc.x0 + pc.x1) / 2, my = (pc.y0 + pc.y1) / 2;
+        var p = function(x, y, k) { return { x: x + k * nx, y: y + k * ny }; };
+        pushLine(segs, p(mx, my, -d), p(pc.x1, pc.y1, -d));
+        segs.push(arcSeg(pc.x1, pc.y1, d, pc.t - Math.PI / 2, pc.t + Math.PI / 2));
+        pushLine(segs, p(pc.x1, pc.y1, d), p(pc.x0, pc.y0, d));
+        segs.push(arcSeg(pc.x0, pc.y0, d, pc.t + Math.PI / 2, pc.t + 3 * Math.PI / 2));
+        pushLine(segs, p(pc.x0, pc.y0, -d), p(mx, my, -d));
+        return segs;
+      }
+      var e0 = { x: pc.cx + pc.r * Math.cos(pc.a0), y: pc.cy + pc.r * Math.sin(pc.a0) };
+      var e1 = { x: pc.cx + pc.r * Math.cos(pc.a1), y: pc.cy + pc.r * Math.sin(pc.a1) };
+      segs.push(arcSeg(pc.cx, pc.cy, pc.r + d, pc.a0, pc.a1));
+      segs.push(arcSeg(e1.x, e1.y, d, pc.a1, pc.a1 + Math.PI));
+      if (pc.r - d > 1e-9) segs.push(arcSeg(pc.cx, pc.cy, pc.r - d, pc.a1, pc.a0, -1));
+      segs.push(arcSeg(e0.x, e0.y, d, pc.a0 + Math.PI, pc.a0 + 2 * Math.PI));
+      return segs;
+    }
+
+    // The centre line out and back as one path (the innermost clearing ring,
+    // and the pass for a centre-line cut): straight from its middle, arc from
+    // its start. Empty for a zero-length straight slot (a round hole).
+    function slotCenterLoop(pc) {
+      var segs = [];
+      if (pc.type === 'line') {
+        var m = { x: (pc.x0 + pc.x1) / 2, y: (pc.y0 + pc.y1) / 2 };
+        pushLine(segs, m, { x: pc.x1, y: pc.y1 });
+        pushLine(segs, { x: pc.x1, y: pc.y1 }, { x: pc.x0, y: pc.y0 });
+        pushLine(segs, { x: pc.x0, y: pc.y0 }, m);
+        return segs;
+      }
+      segs.push(arcSeg(pc.cx, pc.cy, pc.r, pc.a0, pc.a1));
+      segs.push(arcSeg(pc.cx, pc.cy, pc.r, pc.a1, pc.a0, -1));
+      return segs;
+    }
+
+    // The centre line one way, for alternate passes of a centre-line cut.
+    function slotCenterPass(pc, backward) {
+      var segs = [];
+      if (pc.type === 'line') {
+        if (backward) pushLine(segs, { x: pc.x1, y: pc.y1 }, { x: pc.x0, y: pc.y0 });
+        else pushLine(segs, { x: pc.x0, y: pc.y0 }, { x: pc.x1, y: pc.y1 });
+        return segs;
+      }
+      segs.push(backward ? arcSeg(pc.cx, pc.cy, pc.r, pc.a1, pc.a0, -1) : arcSeg(pc.cx, pc.cy, pc.r, pc.a0, pc.a1));
+      return segs;
+    }
+
+    // Bounding box of a segment path, arcs included exactly.
+    function segmentsBbox(segs) {
+      var b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+      function add(x, y) {
+        if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x;
+        if (y < b.minY) b.minY = y; if (y > b.maxY) b.maxY = y;
+      }
+      segs.forEach(function(s) {
+        if (s.type === 'line') { add(s.x0, s.y0); add(s.x1, s.y1); return; }
+        var lo = Math.min(s.a0, s.a1), hi = Math.max(s.a0, s.a1);
+        add(s.cx + s.r * Math.cos(lo), s.cy + s.r * Math.sin(lo));
+        add(s.cx + s.r * Math.cos(hi), s.cy + s.r * Math.sin(hi));
+        for (var k = Math.ceil(lo / (Math.PI / 2)); k * Math.PI / 2 <= hi; k++) {
+          add(s.cx + s.r * Math.cos(k * Math.PI / 2), s.cy + s.r * Math.sin(k * Math.PI / 2));
+        }
+      });
+      return b;
+    }
+
+    // Why the numbers don't make a slot, or null when they do.
+    function slotProblem(params, cl, half) {
+      if (!cl) return 'the slot\'s size or angles are missing or zero';
+      if (!(half > 0)) return 'the slot width must be more than 0';
+      if (cl.type === 'arc') {
+        if (half >= cl.r) return 'the slot is as wide as its radius or wider, so its inner edge would cross the centre';
+        var gap = 2 * Math.PI - (cl.a1 - cl.a0);
+        if (gap <= 0 || 2 * cl.r * Math.sin(gap / 2) < 2 * half) return 'the slot\'s ends would overlap (the sweep is too close to a full circle for this width)';
+      }
+      return null;
+    }
+
+    // The slot's box (per copy) and its tappable points (the two end
+    // centres) for resolveShapeOrigin. A centre-line cut is the bit's width.
+    function slotHalfWidth(params) {
+      return ((params.cutType || 'inner') === 'center' ? (params.bitDiameter || 0) : (params.width || 0)) / 2;
+    }
+    function slotOriginParts(params, cl) {
+      var half = slotHalfWidth(params);
+      return {
+        bbox: function(pos) { return segmentsBbox(slotOutline(placeSlot(cl, 0, 0, pos.rotDeg), half)); },
+        corners: function(rot) {
+          var pc = placeSlot(cl, 0, 0, rot);
+          return pc.type === 'line'
+            ? [{ x: pc.x0, y: pc.y0 }, { x: pc.x1, y: pc.y1 }]
+            : [{ x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) }, { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) }];
+        }
+      };
+    }
+
+    function generateSlotProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var cutType = params.cutType || 'inner';
+      var tr = (params.bitDiameter || 0) / 2;
+      var half = slotHalfWidth(params), width = half * 2;
+      var cl = slotCenterline(params);
+      var isArc = (params.slotType || 'straight') === 'arc';
+      var deg = function(rad) { return parseFloat((rad * 180 / Math.PI).toFixed(3)); };
+      var size = isArc
+        ? (params.arcMode === 'chord'
+            ? 'Slot: arc, chord ' + params.chord + unitsLabel + ', rise ' + params.rise + unitsLabel + ', bulging toward ' + (params.bulgeAngleDeg != null ? params.bulgeAngleDeg : 90) + '°'
+            : 'Slot: arc, radius ' + params.radius + unitsLabel + ', start ' + (params.startAngleDeg || 0) + '°, sweep ' + (params.sweepDeg || 0) + '°')
+        : 'Slot: straight, length ' + params.length + unitsLabel + ', angle ' + (params.angleDeg || 0) + '°';
+      var extras = [size];
+      if (isArc && cl && params.arcMode === 'chord') {
+        extras.push('Arc: radius ' + parseFloat(cl.r.toFixed(4)) + unitsLabel + ', from ' + deg(cl.a0) + '° to ' + deg(cl.a1) + '°');
+      }
+      extras.push('Width: ' + (cutType === 'center' ? width + unitsLabel + ' (the bit)' : params.width + unitsLabel) +
+                  ', Cut: ' + ({ center: 'centre line', inner: 'inner (perimeter)', clearing: 'inner (clearing)', outer: 'outer (part)' }[cutType] || cutType));
+      extras.push('Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel);
+      var problem = slotProblem(params, cl, half);
+      var op = problem ? null : slotOriginParts(params, cl);
+      if (op) extras.push('Origin: ' + resolveShapeOrigin(params, positions, op.bbox, op.corners).label);
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var lines = programHeader(params, {
+        shapeLabel: 'Slot' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+      if (!problem && (cutType === 'inner' || cutType === 'clearing') && half - tr <= 1e-9) {
+        problem = 'the slot is no wider than the bit; use the Centre line cut type';
+      }
+      if (problem) {
+        lines.push('(WARNING: ' + problem + '; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      var shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
+      lines.push.apply(lines, startupBlock(params));
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        var mx = pos.x + shift.x, my = pos.y + shift.y;
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
+        }
+        emitOneSlot(lines, params, placeSlot(cl, mx, my, pos.rotDeg), cutType, half, tr);
+      }
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneSlot(lines, params, pc, cutType, half, tr) {
+      var depth = params.depth, feed = params.feedRate, plunge = params.plungeFeedRate;
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      function moveTo(cmd, pt, feedSuffix) { lines.push(cmd + ' X' + fixed(pt.x, 5) + ' Y' + fixed(pt.y, 5) + (feedSuffix || '')); }
+      function approach(pt) {
+        moveTo('G0', pt);
+        lines.push('G0 Z' + safeHeight);
+        lines.push('G0 Z' + slowPlungeStart);
+      }
+      var mid = pc.type === 'line' ? { x: (pc.x0 + pc.x1) / 2, y: (pc.y0 + pc.y1) / 2 } : null;
+
+      if (cutType === 'center') {
+        // Back and forth along the centre line, one pass per depth step.
+        var fwd = slotCenterPass(pc, false), back = slotCenterPass(pc, true);
+        var levelsC = depthLevels(depth, params.depthOfCut, null);
+        approach(fwd.length ? segmentStart(fwd[0]) : mid);
+        for (var i = 0; i < levelsC.length; i++) {
+          lines.push('G1 Z' + (-levelsC[i]).toFixed(3) + ' F' + plunge);
+          emitSegmentLap(lines, i % 2 ? back : fwd, feed);
+        }
+        lines.push('G0 Z' + safeHeight);
+        return;
+      }
+
+      if (cutType === 'clearing') {
+        // Rings from the centre line out to the outline, a stepover apart.
+        var step = (params.bitDiameter || 0) * ((params.stepoverPct || 40) / 100);
+        var outer = half - tr, ds = [];
+        for (var d = outer; d > 1e-9; d -= step) ds.push(d);
+        ds.reverse();
+        var rings = [slotCenterLoop(pc)].concat(ds.map(function(dd) { return slotOutline(pc, dd); }))
+          .filter(function(r) { return r.length; });
+        var first = rings.length ? segmentStart(rings[0][0]) : mid;
+        var levelsR = depthLevels(depth, params.depthOfCut, null);
+        approach(first);
+        for (var l = 0; l < levelsR.length; l++) {
+          lines.push('G1 Z' + (-levelsR[l]).toFixed(3) + ' F' + plunge);
+          for (var r = 0; r < rings.length; r++) {
+            if (r > 0) moveTo('G1', segmentStart(rings[r][0]), ' F' + feed);
+            emitSegmentLap(lines, rings[r], feed);
+          }
+          if (l < levelsR.length - 1) {
+            lines.push('G0 Z' + safeHeight);
+            moveTo('G0', first);
+            lines.push('G0 Z' + slowPlungeStart);
+          }
+        }
+        lines.push('G0 Z' + safeHeight);
+        return;
+      }
+
+      // inner / outer: the closed outline, with holding tabs if set.
+      var segs = slotOutline(pc, cutType === 'outer' ? half + tr : half - tr);
+      var tabs = tabSettings(params);
+      var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
+      var tabTop = intervals.length ? depth - tabs.height : null;
+      var levels = depthLevels(depth, params.depthOfCut, tabTop);
+      approach(segmentStart(segs[0]));
+      for (var k = 0; k < levels.length; k++) {
+        if (tabTop != null && levels[k] > tabTop + 1e-6) {
+          emitTabbedLap(lines, segs, intervals, -levels[k], -tabTop, feed, plunge);
+          continue;
+        }
+        lines.push('G1 Z' + (-levels[k]).toFixed(3) + ' F' + plunge);
+        emitSegmentLap(lines, segs, feed);
+      }
+      lines.push('G0 Z' + safeHeight);
+    }
+
     // === KEYHOLE ============================================================
     //
     // Hanging slot cut with a keyhole / T-slot bit. The head is wider than
@@ -8242,7 +8536,13 @@
       resolveDrillOrigin: resolveDrillOrigin,
       rectangleCorners: rectangleCorners,
       polygonCorners: polygonCorners,
-      shapeOriginOffset: shapeOriginOffset
+      shapeOriginOffset: shapeOriginOffset,
+      generateSlotProgram: generateSlotProgram,
+      slotCenterline: slotCenterline,
+      placeSlot: placeSlot,
+      slotOutline: slotOutline,
+      segmentsBbox: segmentsBbox,
+      slotProblem: slotProblem
     };
   }
 

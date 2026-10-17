@@ -1889,3 +1889,178 @@ test('keyhole origin anchors the bounding box of the cut footprint', () => {
   assert.ok(near(br.maxX, 0) && near(br.maxY, 0), JSON.stringify(br));
   assert.ok(near(br.minX, -69.5) && near(br.minY, -69.5), JSON.stringify(br));
 });
+
+// ---------- Slot ----------
+
+function slotBase(overrides) {
+  return Object.assign({
+    slotType: 'straight', length: 60, width: 10, angleDeg: 0,
+    cutType: 'inner', origin: 'center',
+    bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200,
+    spindleRpm: 15000, spindleDelay: 1,
+    mistM7: false, floodM8: false
+  }, overrides || {});
+}
+
+// Points every ~0.5 along the cutting moves (G1/G2/G3 in XY) at depth z,
+// with G2 turning clockwise and G3 counter-clockwise.
+function slotSamples(gcode, z) {
+  let pos = { x: 0, y: 0 }, cz = null;
+  const pts = [];
+  for (const raw of gcode.split('\n')) {
+    const line = raw.replace(/;.*$/, '').trim();
+    if (!/^G[0123]\b/.test(line) || /^G53/.test(line)) continue;
+    const zm = line.match(/Z(-?[\d.]+)/);
+    if (zm) cz = parseFloat(zm[1]);
+    const cutting = !/^G0\b/.test(line) && cz !== null && Math.abs(cz - z) < 1e-6;
+    if (/^G[23]\b/.test(line)) {
+      const a = parseArc(line), cw = /^G2\b/.test(line);
+      const cx = pos.x + a.i, cy = pos.y + a.j, r = Math.hypot(a.i, a.j);
+      const s0 = Math.atan2(pos.y - cy, pos.x - cx);
+      let sweep = Math.atan2(a.endY - cy, a.endX - cx) - s0;
+      if (cw) { if (sweep >= -1e-9) sweep -= 2 * Math.PI; } else if (sweep <= 1e-9) sweep += 2 * Math.PI;
+      const n = Math.max(2, Math.ceil(Math.abs(sweep) * r / 0.5));
+      if (cutting) for (let k = 0; k <= n; k++) pts.push({ x: cx + r * Math.cos(s0 + sweep * k / n), y: cy + r * Math.sin(s0 + sweep * k / n) });
+      pos = { x: a.endX, y: a.endY };
+      continue;
+    }
+    const next = parseXY(line, pos);
+    if (cutting) {
+      const n = Math.max(1, Math.ceil(Math.hypot(next.x - pos.x, next.y - pos.y) / 0.5));
+      for (let k = 0; k <= n; k++) pts.push({ x: pos.x + (next.x - pos.x) * k / n, y: pos.y + (next.y - pos.y) * k / n });
+    }
+    pos = next;
+  }
+  return pts;
+}
+
+// Distance from p to a segment, and to an arc of radius r about the origin
+// from a0 to a1 (radians, a1 > a0).
+function distToSegment(p, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.y - ay) * dy) / L)) : 0;
+  return Math.hypot(p.x - ax - t * dx, p.y - ay - t * dy);
+}
+function distToArc(p, r, a0, a1) {
+  let a = Math.atan2(p.y, p.x);
+  while (a < a0) a += 2 * Math.PI;
+  while (a > a0 + 2 * Math.PI) a -= 2 * Math.PI;
+  if (a <= a1) return Math.abs(Math.hypot(p.x, p.y) - r);
+  return Math.min(Math.hypot(p.x - r * Math.cos(a0), p.y - r * Math.sin(a0)),
+                  Math.hypot(p.x - r * Math.cos(a1), p.y - r * Math.sin(a1)));
+}
+
+test('straight slot: inner and outer paths sit a bit radius inside / outside the slot edge', () => {
+  const g = makeQuickCutGenerator(false);
+  // 60 long, 10 wide at 30°: centre line ±25 along the angle.
+  const t = Math.PI / 6, ex = 25 * Math.cos(t), ey = 25 * Math.sin(t);
+  for (const [cutType, d] of [['inner', 2], ['outer', 8]]) {
+    const pts = slotSamples(g.generateSlotProgram(slotBase({ angleDeg: 30, cutType })), -6);
+    assert.ok(pts.length > 100, cutType);
+    for (const p of pts) {
+      const dist = distToSegment(p, -ex, -ey, ex, ey);
+      assert.ok(Math.abs(dist - d) < 0.002, `${cutType}: ${dist} at ${p.x},${p.y}`);
+    }
+  }
+  assert.ok(maxArcRadiusDelta(g.generateSlotProgram(slotBase({ angleDeg: 30 }))) < GRBL_ARC_TOLERANCE_MM);
+});
+
+test('arc slot: radius/sweep and chord/rise describe the same slot', () => {
+  const g = makeQuickCutGenerator(false);
+  // Chord 80, rise 20: R = (1600 + 400) / 40 = 50, sweep = 4·atan(0.5).
+  const sweep = 4 * Math.atan(0.5) * 180 / Math.PI;
+  const viaChord = g.generateSlotProgram(slotBase({ slotType: 'arc', arcMode: 'chord', chord: 80, rise: 20, bulgeAngleDeg: 90 }));
+  const viaRadius = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 50, startAngleDeg: 90 - sweep / 2, sweepDeg: sweep }));
+  const body = (s) => s.split('\n').filter(l => /^G[0123] [XY]/.test(l)).join('\n');
+  assert.equal(body(viaChord), body(viaRadius));
+  assert.match(viaChord, /\(Arc: radius 50mm, from /);
+});
+
+test('arc slot: every path is a bit radius from the slot edge, inner arc cut with G2', () => {
+  const g = makeQuickCutGenerator(false);
+  const a0 = 30 * Math.PI / 180, a1 = 150 * Math.PI / 180;
+  for (const [cutType, d] of [['inner', 2], ['outer', 8]]) {
+    // origin 'shape-center' keeps the arc's centre at X0 Y0.
+    const gcode = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 40, startAngleDeg: 30, sweepDeg: 120, cutType, origin: 'shape-center' }));
+    assert.match(gcode, /^G2 /m);
+    assert.ok(maxArcRadiusDelta(gcode) < GRBL_ARC_TOLERANCE_MM);
+    const pts = slotSamples(gcode, -6);
+    for (const p of pts) {
+      const dist = distToArc(p, 40, a0, a1);
+      assert.ok(Math.abs(dist - d) < 0.002, `${cutType}: ${dist} at ${p.x},${p.y}`);
+    }
+  }
+  // A negative sweep is the same slot, clockwise from Start.
+  const neg = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 40, startAngleDeg: 150, sweepDeg: -120, origin: 'shape-center' }));
+  const pos = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 40, startAngleDeg: 30, sweepDeg: 120, origin: 'shape-center' }));
+  const body = (s) => s.split('\n').filter(l => /^G[0123] [XY]/.test(l)).join('\n');
+  assert.equal(body(neg), body(pos));
+});
+
+test('slot clearing stays inside the slot and reaches its edge', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const extra of [{ angleDeg: 0 }, { slotType: 'arc', radius: 40, startAngleDeg: 30, sweepDeg: 120 }]) {
+    const gcode = g.generateSlotProgram(slotBase(Object.assign({ cutType: 'clearing', width: 20, stepoverPct: 40, origin: 'shape-center' }, extra)));
+    const pts = slotSamples(gcode, -6);
+    const dist = extra.slotType ? (p) => distToArc(p, 40, Math.PI / 6, 5 * Math.PI / 6) : (p) => distToSegment(p, -20, 0, 20, 0);
+    const ds = pts.map(dist);
+    // The bit (radius 3) never crosses the slot edge (half width 10)...
+    assert.ok(Math.max(...ds) < 7 + 0.002, JSON.stringify(extra));
+    // ...the outer ring touches it, and the centre line is cut.
+    assert.ok(Math.max(...ds) > 7 - 0.002 && Math.min(...ds) < 0.002, JSON.stringify(extra));
+    // No ring is more than a stepover (2.4) from the next.
+    const sorted = [...new Set(ds.map(v => Math.round(v * 1000) / 1000))].sort((a, b) => a - b);
+    for (let k = 1; k < sorted.length; k++) assert.ok(sorted[k] - sorted[k - 1] <= 2.4 + 0.002, `gap ${sorted[k - 1]} → ${sorted[k]}`);
+  }
+});
+
+test('slot centre line: alternate direction each depth pass, slot is the bit width', () => {
+  const g = makeQuickCutGenerator(false);
+  const gcode = g.generateSlotProgram(slotBase({ cutType: 'center', depth: 9 }));
+  const cuts = gcode.split('\n').filter(l => /^G1 X/.test(l));
+  assert.deepEqual(cuts.map(l => l.split(' ')[1]), ['X25.00000', 'X-25.00000', 'X25.00000']);
+  assert.match(gcode, /Width: 6mm \[the bit\]/);
+  const arc = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }));
+  assert.deepEqual(arc.split('\n').filter(l => /^G[23] /.test(l)).map(l => l.slice(0, 2)), ['G3', 'G2']);
+});
+
+test('slot origins: end centres, the arc centre and box corners', () => {
+  const g = makeQuickCutGenerator(false);
+  const first = (gcode) => { const m = gcode.match(/^G0 X(-?[\d.]+) Y(-?[\d.]+)/m); return [parseFloat(m[1]), parseFloat(m[2])]; };
+  const near = (a, b) => Math.abs(a[0] - b[0]) < 0.002 && Math.abs(a[1] - b[1]) < 0.002;
+  // Straight, origin at the first end centre: centre line runs 0..50 on X.
+  const s = slotBase({ cutType: 'center', origin: 'corner:1' });
+  assert.ok(near(first(g.generateSlotProgram(s)), [0, 0]), String(first(g.generateSlotProgram(s))));
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'corner:2' }))), [-50, 0]));
+  // Front-left: a centre-line cut is the bit's width (6), so the slot box is
+  // 56 × 6 and the centre line starts at 3, 3.
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'front-left' }))), [3, 3]));
+  // With an inset, the box corner sits that far in from X0 Y0.
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'front-left', inset: 7 }))), [10, 10]));
+  // Arc slot, origin at the arc's centre: the path starts at radius 40 from 0,0.
+  const a = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90, origin: 'shape-center' }));
+  assert.ok(near(first(a), [40, 0]));
+});
+
+test('slot holding tabs, patterns and warnings', () => {
+  const g = makeQuickCutGenerator(false);
+  const tabbed = g.generateSlotProgram(slotBase({ cutType: 'outer', depth: 9, tabs: { count: 2, width: 4, height: 2 } }));
+  assert.match(tabbed, /; Tab/);
+  const lifts = tabbed.split('\n').filter(l => /^G1 Z-7\.000.*; Tab/.test(l));
+  assert.ok(lifts.length >= 2, tabbed);
+  const pat = g.generateSlotProgram(slotBase({ pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 80, yDist: 0 } }));
+  assert.equal((pat.match(/\(Instance /g) || []).length, 3);
+  for (const [extra, re] of [
+    [{ width: 6, cutType: 'inner' }, /no wider than the bit/],
+    [{ slotType: 'arc', radius: 4, startAngleDeg: 0, sweepDeg: 90 }, /as wide as its radius/],
+    [{ slotType: 'arc', radius: 20, startAngleDeg: 0, sweepDeg: 340 }, /ends would overlap/],
+    [{ slotType: 'arc', radius: 20, sweepDeg: 0 }, /missing or zero/]
+  ]) {
+    const out = g.generateSlotProgram(slotBase(extra));
+    assert.match(out, re);
+    assert.doesNotMatch(out, /^G1 /m);
+  }
+  // Imperial units in the header.
+  assert.match(makeQuickCutGenerator(true).generateSlotProgram(slotBase({ length: 2, width: 0.5, bitDiameter: 0.25, depth: 0.25, depthOfCut: 0.125 })), /length 2inch/);
+});
