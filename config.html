@@ -354,7 +354,8 @@
   }
   .qc-load-row:hover { border-color: var(--color-accent); }
   .qc-load-row small { color: var(--color-text-secondary); white-space: nowrap; }
-  .qc-load-filter { text-align: left; }
+  /* A text search, so not the right-aligned monospace of the number fields. */
+  .qc-input.qc-load-filter { text-align: left; font-family: inherit; }
   .qc-load-status { min-height: 1.2em; font-size: 0.85rem; color: var(--color-accent); }
   .qc-load-actions { display: flex; justify-content: flex-end; }
   .qc-panel-sub {
@@ -4972,7 +4973,7 @@
     loadPanel.innerHTML =
       '<h3>Load settings</h3>' +
       '<p>Pick a QuickCut program saved in File Manager to fill its tab with the settings it was made with. Programs made before Load existed have no saved settings.</p>' +
-      '<input class="qc-input qc-load-filter" type="text" placeholder="Filter by name" autocomplete="off" spellcheck="false">' +
+      '<input class="qc-input qc-load-filter" type="text" placeholder="Search QuickCut files..." autocomplete="off" spellcheck="false">' +
       '<div class="qc-load-status">Loading the list…</div>' +
       '<div class="qc-load-list"></div>' +
       '<div class="qc-load-actions"><button type="button" class="qc-secondary-btn qc-load-cancel">Cancel</button></div>';
