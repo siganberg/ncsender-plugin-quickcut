@@ -6683,6 +6683,8 @@
     var gridOn = !arc && $('qc-slt-pattern-enable').checked && styleEl.value === 'grid';
     $('qc-slt-length').disabled = gridOn;
     $('qc-slt-angle').disabled = gridOn;
+    // The Grid's lines ignore it; show what applies (0) rather than a stale angle.
+    if (gridOn && Number($('qc-slt-angle').value) !== 0) $('qc-slt-angle').value = 0;
     var w = $('qc-slt-width'), center = $('qc-slt-cut-type').value === 'center';
     w.disabled = center;
     w.title = center ? 'A Center line cut is the bit’s width.' : 'The finished width of the slot.';
