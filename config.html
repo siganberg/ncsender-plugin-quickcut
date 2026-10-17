@@ -2023,6 +2023,7 @@
                   <label for="qc-slt-pattern-style">Pattern Style</label>
                   <select class="qc-select" id="qc-slt-pattern-style">
                     <option value="linear" selected>Linear</option>
+                    <option value="grid">Grid</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
                     <option value="circular-follow">Circular (Path Direction)</option>
@@ -4013,7 +4014,7 @@
     $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
     if (enabled) {
       var style = $('qc-' + prefix + '-pattern-style').value;
-      var isGrid = style === 'linear' || style === 'honeycomb';
+      var isGrid = style === 'linear' || style === 'honeycomb' || style === 'grid';
       var isCircular = style === 'circular' || style === 'circular-follow';
       var body = $('qc-' + prefix + '-pattern-body');
       var linear = body.querySelector('.qc-pattern-linear-fields');
@@ -4167,7 +4168,8 @@
     }
     var outlines = copies <= PATTERN_PREVIEW_MAX_OUTLINES;
     if (!outlines) trace.moves = [];
-    var caption = [copies + (copies === 1 ? ' copy' : ' copies')];
+    var noun = params.pattern && params.pattern.style === 'grid' ? [' line', ' lines'] : [' copy', ' copies'];
+    var caption = [copies + (copies === 1 ? noun[0] : noun[1])];
     if (!outlines) caption.push('start points');
     svg.innerHTML = drawPatternTrace(trace, Math.max(0, params.bitDiameter || 0) / 2, caption.length) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
@@ -4274,14 +4276,19 @@
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
     // Extent mode renames only the distance fields.
     axisExtent:   { 'x-dist': 'X Extent', 'y-dist': 'Y Extent' },
-    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' }
+    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' },
+    // Grid (Slot): columns run front to back, rows left to right.
+    grid:       { 'x-dist': 'Column Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Columns', 'y-count': 'Rows' },
+    gridExtent: { 'x-dist': 'Width', 'y-dist': 'Height' }
   };
   // The short angled labels need a word of explanation; it goes in the
   // label's tooltip so the narrow columns don't wrap.
   var PATTERN_TITLES = {
     axis:   { 'x-dist': '', 'y-dist': '', 'x-count': '', 'y-count': '' },
     angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
-              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' }
+              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' },
+    grid: { 'x-dist': 'Center-to-center between columns', 'y-dist': 'Center-to-center between rows',
+            'x-count': 'Lines running across the rows (front to back at 0°)', 'y-count': 'Lines running along the rows (left to right at 0°)' }
   };
   // Extent switch: flipping it converts both distance fields so the
   // pattern stays where it is (spacing x (count - 1) = extent), then the
@@ -4312,15 +4319,18 @@
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
     var angle = num('qc-' + prefix + '-pattern-angle', 0);
-    var set = angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
+    var style = $('qc-' + prefix + '-pattern-style').value;
+    var isLineGrid = style === 'grid';
+    var set = isLineGrid ? PATTERN_LABELS.grid : angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
+    var titles = isLineGrid ? PATTERN_TITLES.grid : angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis;
     var extentEl = $('qc-' + prefix + '-pattern-extent');
     var extent = extentEl && extentEl.checked;
-    var extSet = angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
+    var extSet = isLineGrid ? PATTERN_LABELS.gridExtent : angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
     var labels = body.querySelectorAll('[data-pattern-label]');
     for (var i = 0; i < labels.length; i++) {
       var key = labels[i].getAttribute('data-pattern-label');
       labels[i].textContent = ((extent && extSet[key]) || set[key]).replace('{a}', angle);
-      labels[i].title = (angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis)[key].replace('{a}', angle);
+      labels[i].title = titles[key].replace('{a}', angle);
       // In extent mode the tooltip gives the spacing it works out to.
       if (extent && extSet[key]) {
         var axis = key.charAt(0);
@@ -4329,12 +4339,11 @@
         labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
       }
     }
-    // The Rotate switch only means something for an angled grid; the
-    // Angle field itself is hidden for Circular.
-    var style = $('qc-' + prefix + '-pattern-style').value;
-    var isGrid = style === 'linear' || style === 'honeycomb';
+    // The Rotate switch only means something for an angled grid (Grid's
+    // lines always turn with it); the Angle field is hidden for Circular.
+    var isGrid = style === 'linear' || style === 'honeycomb' || isLineGrid;
     var rotate = body.querySelector('.qc-pattern-angled-only');
-    if (rotate) rotate.style.display = angle && isGrid ? '' : 'none';
+    if (rotate) rotate.style.display = angle && isGrid && !isLineGrid ? '' : 'none';
     // The switch cell (Extent, Symmetric Ends, Rotate shapes) is for the
     // grid styles only; Circular hides it with the Angle field.
     var toggles = body.querySelector('.qc-pattern-toggle-cell');
@@ -6421,6 +6430,14 @@
     show('qc-slt-straight-only', !arc);
     show('qc-slt-radius-only', arc && !chord);
     show('qc-slt-chord-only', chord);
+    // Grid is for straight slots; its lines take their length from the
+    // grid, so Length and Angle don't apply.
+    var styleEl = $('qc-slt-pattern-style'), gridOpt = styleEl.querySelector('option[value="grid"]');
+    gridOpt.hidden = gridOpt.disabled = arc;
+    if (arc && styleEl.value === 'grid') { styleEl.value = 'linear'; updatePatternVisibility('slt'); }
+    var gridOn = !arc && $('qc-slt-pattern-enable').checked && styleEl.value === 'grid';
+    $('qc-slt-length').disabled = gridOn;
+    $('qc-slt-angle').disabled = gridOn;
     var w = $('qc-slt-width'), center = $('qc-slt-cut-type').value === 'center';
     w.disabled = center;
     w.title = center ? 'A Center line cut is the bit’s width.' : 'The finished width of the slot.';
@@ -6543,8 +6560,8 @@
       var arcByRadius = $('qc-slt-type').value === 'arc' && $('qc-slt-arc-mode').value !== 'chord';
       return arcByRadius ? num('qc-slt-sweep', 0) / 2 : 0;
     }, snapMiterAngle);
-    $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); });
-    $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); });
+    $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
+    $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
     $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
     updateSlotPreview();
     updatePatternVisibility('slt');
@@ -6626,6 +6643,7 @@
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
+      'For a grid of grooves, use a straight slot, the <strong>Center line</strong> cut type and a <strong>Grid</strong> pattern: Columns and Rows are the number of lines each way, and every line spans the grid (the Slot&rsquo;s Length and Angle don&rsquo;t apply; the pattern Angle turns the grid).',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
       'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
@@ -6955,7 +6973,7 @@
     $(pre + 'angle').value = measure.angleDeg;
     $(pre + 'enable').checked = true;
     var styleEl = $(pre + 'style');
-    if (styleEl.value !== 'linear' && styleEl.value !== 'honeycomb') styleEl.value = 'linear';
+    if (['linear', 'honeycomb', 'grid'].indexOf(styleEl.value) < 0) styleEl.value = 'linear';
     updatePatternVisibility(prefix);
     closeMeasure();
   }
@@ -7174,7 +7192,7 @@
       var rotDeg = pattern.rotateShapes ? angle : 0;
       return positions.map(function(p) {
         var r = rotatePoint(0, 0, p.x, p.y, angle);
-        return { x: r.x, y: r.y, rotDeg: rotDeg };
+        return Object.assign({}, p, { x: r.x, y: r.y, rotDeg: (p.rotDeg || 0) + rotDeg });
       });
     }
 
@@ -7223,6 +7241,30 @@
           }
         }
         return applyGridAngle(positions, pattern);
+      }
+      // Grid (straight Slot): one copy per line, each carrying the length it
+      // spans, so the lines run from the first to the last line across them.
+      // Rows (along X) first, then columns turned 90°. With one row or
+      // column there's nothing for the other direction to span.
+      if (pattern.style === 'grid') {
+        var gxCount = Math.max(1, Math.floor(pattern.xCount || 1));
+        var gyCount = Math.max(1, Math.floor(pattern.yCount || 1));
+        var gxDist = pattern.xDist || 0;
+        var gyDist = pattern.yDist || 0;
+        if (pattern.spacing === 'extent') {
+          gxDist = patternStep(gxDist, gxCount);
+          gyDist = patternStep(gyDist, gyCount);
+        }
+        var spanX = (gxCount - 1) * gxDist, spanY = (gyCount - 1) * gyDist;
+        if (gxCount > 1) {
+          for (var gr = 0; gr < gyCount; gr++) positions.push({ x: spanX / 2, y: gr * gyDist, rotDeg: 0, span: Math.abs(spanX) });
+        }
+        if (gyCount > 1) {
+          for (var gc = 0; gc < gxCount; gc++) positions.push({ x: gc * gxDist, y: spanY / 2, rotDeg: 90, span: Math.abs(spanY) });
+        }
+        if (!positions.length) positions.push({ x: 0, y: 0, rotDeg: 0, span: 0 });
+        // The lines always run along the turned grid.
+        return applyGridAngle(positions, Object.assign({}, pattern, { rotateShapes: true }));
       }
       if (pattern.style === 'circular' || pattern.style === 'circular-follow') {
         var count = Math.max(1, Math.floor(pattern.count || 1));
@@ -7710,6 +7752,13 @@
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
                ' (' + dims + ')' +
                (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
+      }
+      if (p.style === 'grid') {
+        var gAngle = Number(p.angle) || 0;
+        var gDims = p.spacing === 'extent'
+          ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0)
+          : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
+        return 'Grid ' + (p.xCount || 1) + 'x' + (p.yCount || 1) + ' lines (' + gDims + ')' + (gAngle ? ' angle=' + gAngle + '°' : '');
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
       return 'Circular' + (follow ? ' (Path Direction)' : ' (Identical)') + ' n=' + (p.count || 1) +
@@ -9159,11 +9208,20 @@
       var half = slotHalfWidth(params), width = half * 2;
       var cl = slotCenterline(params);
       var isArc = (params.slotType || 'straight') === 'arc';
+      // Grid: each line is a straight slot as long as the span its copy
+      // carries (centre line from the first line to the last), so the Slot's
+      // own Length and Angle don't apply.
+      var isGrid = !isArc && !!(params.pattern && params.pattern.enabled && params.pattern.style === 'grid');
+      var lineParams = function(pos) {
+        return Object.assign({}, params, { slotType: 'straight', length: (pos.span || 0) + width, angleDeg: 0 });
+      };
+      var clFor = function(pos) { return isGrid ? slotCenterline(lineParams(pos)) : cl; };
       var deg = function(rad) { return parseFloat((rad * 180 / Math.PI).toFixed(3)); };
       var size = isArc
         ? (params.arcMode === 'chord'
             ? 'Slot: arc, chord ' + params.chord + unitsLabel + ', rise ' + params.rise + unitsLabel + ', bulging toward ' + (params.bulgeAngleDeg != null ? params.bulgeAngleDeg : 90) + '°'
             : 'Slot: arc, radius ' + params.radius + unitsLabel + ', start ' + (params.startAngleDeg || 0) + '°, sweep ' + (params.sweepDeg || 0) + '°')
+        : isGrid ? 'Slot: straight grid lines, each spanning the grid'
         : 'Slot: straight, length ' + params.length + unitsLabel + ', angle ' + (params.angleDeg || 0) + '°';
       var extras = [size];
       if (isArc && cl && params.arcMode === 'chord') {
@@ -9172,8 +9230,11 @@
       extras.push('Width: ' + (cutType === 'center' ? width + unitsLabel + ' (the bit)' : params.width + unitsLabel) +
                   ', Cut: ' + ({ center: 'centre line', inner: 'inner (perimeter)', clearing: 'inner (clearing)', outer: 'outer (part)' }[cutType] || cutType));
       extras.push('Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel);
-      var problem = slotProblem(params, cl, half);
-      var op = problem ? null : slotOriginParts(params, cl);
+      var problem = isGrid ? slotProblem(lineParams(positions[0]), clFor(positions[0]), half) : slotProblem(params, cl, half);
+      var op = problem ? null : !isGrid ? slotOriginParts(params, cl) : {
+        bbox: function(pos) { return slotOriginParts(lineParams(pos), clFor(pos)).bbox(pos); },
+        corners: slotOriginParts(lineParams(positions[0]), clFor(positions[0])).corners
+      };
       if (op) extras.push('Origin: ' + resolveShapeOrigin(params, positions, op.bbox, op.corners).label);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
       var lines = programHeader(params, {
@@ -9198,7 +9259,7 @@
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        emitOneSlot(lines, params, placeSlot(cl, mx, my, pos.rotDeg), cutType, half, tr);
+        emitOneSlot(lines, params, placeSlot(clFor(pos), mx, my, pos.rotDeg), cutType, half, tr);
       }
       lines.push('');
       lines.push.apply(lines, programFooter(params));

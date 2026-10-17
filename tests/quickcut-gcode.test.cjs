@@ -2108,3 +2108,63 @@ test('slot recipe: rounding a stock corner with a centre line and a negative ins
     assert.ok(onX && Math.abs(onX.y - cy) < 0.002 && onY && Math.abs(onY.x - cx) < 0.002, `${origin}: ${JSON.stringify(ends)}`);
   }
 });
+
+// --- Grid (straight Slot lines) ------------------------------------------
+
+const gridSlot = (overrides) => Object.assign({
+  slotType: 'straight', length: 10, width: 6, angleDeg: 33, cutType: 'center', origin: 'center', bitDiameter: 6,
+  depth: 2, depthOfCut: 2, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1,
+  pattern: { enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 }
+}, overrides || {});
+const gridLines = (gcode) => {
+  const out = [];
+  let pos = { x: 0, y: 0 };
+  for (const line of gcode.split('\n')) {
+    if (/^G0 X/.test(line)) pos = parseXY(line, pos);
+    else if (/^G1 X/.test(line)) { const end = parseXY(line, pos); out.push([pos.x, pos.y, end.x, end.y]); pos = end; }
+  }
+  return out;
+};
+
+test('grid: rows span the columns and columns span the rows', () => {
+  const g = makeQuickCutGenerator(false);
+  const pts = g.computePatternPositions({ enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 });
+  assert.equal(pts.length, 7);
+  assert.deepEqual(pts.slice(0, 3).map(p => [p.x, p.y, p.rotDeg, p.span]), [[30, 0, 0, 60], [30, 30, 0, 60], [30, 60, 0, 60]]);
+  assert.deepEqual(pts.slice(3).map(p => [p.x, p.y, p.rotDeg, p.span]), [[0, 30, 90, 60], [20, 30, 90, 60], [40, 30, 90, 60], [60, 30, 90, 60]]);
+});
+
+test('grid centre lines meet at the outer lines, ignoring the slot length and angle', () => {
+  const g = makeQuickCutGenerator(false);
+  const lines = gridLines(g.generateSlotProgram(gridSlot({ origin: 'front-left' })));
+  const tr = 3;
+  const rows = lines.filter(l => Math.abs(l[1] - l[3]) < 1e-6), cols = lines.filter(l => Math.abs(l[0] - l[2]) < 1e-6);
+  assert.equal(rows.length, 3); assert.equal(cols.length, 4);
+  rows.forEach(l => assert.deepEqual([Math.min(l[0], l[2]), Math.max(l[0], l[2])], [tr, tr + 60]));
+  cols.forEach(l => assert.deepEqual([Math.min(l[1], l[3]), Math.max(l[1], l[3])], [tr, tr + 60]));
+  assert.deepEqual(rows.map(l => l[1]), [tr, tr + 30, tr + 60]);
+  assert.deepEqual(cols.map(l => l[0]), [tr, tr + 20, tr + 40, tr + 60]);
+});
+
+test('grid extent, a single column, and the header', () => {
+  const g = makeQuickCutGenerator(false);
+  assert.deepEqual(g.computePatternPositions({ enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 60, yDist: 60, spacing: 'extent' }),
+    g.computePatternPositions({ enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 }));
+  const one = g.computePatternPositions({ enabled: true, style: 'grid', xCount: 1, yCount: 3, xDist: 20, yDist: 30 });
+  assert.deepEqual(one.map(p => [p.x, p.y, p.rotDeg, p.span]), [[0, 30, 90, 60]]);
+  const gcode = g.generateSlotProgram(gridSlot());
+  assert.match(gcode, /Grid 4x3 lines/);
+  assert.match(gcode, /straight grid lines/);
+});
+
+test('grid angle turns every line with the grid', () => {
+  const g = makeQuickCutGenerator(false);
+  const pts = g.computePatternPositions({ enabled: true, style: 'grid', xCount: 2, yCount: 2, xDist: 10, yDist: 10, angle: 30 });
+  assert.deepEqual(pts.map(p => p.rotDeg), [30, 30, 120, 120]);
+  const lines = gridLines(g.generateSlotProgram(gridSlot({ pattern: { enabled: true, style: 'grid', xCount: 2, yCount: 2, xDist: 10, yDist: 10, angle: 30 } })));
+  lines.forEach(l => {
+    const a = ((Math.atan2(l[3] - l[1], l[2] - l[0]) * 180 / Math.PI) % 180 + 180) % 180;
+    assert.ok([30, 120].some(t => Math.abs(a - t) < 1e-3), `line at ${a}°`);
+    assert.ok(Math.abs(Math.hypot(l[2] - l[0], l[3] - l[1]) - 10) < 1e-3);
+  });
+});
