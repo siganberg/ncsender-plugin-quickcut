@@ -51,7 +51,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
 Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or picture on a screw. The bit's head is wider than its neck, so it can only enter and leave the wood through the plunge hole:
 
 1. Plunge straight down to **Total Depth** at the Plunge Rate.
-2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y). Slot Angle starts at 90°; like the other settings, the value you last generated with is remembered. You can also drag (or tap) on the preview to point the slot that way; it moves in half degrees, snaps to 0°, 90°, 180° and 270° within 5°, and sticks within 1° of the other miter angles listed under [Pattern preview](#pattern-preview).
+2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y). Slot Angle starts at 90°; like the other settings, the value you last generated with is remembered. You can also twist the preview to turn the slot, like the other shape previews; it moves in half degrees, snaps to 0°, 90°, 180° and 270° within 5°, and sticks within 1° of the other miter angles listed under [Pattern preview](#pattern-preview).
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
@@ -113,7 +113,7 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 
 With **Pattern** on, a preview beside the pattern fields shows the whole pattern and updates as you type: every copy's toolpath, a dot the size of the bit where each copy plunges, and a crosshair at X0 Y0. It's drawn from the same code as Generate, so Origin, Inset, Angle, Rotate shapes, Extent, Symmetric Ends and both Circular styles all match the program. It shows one depth pass and the outline of a clearing cut. Above 500 copies it shows only where each copy starts; above 3000 it shows the count.
 
-Tap the preview to enlarge it over the dialog; tap again or press **Esc** to go back to editing (Esc only closes QuickCut when nothing is enlarged). Dragging works on the enlarged drawing too. Drag it (small or enlarged) to turn the pattern: the **Angle** for Linear and Honeycomb, the **Start Angle** for Circular. Dragging (here and on every shape preview) moves in half degrees, snaps square (0, 90, 180, 270°) within 5°, and sticks within a degree of the other common miter angles, 180/n for n = 3, 4, 5, 6, 8, 10 and 12 (60, 45, 36, 30, 22.5, 18 and 15° and their multiples), e.g. 22.5° to line a pattern up with an octagon.
+**Click a blank spot** on any preview, this one or a shape preview, to enlarge it over the dialog; click a blank spot again or press **Esc** to go back to editing (Esc only closes QuickCut when nothing is enlarged). Clicks on a corner, end, hole or side still pick it, and drags still turn, in the small or enlarged view. Drag it (small or enlarged) to turn the pattern: the **Angle** for Linear and Honeycomb, the **Start Angle** for Circular. Dragging (here and on every shape preview) moves in half degrees, snaps square (0, 90, 180, 270°) within 5°, and sticks within a degree of the other common miter angles, 180/n for n = 3, 4, 5, 6, 8, 10 and 12 (60, 45, 36, 30, 22.5, 18 and 15° and their multiples), e.g. 22.5° to line a pattern up with an octagon.
 
 ### Circular Total Angle
 

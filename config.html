@@ -808,7 +808,7 @@
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
   .qc-shape-preview-cell svg[id$="-pattern-preview"] { cursor: grab; touch-action: none; }
-  /* Tapping the pattern preview enlarges it over the dialog; taps and
+  /* A click on a blank spot enlarges a preview over the dialog; taps and
      drags still work on it. */
   .qc-shape-preview-cell.qc-preview-big {
     position: absolute;
@@ -3775,7 +3775,7 @@
   function wireSidePicker(svgId, sideId, axisId) {
     $(svgId).addEventListener('click', function(e) {
       var hit = e.target.closest && e.target.closest('.qc-side-hit, .qc-side-hit-face');
-      if (hit) setSide(sideId, axisId, hit.getAttribute('data-side'));
+      if (hit) { markPreviewPick(); setSide(sideId, axisId, hit.getAttribute('data-side')); }
     });
   }
 
@@ -4061,24 +4061,26 @@
       grid.appendChild(cell);
       body.appendChild(grid);
       var svgId = 'qc-' + prefix + '-pattern-preview';
-      cell.title = 'Tap to enlarge; drag to turn the pattern';
+      cell.title = 'Click to enlarge; drag to turn the pattern';
       // Grid styles turn by the row Angle; Circular by its Start Angle.
       wirePreviewAngleDrag(svgId, function() {
         var circular = /^circular/.test($('qc-' + prefix + '-pattern-style').value);
         return $('qc-' + prefix + '-pattern-' + (circular ? 'start-angle' : 'angle'));
-      }, true, function() {
-        setPreviewEnlarged(cell, !cell.classList.contains('qc-preview-big'));
-      }, null, snapMiterAngle);
-      cell.setAttribute('data-return-hint', 'Tap or press Esc to return');
+      }, true, null, null, snapMiterAngle);
     });
     ROOT.addEventListener('input', schedulePatternPreview);
     ROOT.addEventListener('change', schedulePatternPreview);
     schedulePatternPreview();
   }
 
-  // Tapping the pattern preview enlarges it over the dialog; a tap or Esc
-  // returns. Taps and drags keep working on the enlarged drawing. The
-  // shape previews' taps pick origins and sides, so they don't enlarge.
+  // Clicking a blank spot on any preview enlarges it over the dialog; a
+  // blank click there, or Esc, returns. A click that picks something (a
+  // corner, end, hole, side or the feed arrow) or ends a drag calls
+  // markPreviewPick, and the cell's click handler, which runs after the
+  // preview's own, then leaves the size alone. The flag resets at the
+  // start of each press.
+  var previewPicked = false;
+  function markPreviewPick() { previewPicked = true; }
   function setPreviewEnlarged(cell, big) {
     cell.classList.toggle('qc-preview-big', big);
   }
@@ -4088,6 +4090,14 @@
     return !!big;
   }
   function wirePreviewEnlarge() {
+    ROOT.querySelectorAll('.qc-shape-preview-cell').forEach(function(cell) {
+      cell.setAttribute('data-return-hint', 'Click a blank spot or press Esc to return');
+      cell.addEventListener('pointerdown', function() { previewPicked = false; }, true);
+      cell.addEventListener('click', function() {
+        if (previewPicked) return;
+        setPreviewEnlarged(cell, !cell.classList.contains('qc-preview-big'));
+      });
+    });
     // Esc closes an enlarged preview, not the dialog: ncSender closes the
     // dialog from a window keydown listener (bubble phase), so this one
     // runs first in the capture phase and stops it. Page-wide, so it
@@ -5016,6 +5026,7 @@
     wireSidePicker('qc-cut-preview', 'qc-cut-origin', 'qc-cut-axis');
     $('qc-cut-preview').addEventListener('click', function(e) {
       if (!(e.target.closest && e.target.closest('.qc-feed-hit'))) return;
+      markPreviewPick();
       var dir = $('qc-cut-direction');
       dir.value = dir.value === 'climb' ? 'conventional' : 'climb';
       dir.dispatchEvent(new Event('change', { bubbles: true }));
@@ -5202,6 +5213,7 @@
       if (d < bestD) { bestD = d; best = nd; }
     });
     if (!best) return;
+    markPreviewPick();
     setOriginPickerValue(inputId, best.value);
     redraw();
   }
@@ -6021,6 +6033,7 @@
     });
     svg.addEventListener('pointermove', function(ev) { if (dragging) setFromPointer(ev); });
     svg.addEventListener('pointerup', function(ev) {
+      if (dragging && (twisting || !relative)) markPreviewPick();
       if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
       dragging = false;
     });
@@ -6030,7 +6043,7 @@
   function wireKeyholeForm() {
     $('qc-key-length').addEventListener('input', updateKeyholePreview);
     $('qc-key-start-angle').addEventListener('input', updateKeyholePreview);
-    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', false, null, null, snapMiterAngle);
+    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', true, null, null, snapMiterAngle);
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
@@ -6164,6 +6177,7 @@
         if (d < bestD) { bestD = d; best = i; }
       }
       if (best < 0) return;
+      markPreviewPick();
       setOriginPickerValue('qc-drl-origin', 'hole:' + map.keys[best]);
       updateDrillPreview();
     });
@@ -6619,7 +6633,7 @@
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
-      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
+      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
     drill: { name: 'Drill', notes: [
@@ -6649,7 +6663,7 @@
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
-      'The pattern preview shows every copy as you type. Tap it to enlarge it; tap again or press Esc to go back. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
