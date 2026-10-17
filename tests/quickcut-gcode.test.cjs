@@ -1720,6 +1720,64 @@ test('origin on a picked corner or the polygon center', () => {
   assert.deepEqual(xy(tri({ origin: 'corner:5' })), xy(tri({ origin: 'center' })));
 });
 
+test('origin inset: the cut moves inward from a corner or edge origin, never for center or a picked point', () => {
+  const g = makeQuickCutGenerator(false);
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  const ext = (pts) => ({ minX: Math.min(...pts.map(q => q[0])), maxX: Math.max(...pts.map(q => q[0])), minY: Math.min(...pts.map(q => q[1])), maxY: Math.max(...pts.map(q => q[1])) });
+  const rect = (o) => g.generateRectangleProgram(baseParams(Object.assign({ width: 50, height: 30, cutType: 'outer', bitDiameter: 6 }, o)));
+  // Inset 0 is today's output.
+  for (const origin of ['front-left', 'center', 'back-center']) {
+    assert.equal(rect({ origin, inset: 0 }), rect({ origin }), origin);
+  }
+  // Front-left, inset 10: the part's box starts at X10 Y10, so the outer
+  // tool path (3 out) starts at 7.
+  let e = ext(xy(rect({ origin: 'front-left', inset: 10 })));
+  assert.ok(Math.abs(e.minX - 7) < 1e-3 && Math.abs(e.minY - 7) < 1e-3, JSON.stringify(e));
+  assert.match(rect({ origin: 'front-left', inset: 10 }), /\(Origin: front-left, inset 10mm\)/);
+  // Back-right: inward is -X and -Y.
+  e = ext(xy(rect({ origin: 'back-right', inset: 10 })));
+  assert.ok(Math.abs(e.maxX + 7) < 1e-3 && Math.abs(e.maxY + 7) < 1e-3, JSON.stringify(e));
+  // Front-center: only Y moves; X stays centred.
+  e = ext(xy(rect({ origin: 'front-center', inset: 10 })));
+  assert.ok(Math.abs(e.minX + 28) < 1e-3 && Math.abs(e.maxX - 28) < 1e-3 && Math.abs(e.minY - 7) < 1e-3, JSON.stringify(e));
+  // Left-center: only X.
+  e = ext(xy(rect({ origin: 'left-center', inset: 10 })));
+  assert.ok(Math.abs(e.minX - 7) < 1e-3 && Math.abs(e.minY + 18) < 1e-3, JSON.stringify(e));
+  // Center and a picked corner ignore it (and say nothing about it).
+  assert.equal(rect({ origin: 'center', inset: 10 }), rect({ origin: 'center' }));
+  assert.equal(rect({ origin: 'corner:1', inset: 10 }), rect({ origin: 'corner:1' }));
+  // Juice groove: 300 x 200 board, groove 10 in from the edges = a 280 x 180
+  // Inner (perimeter) groove centreline box... with a 6 mm bit, Inner keeps
+  // the tool 3 inside: path from X13 Y13.
+  e = ext(xy(rect({ width: 280, height: 180, cutType: 'inner', origin: 'front-left', inset: 10 })));
+  assert.ok(Math.abs(e.minX - 13) < 1e-3 && Math.abs(e.maxX - 287) < 1e-3, JSON.stringify(e));
+});
+
+test('origin inset on Circle, Polygon, Drill and Keyhole', () => {
+  const g = makeQuickCutGenerator(false);
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  // Circle D25 outer, bit 6 (path radius 15.5), back-right inset 5: centre
+  // at (-17.5, -17.5); the start point (rightmost) at X -2.
+  const circ = g.generateCircleProgram(baseParams({ diameter: 25, cutType: 'outer', bitDiameter: 6, origin: 'back-right', inset: 5 }));
+  assert.ok(xy(circ).some(q => Math.abs(q[0] + 2) < 1e-3 && Math.abs(q[1] + 17.5) < 1e-3), JSON.stringify(xy(circ).slice(0, 4)));
+  assert.match(circ, /\(Origin: back-right, inset 5mm\)/);
+  // Polygon box shifts the same way as with no inset, plus the inset.
+  const poly = (o) => xy(g.generatePolygonProgram(baseParams(Object.assign({ sides: 6, diameter: 40, cutType: 'outer', bitDiameter: 2, origin: 'front-left' }, o))));
+  const a = poly({}), b = poly({ inset: 4 });
+  assert.ok(a.every((q, i) => Math.abs(b[i][0] - q[0] - 4) < 1e-3 && Math.abs(b[i][1] - q[1] - 4) < 1e-3));
+  // Drill: first hole a bit radius plus the inset in from X0 Y0.
+  const drill = g.generateDrillProgram(drillBase({ origin: 'front-left', inset: 4, pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 2, xDist: 20, yDist: 20 } }));
+  assert.match(drill, /^G0 X6\.500 Y6\.500$/m);
+  assert.match(drill, /\(Origin: front-left, inset 4mm\)/);
+  // A picked hole ignores it.
+  const picked = drillBase({ origin: 'hole:1,1', pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 2, xDist: 20, yDist: 20 } });
+  assert.equal(g.generateDrillProgram(Object.assign({}, picked, { inset: 4 })), g.generateDrillProgram(picked));
+  // Keyhole: box origins take it, the plunge hole doesn't.
+  const key = (o) => g.generateKeyholeProgram(Object.assign({ bitDiameter: 10, slotLength: 20, startAngleDeg: 90, depth: 8, feedRate: 300, plungeFeedRate: 100, spindleRpm: 1, spindleDelay: 0 }, o));
+  assert.equal(key({ origin: 'hole', inset: 5 }), key({ origin: 'hole' }));
+  assert.match(key({ origin: 'front-left', inset: 5 }), /^G0 X10\.000 Y10\.000$/m);
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };

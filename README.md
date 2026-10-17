@@ -11,7 +11,7 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
 - Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
 
-Every shape preview marks X0 Y0 with a small crosshair. Every shape can be repeated with a [pattern](#patterns). Rectangle, Circle, and Polygon profile cuts can leave [holding tabs](#holding-tabs).
+Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept a set distance in from its origin with an [inset](#origin-inset), and repeated with a [pattern](#patterns). Rectangle, Circle, and Polygon profile cuts can leave [holding tabs](#holding-tabs).
 
 **Ops:**
 - Planer — surface a flat region with zigzag or spiral raster. Three modes:
@@ -68,6 +68,18 @@ A through cut frees the part, or the drop-out of an inner cut, on the last pass,
 - Tabs go on straight edges rather than corners: each side gets a share by its length, centred along it, so 4 tabs on a rectangle give one in the middle of each side. A circle's tabs are evenly spaced, and so are any that don't fit on the sides. Tabs that won't fit at all (too many, too wide) are dropped, with a warning in the G-code.
 - Tabs apply to Inner (perimeter) and Outer cuts. They're hidden for clearing, which never frees anything.
 - The shape previews show where the tabs will be. With a pattern, every copy gets its own tabs, and they turn with the copy.
+
+## Origin inset
+
+Beside each Origin picker on Rectangle, Circle, Polygon, Keyhole and Drill, **Inset** keeps the cut that far in from the origin point, toward the shape, without moving the work offset:
+
+- From a **corner** it moves both ways: front-left moves the cut +X and +Y, back-right −X and −Y.
+- From an **edge** midpoint it moves across that edge only: front-center moves the cut +Y and keeps it centred side to side.
+- It doesn't apply to the **center**, a tapped corner or hole, or Keyhole's plunge hole, and is greyed out there.
+
+With a pattern it applies to the box around all the copies, so a grid of holes can start a set margin in from the edges of the stock instead of on them. The preview leaves room for it, with the crosshair at X0 Y0 out at the stock corner, and the program header notes it (`Origin: front-left, inset 10mm`).
+
+For example, a **cutting board juice groove** 10 mm in from the edges of a 300 × 200 board: zero X/Y on the board's front-left corner, then a Rectangle 280 × 180, Inner (perimeter), origin front-left, inset 10. A second run with inset 0 and Outer (part) at 300 × 200 cuts the board to its final size from the same zero.
 
 ## Patterns
 
