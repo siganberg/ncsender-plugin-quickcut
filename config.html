@@ -6223,8 +6223,13 @@
           if (!downPt || Math.hypot(pt.x - downPt.x, pt.y - downPt.y) < 4) return;
           twisting = true;
         }
+        // A greyed-out field (Slot's Angle under a Grid pattern) isn't
+        // turned; the gesture still counts as a drag, not a tap.
+        if (input.disabled) return;
         if (downDeg == null) { downDeg = deg; return; }
         deg = baseDeg + (deg - downDeg);
+      } else if (input.disabled) {
+        return;
       }
       deg = ((deg % 360) + 360) % 360;
       var off = snapOffset ? snapOffset() : 0;
