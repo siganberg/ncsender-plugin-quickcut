@@ -5,9 +5,9 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 ## What it makes
 
 **Shapes** (inner/outer cut, corner radius where applicable, origin selection):
-- Rectangle — Inner (perimeter), Inner (clearing), Outer; **Start Angle** turns it about its center (CCW); twist the preview to turn it by dragging. The preview shows the corner radius and the angle as you type, and a tap on a corner (or the center) makes that point X0 Y0
+- Rectangle — Inner (perimeter), Inner (clearing), Outer; **Start Angle** turns it about its center (CCW); twist the preview to turn it by dragging (half degrees, sticking at miter angles; see [Pattern preview](#pattern-preview)). The preview shows the corner radius and the angle as you type, and a tap on a corner (or the center) makes that point X0 Y0
 - Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass
-- Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer; optional **Corner Radius** rounds every corner (up to fully round); twist the preview to change the Start Angle, or tap a corner (or the polygon's own center, which on an odd-sided polygon isn't the middle of the Origin box) to make it X0 Y0
+- Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer; optional **Corner Radius** rounds every corner (up to fully round); twist the preview to change the Start Angle (in half degrees, sticking at miter angles such as 22.5° and 36°; see [Pattern preview](#pattern-preview)), or tap a corner (or the polygon's own center, which on an odd-sided polygon isn't the middle of the Origin box) to make it X0 Y0
 - Slot — straight or arc (curved) slot with round ends: Center line, Inner (perimeter), Inner (clearing), Outer; an arc is given by radius and sweep, or by chord and rise; see [Slot](#slot)
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
 - Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
@@ -41,7 +41,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
 - **Cut Type:**
   - **Center line** runs the bit once along the middle of the slot, so the slot is the bit's width (Width is greyed out). Each Depth of Cut pass goes the other way along it.
   - **Inner (perimeter)** cuts round the inside of the outline; **Inner (clearing)** clears it with rings out from the center line, **Stepover** apart; **Outer (part)** cuts round the outside, for a slot-shaped part.
-- Twist the preview to turn the slot (it changes Angle, Start Angle or the bulge Angle). It snaps square when within 8°: a straight slot to horizontal or vertical, an arc so the radius line to the middle of the slot is horizontal or vertical. Tap an **end** of the slot, at its center, or an arc's **center**, to make it X0 Y0. The 9-dot picker's points are the box around the slot, as on the other shapes, and work with an [inset](#origin-inset).
+- Twist the preview to turn the slot (it changes Angle, Start Angle or the bulge Angle). It moves in half degrees and sticks within 1° of the miter angles listed under [Pattern preview](#pattern-preview) (0, 15, 18, 22.5, 30, 36, 45° …): a straight slot's direction, or on an arc the radius line to the middle of the slot. Tap an **end** of the slot, at its center, or an arc's **center**, to make it X0 Y0. The 9-dot picker's points are the box around the slot, as on the other shapes, and work with an [inset](#origin-inset).
 - Holding tabs and patterns work as on the other shapes. A pattern places each copy by its center, which for an arc slot is the arc's center, so a **ring of arc slots** is a **Circular (Path Direction)** pattern with **Radius 0**: each copy turns about that center (4 copies with a 90° Sweep make a full circle, a smaller Sweep leaves gaps between them). On an arc the inner edge is cut with clockwise arcs (G2), the rest counter-clockwise (G3).
 - **Rounding a stock corner:** zero X/Y on the corner, then Arc, **Radius** = corner radius + bit radius, **Start Angle** facing the corner (front-left 180, front-right 270, back-right 0, back-left 90), **Sweep** 90, **Center line**, that corner as the Origin, and **Inset** = minus the bit diameter. The bit's centre runs a bit radius outside the finished edge, starting and ending a bit radius outside the two stock edges, level with the tangent points, so the round blends into them. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset −6. (The Origin box includes the bit's own width on a Center line cut, which is why the inset is a whole bit diameter.)
 - A slot that can't be cut is caught before Generate, at the field to change: an arc as wide as its radius, ends that would overlap (Chord shorter than the Width, or a Sweep too close to a full circle), or an inner cut no wider than the bit.
@@ -51,7 +51,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
 Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or picture on a screw. The bit's head is wider than its neck, so it can only enter and leave the wood through the plunge hole:
 
 1. Plunge straight down to **Total Depth** at the Plunge Rate.
-2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y). Slot Angle starts at 90°; like the other settings, the value you last generated with is remembered. You can also drag (or tap) on the preview to point the slot that way; it moves in whole degrees and snaps to 0°, 90°, 180° and 270° when you're within 8° of one.
+2. Cut forward **Slot Length** along **Slot Angle** (counter-clockwise from +X; 90° runs toward the back, +Y). Slot Angle starts at 90°; like the other settings, the value you last generated with is remembered. You can also drag (or tap) on the preview to point the slot that way; it moves in half degrees and sticks within 1° of the miter angles listed under [Pattern preview](#pattern-preview), 0°, 90°, 180° and 270° among them.
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
@@ -113,7 +113,7 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 
 With **Pattern** on, a preview beside the pattern fields shows the whole pattern and updates as you type: every copy's toolpath, a dot the size of the bit where each copy plunges, and a crosshair at X0 Y0. It's drawn from the same code as Generate, so Origin, Inset, Angle, Rotate shapes, Extent, Symmetric Ends and both Circular styles all match the program. It shows one depth pass and the outline of a clearing cut. Above 500 copies it shows only where each copy starts; above 3000 it shows the count.
 
-Tap the preview to enlarge it over the dialog; tap again or press **Esc** to go back to editing (Esc only closes QuickCut when nothing is enlarged). Drag it (small or enlarged) to turn the pattern: the **Angle** for Linear and Honeycomb, the **Start Angle** for Circular. Dragging moves in half degrees and sticks within a degree of the common miter angles, 180/n for n = 3, 4, 5, 6, 8, 10 and 12 (60, 45, 36, 30, 22.5, 18 and 15° and their multiples), e.g. 22.5° to line a pattern up with an octagon.
+Tap the preview to enlarge it over the dialog; tap again or press **Esc** to go back to editing (Esc only closes QuickCut when nothing is enlarged). Drag it (small or enlarged) to turn the pattern: the **Angle** for Linear and Honeycomb, the **Start Angle** for Circular. Dragging (here and on every shape preview) moves in half degrees and sticks within a degree of the common miter angles, 180/n for n = 3, 4, 5, 6, 8, 10 and 12 (60, 45, 36, 30, 22.5, 18 and 15° and their multiples), e.g. 22.5° to line a pattern up with an octagon.
 
 ### Circular Total Angle
 

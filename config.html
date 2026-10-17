@@ -1917,7 +1917,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-start">Start Angle (°)</label>
-                    <input class="qc-input" type="number" id="qc-slt-start" step="1" value="45" title="Where the slot starts around the arc's center, CCW from +X. You can also twist the preview to turn it; the radius line snaps to horizontal and vertical.">
+                    <input class="qc-input" type="number" id="qc-slt-start" step="1" value="45" title="Where the slot starts around the arc's center, CCW from +X. You can also twist the preview to turn it, in half degrees; the radius line to the slot's middle sticks at miter angles (15, 22.5, 30, 45° …).">
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-sweep">Sweep (°)</label>
@@ -4064,7 +4064,7 @@
         return $('qc-' + prefix + '-pattern-' + (circular ? 'start-angle' : 'angle'));
       }, true, function() {
         cell.classList.toggle('qc-pattern-preview-big');
-      }, null, snapPatternAngle);
+      }, null, snapMiterAngle);
     });
     ROOT.addEventListener('input', schedulePatternPreview);
     ROOT.addEventListener('change', schedulePatternPreview);
@@ -4085,20 +4085,20 @@
     schedulePatternPreview();
   }
 
-  // Dragging the pattern preview moves in half degrees and sticks within
-  // a degree of a miter stop: multiples of 180/n for the common frames
+  // Dragging any preview moves in half degrees and sticks within a degree
+  // of a miter stop: multiples of 180/n for the common frames
   // (n = 3, 4, 5, 6, 8, 10, 12: 60, 45, 36, 30, 22.5, 18, 15°).
-  var PATTERN_ANGLE_STOPS = (function() {
+  var MITER_ANGLE_STOPS = (function() {
     var stops = {};
     [3, 4, 5, 6, 8, 10, 12].forEach(function(n) {
       for (var a = 0; a < 360; a += 180 / n) stops[parseFloat(a.toFixed(3))] = true;
     });
     return Object.keys(stops).map(Number).concat(360);
   })();
-  var PATTERN_ANGLE_SNAP = 1;
-  function snapPatternAngle(deg) {
-    for (var i = 0; i < PATTERN_ANGLE_STOPS.length; i++) {
-      if (Math.abs(deg - PATTERN_ANGLE_STOPS[i]) <= PATTERN_ANGLE_SNAP) return PATTERN_ANGLE_STOPS[i] % 360;
+  var MITER_ANGLE_SNAP = 1;
+  function snapMiterAngle(deg) {
+    for (var i = 0; i < MITER_ANGLE_STOPS.length; i++) {
+      if (Math.abs(deg - MITER_ANGLE_STOPS[i]) <= MITER_ANGLE_SNAP) return MITER_ANGLE_STOPS[i] % 360;
     }
     return (Math.round(deg * 2) / 2) % 360;
   }
@@ -4923,7 +4923,7 @@
     $('qc-rect-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('rect'); });
     wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, function(pt) {
       pickPreviewNode(rectPreviewNodes, 'qc-rect-origin', pt, updateRectanglePreview);
-    });
+    }, null, snapMiterAngle);
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -5927,8 +5927,9 @@
       })() : '');
   }
 
-  // Dragging on a preview sets an angle field, in whole degrees,
-  // snapping to the nearest multiple of 90 within PREVIEW_ANGLE_SNAP.
+  // Dragging on a preview sets an angle field; without a snap function it
+  // moves in whole degrees, snapping to the nearest multiple of 90 within
+  // PREVIEW_ANGLE_SNAP.
   // Absolute (Keyhole's Slot Angle): the angle points at the pointer,
   // measured about the preview center, where the slot is drawn
   // centered; a tap works too. Relative (Rectangle / Polygon Start
@@ -5941,7 +5942,8 @@
   // should snap is turned from the angle being set (Slot's arc: Sweep / 2,
   // so the radius line to the slot's middle snaps square, not the Start).
   // snap (optional): replaces the 90° snap and whole degrees, given the
-  // angle in [0, 360) (the pattern preview's miter stops).
+  // angle in [0, 360) plus any snapOffset. Every preview passes
+  // snapMiterAngle (half degrees and miter stops).
   function wirePreviewAngleDrag(svgId, inputId, relative, onTap, snapOffset, snap) {
     var svg = $(svgId);
     // inputId may be a function, for a preview whose angle field changes
@@ -5976,7 +5978,7 @@
       deg = ((deg % 360) + 360) % 360;
       var off = snapOffset ? snapOffset() : 0;
       var right = Math.round((deg + off) / 90) * 90 - off;
-      deg = snap ? snap(deg)
+      deg = snap ? parseFloat((snap(((deg + off) % 360 + 360) % 360) - off).toFixed(3))
         : Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? parseFloat(right.toFixed(3)) : Math.round(deg);
       // With an offset the snapped angle can be just below 0.
       deg = ((deg % 360) + 360) % 360;
@@ -6007,7 +6009,7 @@
   function wireKeyholeForm() {
     $('qc-key-length').addEventListener('input', updateKeyholePreview);
     $('qc-key-start-angle').addEventListener('input', updateKeyholePreview);
-    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', false);
+    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', false, null, null, snapMiterAngle);
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
@@ -6297,7 +6299,7 @@
     $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
     wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true, function(pt) {
       pickPreviewNode(polyPreviewNodes, 'qc-poly-origin', pt, updatePolygonPreview);
-    });
+    }, null, snapMiterAngle);
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
@@ -6505,7 +6507,7 @@
       // Arc by radius: snap the line to the slot's middle, Start + Sweep / 2.
       var arcByRadius = $('qc-slt-type').value === 'arc' && $('qc-slt-arc-mode').value !== 'chord';
       return arcByRadius ? num('qc-slt-sweep', 0) / 2 : 0;
-    });
+    }, snapMiterAngle);
     $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); });
     $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); });
     $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
@@ -6576,14 +6578,14 @@
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
-      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse.',
+      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     polygon: { name: 'Polygon', notes: [
-      '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon (or twist the preview). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
+      '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     slot: { name: 'Slot', notes: [
@@ -6591,12 +6593,12 @@
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
-      'Twist the preview to turn the slot; it snaps square when close (on an arc, the radius line to the slot&rsquo;s middle snaps to horizontal and vertical). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
-      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot; it snaps to 0, 90, 180 and 270&deg; when close.',
+      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot, in half degrees; it sticks at miter angles such as 0, 22.5, 45 and 90&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
     drill: { name: 'Drill', notes: [
