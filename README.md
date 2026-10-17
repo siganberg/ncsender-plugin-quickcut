@@ -8,10 +8,11 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 - Rectangle — Inner (perimeter), Inner (clearing), Outer; **Start Angle** turns it about its center (CCW); twist the preview to turn it by dragging. The preview shows the corner radius and the angle as you type, and a tap on a corner (or the center) makes that point X0 Y0
 - Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass
 - Polygon — 3 to 12 sides, Inner (perimeter), Inner (clearing), Outer; optional **Corner Radius** rounds every corner (up to fully round); twist the preview to change the Start Angle, or tap a corner (or the polygon's own center, which on an odd-sided polygon isn't the middle of the Origin box) to make it X0 Y0
+- Slot — straight or arc (curved) slot with round ends: Center line, Inner (perimeter), Inner (clearing), Outer; an arc is given by radius and sweep, or by chord and rise; see [Slot](#slot)
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
 - Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
 
-Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept a set distance in from its origin with an [inset](#origin-inset), and repeated with a [pattern](#patterns). Rectangle, Circle, and Polygon profile cuts can leave [holding tabs](#holding-tabs).
+Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept a set distance in from its origin with an [inset](#origin-inset), and repeated with a [pattern](#patterns). Rectangle, Circle, Polygon, and Slot profile cuts can leave [holding tabs](#holding-tabs).
 
 **Ops:**
 - Planer — surface a flat region with zigzag or spiral raster. Three modes:
@@ -29,6 +30,20 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
 - Measure pattern angle — the **Measure** link on a Linear/Honeycomb pattern measures the angle of a line on the workpiece, from a point typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
 - Help — the **Help** button at the bottom of the sidebar explains the tab you're on, including the tips that otherwise only show when you hover over a field with a mouse (so touchscreen users can read them too). **Back** returns to the tab with everything as you left it. It ends with a link to the [ncSender manual's QuickCut page](https://docs.ncsender.xyz/plugins/quickcut/).
+
+## Slot
+
+A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a track or a fence, or a curved slot for a tilting table or a router-lift trunnion.
+
+- **Straight:** **Length** is overall, from end to end including the round ends, at **Angle** (counter-clockwise from +X). **Width** is the finished width.
+- **Arc**, by **Radius & Sweep:** **Radius** is from the arc's center to the middle of the slot. The slot starts at **Start Angle** (counter-clockwise from +X) and runs **Sweep** degrees counter-clockwise, or clockwise if negative.
+- **Arc**, by **Chord & Rise**, for when you can measure the ends but not the center: **Chord** is the straight distance between the centers of the two ends, **Rise** how far the middle of the slot bulges out from that line, and **Angle** the direction it bulges toward (90° = toward the back). The program header gives the radius and angles they work out to: radius = (chord² / 4 + rise²) / (2 × rise).
+- **Cut Type:**
+  - **Center line** runs the bit once along the middle of the slot, so the slot is the bit's width (Width is greyed out). Each Depth of Cut pass goes the other way along it.
+  - **Inner (perimeter)** cuts round the inside of the outline; **Inner (clearing)** clears it with rings out from the center line, **Stepover** apart; **Outer (part)** cuts round the outside, for a slot-shaped part.
+- Twist the preview to turn the slot (it changes Angle, Start Angle or the bulge Angle). Tap an **end** of the slot, at its center, or an arc's **center**, to make it X0 Y0. The 9-dot picker's points are the box around the slot, as on the other shapes, and work with an [inset](#origin-inset).
+- Holding tabs and patterns work as on the other shapes. On an arc the inner edge is cut with clockwise arcs (G2), the rest counter-clockwise (G3).
+- A slot that can't be cut is caught before Generate, at the field to change: an arc as wide as its radius, ends that would overlap (Chord shorter than the Width, or a Sweep too close to a full circle), or an inner cut no wider than the bit.
 
 ## Keyhole
 
@@ -60,18 +75,18 @@ The moves are written out in full rather than as G81/G83 canned cycles, which pl
 
 ## Holding tabs
 
-A through cut frees the part, or the drop-out of an inner cut, on the last pass, where it can shift into the bit. Turn on **Holding Tabs** (in the Depth card of Rectangle, Circle, and Polygon) to leave small bridges that hold it until you cut them with a knife or saw.
+A through cut frees the part, or the drop-out of an inner cut, on the last pass, where it can shift into the bit. Turn on **Holding Tabs** (in the Depth card of Rectangle, Circle, Polygon, and Slot) to leave small bridges that hold it until you cut them with a knife or saw.
 
 - **Tabs** is how many per shape, **Tab Width** is each tab's width at the part edge, and **Tab Height** is how much material each tab leaves standing above the bottom of the cut. Tab Height has to be less than Total Depth.
 - A pass is added at exactly Total Depth − Tab Height, so tabs come out at the height you set. Passes below that lift over each tab; passes above it are unchanged.
 - On the tool path each tab spans Tab Width + Bit Diameter, because the bit takes a radius off each side of the tab.
 - Tabs go on straight edges rather than corners: each side gets a share by its length, centred along it, so 4 tabs on a rectangle give one in the middle of each side. A circle's tabs are evenly spaced, and so are any that don't fit on the sides. Tabs that won't fit at all (too many, too wide) are dropped, with a warning in the G-code.
-- Tabs apply to Inner (perimeter) and Outer cuts. They're hidden for clearing, which never frees anything.
+- Tabs apply to Inner (perimeter) and Outer cuts. They're hidden for clearing, which never frees anything, and for a Slot's Center line cut.
 - The shape previews show where the tabs will be. With a pattern, every copy gets its own tabs, and they turn with the copy.
 
 ## Origin inset
 
-Beside each Origin picker on Rectangle, Circle, Polygon, Keyhole and Drill, **Inset** keeps the cut that far in from the origin point, toward the shape, without moving the work offset:
+Beside each Origin picker on Rectangle, Circle, Polygon, Slot, Keyhole and Drill, **Inset** keeps the cut that far in from the origin point, toward the shape, without moving the work offset:
 
 - From a **corner** it moves both ways: front-left moves the cut +X and +Y, back-right −X and −Y.
 - From an **edge** midpoint it moves across that edge only: front-center moves the cut +Y and keeps it centred side to side.
@@ -83,7 +98,7 @@ For example, a **cutting board juice groove** 10 mm in from the edges of a 300 �
 
 ## Patterns
 
-Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole's picker also offers its plunge hole, the default.)
+Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole's picker also offers its plunge hole, the default.)
 
 | Style | What it does |
 | --- | --- |

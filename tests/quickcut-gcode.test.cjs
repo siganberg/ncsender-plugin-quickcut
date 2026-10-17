@@ -2017,9 +2017,10 @@ test('slot clearing stays inside the slot and reaches its edge', () => {
 
 test('slot centre line: alternate direction each depth pass, slot is the bit width', () => {
   const g = makeQuickCutGenerator(false);
+  // Overall length 60 with a 6 mm bit: the centre line runs ±27.
   const gcode = g.generateSlotProgram(slotBase({ cutType: 'center', depth: 9 }));
   const cuts = gcode.split('\n').filter(l => /^G1 X/.test(l));
-  assert.deepEqual(cuts.map(l => l.split(' ')[1]), ['X25.00000', 'X-25.00000', 'X25.00000']);
+  assert.deepEqual(cuts.map(l => l.split(' ')[1]), ['X27.00000', 'X-27.00000', 'X27.00000']);
   assert.match(gcode, /Width: 6mm \[the bit\]/);
   const arc = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }));
   assert.deepEqual(arc.split('\n').filter(l => /^G[23] /.test(l)).map(l => l.slice(0, 2)), ['G3', 'G2']);
@@ -2029,10 +2030,10 @@ test('slot origins: end centres, the arc centre and box corners', () => {
   const g = makeQuickCutGenerator(false);
   const first = (gcode) => { const m = gcode.match(/^G0 X(-?[\d.]+) Y(-?[\d.]+)/m); return [parseFloat(m[1]), parseFloat(m[2])]; };
   const near = (a, b) => Math.abs(a[0] - b[0]) < 0.002 && Math.abs(a[1] - b[1]) < 0.002;
-  // Straight, origin at the first end centre: centre line runs 0..50 on X.
+  // Straight, origin at the first end centre: centre line runs 0..54 on X.
   const s = slotBase({ cutType: 'center', origin: 'corner:1' });
   assert.ok(near(first(g.generateSlotProgram(s)), [0, 0]), String(first(g.generateSlotProgram(s))));
-  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'corner:2' }))), [-50, 0]));
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'corner:2' }))), [-54, 0]));
   // Front-left: a centre-line cut is the bit's width (6), so the slot box is
   // 56 × 6 and the centre line starts at 3, 3.
   assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'front-left' }))), [3, 3]));

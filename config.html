@@ -798,10 +798,10 @@
   .qc-shape-preview-cell svg.qc-preview-pickable {
     cursor: pointer;
   }
-  /* Keyhole / Rectangle / Polygon previews: drag to set the angle.
+  /* Keyhole / Rectangle / Polygon / Slot previews: drag to set the angle.
      touch-action keeps a drag on the touchscreen from scrolling the
      dialog instead. */
-  #qc-key-preview, #qc-rect-preview, #qc-poly-preview {
+  #qc-key-preview, #qc-rect-preview, #qc-poly-preview, #qc-slt-preview {
     cursor: grab;
     touch-action: none;
   }
@@ -1150,6 +1150,10 @@
         <button type="button" class="qc-nav-btn" data-tab="polygon">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
           <span class="qc-nav-label">Polygon</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="slot">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
+          <span class="qc-nav-label">Slot</span>
         </button>
         <button type="button" class="qc-nav-btn" data-tab="keyhole">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
@@ -1821,6 +1825,244 @@
       </div>
     </section>
 
+    <!-- Slot tab -->
+    <section class="qc-content" data-view="slot">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Slot</h2>
+          <p class="qc-panel-sub">A straight or curved (arc) slot with rounded ends.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-slt-form" onsubmit="return false">
+          <div class="qc-card qc-section-card">
+            <h3 class="qc-card-title">Shape</h3>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-slt-type">Slot Type</label>
+                    <select class="qc-select" id="qc-slt-type">
+                      <option value="straight" selected>Straight</option>
+                      <option value="arc">Arc</option>
+                    </select>
+                  </div>
+                  <div class="qc-field qc-slt-arc-only" style="display: none;">
+                    <label for="qc-slt-arc-mode">Arc By</label>
+                    <select class="qc-select" id="qc-slt-arc-mode" title="Radius: the arc's radius and where it starts and ends. Chord: the straight distance between the slot's end centres and how far the middle bulges out.">
+                      <option value="radius" selected>Radius &amp; Sweep</option>
+                      <option value="chord">Chord &amp; Rise</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-width">Width</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-width" min="0.001" step="0.01" value="10" required>
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-slt-straight-only">
+                  <div class="qc-field">
+                    <label for="qc-slt-length">Length</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-length" min="0.001" step="0.01" value="60" required title="Overall, from end to end, including the rounded ends.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-angle">Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-angle" step="1" value="0" title="Direction the slot runs, CCW from +X. You can also twist the preview to turn it.">
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-slt-radius-only" style="display: none;">
+                  <div class="qc-field">
+                    <label for="qc-slt-radius">Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-radius" min="0.001" step="0.01" value="40" title="From the arc's center to the middle of the slot.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-start">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-start" step="1" value="45" title="Where the slot starts around the arc's center, CCW from +X. You can also twist the preview to turn it.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-sweep">Sweep (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-sweep" step="1" value="90" title="How far round the slot runs from the Start Angle: CCW, or CW if negative.">
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-slt-chord-only" style="display: none;">
+                  <div class="qc-field">
+                    <label for="qc-slt-chord">Chord</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-chord" min="0.001" step="0.01" value="60" title="Straight-line distance between the centres of the slot's two ends.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-rise">Rise</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-rise" min="0.001" step="0.01" value="10" title="How far the middle of the slot bulges out from the chord.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-bulge">Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-bulge" step="1" value="90" title="Direction the slot bulges toward, CCW from +X. 90 = toward the back. You can also twist the preview to turn it.">
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-rect-type-row qc-slt-origin-row">
+                  <div class="qc-field">
+                    <label for="qc-slt-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-slt-cut-type">
+                      <option value="center">Center line</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
+                      <option value="outer">Outer (part)</option>
+                    </select>
+                  </div>
+                  <div class="qc-field qc-slt-clearing-only" style="display: none;">
+                    <label for="qc-slt-stepover">Stepover (% of bit)</label>
+                    <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40">
+                  </div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-slt-origin-picker"></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-slt-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-shape-preview-cell">
+                <svg id="qc-slt-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card qc-section-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-slt-depth">Total Depth</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-slt-step">Depth of Cut</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-step" min="0.001" step="0.01" value="1" required>
+              </div>
+            <div class="qc-tabs-block" id="qc-slt-tabs-block">
+              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-slt-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+              <div class="qc-row-3" id="qc-slt-tabs-fields" style="display: none;">
+                <div class="qc-field">
+                  <label for="qc-slt-tabs-count">Tabs</label>
+                  <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-slt-tabs-width">Tab Width</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-tabs-width" step="0.1" value="6" title="Width of each tab at the part edge.">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-slt-tabs-height">Tab Height</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+
+          <div class="qc-card qc-section-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this shape">
+                <input type="checkbox" id="qc-slt-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-slt-pattern-body" style="display: none;">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-slt-pattern-style">Pattern Style</label>
+                  <select class="qc-select" id="qc-slt-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="honeycomb">Honeycomb</option>
+                    <option value="circular">Circular (Identical)</option>
+                    <option value="circular-follow">Circular (Path Direction)</option>
+                  </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-slt-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="slt" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-slt-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-slt-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-slt-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                  <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                    <span>Rotate shapes</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-slt-pattern-rotate-shapes">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields" data-shape="slt">
+                <div class="qc-row-4 qc-pattern-axis-row">
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-x-count" data-pattern-label="x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-y-count" data-pattern-label="y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" data-shape="slt" style="display: none;">
+                <div class="qc-row-4 qc-pattern-axis-row">
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-radius">Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-radius" min="0.1" step="0.1" value="40" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-start-angle" step="1" value="0" title="Where the first copy sits around the circle's center, CCW from +X (negative = CW). 90° = toward the back (+Y).">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-total-angle">Total Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-total-angle" step="1" value="360" title="Arc the copies are spread over, from the Start Angle. 360 spaces them evenly all the way round; less puts the first and last copy at the two ends of the arc. Negative = CW.">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-slt-generate">Generate</button>
+      </div>
+    </section>
+
     <!-- Keyhole tab -->
     <section class="qc-content" data-view="keyhole">
       <header class="qc-panel-header">
@@ -2467,7 +2709,7 @@
     currentTab: 'rectangle',
     toolByShape: {}
   };
-  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'keyhole', 'drill'];
+  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
   async function init() {
     try {
@@ -2509,11 +2751,13 @@
     wireJointerForm();
     wireCutterForm();
     wirePolygonForm();
+    wireSlotForm();
     wireKeyholeForm();
     wireDrillForm();
     wireHoldingTabs('rect', updateRectanglePreview);
     wireHoldingTabs('circ', updateCirclePreview);
     wireHoldingTabs('poly', updatePolygonPreview);
+    wireHoldingTabs('slt', updateSlotPreview);
     wireMeasureTab();
     wireHelp();
     wireOriginCrosshairs();
@@ -2555,6 +2799,7 @@
     if (target === 'drill') updateDrillPreview();
     if (target === 'rectangle') updateRectanglePreview();
     if (target === 'polygon') updatePolygonPreview();
+    if (target === 'slot') updateSlotPreview();
     state.currentTab = target;
     if (target === 'measure') {
       startMeasurePolling();
@@ -2810,6 +3055,32 @@
         'qc-poly-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
         'qc-poly-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
         'qc-poly-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        // Slot
+        'qc-slt-width':  { min: 0.004, max: 100, label: 'Width' },
+        'qc-slt-length': { min: 0.004, max: 200, label: 'Length' },
+        'qc-slt-angle':  { min: -360, max: 360, label: 'Angle' },
+        'qc-slt-radius': { min: 0.004, max: 200, label: 'Radius' },
+        'qc-slt-start':  { min: -360, max: 360, label: 'Start Angle' },
+        'qc-slt-sweep':  { min: -360, max: 360, label: 'Sweep' },
+        'qc-slt-chord':  { min: 0.004, max: 200, label: 'Chord' },
+        'qc-slt-rise':   { min: 0.004, max: 200, label: 'Rise' },
+        'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
+        'qc-slt-inset':  { min: 0, max: 200, label: 'Inset' },
+        'qc-slt-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
+        'qc-slt-step':   { min: 0.001, max: 5, label: 'Depth of Cut' },
+        'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
+        'qc-slt-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+        'qc-slt-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
+        'qc-slt-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        'qc-slt-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-slt-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
+        'qc-slt-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
+        'qc-slt-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
+        'qc-slt-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
+        'qc-slt-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-slt-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-slt-pattern-total-angle': { min: -360, max: 360, label: 'Total Angle' },
+        'qc-slt-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
         // Drill
         'qc-drl-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-drl-peck':   { min: 0,     max: 20, label: 'Peck Depth' },
@@ -2927,6 +3198,32 @@
       'qc-poly-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
       'qc-poly-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
       'qc-poly-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      // Slot
+      'qc-slt-width':  { min: 0.1, max: 2500, label: 'Width' },
+      'qc-slt-length': { min: 0.1, max: 5000, label: 'Length' },
+      'qc-slt-angle':  { min: -360, max: 360, label: 'Angle' },
+      'qc-slt-radius': { min: 0.1, max: 5000, label: 'Radius' },
+      'qc-slt-start':  { min: -360, max: 360, label: 'Start Angle' },
+      'qc-slt-sweep':  { min: -360, max: 360, label: 'Sweep' },
+      'qc-slt-chord':  { min: 0.1, max: 5000, label: 'Chord' },
+      'qc-slt-rise':   { min: 0.1, max: 5000, label: 'Rise' },
+      'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
+      'qc-slt-inset':  { min: 0, max: 5000, label: 'Inset' },
+      'qc-slt-depth':  { min: 0.01, max: 500, label: 'Total Depth' },
+      'qc-slt-step':   { min: 0.01, max: 100, label: 'Depth of Cut' },
+      'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
+      'qc-slt-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+      'qc-slt-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
+      'qc-slt-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      'qc-slt-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-slt-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
+      'qc-slt-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
+      'qc-slt-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
+      'qc-slt-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
+      'qc-slt-pattern-radius':  { min: 0.1, max: 5000, label: 'Pattern Radius' },
+      'qc-slt-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-slt-pattern-total-angle': { min: -360, max: 360, label: 'Total Angle' },
+      'qc-slt-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
       // Drill
       'qc-drl-depth':  { min: 0.01, max: 100, label: 'Total Depth' },
       'qc-drl-peck':   { min: 0,    max: 100, label: 'Peck Depth' },
@@ -2981,7 +3278,17 @@
       var polyA = polyD / 2 * Math.cos(Math.PI / polyN);
       if (isFinite(polyA) && n > polyA + 1e-9) return 'Corner Radius must not exceed ' + roundDisplay(polyA) + ' (half the size across the flats)';
     }
-    var tabDepth = /^qc-(rect|circ|poly)-tabs-height$/.exec(id);
+    if (id === 'qc-slt-step') {
+      var sTot = num('qc-slt-depth', NaN);
+      if (isFinite(sTot) && n > sTot) return 'Depth of Cut must not exceed Total Depth (' + sTot + ')';
+    }
+    if (id === 'qc-slt-sweep' && n === 0) return 'Sweep must not be 0';
+    // A straight slot's Length is overall, so it can't be shorter than the slot is wide.
+    if (id === 'qc-slt-length') {
+      var sW = slotWidthNow();
+      if (isFinite(sW) && n < sW - 1e-9) return 'Length must be at least the slot width (' + roundDisplay(sW) + ')';
+    }
+    var tabDepth = /^qc-(rect|circ|poly|slt)-tabs-height$/.exec(id);
     if (tabDepth) {
       var tTot = num('qc-' + tabDepth[1] + '-depth', NaN);
       if (isFinite(tTot) && n >= tTot) return 'Tab Height must be less than Total Depth (' + tTot + ')';
@@ -3512,12 +3819,14 @@
     updateTabsVisibility(prefix);
   }
 
-  // Holding tabs are hidden for clearing (a pocket frees nothing). The
+  // Holding tabs are hidden for clearing (a pocket frees nothing) and a
+  // slot's centre-line cut (one pass, no outline). The
   // Tabs / Width / Height row shows only while the switch is on.
   function updateTabsVisibility(prefix) {
     var block = $('qc-' + prefix + '-tabs-block');
     if (!block) return;
-    block.style.display = $('qc-' + prefix + '-cut-type').value === 'clearing' ? 'none' : '';
+    var cut = $('qc-' + prefix + '-cut-type').value;
+    block.style.display = cut === 'clearing' || cut === 'center' ? 'none' : '';
     $('qc-' + prefix + '-tabs-fields').style.display = $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
   }
 
@@ -3568,7 +3877,8 @@
   // land where the tabs will even though the preview isn't to scale.
   function tabMarks(prefix, segs) {
     var tabs = readTabsForm(prefix);
-    if (!tabs || !(tabs.count >= 1) || $('qc-' + prefix + '-cut-type').value === 'clearing') return '';
+    var cutNow = $('qc-' + prefix + '-cut-type').value;
+    if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center') return '';
     tabs.count = Math.min(24, tabs.count);
     tabs.width = Math.max(0, tabs.width);
     var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, Math.max(0, num('qc-bit', 0)));
@@ -3660,7 +3970,7 @@
   // so its field is left alone. Any edit to a count or distance keeps
   // the extent tooltip's worked-out spacing current.
   function wirePatternExtent() {
-    ['rect', 'circ', 'poly', 'key', 'drl'].forEach(function(prefix) {
+    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
       var pre = 'qc-' + prefix + '-pattern-';
       var sw = $(pre + 'extent');
       if (!sw) return;
@@ -3797,6 +4107,7 @@
       { host: 'qc-rect-origin-picker', input: 'qc-rect-origin', def: 'center'     },
       { host: 'qc-circ-origin-picker', input: 'qc-circ-origin', def: 'center'     },
       { host: 'qc-poly-origin-picker', input: 'qc-poly-origin', def: 'center'     },
+      { host: 'qc-slt-origin-picker',  input: 'qc-slt-origin',  def: 'center'     },
       // Keyhole adds its plunge hole, the default (it was the only
       // origin before the picker existed).
       { host: 'qc-key-origin-picker',  input: 'qc-key-origin',  def: 'hole', extra: ['hole'] },
@@ -3930,6 +4241,23 @@
     hydrateTabs('poly', poly.tabs);
     hydratePattern('poly', poly.pattern);
 
+    var slt = saved.slot || {};
+    if (slt.slotType)               $('qc-slt-type').value     = slt.slotType;
+    if (slt.arcMode)                $('qc-slt-arc-mode').value = slt.arcMode;
+    ['width', 'length', 'radius', 'chord', 'rise', 'inset', 'depth'].forEach(function(k) {
+      if (slt[k] != null) $('qc-slt-' + k).value = roundDisplay(mmToDisplay(slt[k]));
+    });
+    if (slt.depthOfCut != null)     $('qc-slt-step').value     = roundDisplay(mmToDisplay(slt.depthOfCut));
+    if (slt.angleDeg != null)       $('qc-slt-angle').value    = slt.angleDeg;
+    if (slt.startAngleDeg != null)  $('qc-slt-start').value    = slt.startAngleDeg;
+    if (slt.sweepDeg != null)       $('qc-slt-sweep').value    = slt.sweepDeg;
+    if (slt.bulgeAngleDeg != null)  $('qc-slt-bulge').value    = slt.bulgeAngleDeg;
+    if (slt.cutType)                $('qc-slt-cut-type').value = slt.cutType;
+    if (slt.origin)                 setOriginPickerValue('qc-slt-origin', slt.origin);
+    if (slt.stepoverPct != null)    $('qc-slt-stepover').value = slt.stepoverPct;
+    hydrateTabs('slt', slt.tabs);
+    hydratePattern('slt', slt.pattern);
+
     var key = saved.keyhole || {};
     if (key.slotLength != null)     $('qc-key-length').value      = roundDisplay(mmToDisplay(key.slotLength));
     if (key.startAngleDeg != null)  $('qc-key-start-angle').value = key.startAngleDeg;
@@ -3960,11 +4288,14 @@
     updatePatternVisibility('circ');
     updateClearingVisibility('poly');
     updatePatternVisibility('poly');
+    updateSlotFields();
+    updatePatternVisibility('slt');
     updatePatternVisibility('key');
     updatePatternVisibility('drl');
     updateRectanglePreview();
     updateCirclePreview();
     updatePolygonPreview();
+    updateSlotPreview();
     updateKeyholePreview();
     updateDrillPreview();
     updatePlanerPreview();
@@ -4098,6 +4429,29 @@
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
         tabs:          packTabsForm('poly'),
+        pattern:       packPattern(params.pattern)
+      };
+    } else if (params.shape === 'slot') {
+      body.slot = {
+        tool:          toolForShape,
+        slotType:      params.slotType,
+        arcMode:       params.arcMode,
+        width:         displayToMm(params.width),
+        length:        displayToMm(params.length),
+        angleDeg:      params.angleDeg,
+        radius:        displayToMm(params.radius),
+        startAngleDeg: params.startAngleDeg,
+        sweepDeg:      params.sweepDeg,
+        chord:         displayToMm(params.chord),
+        rise:          displayToMm(params.rise),
+        bulgeAngleDeg: params.bulgeAngleDeg,
+        cutType:       params.cutType,
+        origin:        params.origin,
+        inset:         displayToMm(params.inset),
+        depth:         displayToMm(params.depth),
+        depthOfCut:    displayToMm(params.depthOfCut),
+        stepoverPct:   params.stepoverPct,
+        tabs:          packTabsForm('slt'),
         pattern:       packPattern(params.pattern)
       };
     } else if (params.shape === 'keyhole') {
@@ -4517,7 +4871,7 @@
   function wireOriginCrosshairs() {
     $('qc-drl-inset').addEventListener('input', updateDrillPreview);
     [['rect', updateRectanglePreview], ['circ', updateCirclePreview],
-     ['poly', updatePolygonPreview], ['key', updateKeyholePreview]].forEach(function(t) {
+     ['poly', updatePolygonPreview], ['slt', updateSlotPreview], ['key', updateKeyholePreview]].forEach(function(t) {
       $('qc-' + t[0] + '-inset').addEventListener('input', t[1]);
       $('qc-' + t[0] + '-origin').addEventListener('change', t[1]);
       $('qc-' + t[0] + '-pattern-enable').addEventListener('change', t[1]);
@@ -5293,7 +5647,9 @@
   var PREVIEW_ANGLE_SNAP = 8;
   function wirePreviewAngleDrag(svgId, inputId, relative, onTap) {
     var svg = $(svgId);
-    var input = $(inputId);
+    // inputId may be a function, for a preview whose angle field changes
+    // (Slot: Angle, Start Angle or the bulge Angle).
+    var input = typeof inputId === 'function' ? inputId() : $(inputId);
     var dragging = false, downDeg = null, baseDeg = 0, downPt = null, twisting = false;
     function svgPoint(ev) {
       var ctm = svg.getScreenCTM();
@@ -5331,6 +5687,7 @@
     svg.addEventListener('pointerdown', function(ev) {
       dragging = true;
       twisting = false;
+      if (typeof inputId === 'function') input = inputId();
       downPt = svgPoint(ev);
       // Relative: the twist is measured from where the pointer was pressed.
       downDeg = relative ? pointerDeg(ev) : null;
@@ -5671,6 +6028,220 @@
     });
   }
 
+  // ---------- Slot ----------
+
+  function readSlotForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      slotType:      $('qc-slt-type').value,
+      arcMode:       $('qc-slt-arc-mode').value,
+      width:         num('qc-slt-width', 0),
+      length:        num('qc-slt-length', 0),
+      angleDeg:      num('qc-slt-angle', 0),
+      radius:        num('qc-slt-radius', 0),
+      startAngleDeg: num('qc-slt-start', 0),
+      sweepDeg:      num('qc-slt-sweep', 0),
+      chord:         num('qc-slt-chord', 0),
+      rise:          num('qc-slt-rise', 0),
+      bulgeAngleDeg: num('qc-slt-bulge', 90),
+      cutType:       $('qc-slt-cut-type').value,
+      tabs:          readTabsForm('slt'),
+      origin:        $('qc-slt-origin').value,
+      inset:         num('qc-slt-inset', 0),
+      depth:         num('qc-slt-depth', 0),
+      depthOfCut:    num('qc-slt-step', 0),
+      stepoverPct:   num('qc-slt-stepover', 40),
+      pattern:       readPatternForm('slt'),
+      isImperial:    state.isImperial,
+      safeZHeightMm: state.safeZHeightMm
+    });
+  }
+
+  // The slot's finished width: the bit's on a Center line cut.
+  function slotWidthNow() {
+    return $('qc-slt-cut-type').value === 'center' ? Math.max(0, num('qc-bit', 0)) : num('qc-slt-width', NaN);
+  }
+
+  // The field a twist of the preview turns: Angle (straight), Start
+  // Angle (arc by radius) or the bulge Angle (arc by chord).
+  function slotAngleInput() {
+    if ($('qc-slt-type').value !== 'arc') return $('qc-slt-angle');
+    return $('qc-slt-arc-mode').value === 'chord' ? $('qc-slt-bulge') : $('qc-slt-start');
+  }
+
+  // Show the fields for the slot type and arc mode; Width is the bit's on
+  // a Center line cut, so it's greyed out there.
+  function updateSlotFields() {
+    var arc = $('qc-slt-type').value === 'arc';
+    var chord = arc && $('qc-slt-arc-mode').value === 'chord';
+    var show = function(cls, on) {
+      var els = document.querySelectorAll('.' + cls);
+      for (var i = 0; i < els.length; i++) els[i].style.display = on ? '' : 'none';
+    };
+    show('qc-slt-arc-only', arc);
+    show('qc-slt-straight-only', !arc);
+    show('qc-slt-radius-only', arc && !chord);
+    show('qc-slt-chord-only', chord);
+    var w = $('qc-slt-width'), center = $('qc-slt-cut-type').value === 'center';
+    w.disabled = center;
+    w.title = center ? 'A Center line cut is the bit’s width.' : 'The finished width of the slot.';
+    updateClearingVisibility('slt');
+  }
+
+  var slotPreviewNodes = null;
+
+  // Slot preview, to scale: the outline (hatched where the waste is), the
+  // centre line dashed, and a dimension for the length or the radius. An
+  // arc slot's center is kept in view unless that would shrink the slot
+  // by more than a quarter. Twist to turn it; tap an end, or an arc's
+  // center, to make it the Origin.
+  function updateSlotPreview() {
+    updateInsetState('slt');
+    updateSlotFields();
+    var svg = $('qc-slt-preview');
+    if (!svg) return;
+    var params = readSlotForm();
+    var gen = makeQuickCutGenerator(state.isImperial);
+    var cut = params.cutType;
+    var half = Math.max(0, slotWidthNow()) / 2;
+    var cl = gen.slotCenterline(params);
+    slotPreviewNodes = null;
+    if (!isFinite(half) || gen.slotProblem(params, cl, half)) {
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="3" text-anchor="middle">?</text>';
+      return;
+    }
+    var pc = gen.placeSlot(cl, 0, 0, 0);
+    var outline = gen.slotOutline(pc, half);
+    var b = gen.segmentsBbox(outline);
+    var pad = insetPad('slt');
+    var fit = function(bb) { return 80 / Math.max(bb.maxX - bb.minX + 2 * pad, bb.maxY - bb.minY + 2 * pad, 1e-9); };
+    var k = fit(b);
+    if (pc.type === 'arc') {
+      var withCenter = { minX: Math.min(b.minX, 0), maxX: Math.max(b.maxX, 0), minY: Math.min(b.minY, 0), maxY: Math.max(b.maxY, 0) };
+      if (fit(withCenter) >= k * 0.75) { b = withCenter; k = fit(b); }
+    }
+    var ox = (b.minX + b.maxX) / 2, oy = (b.minY + b.maxY) / 2;
+    var X = function(x) { return (x - ox) * k; }, Y = function(y) { return -(y - oy) * k; };
+    var f = function(v) { return v.toFixed(2); };
+    var P = function(x, y) { return f(X(x)) + ',' + f(Y(y)); };
+    var clamp = function(v) { return Math.max(-42, Math.min(42, v)); };
+    // Machine CCW stays CCW on screen (sweep-flag 0); dir -1 is CW.
+    var arcTo = function(sg) {
+      return ' A' + f(sg.r * k) + ',' + f(sg.r * k) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' +
+             (sg.dir === -1 ? 1 : 0) + ' ' + P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
+    };
+    var path = function(segs) {
+      var st = segs[0].type === 'line' ? { x: segs[0].x0, y: segs[0].y0 }
+        : { x: segs[0].cx + segs[0].r * Math.cos(segs[0].a0), y: segs[0].cy + segs[0].r * Math.sin(segs[0].a0) };
+      return 'M' + P(st.x, st.y) + segs.map(function(sg) {
+        return sg.type === 'line' ? ' L' + P(sg.x1, sg.y1) : arcTo(sg);
+      }).join('');
+    };
+    var d = path(outline) + ' Z';
+    var hatched = cut === 'outer'
+      ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="M-50,-50 L50,-50 L50,50 L-50,50 Z ' + d + '"/>'
+      : '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" d="' + d + '"/>';
+    var e0, e1, dim;
+    if (pc.type === 'line') {
+      e0 = { x: pc.x0, y: pc.y0 }; e1 = { x: pc.x1, y: pc.y1 };
+      var lenLabel = params.length > 0 ? String(params.length) : '?';
+      // The length label sits beside the slot, off its upper long side.
+      var nx = -Math.sin(pc.t), ny = -Math.cos(pc.t), off = half * k + 9;
+      if (ny > 0) { nx = -nx; ny = -ny; }
+      dim = '<line class="qc-shape-dim-line" x1="' + f(X(pc.x0)) + '" y1="' + f(Y(pc.y0)) + '" x2="' + f(X(pc.x1)) + '" y2="' + f(Y(pc.y1)) + '"/>' +
+            '<text class="qc-shape-dim-label" x="' + f(clamp(nx * off)) + '" y="' + f(clamp(ny * off) + 3) + '" text-anchor="middle">' + lenLabel + '</text>';
+    } else {
+      e0 = { x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) };
+      e1 = { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) };
+      var am = (pc.a0 + pc.a1) / 2;
+      var mid = { x: pc.r * Math.cos(am), y: pc.r * Math.sin(am) };
+      var rLabel = 'R' + roundDisplay(cl.r);
+      dim = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1 }) + '"/>' +
+            '<line class="qc-shape-dim-line" x1="' + f(X(0)) + '" y1="' + f(Y(0)) + '" x2="' + f(X(mid.x)) + '" y2="' + f(Y(mid.y)) + '" marker-end="url(#qc-slt-arr)"/>' +
+            '<text class="qc-shape-dim-label" x="' + f(clamp(X(mid.x / 2))) + '" y="' + f(clamp(Y(mid.y / 2) - 2)) + '" text-anchor="middle">' + rLabel + '</text>';
+    }
+    slotPreviewNodes = [{ x: X(e0.x), y: Y(e0.y), value: 'corner:1' }, { x: X(e1.x), y: Y(e1.y), value: 'corner:2' },
+                        { x: X(0), y: Y(0), value: 'shape-center' }];
+
+    // Holding tabs, spaced as the generator spaces them: along the tool
+    // path (a bit radius in or out), drawn on the outline when it has
+    // the same pieces.
+    var tr = Math.max(0, num('qc-bit', 0)) / 2;
+    var marks = '';
+    if ((cut === 'inner' && half - tr > 1e-9) || cut === 'outer') {
+      var toolPath = gen.slotOutline(pc, cut === 'outer' ? half + tr : half - tr);
+      var drawn = toolPath.length === outline.length ? outline : toolPath;
+      marks = tabMarks('slt', drawn.map(function(sg, i) {
+        var len = toolPath[i].len;
+        return sg.type === 'line'
+          ? { type: 'line', x0: X(sg.x0), y0: Y(sg.y0), x1: X(sg.x1), y1: Y(sg.y1), len: len }
+          : { type: 'arc', cx: X(sg.cx), cy: Y(sg.cy), r: sg.r * k, a0: sg.a0, a1: sg.a1, len: len };
+      }));
+    }
+    var off = gen.shapeOriginOffset('slot', params);
+    svg.innerHTML =
+      shapePreviewDefs('qc-slt') +
+      hatched +
+      '<path class="qc-shape-fill" d="' + d + '"/>' +
+      dim + marks +
+      originCross(X(off.x), Y(off.y));
+  }
+
+  function wireSlotForm() {
+    ['qc-slt-width', 'qc-slt-length', 'qc-slt-angle', 'qc-slt-radius', 'qc-slt-start', 'qc-slt-sweep',
+     'qc-slt-chord', 'qc-slt-rise', 'qc-slt-bulge'].forEach(function(id) {
+      $(id).addEventListener('input', updateSlotPreview);
+    });
+    ['qc-slt-type', 'qc-slt-arc-mode', 'qc-slt-cut-type'].forEach(function(id) {
+      $(id).addEventListener('change', updateSlotPreview);
+    });
+    $('qc-bit').addEventListener('input', updateSlotPreview);
+    wirePreviewAngleDrag('qc-slt-preview', slotAngleInput, true, function(pt) {
+      pickPreviewNode(slotPreviewNodes, 'qc-slt-origin', pt, updateSlotPreview);
+    });
+    $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); });
+    $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); });
+    $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
+    updateSlotPreview();
+    updatePatternVisibility('slt');
+
+    $('qc-slt-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readSlotForm();
+      params.shape = 'slot';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      // Shapes that can't be cut are caught here, at the field to change,
+      // rather than as a warning in an empty program.
+      var half = slotWidthNow() / 2;
+      var problem = gen.slotProblem(params, gen.slotCenterline(params), half), field = null;
+      if (problem) {
+        var arc = params.slotType === 'arc', chord = arc && params.arcMode === 'chord';
+        field = /width must/.test(problem) ? 'qc-slt-width'
+          : /as wide as its radius/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-radius')
+          : /overlap/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-sweep')
+          : (arc ? (chord ? 'qc-slt-chord' : 'qc-slt-radius') : 'qc-slt-length');
+      } else if ((params.cutType === 'inner' || params.cutType === 'clearing') && half - params.bitDiameter / 2 <= 1e-9) {
+        problem = 'the slot is no wider than the bit; use the Center line cut type';
+        field = 'qc-slt-width';
+      }
+      if (problem) {
+        showTooltip($(field), problem.charAt(0).toUpperCase() + problem.slice(1));
+        return;
+      }
+      var gcode = gen.generateSlotProgram(params);
+      saveSettings(params);
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Slot.nc');
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
   // ================== Measure page ==================
   //
   // Reads the live position from ncSender's machineState (MPos / WCO /
@@ -5708,6 +6279,12 @@
       '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon (or twist the preview). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+    slot: { name: 'Slot', notes: [
+      '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
+      '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
+      'Twist the preview to turn the slot. Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
+      '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
+      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot; it snaps to 0, 90, 180 and 270&deg; when close.',
@@ -6007,8 +6584,8 @@
     saveSecondPoint();
   }
 
-  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole', drl: 'Drill' };
-  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', key: 'keyhole', drl: 'drill' };
+  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', slt: 'Slot', key: 'Keyhole', drl: 'Drill' };
+  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', slt: 'slot', key: 'keyhole', drl: 'drill' };
 
   // A pattern's "Measure" link is the only way in; Use Angle and Back
   // both return to that shape.
@@ -8098,7 +8675,7 @@
         if (sweep < 0) { a0 += sweep; sweep = -sweep; }
         return { type: 'arc', r: r, a0: a0 * Math.PI / 180, a1: (a0 + sweep) * Math.PI / 180 };
       }
-      var half = Math.max(0, (params.length || 0) - (params.width || 0)) / 2;
+      var half = Math.max(0, (params.length || 0) - 2 * slotHalfWidth(params)) / 2;
       var t = (params.angleDeg || 0) * Math.PI / 180;
       return { type: 'line', t: t,
                x0: -half * Math.cos(t), y0: -half * Math.sin(t),
