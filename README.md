@@ -43,6 +43,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
   - **Inner (perimeter)** cuts round the inside of the outline; **Inner (clearing)** clears it with rings out from the center line, **Stepover** apart; **Outer (part)** cuts round the outside, for a slot-shaped part.
 - Twist the preview to turn the slot (it changes Angle, Start Angle or the bulge Angle). It snaps square when within 8°: a straight slot to horizontal or vertical, an arc so the radius line to the middle of the slot is horizontal or vertical. Tap an **end** of the slot, at its center, or an arc's **center**, to make it X0 Y0. The 9-dot picker's points are the box around the slot, as on the other shapes, and work with an [inset](#origin-inset).
 - Holding tabs and patterns work as on the other shapes. A pattern places each copy by its center, which for an arc slot is the arc's center, so a **ring of arc slots** is a **Circular (Path Direction)** pattern with **Radius 0**: each copy turns about that center (4 copies with a 90° Sweep make a full circle, a smaller Sweep leaves gaps between them). On an arc the inner edge is cut with clockwise arcs (G2), the rest counter-clockwise (G3).
+- **Rounding a stock corner:** zero X/Y on the corner, then Arc, **Radius** = corner radius + bit radius, **Start Angle** facing the corner (front-left 180, front-right 270, back-right 0, back-left 90), **Sweep** 90, **Center line**, that corner as the Origin, and **Inset** = minus the bit diameter. The bit's centre runs a bit radius outside the finished edge, starting and ending a bit radius outside the two stock edges, level with the tangent points, so the round blends into them. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset −6. (The Origin box includes the bit's own width on a Center line cut, which is why the inset is a whole bit diameter.)
 - A slot that can't be cut is caught before Generate, at the field to change: an arc as wide as its radius, ends that would overlap (Chord shorter than the Width, or a Sweep too close to a full circle), or an inner cut no wider than the bit.
 
 ## Keyhole
@@ -91,6 +92,7 @@ Beside each Origin picker on Rectangle, Circle, Polygon, Slot, Keyhole and Drill
 - From a **corner** it moves both ways: front-left moves the cut +X and +Y, back-right −X and −Y.
 - From an **edge** midpoint it moves across that edge only: front-center moves the cut +Y and keeps it centred side to side.
 - It doesn't apply to the **center**, a tapped corner or hole, or Keyhole's plunge hole, and is greyed out there.
+- A **negative** inset moves the cut that far *out* past the origin instead, e.g. to round a stock corner with a Slot (below).
 
 With a pattern it applies to the box around all the copies, so a grid of holes can start a set margin in from the edges of the stock instead of on them. The preview leaves room for it, with the crosshair at X0 Y0 out at the stock corner, and the program header notes it (`Origin: front-left, inset 10mm`).
 

@@ -2077,3 +2077,34 @@ test('arc slots: a Path Direction pattern of radius 0 makes a ring about the arc
   const quads = new Set(pts.map(p => Math.floor(((Math.atan2(p.y, p.x) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 2 + 1e-9))));
   assert.equal(quads.size, 4);
 });
+
+test('negative inset moves the cut outward past a corner or edge origin', () => {
+  const g = makeQuickCutGenerator(false);
+  const firstXY = (gcode) => { const m = gcode.match(/^G0 X(-?[\d.]+) Y(-?[\d.]+)/m); return [parseFloat(m[1]), parseFloat(m[2])]; };
+  const base = baseParams({ origin: 'front-left' });
+  const a = firstXY(g.generateRectangleProgram(base));
+  const b = firstXY(g.generateRectangleProgram(Object.assign({}, base, { inset: -5 })));
+  assert.ok(Math.abs(b[0] - (a[0] - 5)) < 1e-6 && Math.abs(b[1] - (a[1] - 5)) < 1e-6, `${a} vs ${b}`);
+  assert.match(g.generateRectangleProgram(Object.assign({}, base, { inset: -5 })), /Origin: front-left, inset -5mm/);
+  // Still ignored at the center.
+  assert.equal(g.generateRectangleProgram(Object.assign({}, base, { origin: 'center', inset: -5 })),
+               g.generateRectangleProgram(Object.assign({}, base, { origin: 'center' })));
+});
+
+test('slot recipe: rounding a stock corner with a centre line and a negative inset', () => {
+  const g = makeQuickCutGenerator(false);
+  // 10 mm round, 6 mm bit: Radius 13, Sweep 90, inset -6, zeroed on the corner.
+  const R = 10, tr = 3;
+  for (const [origin, start, sx, sy] of [['front-left', 180, 1, 1], ['front-right', 270, -1, 1], ['back-right', 0, -1, -1], ['back-left', 90, 1, -1]]) {
+    const gcode = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: R + tr, startAngleDeg: start, sweepDeg: 90,
+      cutType: 'center', origin, inset: -2 * tr, depth: 3, depthOfCut: 3 }));
+    const pts = slotSamples(gcode, -3);
+    assert.ok(pts.length > 20, origin);
+    const cx = sx * R, cy = sy * R;   // the rounded edge's centre, R in from both stock edges
+    for (const p of pts) assert.ok(Math.abs(Math.hypot(p.x - cx, p.y - cy) - (R + tr)) < 0.002, `${origin}: ${p.x},${p.y}`);
+    // The ends sit a bit radius outside the two stock edges (x = 0 and y = 0), level with the tangent points.
+    const ends = [pts[0], pts[pts.length - 1]];
+    const onX = ends.find(p => Math.abs(p.x + sx * tr) < 0.002), onY = ends.find(p => Math.abs(p.y + sy * tr) < 0.002);
+    assert.ok(onX && Math.abs(onX.y - cy) < 0.002 && onY && Math.abs(onY.x - cx) < 0.002, `${origin}: ${JSON.stringify(ends)}`);
+  }
+});

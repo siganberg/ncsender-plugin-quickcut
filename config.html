@@ -1297,7 +1297,7 @@
                     </div>
                     <div class="qc-inset-field">
                       <label for="qc-rect-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -1484,7 +1484,7 @@
                     </div>
                     <div class="qc-inset-field">
                       <label for="qc-circ-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                     </div>
                   </div>
                   <div class="qc-field qc-circ-clearing-only" style="display: none;">
@@ -1675,7 +1675,7 @@
                     </div>
                     <div class="qc-inset-field">
                       <label for="qc-poly-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -1919,7 +1919,7 @@
                     </div>
                     <div class="qc-inset-field">
                       <label for="qc-slt-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -2096,7 +2096,7 @@
                     </div>
                     <div class="qc-inset-field">
                       <label for="qc-key-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -2263,7 +2263,7 @@
                     </div>
                     <div class="qc-inset-field">
                       <label for="qc-drl-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -2987,7 +2987,7 @@
         'qc-rect-width':  { min: 0.004, max: 200,     label: 'Width' },
         'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
         'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
-        'qc-rect-inset': { min: 0, max: 200, label: 'Inset' },
+        'qc-rect-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-rect-depth':  { min: 0.001, max: 20,      label: 'Total Depth' },
         'qc-rect-step':   { min: 0.001, max: 5,       label: 'Depth of Cut' },
@@ -3009,7 +3009,7 @@
         'qc-rect-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
         // Circle
         'qc-circ-diameter': { min: 0.004, max: 200, label: 'Diameter' },
-        'qc-circ-inset': { min: 0, max: 200, label: 'Inset' },
+        'qc-circ-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
@@ -3045,7 +3045,7 @@
         // Polygon
         'qc-poly-sides':    { min: 3,     max: 12,  label: 'Sides', integer: true },
         'qc-poly-diameter': { min: 0.004, max: 200, label: 'Diameter' },
-        'qc-poly-inset': { min: 0, max: 200, label: 'Inset' },
+        'qc-poly-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-poly-corner': { min: 0, max: 100, label: 'Corner Radius' },
         'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
@@ -3063,7 +3063,7 @@
         // Keyhole
         'qc-key-length':    { min: 0.004, max: 20,  label: 'Slot Length' },
         'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
-        'qc-key-inset': { min: 0, max: 200, label: 'Inset' },
+        'qc-key-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-key-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-key-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-key-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -3094,7 +3094,7 @@
         'qc-slt-chord':  { min: 0.004, max: 200, label: 'Chord' },
         'qc-slt-rise':   { min: 0.004, max: 200, label: 'Rise' },
         'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
-        'qc-slt-inset':  { min: 0, max: 200, label: 'Inset' },
+        'qc-slt-inset':  { min: -200, max: 200, label: 'Inset' },
         'qc-slt-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-slt-step':   { min: 0.001, max: 5, label: 'Depth of Cut' },
         'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
@@ -3113,7 +3113,7 @@
         // Drill
         'qc-drl-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-drl-peck':   { min: 0,     max: 20, label: 'Peck Depth' },
-        'qc-drl-inset': { min: 0, max: 200, label: 'Inset' },
+        'qc-drl-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
         'qc-drl-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-drl-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -3130,7 +3130,7 @@
       'qc-rect-width':  { min: 0.1,   max: 5000,   label: 'Width' },
       'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
       'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
-      'qc-rect-inset': { min: 0, max: 5000, label: 'Inset' },
+      'qc-rect-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-rect-depth':  { min: 0.01,  max: 500,    label: 'Total Depth' },
       'qc-rect-step':   { min: 0.01,  max: 100,    label: 'Depth of Cut' },
@@ -3152,7 +3152,7 @@
       'qc-rect-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
       // Circle
       'qc-circ-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
-      'qc-circ-inset': { min: 0, max: 5000, label: 'Inset' },
+      'qc-circ-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
@@ -3188,7 +3188,7 @@
       // Polygon
       'qc-poly-sides':    { min: 3,    max: 12,   label: 'Sides', integer: true },
       'qc-poly-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
-      'qc-poly-inset': { min: 0, max: 5000, label: 'Inset' },
+      'qc-poly-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-poly-corner': { min: 0, max: 2500, label: 'Corner Radius' },
       'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
@@ -3206,7 +3206,7 @@
       // Keyhole
       'qc-key-length':    { min: 0.1,  max: 500,  label: 'Slot Length' },
       'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
-      'qc-key-inset': { min: 0, max: 5000, label: 'Inset' },
+      'qc-key-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-key-depth':     { min: 0.01, max: 100,  label: 'Total Depth' },
       'qc-key-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-key-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -3237,7 +3237,7 @@
       'qc-slt-chord':  { min: 0.1, max: 5000, label: 'Chord' },
       'qc-slt-rise':   { min: 0.1, max: 5000, label: 'Rise' },
       'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
-      'qc-slt-inset':  { min: 0, max: 5000, label: 'Inset' },
+      'qc-slt-inset':  { min: -5000, max: 5000, label: 'Inset' },
       'qc-slt-depth':  { min: 0.01, max: 500, label: 'Total Depth' },
       'qc-slt-step':   { min: 0.01, max: 100, label: 'Depth of Cut' },
       'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
@@ -3256,7 +3256,7 @@
       // Drill
       'qc-drl-depth':  { min: 0.01, max: 100, label: 'Total Depth' },
       'qc-drl-peck':   { min: 0,    max: 100, label: 'Peck Depth' },
-      'qc-drl-inset': { min: 0, max: 5000, label: 'Inset' },
+      'qc-drl-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
       'qc-drl-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-drl-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -4891,7 +4891,7 @@
     if (!el || !o) return;
     var on = /^(front|back|left|right)-/.test(o.value);
     el.disabled = !on;
-    el.title = on ? 'Keeps the cut this far in from the origin point, toward the shape.'
+    el.title = on ? 'Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin.'
                   : 'Only for a corner or edge origin.';
   }
 
@@ -6306,7 +6306,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset. A negative Inset moves it out past the origin instead.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
@@ -6328,6 +6328,7 @@
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
+      '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
       'Twist the preview to turn the slot; it snaps square when close (on an arc, the radius line to the slot&rsquo;s middle snaps to horizontal and vertical). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
@@ -7063,7 +7064,8 @@
 
     // Inset only means something for a corner or edge of the origin box.
     function insetApplies(origin, inset) {
-      return inset > 0 && /^(front|back|left|right)-/.test(origin || '');
+      // A negative inset moves the cut outward past the origin instead.
+      return !!inset && /^(front|back|left|right)-/.test(origin || '');
     }
 
     // ", inset 10mm" for the header's Origin line, when it applies.
