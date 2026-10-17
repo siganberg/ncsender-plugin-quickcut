@@ -9485,6 +9485,11 @@
       };
       if (op) extras.push('Origin: ' + resolveShapeOrigin(params, positions, op.bbox, op.corners).label);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      // Holding tabs (inner / outer only), noted like the other shapes and
+      // checked on the first copy's outline.
+      var tabNotes = !problem && (cutType === 'outer' || (cutType === 'inner' && half - tr > 1e-9))
+        ? tabHeaderNotes(params, slotOutline(placeSlot(clFor(positions[0]), 0, 0, positions[0].rotDeg), cutType === 'outer' ? half + tr : half - tr), extras)
+        : [];
       var lines = programHeader(params, {
         shapeLabel: 'Slot' + (positions.length > 1 ? ' × ' + positions.length : ''),
         extraComments: extras
@@ -9498,6 +9503,7 @@
         return lines.join('\n');
       }
       var shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
+      lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];

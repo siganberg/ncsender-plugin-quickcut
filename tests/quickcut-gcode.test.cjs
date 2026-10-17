@@ -2168,3 +2168,17 @@ test('grid angle turns every line with the grid', () => {
     assert.ok(Math.abs(Math.hypot(l[2] - l[0], l[3] - l[1]) - 10) < 1e-3);
   });
 });
+
+test('slot header notes its holding tabs like the other shapes', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { bitDiameter: 6, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, depth: 6, depthOfCut: 2,
+    origin: 'center', slotType: 'straight', length: 60, width: 12, tabs: { count: 4, width: 8, height: 2 } };
+  const header = (p) => g.generateSlotProgram(Object.assign({}, base, p)).split('\n').filter(l => /^\((Tabs|WARNING)/.test(l));
+  assert.deepEqual(header({ cutType: 'outer' }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
+  assert.deepEqual(header({ cutType: 'inner', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
+  assert.deepEqual(header({ cutType: 'center' }), []);
+  assert.deepEqual(header({ cutType: 'clearing' }), []);
+  assert.deepEqual(header({ cutType: 'outer', tabs: null }), []);
+  assert.deepEqual(header({ cutType: 'outer', length: 30, tabs: { count: 20, width: 8, height: 2 } }),
+    ['(Tabs: 20 x 8mm wide, 2mm high)', '(WARNING: only 6 of 20 tabs fit; using 6)']);
+});
