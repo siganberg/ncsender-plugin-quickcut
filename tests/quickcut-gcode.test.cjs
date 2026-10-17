@@ -2182,3 +2182,23 @@ test('slot header notes its holding tabs like the other shapes', () => {
   assert.deepEqual(header({ cutType: 'outer', length: 30, tabs: { count: 20, width: 8, height: 2 } }),
     ['(Tabs: 20 x 8mm wide, 2mm high)', '(WARNING: only 6 of 20 tabs fit; using 6)']);
 });
+
+test('grid center lines go back and forth: each starts where the last one finished', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const passes of [1, 2, 3]) {
+    const gcode = g.generateSlotProgram(gridSlot({ origin: 'front-left', depth: 2 * passes, depthOfCut: 2,
+      pattern: { enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 } }));
+    let pos = null, prevEnd = null, lineStart = null, hop = [];
+    for (const line of gcode.split('\n')) {
+      if (/^\(Instance/.test(line)) { if (pos) prevEnd = pos; lineStart = null; continue; }
+      const m = line.match(/^(G[01]) X(-?[\d.]+) Y(-?[\d.]+)/);
+      if (!m) continue;
+      pos = { x: +m[2], y: +m[3] };
+      if (m[1] === 'G0' && !lineStart) { lineStart = pos; if (prevEnd) hop.push(Math.hypot(pos.x - prevEnd.x, pos.y - prevEnd.y)); }
+    }
+    // Within rows (30 apart) and within columns (20 apart) the hop is one
+    // spacing; only the row-to-column change can be longer.
+    assert.equal(hop.length, 6);
+    assert.ok(hop.filter(h => h > 30 + 1e-6).length <= 1, `passes=${passes} hops=${hop.map(h => h.toFixed(1))}`);
+  }
+});

@@ -6971,7 +6971,7 @@
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
-      'For a grid of grooves, use a straight slot, the <strong>Center line</strong> cut type and a <strong>Grid</strong> pattern: Columns and Rows are the number of lines each way, and every line spans the grid, so the outer lines meet at the corners (the Slot&rsquo;s Length and Angle don&rsquo;t apply; the pattern Angle turns the grid). Rows are cut first, then columns, each to full depth.',
+      'For a grid of grooves, use a straight slot, the <strong>Center line</strong> cut type and a <strong>Grid</strong> pattern: Columns and Rows are the number of lines each way, and every line spans the grid, so the outer lines meet at the corners (the Slot&rsquo;s Length and Angle don&rsquo;t apply; the pattern Angle turns the grid). Rows are cut first, then columns, each to full depth, going back and forth so each line starts near where the last one ended.',
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
@@ -9625,6 +9625,12 @@
       var shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
       lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
+      // Grid center lines go back and forth: each starts at the end nearer
+      // where the last one finished (an odd number of passes ends at the far
+      // end), so the hop between lines is short instead of back across.
+      var serpentine = isGrid && cutType === 'center';
+      var passCount = serpentine ? depthLevels(params.depth, params.depthOfCut, null).length : 0;
+      var here = null;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x, my = pos.y + shift.y;
@@ -9633,7 +9639,12 @@
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        emitOneSlot(lines, params, placeSlot(clFor(pos), mx, my, pos.rotDeg), cutType, half, tr);
+        var pc = placeSlot(clFor(pos), mx, my, pos.rotDeg);
+        if (serpentine && here && Math.hypot(pc.x1 - here.x, pc.y1 - here.y) < Math.hypot(pc.x0 - here.x, pc.y0 - here.y) - 1e-9) {
+          pc = { type: 'line', t: pc.t + Math.PI, x0: pc.x1, y0: pc.y1, x1: pc.x0, y1: pc.y0 };
+        }
+        emitOneSlot(lines, params, pc, cutType, half, tr);
+        if (serpentine) here = passCount % 2 ? { x: pc.x1, y: pc.y1 } : { x: pc.x0, y: pc.y0 };
       }
       lines.push('');
       lines.push.apply(lines, programFooter(params));

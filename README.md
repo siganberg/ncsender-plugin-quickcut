@@ -52,7 +52,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
   How it's cut:
   - Every line spans the grid: rows run from the first column to the last, and columns from the first row to the last, so the outer lines meet at the corners. With 4 columns 20 apart and 3 rows 30 apart, the rows and columns are all 60 long.
   - The Slot's own Length and Angle don't apply (they're greyed out).
-  - The rows are cut first, then the columns. Each line gets all its depth passes, alternating direction each pass, before the next.
+  - The rows are cut first, then the columns. Each line gets all its depth passes, alternating direction each pass, before the next. With the Center line cut the lines go back and forth: each one starts at the end nearer where the previous one finished, so the hop between lines is short rather than back across the grid.
   - The **Origin** and **Inset** use the box around the whole cut, including the bit's width. With a corner or edge origin, the outer lines therefore sit one bit radius in from X0 Y0 (the edge of the groove touches the origin).
 
   **Using a V-bit:** set **Inset** to the negative bit radius (e.g. −3.175 for a 6.35 mm / ¼" V-bit, using the Bit Diameter you entered) so the first row and column run exactly along X0 and Y0, not a bit radius inside them. A V-bit's groove width depends on depth, so placing the line centres on the origin is what you usually want.
