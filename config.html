@@ -913,6 +913,13 @@
     cursor: grab;
     touch-action: none;
   }
+  .qc-shape-preview-cell .qc-shape-ideal {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    opacity: 0.8;
+  }
   .qc-shape-preview-cell .qc-shape-inscribed {
     fill: none;
     stroke: currentColor;
@@ -5589,6 +5596,12 @@
 
   // Corner radius the cut will really leave: on an inner or clearing
   // cut, never less than the bit's radius.
+  // When the bit, not the typed Corner Radius, sets an inside corner, the
+  // previews also draw the shape as typed, dashed, so a small shape whose
+  // corners the bit rounds a lot doesn't look like a mistake.
+  function idealOutline(d) {
+    return '<path class="qc-shape-ideal" d="' + d + '"><title>Your shape as typed; the bit rounds the inside corners to its radius</title></path>';
+  }
   function previewCornerRadius(typed, cutType) {
     var r = Math.max(0, typed || 0);
     if (cutType === 'inner' || cutType === 'clearing') r = Math.max(r, Math.max(0, num('qc-bit', 0)) / 2);
@@ -5630,6 +5643,9 @@
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
     var outline = roundedRectPath(x, y, w, h, cr, T);
+    var typedCR = Math.max(0, num('qc-rect-corner', 0));
+    var ideal = CR > typedCR + 1e-9 && shortSide > 0
+      ? idealOutline(roundedRectPath(x, y, w, h, Math.min(typedCR / shortSide * Math.min(w, h), Math.min(w, h) / 2), T)) : '';
 
     // Hatched waste area.
     var hatchFill = 'fill="url(#qc-rect-hatch)"';
@@ -5693,6 +5709,7 @@
       shapePreviewDefs('qc-rect') +
       hatched +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
+      ideal +
       wLine + hLine + wLabel + hLabel +
       tabMarks('rect', previewLines(tabPts, rectTabLens())) +
       rectOriginCross();
@@ -6616,7 +6633,9 @@
     // generator. Machine CCW stays CCW on screen (sweep-flag 0).
     var half = Math.PI / n;
     var CR = previewCornerRadius(num('qc-poly-corner', 0), cutType);
-    var crP = diameter > 0 && CR > 0 ? Math.min(CR * R / (diameter / 2), apothem) : 0;
+    var toPx = function(r) { return diameter > 0 && r > 0 ? Math.min(r * R / (diameter / 2), apothem) : 0; };
+    var crP = toPx(CR);
+    var outlineFor = function(crP) {
     var outline;
     if (crP > 0) {
       var coreR = (apothem - crP) / Math.cos(half);
@@ -6635,6 +6654,11 @@
     } else {
       outline = 'M' + pts.map(function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(' L') + ' Z';
     }
+    return outline;
+    };
+    var outline = outlineFor(crP);
+    var typedCR = Math.max(0, num('qc-poly-corner', 0));
+    var ideal = CR > typedCR + 1e-9 ? idealOutline(outlineFor(toPx(typedCR))) : '';
     var sizeValue = num('qc-poly-diameter', 0);
     var label = sizeValue > 0 ? String(sizeValue) : '?';
     // The dashed circle and dimension show what the size measures: the
@@ -6693,6 +6717,7 @@
       shapePreviewDefs('qc-poly') +
       hatchedPath +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
+      ideal +
       dim +
       // The cut starts at the first vertex (or its corner arc) and runs CCW.
       tabMarks('poly', polyTabSegs()) +
@@ -7041,14 +7066,14 @@
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
-      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
+      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     polygon: { name: 'Polygon', notes: [
-      '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
+      '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     slot: { name: 'Slot', notes: [
