@@ -807,6 +807,34 @@
   .qc-shape-preview-cell .qc-pattern-plunge {
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
+  .qc-shape-preview-cell svg[id$="-pattern-preview"] { cursor: grab; touch-action: none; }
+  /* Tapping the pattern preview enlarges it over the dialog; a second tap
+     goes back. Dragging still turns the pattern. */
+  .qc-shape-preview-cell.qc-pattern-preview-big {
+    position: absolute;
+    inset: 16px;
+    z-index: 50;
+    width: auto;
+    height: auto;
+    background: var(--color-surface, #fff);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+  /* The drawing scales up; the caption stays readable-sized. */
+  .qc-shape-preview-cell.qc-pattern-preview-big .qc-shape-dim-label {
+    font-size: 3px;
+    stroke-width: 0.6px;
+  }
+  .qc-shape-preview-cell.qc-pattern-preview-big::after {
+    content: 'Tap to return';
+    position: absolute;
+    top: 10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #888);
+    pointer-events: none;
+  }
   .qc-shape-preview-cell svg.qc-preview-pickable {
     cursor: pointer;
   }
@@ -4028,10 +4056,37 @@
       grid.appendChild(fields);
       grid.appendChild(cell);
       body.appendChild(grid);
+      var svgId = 'qc-' + prefix + '-pattern-preview';
+      cell.title = 'Tap to enlarge; drag to turn the pattern';
+      // Grid styles turn by the row Angle; Circular by its Start Angle.
+      wirePreviewAngleDrag(svgId, function() {
+        var circular = /^circular/.test($('qc-' + prefix + '-pattern-style').value);
+        return $('qc-' + prefix + '-pattern-' + (circular ? 'start-angle' : 'angle'));
+      }, true, function() {
+        cell.classList.toggle('qc-pattern-preview-big');
+      }, null, snapPatternAngle);
     });
     ROOT.addEventListener('input', schedulePatternPreview);
     ROOT.addEventListener('change', schedulePatternPreview);
     schedulePatternPreview();
+  }
+
+  // Dragging the pattern preview moves in half degrees and sticks within
+  // a degree of a miter stop: multiples of 180/n for the common frames
+  // (n = 3, 4, 5, 6, 8, 10, 12: 60, 45, 36, 30, 22.5, 18, 15°).
+  var PATTERN_ANGLE_STOPS = (function() {
+    var stops = {};
+    [3, 4, 5, 6, 8, 10, 12].forEach(function(n) {
+      for (var a = 0; a < 360; a += 180 / n) stops[parseFloat(a.toFixed(3))] = true;
+    });
+    return Object.keys(stops).map(Number).concat(360);
+  })();
+  var PATTERN_ANGLE_SNAP = 1;
+  function snapPatternAngle(deg) {
+    for (var i = 0; i < PATTERN_ANGLE_STOPS.length; i++) {
+      if (Math.abs(deg - PATTERN_ANGLE_STOPS[i]) <= PATTERN_ANGLE_SNAP) return PATTERN_ANGLE_STOPS[i] % 360;
+    }
+    return (Math.round(deg * 2) / 2) % 360;
   }
 
   function schedulePatternPreview() {
@@ -4078,7 +4133,7 @@
   function patternPreviewCaption(lines, y) {
     return '<text class="qc-shape-dim-label" x="0" y="' + y + '" text-anchor="middle">' +
       lines.map(function(line, i) {
-        return '<tspan x="0" dy="' + (i ? PATTERN_PREVIEW_LINE : 0) + '">' + line + '</tspan>';
+        return '<tspan x="0" dy="' + (i ? '1.1em' : 0) + '">' + line + '</tspan>';
       }).join('') + '</text>';
   }
 
@@ -5871,7 +5926,9 @@
   // snapOffset (optional): a function giving how far the drawn line that
   // should snap is turned from the angle being set (Slot's arc: Sweep / 2,
   // so the radius line to the slot's middle snaps square, not the Start).
-  function wirePreviewAngleDrag(svgId, inputId, relative, onTap, snapOffset) {
+  // snap (optional): replaces the 90° snap and whole degrees, given the
+  // angle in [0, 360) (the pattern preview's miter stops).
+  function wirePreviewAngleDrag(svgId, inputId, relative, onTap, snapOffset, snap) {
     var svg = $(svgId);
     // inputId may be a function, for a preview whose angle field changes
     // (Slot: Angle, Start Angle or the bulge Angle).
@@ -5905,7 +5962,8 @@
       deg = ((deg % 360) + 360) % 360;
       var off = snapOffset ? snapOffset() : 0;
       var right = Math.round((deg + off) / 90) * 90 - off;
-      deg = Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? parseFloat(right.toFixed(3)) : Math.round(deg);
+      deg = snap ? snap(deg)
+        : Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? parseFloat(right.toFixed(3)) : Math.round(deg);
       // With an offset the snapped angle can be just below 0.
       deg = ((deg % 360) + 360) % 360;
       if (String(deg) === input.value) return;
@@ -6553,7 +6611,8 @@
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
-      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.' ] },
+      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
+      'The pattern preview shows every copy as you type. Tap it to enlarge it, and tap again to go back. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',

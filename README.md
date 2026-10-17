@@ -113,6 +113,8 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 
 With **Pattern** on, a preview beside the pattern fields shows the whole pattern and updates as you type: every copy's toolpath, a dot the size of the bit where each copy plunges, and a crosshair at X0 Y0. It's drawn from the same code as Generate, so Origin, Inset, Angle, Rotate shapes, Extent, Symmetric Ends and both Circular styles all match the program. It shows one depth pass and the outline of a clearing cut. Above 500 copies it shows only where each copy starts; above 3000 it shows the count.
 
+Tap the preview to enlarge it over the dialog; tap again to go back to editing. Drag it (small or enlarged) to turn the pattern: the **Angle** for Linear and Honeycomb, the **Start Angle** for Circular. Dragging moves in half degrees and sticks within a degree of the common miter angles, 180/n for n = 3, 4, 5, 6, 8, 10 and 12 (60, 45, 36, 30, 22.5, 18 and 15° and their multiples), e.g. 22.5° to line a pattern up with an octagon.
+
 ### Circular Total Angle
 
 **Total Angle** (default 360°) is the arc the circular copies are spread over, counter-clockwise from the Start Angle, as in a CAD circular pattern:
