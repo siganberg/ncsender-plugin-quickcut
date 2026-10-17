@@ -629,10 +629,13 @@
     align-items: center;
     gap: 6px;
   }
-  /* Origin picker with the Inset box beside it, on one line. */
-  .qc-origin-with-inset { display: flex; align-items: flex-end; gap: 10px; }
-  .qc-inset-field { display: flex; flex-direction: column; gap: 4px; width: 84px; flex: none; }
-  .qc-inset-field label { font-size: 0.72rem; }
+  /* Origin picker and the Inset box as two columns, labels level. */
+  .qc-field.qc-origin-inset-field { flex-direction: row; align-items: flex-start; gap: 16px; }
+  .qc-origin-col, .qc-inset-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .qc-inset-field { width: 84px; flex: none; }
+  /* Beside Start Angle / Corner Radius, the picker's corner dots overhang
+     its box; keep them clear of the input next to it. */
+  .qc-rect-type-row .qc-origin-col { padding-left: 8px; }
   .qc-origin-grid {
     position: relative;
     width: 64px;
@@ -1283,14 +1286,14 @@
                     <label for="qc-rect-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-rect-start-angle" step="1" value="0" title="Turns the rectangle about its center, CCW from +X (negative = CW). 90° = Width runs along Y. You can also twist the preview to turn it.">
                   </div>
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div class="qc-origin-with-inset">
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
                       <div id="qc-rect-origin-picker"></div>
-                      <div class="qc-inset-field">
-                        <label for="qc-rect-inset">Inset</label>
-                        <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
-                      </div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-rect-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -1470,14 +1473,14 @@
                   </div>
                 </div>
                 <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div class="qc-origin-with-inset">
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
                       <div id="qc-circ-origin-picker"></div>
-                      <div class="qc-inset-field">
-                        <label for="qc-circ-inset">Inset</label>
-                        <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
-                      </div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-circ-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
                     </div>
                   </div>
                   <div class="qc-field qc-circ-clearing-only" style="display: none;">
@@ -1661,14 +1664,14 @@
                     <label for="qc-poly-corner">Corner Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get.">
                   </div>
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div class="qc-origin-with-inset">
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
                       <div id="qc-poly-origin-picker"></div>
-                      <div class="qc-inset-field">
-                        <label for="qc-poly-inset">Inset</label>
-                        <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
-                      </div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-poly-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -1844,14 +1847,14 @@
                   </div>
                 </div>
                 <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div class="qc-origin-with-inset">
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
                       <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
-                      <div class="qc-inset-field">
-                        <label for="qc-key-inset">Inset</label>
-                        <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
-                      </div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-key-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
@@ -2011,14 +2014,14 @@
                   </div>
                 </div>
                 <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div class="qc-origin-with-inset">
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
                       <div id="qc-drl-origin-picker"></div>
-                      <div class="qc-inset-field">
-                        <label for="qc-drl-inset">Inset</label>
-                        <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
-                      </div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-drl-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" min="0" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape. Only for a corner or edge origin.">
                     </div>
                   </div>
                 </div>
