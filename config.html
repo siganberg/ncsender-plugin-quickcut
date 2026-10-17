@@ -808,9 +808,9 @@
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
   .qc-shape-preview-cell svg[id$="-pattern-preview"] { cursor: grab; touch-action: none; }
-  /* Tapping the pattern preview enlarges it over the dialog; a second tap
-     goes back. Dragging still turns the pattern. */
-  .qc-shape-preview-cell.qc-pattern-preview-big {
+  /* Tapping the pattern preview enlarges it over the dialog; taps and
+     drags still work on it. */
+  .qc-shape-preview-cell.qc-preview-big {
     position: absolute;
     inset: 16px;
     z-index: 50;
@@ -819,13 +819,15 @@
     background: var(--color-surface, #fff);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   }
-  /* The drawing scales up; the caption stays readable-sized. */
-  .qc-shape-preview-cell.qc-pattern-preview-big .qc-shape-dim-label {
+  /* The drawing scales up; lines keep their on-screen width and the
+     labels stay readable-sized. */
+  .qc-shape-preview-cell.qc-preview-big svg * { vector-effect: non-scaling-stroke; }
+  .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label {
     font-size: 3px;
     stroke-width: 0.6px;
   }
-  .qc-shape-preview-cell.qc-pattern-preview-big::after {
-    content: 'Tap or press Esc to return';
+  .qc-shape-preview-cell.qc-preview-big::after {
+    content: attr(data-return-hint);
     position: absolute;
     top: 10px;
     left: 0;
@@ -2799,6 +2801,7 @@
     wireHoldingTabs('poly', updatePolygonPreview);
     wireHoldingTabs('slt', updateSlotPreview);
     mountPatternPreviews();
+    wirePreviewEnlarge();
     wireMeasureTab();
     wireHelp();
     wireOriginCrosshairs();
@@ -2842,6 +2845,7 @@
     if (target === 'polygon') updatePolygonPreview();
     if (target === 'slot') updateSlotPreview();
     state.currentTab = target;
+    closeEnlargedPreview();
     schedulePatternPreview();
     if (target === 'measure') {
       startMeasurePolling();
@@ -4063,30 +4067,42 @@
         var circular = /^circular/.test($('qc-' + prefix + '-pattern-style').value);
         return $('qc-' + prefix + '-pattern-' + (circular ? 'start-angle' : 'angle'));
       }, true, function() {
-        cell.classList.toggle('qc-pattern-preview-big');
+        setPreviewEnlarged(cell, !cell.classList.contains('qc-preview-big'));
       }, null, snapMiterAngle);
+      cell.setAttribute('data-return-hint', 'Tap or press Esc to return');
     });
     ROOT.addEventListener('input', schedulePatternPreview);
     ROOT.addEventListener('change', schedulePatternPreview);
+    schedulePatternPreview();
+  }
+
+  // Tapping the pattern preview enlarges it over the dialog; a tap or Esc
+  // returns. Taps and drags keep working on the enlarged drawing. The
+  // shape previews' taps pick origins and sides, so they don't enlarge.
+  function setPreviewEnlarged(cell, big) {
+    cell.classList.toggle('qc-preview-big', big);
+  }
+  function closeEnlargedPreview() {
+    var big = ROOT.querySelector('.qc-preview-big');
+    if (big) setPreviewEnlarged(big, false);
+    return !!big;
+  }
+  function wirePreviewEnlarge() {
     // Esc closes an enlarged preview, not the dialog: ncSender closes the
     // dialog from a window keydown listener (bubble phase), so this one
     // runs first in the capture phase and stops it. Page-wide, so it
     // removes itself once this open's dialog is gone.
     function closeEnlargedOnEscape(evt) {
       if (!rootAlive()) { window.removeEventListener('keydown', closeEnlargedOnEscape, true); return; }
-      if (evt.key !== 'Escape') return;
-      var big = ROOT.querySelector('.qc-pattern-preview-big');
-      if (!big) return;
-      big.classList.remove('qc-pattern-preview-big');
+      if (evt.key !== 'Escape' || !closeEnlargedPreview()) return;
       evt.preventDefault();
       evt.stopPropagation();
     }
     window.addEventListener('keydown', closeEnlargedOnEscape, true);
-    schedulePatternPreview();
   }
 
   // Dragging any preview moves in half degrees and sticks within a degree
-  // of a miter stop: multiples of 180/n for the common frames
+  // of a miter stop (within 5° of square): multiples of 180/n for the common frames
   // (n = 3, 4, 5, 6, 8, 10, 12: 60, 45, 36, 30, 22.5, 18, 15°).
   var MITER_ANGLE_STOPS = (function() {
     var stops = {};
@@ -4096,7 +4112,12 @@
     return Object.keys(stops).map(Number).concat(360);
   })();
   var MITER_ANGLE_SNAP = 1;
+  // Square (0, 90, 180, 270) catches from farther; the nearest other stop
+  // is 15° away, so the two never overlap.
+  var MITER_SQUARE_SNAP = 5;
   function snapMiterAngle(deg) {
+    var square = Math.round(deg / 90) * 90;
+    if (Math.abs(deg - square) <= MITER_SQUARE_SNAP) return square % 360;
     for (var i = 0; i < MITER_ANGLE_STOPS.length; i++) {
       if (Math.abs(deg - MITER_ANGLE_STOPS[i]) <= MITER_ANGLE_SNAP) return MITER_ANGLE_STOPS[i] % 360;
     }
@@ -6598,7 +6619,7 @@
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
-      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot, in half degrees; it sticks at miter angles such as 0, 22.5, 45 and 90&deg;.',
+      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
     drill: { name: 'Drill', notes: [
@@ -6628,7 +6649,7 @@
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
-      'The pattern preview shows every copy as you type. Tap it to enlarge it; tap again or press Esc to go back. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type. Tap it to enlarge it; tap again or press Esc to go back. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
