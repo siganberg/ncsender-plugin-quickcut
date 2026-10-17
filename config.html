@@ -195,6 +195,7 @@
   .qc-sidebar-footer .qc-help-btn { width: 100%; }
 
   /* Help page: one card per topic. */
+  .qc-help-index li { margin-bottom: 6px; }
   .qc-help-card ul {
     margin: 0;
     padding-left: 18px;
@@ -2766,7 +2767,7 @@
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
           <h2 class="qc-panel-title">Help<span id="qc-help-for"></span></h2>
-          <p class="qc-panel-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</p>
+          <p class="qc-panel-sub"><span id="qc-help-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</span> <a href="#" class="qc-load-link" id="qc-help-all">All help topics</a></p>
         </div>
       </header>
       <div class="qc-panel" id="qc-help-body"></div>
@@ -7106,13 +7107,41 @@
       html += helpCard(HELP_SHARED.tool.title, helpNotes(HELP_SHARED.tool.notes) + (toolTips.length ? helpTips(toolTips) : ''));
     }
     html += helpCard(HELP_SHARED.units.title, helpNotes(HELP_SHARED.units.notes));
-    // One link to the manual's QuickCut page. The URL is shown as text
-    // so it can be typed on another device (e.g. from a kiosk screen
-    // with no browser).
-    html += helpCard('More detail', '<p>The QuickCut page of the ncSender manual explains more: ' +
-      '<a href="' + HELP_DOCS + '" target="_blank" rel="noopener">' + HELP_DOCS + '</a></p>');
+    html += helpDocsCard();
     $('qc-help-body').innerHTML = html;
     $('qc-help-for').textContent = ' — ' + topic.name;
+    $('qc-help-sub').style.display = '';
+    $('qc-help-all').style.display = '';
+    $('qc-help-body').scrollTop = 0;
+  }
+
+  // One link to the manual's QuickCut page. The URL is shown as text
+  // so it can be typed on another device (e.g. from a kiosk screen
+  // with no browser).
+  function helpDocsCard() {
+    return helpCard('More detail', '<p>The QuickCut page of the ncSender manual explains more: ' +
+      '<a href="' + HELP_DOCS + '" target="_blank" rel="noopener">' + HELP_DOCS + '</a></p>');
+  }
+
+  // All help topics: every tab has its own help, so this lists them (in
+  // sidebar order, then the measure page) with the tab's one-line
+  // description; a pick shows that topic in place. Back still returns to
+  // the tab Help was opened from.
+  var HELP_ORDER = ['rectangle', 'circle', 'polygon', 'slot', 'keyhole', 'drill', 'planer', 'jointer', 'cutter', 'measure'];
+  function renderHelpIndex() {
+    var rows = HELP_ORDER.map(function(tab) {
+      var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
+      var sub = section && section.querySelector('.qc-panel-sub');
+      return '<li><a href="#" class="qc-help-topic" data-help-topic="' + tab + '">' + HELP_TOPICS[tab].name + '</a>' +
+        (sub ? ' &mdash; ' + helpEscape(sub.textContent.trim()) : '') + '</li>';
+    }).join('');
+    $('qc-help-body').innerHTML =
+      helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>') +
+      helpDocsCard();
+    $('qc-help-for').textContent = ' — All topics';
+    $('qc-help-sub').style.display = 'none';
+    $('qc-help-all').style.display = 'none';
+    $('qc-help-body').scrollTop = 0;
   }
 
   function openHelp() {
@@ -7130,6 +7159,16 @@
   function wireHelp() {
     $('qc-help-btn').addEventListener('click', openHelp);
     $('qc-help-back').addEventListener('click', closeHelp);
+    $('qc-help-all').addEventListener('click', function(evt) {
+      evt.preventDefault();
+      renderHelpIndex();
+    });
+    $('qc-help-body').addEventListener('click', function(evt) {
+      var link = evt.target.closest && evt.target.closest('[data-help-topic]');
+      if (!link) return;
+      evt.preventDefault();
+      renderHelp(link.getAttribute('data-help-topic'));
+    });
   }
 
   var measure = { machine: {}, timer: null, angleDeg: null, returnTo: null };
