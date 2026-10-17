@@ -887,9 +887,10 @@
     color: var(--color-text-secondary, #888);
     pointer-events: none;
   }
-  .qc-shape-preview-cell svg.qc-preview-pickable {
-    cursor: pointer;
-  }
+  /* Over an origin dot, end or hole a click picks it; while a twist is
+     under way the hand closes. (Beats the per-preview grab below.) */
+  .qc-shape-preview-cell svg.qc-over-pick { cursor: pointer !important; }
+  .qc-shape-preview-cell svg.qc-twisting { cursor: grabbing !important; }
   /* Keyhole / Rectangle / Polygon / Slot previews: drag to set the angle.
      touch-action keeps a drag on the touchscreen from scrolling the
      dialog instead. */
@@ -5172,6 +5173,7 @@
     wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, function(pt) {
       pickPreviewNode(rectPreviewNodes, 'qc-rect-origin', pt, updateRectanglePreview);
     }, null, snapMiterAngle);
+    wirePickCursor($('qc-rect-preview'), function(pt) { return !!nearestPreviewNode(rectPreviewNodes, pt); });
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -5423,18 +5425,41 @@
   // [{x, y, value}] in the SVG's coordinates; they aren't drawn, the
   // crosshair shows where the Origin is.
   // A tap on the preview: the nearest node within reach becomes the Origin.
-  function pickPreviewNode(nodes, inputId, pt, redraw) {
+  function nearestPreviewNode(nodes, pt) {
     var best = null, bestD = 8;
     (nodes || []).forEach(function(nd) {
       var d = Math.hypot(nd.x - pt.x, nd.y - pt.y);
       if (d < bestD) { bestD = d; best = nd; }
     });
+    return best;
+  }
+  function pickPreviewNode(nodes, inputId, pt, redraw) {
+    var best = nearestPreviewNode(nodes, pt);
     if (!best) return;
     markPreviewPick();
     setOriginPickerValue(inputId, best.value);
     redraw();
   }
   var rectPreviewNodes = null, polyPreviewNodes = null;
+
+  // With a mouse, the cursor turns to a pointer over a spot a click would
+  // pick (an origin dot, an end, a Drill hole); elsewhere the preview's
+  // own cursor (grab) stays. Same distances as the click.
+  function svgPointOf(svg, ev) {
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    var pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    return pt.matrixTransform(ctm.inverse());
+  }
+  function wirePickCursor(svg, isOverPick) {
+    svg.addEventListener('pointermove', function(ev) {
+      if (ev.buttons) return;
+      var pt = svgPointOf(svg, ev);
+      svg.classList.toggle('qc-over-pick', !!(pt && isOverPick(pt)));
+    });
+    svg.addEventListener('pointerleave', function() { svg.classList.remove('qc-over-pick'); });
+  }
 
   // Corner radius the cut will really leave: on an inner or clearing
   // cut, never less than the bit's radius.
@@ -6222,6 +6247,7 @@
         if (!twisting) {
           if (!downPt || Math.hypot(pt.x - downPt.x, pt.y - downPt.y) < 4) return;
           twisting = true;
+          svg.classList.add('qc-twisting');
         }
         // A greyed-out field (Slot's Angle under a Grid pattern) isn't
         // turned; the gesture still counts as a drag, not a tap.
@@ -6261,8 +6287,8 @@
       if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
       dragging = false;
     });
-    svg.addEventListener('pointerup', function() { hideDragAngle(cell); });
-    svg.addEventListener('pointercancel', function() { dragging = false; hideDragAngle(cell); });
+    svg.addEventListener('pointerup', function() { hideDragAngle(cell); svg.classList.remove('qc-twisting'); });
+    svg.addEventListener('pointercancel', function() { dragging = false; hideDragAngle(cell); svg.classList.remove('qc-twisting'); });
   }
 
   function wireKeyholeForm() {
@@ -6388,19 +6414,21 @@
     $('qc-drl-origin').addEventListener('change', updateDrillPreview);
     // Tapping the preview makes the nearest hole the Origin. Holes in a
     // big grid are tiny, so anything within a few px of one counts.
-    $('qc-drl-preview').addEventListener('click', function(ev) {
+    function drillHoleAt(pt) {
       var map = drillPreviewMap;
-      var ctm = this.getScreenCTM();
-      if (!map || !ctm) return;
-      var pt = this.createSVGPoint();
-      pt.x = ev.clientX; pt.y = ev.clientY;
-      pt = pt.matrixTransform(ctm.inverse());
+      if (!map || !pt) return -1;
       var best = -1, bestD = Math.max(map.r * 1.5, 6);
       for (var i = 0; i < map.positions.length; i++) {
         var d = Math.hypot((map.positions[i].x - map.cx) * map.scale - pt.x,
                            -(map.positions[i].y - map.cy) * map.scale - pt.y);
         if (d < bestD) { bestD = d; best = i; }
       }
+      return best;
+    }
+    wirePickCursor($('qc-drl-preview'), function(pt) { return drillHoleAt(pt) >= 0; });
+    $('qc-drl-preview').addEventListener('click', function(ev) {
+      var map = drillPreviewMap;
+      var best = drillHoleAt(svgPointOf(this, ev));
       if (best < 0) return;
       markPreviewPick();
       setOriginPickerValue('qc-drl-origin', 'hole:' + map.keys[best]);
@@ -6560,6 +6588,7 @@
     wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true, function(pt) {
       pickPreviewNode(polyPreviewNodes, 'qc-poly-origin', pt, updatePolygonPreview);
     }, null, snapMiterAngle);
+    wirePickCursor($('qc-poly-preview'), function(pt) { return !!nearestPreviewNode(polyPreviewNodes, pt); });
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
@@ -6776,6 +6805,7 @@
       var arcByRadius = $('qc-slt-type').value === 'arc' && $('qc-slt-arc-mode').value !== 'chord';
       return arcByRadius ? num('qc-slt-sweep', 0) / 2 : 0;
     }, snapMiterAngle);
+    wirePickCursor($('qc-slt-preview'), function(pt) { return !!nearestPreviewNode(slotPreviewNodes, pt); });
     $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
     $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
     $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
