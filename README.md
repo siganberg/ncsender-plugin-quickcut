@@ -43,7 +43,21 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
   - **Inner (perimeter)** cuts round the inside of the outline; **Inner (clearing)** clears it with rings out from the center line, **Stepover** apart; **Outer (part)** cuts round the outside, for a slot-shaped part.
 - Twist the preview to turn the slot (it changes Angle, Start Angle or the bulge Angle). It moves in half degrees and sticks within 1° of the miter angles listed under [Pattern preview](#pattern-preview) (0, 15, 18, 22.5, 30, 36, 45° …): a straight slot's direction, or on an arc the radius line to the middle of the slot. Tap an **end** of the slot, at its center, or an arc's **center**, to make it X0 Y0. The 9-dot picker's points are the box around the slot, as on the other shapes, and work with an [inset](#origin-inset).
 - Holding tabs and patterns work as on the other shapes. A pattern places each copy by its center, which for an arc slot is the arc's center, so a **ring of arc slots** is a **Circular (Path Direction)** pattern with **Radius 0**: each copy turns about that center (4 copies with a 90° Sweep make a full circle, a smaller Sweep leaves gaps between them). On an arc the inner edge is cut with clockwise arcs (G2), the rest counter-clockwise (G3).
-- **Grid** pattern (straight slots): a grid of grooves. Set Cut Type to **Center line**, turn on Pattern, choose **Grid**, and set Columns / Column Spacing and Rows / Row Spacing. Each line runs from the first to the last line across it, so with 4 columns 20 apart and 3 rows 30 apart the rows are 60 long and the columns 60 long. The lines are cut row by row, then column by column, each to full depth.
+- **Grid** pattern (straight slots): a grid of grooves, e.g. a decorative grid or a waffle board.
+  1. Choose **Straight** as the Slot Type and **Center line** as the Cut Type (one bit-wide groove per line).
+  2. Turn on **Pattern** and choose **Grid**.
+  3. Set **Columns** and **Column Spacing** (the lines running front to back, spaced along X) and **Rows** and **Row Spacing** (the lines running left to right, spaced along Y). With **Extent** on, the spacing fields become the grid's overall Width and Height instead.
+  4. Optionally set a pattern **Angle** to turn the whole grid.
+
+  How it's cut:
+  - Every line spans the grid: rows run from the first column to the last, and columns from the first row to the last, so the outer lines meet at the corners. With 4 columns 20 apart and 3 rows 30 apart, the rows and columns are all 60 long.
+  - The Slot's own Length and Angle don't apply (they're greyed out).
+  - The rows are cut first, then the columns. Each line gets all its depth passes, alternating direction each pass, before the next.
+  - The **Origin** and **Inset** use the box around the whole cut, including the bit's width. With a corner or edge origin, the outer lines therefore sit one bit radius in from X0 Y0 (the edge of the groove touches the origin).
+
+  **Using a V-bit:** set **Inset** to the negative bit radius (e.g. −3.175 for a 6.35 mm / ¼" V-bit, using the Bit Diameter you entered) so the first row and column run exactly along X0 and Y0, not a bit radius inside them. A V-bit's groove width depends on depth, so placing the line centres on the origin is what you usually want.
+
+  **Before cutting stock, air carve it:** zero Z above the work (or raise it), run the program, and check that the first lines and the grid's extent start where you expect.
 - **Rounding a stock corner:** zero X/Y on the corner, then Arc, **Radius** = corner radius + bit radius, **Start Angle** facing the corner (front-left 180, front-right 270, back-right 0, back-left 90), **Sweep** 90, **Center line**, that corner as the Origin, and **Inset** = minus the bit diameter. The bit's centre runs a bit radius outside the finished edge, starting and ending a bit radius outside the two stock edges, level with the tangent points, so the round blends into them. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset −6. (The Origin box includes the bit's own width on a Center line cut, which is why the inset is a whole bit diameter.)
 - A slot that can't be cut is caught before Generate, at the field to change: an arc as wide as its radius, ends that would overlap (Chord shorter than the Width, or a Sweep too close to a full circle), or an inner cut no wider than the bit.
 
