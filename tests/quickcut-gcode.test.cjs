@@ -2202,3 +2202,16 @@ test('grid center lines go back and forth: each starts where the last one finish
     assert.ok(hop.filter(h => h > 30 + 1e-6).length <= 1, `passes=${passes} hops=${hop.map(h => h.toFixed(1))}`);
   }
 });
+
+test('polygon header notes the size as entered across flats or as an edge length', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { sides: 6, cutType: 'outer', origin: 'center', bitDiameter: 6, depth: 3, depthOfCut: 3, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
+  const dia = (gc) => gc.split('\n').find(l => /^\(Diameter:/.test(l));
+  assert.equal(dia(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 }))), '(Diameter: 40mm [circumscribed])');
+  assert.equal(dia(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 / Math.cos(Math.PI / 6), sizeMode: 'flats', sizeValue: 40 }))),
+    '(Diameter: 46.188mm [circumscribed; 40mm across flats])');
+  assert.equal(dia(g.generatePolygonProgram(Object.assign({}, base, { diameter: 20 / Math.sin(Math.PI / 6), sizeMode: 'edge', sizeValue: 20 }))),
+    '(Diameter: 40mm [circumscribed; 20mm edge length])');
+  assert.equal(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40, sizeMode: 'corners', sizeValue: 40 })),
+    g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 })));
+});

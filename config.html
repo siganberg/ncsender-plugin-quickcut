@@ -196,6 +196,19 @@
 
   /* Help page: one card per topic. */
   .qc-help-index li { margin-bottom: 6px; }
+  /* A dropdown standing in for a field's label (Polygon's size measure). */
+  .qc-label-select {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+  }
   .qc-help-card ul {
     margin: 0;
     padding-left: 18px;
@@ -1730,7 +1743,7 @@
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
           <h2 class="qc-panel-title">Polygon</h2>
-          <p class="qc-panel-sub">Regular N-sided polygon by circumscribed radius (vertex-to-center).</p>
+          <p class="qc-panel-sub">Regular N-sided polygon, sized across the corners, across the flats, or by edge length.</p>
         </div>
       </header>
 
@@ -1746,8 +1759,12 @@
                     <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-poly-diameter">Diameter</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required>
+                    <select class="qc-label-select" id="qc-poly-size-mode" aria-label="Size measured" title="What the size measures: across the corners (the circle the corners sit on), across the flats (between opposite sides; e.g. a hex pocket for a nut), or the length of one edge. Changing it converts the number so the polygon stays the same.">
+                      <option value="corners" selected>Across Corners</option>
+                      <option value="flats">Across Flats</option>
+                      <option value="edge">Edge Length</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required aria-labelledby="qc-poly-size-mode">
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -3417,7 +3434,7 @@
     if (/-pattern-total-angle$/.test(id) && n === 0) return 'Total Angle must not be 0';
     // A polygon's corner radius can't be more than half its across-flats size.
     if (id === 'qc-poly-corner') {
-      var polyD = num('qc-poly-diameter', NaN);
+      var polyD = polygonCornerDiameter(NaN);
       var polyN = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
       var polyA = polyD / 2 * Math.cos(Math.PI / polyN);
       if (isFinite(polyA) && n > polyA + 1e-9) return 'Corner Radius must not exceed ' + roundDisplay(polyA) + ' (half the size across the flats)';
@@ -3886,12 +3903,28 @@
     });
   }
 
+  // Polygon size: the field is measured across the corners, across the
+  // flats, or along one edge (qc-poly-size-mode); the generator takes the
+  // across-corners (circumscribed) diameter.
+  function polygonCornerDiameterFrom(value, sides, mode) {
+    if (mode === 'flats') return value / Math.cos(Math.PI / sides);
+    if (mode === 'edge') return value / Math.sin(Math.PI / sides);
+    return value;
+  }
+  function polygonSides() { return Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))); }
+  function polygonCornerDiameter(def) {
+    return polygonCornerDiameterFrom(num('qc-poly-diameter', def), polygonSides(), $('qc-poly-size-mode').value);
+  }
+
   function readPolygonForm() {
     var common = readCommonParams();
-    var diameter = num('qc-poly-diameter', 0);
+    var diameter = polygonCornerDiameter(0);
     return Object.assign({}, common, {
       sides:         Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))),
       diameter:      diameter,
+      // What the size field holds (for the header, file name and Load).
+      sizeMode:      $('qc-poly-size-mode').value,
+      sizeValue:     num('qc-poly-diameter', 0),
       // Generator still takes radius (its natural math input). UI
       // stores/reads diameter for parity with the Circle tab.
       radius:        diameter / 2,
@@ -4669,7 +4702,15 @@
     var polyDiameterMm = poly.diameter != null
       ? poly.diameter
       : (poly.radius != null ? poly.radius * 2 : null);
-    if (polyDiameterMm != null)     $('qc-poly-diameter').value = roundDisplay(mmToDisplay(polyDiameterMm));
+    var polyModeEl = $('qc-poly-size-mode');
+    if (poly.sizeMode && poly.sizeValue != null) {
+      polyModeEl.value = poly.sizeMode;
+      $('qc-poly-diameter').value = roundDisplay(mmToDisplay(poly.sizeValue));
+    } else if (polyDiameterMm != null) {
+      polyModeEl.value = 'corners';
+      $('qc-poly-diameter').value = roundDisplay(mmToDisplay(polyDiameterMm));
+    }
+    polyModeEl.setAttribute('data-was', polyModeEl.value);
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
     if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
@@ -4860,6 +4901,8 @@
         tool:          toolForShape,
         sides:         params.sides,
         diameter:      displayToMm(params.diameter),
+        sizeMode:      params.sizeMode,
+        sizeValue:     displayToMm(params.sizeValue),
         startAngleDeg: params.startAngleDeg,
         cornerRadius:  displayToMm(params.cornerRadius),
         cutType:       params.cutType,
@@ -5174,7 +5217,10 @@
         if (params.cornerRadius > 0) tags.push('R-' + n(params.cornerRadius));
         break;
       case 'circle': tags.push('Dia-' + n(params.diameter)); break;
-      case 'polygon': tags.push('N-' + params.sides, 'Dia-' + n(params.diameter)); break;
+      case 'polygon':
+        tags.push('N-' + params.sides, (params.sizeMode === 'flats' ? 'AF-' : params.sizeMode === 'edge' ? 'Edge-' : 'Dia-') +
+          n(params.sizeMode === 'flats' || params.sizeMode === 'edge' ? params.sizeValue : params.diameter));
+        break;
       case 'slot':
         if (pat && pat.enabled && pat.style === 'grid' && params.slotType !== 'arc') {
           tags.push('Grid-' + pat.xCount + 'x' + pat.yCount, 'Sp-' + n(pat.xDist) + 'x' + n(pat.yDist));
@@ -6543,7 +6589,8 @@
     if (!svg) return;
     var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
     var startDeg = num('qc-poly-start-angle', 0);
-    var diameter = num('qc-poly-diameter', 0);
+    var diameter = polygonCornerDiameter(0);
+    var sizeMode = $('qc-poly-size-mode').value;
     var cutType = $('qc-poly-cut-type').value;
     // Smaller when an inset needs room, so X0 Y0 stays in view.
     var pad = insetPad('poly');
@@ -6588,8 +6635,34 @@
     } else {
       outline = 'M' + pts.map(function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(' L') + ' Z';
     }
-    var armX = apothem * 0.92;
-    var label = diameter > 0 ? String(diameter) : '?';
+    var sizeValue = num('qc-poly-diameter', 0);
+    var label = sizeValue > 0 ? String(sizeValue) : '?';
+    // The dashed circle and dimension show what the size measures: the
+    // circle through the corners, the circle touching the flats, or the
+    // bottom-most edge, dimensioned just inside it.
+    var dim;
+    if (sizeMode === 'edge') {
+      var e = 0;
+      for (var ei = 1; ei < n; ei++) {
+        if (pts[ei].y + pts[(ei + 1) % n].y > pts[e].y + pts[(e + 1) % n].y) e = ei;
+      }
+      var ea = pts[e], eb = pts[(e + 1) % n];
+      var emx = (ea.x + eb.x) / 2, emy = (ea.y + eb.y) / 2, ein = Math.hypot(emx, emy) || 1;
+      var eo = 6 / ein, ek = 0.88;
+      var ex = function(q) { return (emx + (q.x - emx) * ek - emx * eo).toFixed(2); };
+      var ey = function(q) { return (emy + (q.y - emy) * ek - emy * eo).toFixed(2); };
+      dim = '<line class="qc-shape-dim-line" x1="' + ex(ea) + '" y1="' + ey(ea) + '" x2="' + ex(eb) + '" y2="' + ey(eb) + '" ' +
+              'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
+            '<text class="qc-shape-dim-label" x="' + (emx - emx * 14 / ein).toFixed(2) + '" y="' + (emy - emy * 14 / ein).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
+    } else {
+      var dimR = sizeMode === 'flats' ? apothem : R;
+      var armX = dimR * 0.92;
+      dim = '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + dimR.toFixed(2) + '"/>' +
+            '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
+              'x2="' + armX.toFixed(2) + '" y2="0" ' +
+              'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
+            '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>';
+    }
 
     // Hatched waste area — the region the cut leaves as scrap.
     //   Inner (perimeter) cut → keep the outside, waste the polygon interior
@@ -6620,11 +6693,7 @@
       shapePreviewDefs('qc-poly') +
       hatchedPath +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
-      '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + apothem.toFixed(2) + '"/>' +
-      '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
-            'x2="' + armX.toFixed(2) + '" y2="0" ' +
-            'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-      '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>' +
+      dim +
       // The cut starts at the first vertex (or its corner arc) and runs CCW.
       tabMarks('poly', polyTabSegs()) +
       (diameter > 0 ? (function() {
@@ -6670,6 +6739,20 @@
     }, null, snapMiterAngle);
     wirePickCursor($('qc-poly-preview'), function(pt) { return !!nearestPreviewNode(polyPreviewNodes, pt); });
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
+    // Switching the measure keeps the polygon: the number is converted.
+    var polyMode = $('qc-poly-size-mode');
+    polyMode.setAttribute('data-was', polyMode.value);
+    polyMode.addEventListener('change', function() {
+      var v = num('qc-poly-diameter', NaN), sides = polygonSides();
+      if (isFinite(v) && v > 0) {
+        var corners = polygonCornerDiameterFrom(v, sides, polyMode.getAttribute('data-was'));
+        var back = polyMode.value === 'flats' ? corners * Math.cos(Math.PI / sides)
+                 : polyMode.value === 'edge' ? corners * Math.sin(Math.PI / sides) : corners;
+        $('qc-poly-diameter').value = roundDisplay(back);
+      }
+      polyMode.setAttribute('data-was', polyMode.value);
+      updatePolygonPreview();
+    });
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
       updateClearingVisibility('poly');
@@ -6965,7 +7048,7 @@
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     polygon: { name: 'Polygon', notes: [
-      '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
+      '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     slot: { name: 'Slot', notes: [
@@ -9132,7 +9215,10 @@
       var polyDiameter = params.diameter != null ? params.diameter : params.radius * 2;
       var extras = [
         'Sides: ' + baseGeom.sides,
-        'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
+        'Diameter: ' + (params.sizeMode === 'flats' || params.sizeMode === 'edge'
+          ? parseFloat(polyDiameter.toFixed(4)) + unitsLabel + ' (circumscribed; ' + params.sizeValue + unitsLabel +
+            (params.sizeMode === 'flats' ? ' across flats)' : ' edge length)')
+          : polyDiameter + unitsLabel + ' (circumscribed)'),
         'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
           (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
@@ -9236,7 +9322,10 @@
 
       var extras = [
         'Sides: ' + baseGeom.sides,
-        'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
+        'Diameter: ' + (params.sizeMode === 'flats' || params.sizeMode === 'edge'
+          ? parseFloat(polyDiameter.toFixed(4)) + unitsLabel + ' (circumscribed; ' + params.sizeValue + unitsLabel +
+            (params.sizeMode === 'flats' ? ' across flats)' : ' edge length)')
+          : polyDiameter + unitsLabel + ' (circumscribed)'),
         'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
           (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
