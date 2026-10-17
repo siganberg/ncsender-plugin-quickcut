@@ -2042,7 +2042,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-pattern-radius">Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-radius" min="0" step="0.1" value="40" required title="From the pattern's center to each copy's center (an arc slot's: its arc's center). With Path Direction, 0 turns arc slots about their shared center: e.g. 4 copies with a 90° Sweep make a full ring.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-pattern-start-angle">Start Angle (°)</label>
@@ -3106,7 +3106,7 @@
         'qc-slt-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
         'qc-slt-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
         'qc-slt-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
-        'qc-slt-pattern-radius':  { min: 0.004, max: 200, label: 'Pattern Radius' },
+        'qc-slt-pattern-radius':  { min: 0, max: 200, label: 'Pattern Radius' },
         'qc-slt-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-slt-pattern-total-angle': { min: -360, max: 360, label: 'Total Angle' },
         'qc-slt-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
@@ -3249,7 +3249,7 @@
       'qc-slt-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
       'qc-slt-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
       'qc-slt-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
-      'qc-slt-pattern-radius':  { min: 0.1, max: 5000, label: 'Pattern Radius' },
+      'qc-slt-pattern-radius':  { min: 0, max: 5000, label: 'Pattern Radius' },
       'qc-slt-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-slt-pattern-total-angle': { min: -360, max: 360, label: 'Total Angle' },
       'qc-slt-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
@@ -3312,6 +3312,10 @@
       if (isFinite(sTot) && n > sTot) return 'Depth of Cut must not exceed Total Depth (' + sTot + ')';
     }
     if (id === 'qc-slt-sweep' && n === 0) return 'Sweep must not be 0';
+    // Radius 0 turns each copy about one center: only Path Direction turns them.
+    if (id === 'qc-slt-pattern-radius' && n === 0 && $('qc-slt-pattern-style').value !== 'circular-follow') {
+      return 'Radius 0 only works with Circular (Path Direction), which turns each copy';
+    }
     // A straight slot's Length is overall, so it can't be shorter than the slot is wide.
     if (id === 'qc-slt-length') {
       var sW = slotWidthNow();
@@ -6314,6 +6318,7 @@
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
+      'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       'Twist the preview to turn the slot. Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },

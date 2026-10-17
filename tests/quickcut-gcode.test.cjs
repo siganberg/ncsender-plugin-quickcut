@@ -2065,3 +2065,15 @@ test('slot holding tabs, patterns and warnings', () => {
   // Imperial units in the header.
   assert.match(makeQuickCutGenerator(true).generateSlotProgram(slotBase({ length: 2, width: 0.5, bitDiameter: 0.25, depth: 0.25, depthOfCut: 0.125 })), /length 2inch/);
 });
+
+test('arc slots: a Path Direction pattern of radius 0 makes a ring about the arc centre', () => {
+  const g = makeQuickCutGenerator(false);
+  const gcode = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90, origin: 'shape-center',
+    pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 0, startAngle: 0, totalAngle: 360 } }));
+  const pts = slotSamples(gcode, -6);
+  assert.ok(pts.length > 100);
+  for (const p of pts) assert.ok(Math.abs(Math.hypot(p.x, p.y) - 40) < 0.002, `${p.x},${p.y}`);
+  // Every quarter of the ring is cut.
+  const quads = new Set(pts.map(p => Math.floor(((Math.atan2(p.y, p.x) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 2 + 1e-9))));
+  assert.equal(quads.size, 4);
+});
