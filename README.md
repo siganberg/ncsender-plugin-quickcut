@@ -217,6 +217,18 @@ With a keyboard, Up / Down Arrow steps any number field, with modifiers like Chr
 
 Unit text such as `1/4"` is converted first, so Up turns it into 7.35 in metric. Count fields always step by at least 1. A step that would go below a field's minimum stops at it if it's a whole number (1 on counts, 0 on Peck Depth); otherwise the value stays put, so Down from 1 mm never lands on an odd minimum like 0.1 mm.
 
+## Loading settings from a saved program
+
+Every program QuickCut generates ends with its settings: a few comment lines after `M30`, under `(QuickCut settings - used by Load)`. The readable summary at the top and the G-code itself are unchanged.
+
+**Load**, beside **Save to File Manager** at the top right of each tab, lists the programs in File Manager › QuickCut, newest first, with a filter box. Pick one and QuickCut switches to that program's tab and fills it with the values it was made with: shape, depths, tool, origin and inset, holding tabs, pattern, spindle and coolant. Nothing is generated or run; check the values (your bit may differ) and press Generate.
+
+- Turn on **Save to File Manager** so generated programs are kept there to Load later.
+- To share a setup, share the program file: anyone who puts it in their File Manager › QuickCut folder can Load its settings, change what they need, and regenerate.
+- Programs made before this feature, or by other software, have no settings and say so.
+- The settings are stored in mm, so a program made in inches loads correctly in metric and the other way round.
+- The comment lines are kept under 70 characters because ncSender sends comment lines to the controller as well; GRBL and grblHAL ignore them.
+
 ## Install
 
 Install via ncSender's Plugin Manager, or drop the release zip into `~/Library/Application Support/ncSender/plugins/com.ncsender.quickcut/`.

@@ -318,7 +318,45 @@
      the title row leaves room for it rather than running underneath. */
   .qc-panel-header { position: relative; }
   .qc-panel-title-row { padding-right: 220px; }
-  .qc-save-toggle { position: absolute; top: 15px; right: 20px; }
+  .qc-save-toggle { position: absolute; top: 15px; right: 20px; display: flex; align-items: center; gap: 10px; }
+  .qc-load-link { color: var(--color-accent); font-weight: 600; text-decoration: none; }
+  .qc-load-link:hover { text-decoration: underline; }
+  .qc-load-sep { color: var(--color-text-secondary); }
+  /* Load: QuickCut programs in File Manager, over the dialog. */
+  .qc-load-panel {
+    position: absolute;
+    inset: 16px;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+    background: var(--color-surface, #fff);
+    border: 2px solid var(--color-text-secondary, #888);
+    border-radius: var(--radius-medium);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+  .qc-load-panel h3 { margin: 0; }
+  .qc-load-panel p { margin: 0; font-size: 0.85rem; color: var(--color-text-secondary); }
+  .qc-load-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+  .qc-load-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-muted, var(--color-surface));
+    color: var(--color-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .qc-load-row:hover { border-color: var(--color-accent); }
+  .qc-load-row small { color: var(--color-text-secondary); white-space: nowrap; }
+  .qc-load-filter { text-align: left; }
+  .qc-load-status { min-height: 1.2em; font-size: 0.85rem; color: var(--color-accent); }
+  .qc-load-actions { display: flex; justify-content: flex-end; }
   .qc-panel-sub {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
@@ -1249,13 +1287,17 @@
 
         <!-- One switch for every shape, moved into the active header with the
              common cards. -->
-        <label class="qc-switch-label qc-save-toggle" id="qc-save-toggle" title="Also save each generated program to File Manager › QuickCut">
-          <span>Save to File Manager</span>
-          <span class="qc-switch">
-            <input type="checkbox" id="qc-save-files">
-            <span class="qc-switch-track"></span>
-          </span>
-        </label>
+        <div class="qc-save-toggle" id="qc-file-actions">
+          <a href="#" class="qc-load-link" id="qc-load-link" title="Fill the form from a QuickCut program saved in File Manager">Load</a>
+          <span class="qc-load-sep" aria-hidden="true">|</span>
+          <label class="qc-switch-label" id="qc-save-toggle" title="Also save each generated program to File Manager › QuickCut">
+            <span>Save to File Manager</span>
+            <span class="qc-switch">
+              <input type="checkbox" id="qc-save-files">
+              <span class="qc-switch-track"></span>
+            </span>
+          </label>
+        </div>
 
         <!-- Common cards (Tool + Spindle & Coolant) live once in the DOM
              and are moved into whichever section's header is currently
@@ -2815,6 +2857,7 @@
     wireHoldingTabs('slt', updateSlotPreview);
     mountPatternPreviews();
     wirePreviewEnlarge();
+    wireLoad();
     wireMeasureTab();
     wireHelp();
     wireOriginCrosshairs();
@@ -2905,7 +2948,7 @@
     var header = section.querySelector('.qc-panel-header');
     if (!header) return;
     header.appendChild(cards);
-    var saveToggle = $('qc-save-toggle');
+    var saveToggle = $('qc-file-actions');
     if (saveToggle) header.appendChild(saveToggle);
     // The measure page generates no g-code, so Tool / Spindle / Save don't apply.
     var noCommon = view === 'measure' || view === 'help';
@@ -4117,7 +4160,7 @@
     // removes itself once this open's dialog is gone.
     function closeEnlargedOnEscape(evt) {
       if (!rootAlive()) { window.removeEventListener('keydown', closeEnlargedOnEscape, true); return; }
-      if (evt.key !== 'Escape' || !closeEnlargedPreview()) return;
+      if (evt.key !== 'Escape' || !(closeLoadPanel() || closeEnlargedPreview())) return;
       evt.preventDefault();
       evt.stopPropagation();
     }
@@ -4492,8 +4535,11 @@
     }
   }
 
-  function hydrateSavedSettings() {
-    var saved = initialConfig || {};
+  // With no argument: restore everything saved, at startup. With `loaded`
+  // (Load: one shape's settings and the common spindle values), only what
+  // it carries changes.
+  function hydrateSavedSettings(loaded) {
+    var saved = loaded || initialConfig || {};
     var common = saved.common || {};
     var rect = saved.rectangle || {};
     // Spindle & Coolant stay common across shapes.
@@ -4501,13 +4547,16 @@
     if (common.spindleDelay != null)   $('qc-delay').value  = common.spindleDelay;
     if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
     if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
-    $('qc-save-files').checked = !!common.saveToFileManager;
-    $('qc-save-files').addEventListener('change', function() {
-      persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
-    });
+    if (!loaded) {
+      $('qc-save-files').checked = !!common.saveToFileManager;
+      $('qc-save-files').addEventListener('change', function() {
+        persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
+      });
+    }
     // Tool card is per-shape. Falls back to common.bit/feed/plunge for
     // shapes without a per-shape override yet (first-run + legacy).
     TOOL_SHAPES.forEach(function(shape) {
+      if (loaded && !saved[shape]) return;
       var s = saved[shape] || {};
       state.toolByShape[shape] = s.tool || {
         bitDiameter:    common.bitDiameter,
@@ -4834,6 +4883,140 @@
       state.toolByShape[params.shape] = toolForShape;
     }
     persistSettings(body);
+    return { shape: params.shape, settings: body[params.shape], common: common };
+  }
+
+  // Settings block: the values Generate saved (mm), as base64 JSON in short
+  // comment lines after M30, so Load can fill the form from a program in
+  // File Manager. Short lines because ncSender sends comment lines to the
+  // controller too, and GRBL's line buffer is small.
+  var SETTINGS_LINE = 'QC1 ';
+  function settingsBlock(saved) {
+    var json = JSON.stringify({
+      v: 1,
+      shape: saved.shape,
+      settings: saved.settings,
+      common: { spindleRpm: saved.common.spindleRpm, spindleDelay: saved.common.spindleDelay,
+                mistM7: saved.common.mistM7, floodM8: saved.common.floodM8 }
+    });
+    var b64 = btoa(unescape(encodeURIComponent(json)));
+    var out = ['', '', '(QuickCut settings - used by Load)'];
+    for (var i = 0; i < b64.length; i += 60) out.push('(' + SETTINGS_LINE + b64.slice(i, i + 60) + ')');
+    return out.join('\n') + '\n';
+  }
+  // Load: lists the programs in File Manager › QuickCut, newest first; a
+  // pick reads its settings block, fills that shape's tab and switches to
+  // it. Nothing is generated or run. Programs from before Load have no
+  // block and say so.
+  var loadPanel = null;
+  function closeLoadPanel() {
+    if (!loadPanel) return false;
+    loadPanel.remove();
+    loadPanel = null;
+    return true;
+  }
+  function quickCutFiles(tree) {
+    var files = [];
+    (function walk(entries) {
+      (entries || []).forEach(function(e) {
+        var path = String(e && (e.path != null ? e.path : e.Path) || '').replace(/\\/g, '/').replace(/^\//, '');
+        var kids = e && (e.children || e.Children);
+        if (kids && kids.length) walk(kids);
+        else if (/^QuickCut\//i.test(path) && /\.(nc|gcode|ngc|tap)$/i.test(path)) {
+          files.push({ path: path, name: e.name || path.slice(9), when: e.uploadedAt || '' });
+        }
+      });
+    })(tree);
+    return files.sort(function(a, b) { return a.when < b.when ? 1 : a.when > b.when ? -1 : 0; });
+  }
+  async function openLoadPanel() {
+    closeLoadPanel();
+    loadPanel = document.createElement('div');
+    loadPanel.className = 'qc-load-panel';
+    loadPanel.innerHTML =
+      '<h3>Load settings</h3>' +
+      '<p>Pick a QuickCut program saved in File Manager to fill its tab with the settings it was made with. Programs made before Load existed have no saved settings.</p>' +
+      '<input class="qc-input qc-load-filter" type="text" placeholder="Filter by name" autocomplete="off" spellcheck="false">' +
+      '<div class="qc-load-status">Loading the list…</div>' +
+      '<div class="qc-load-list"></div>' +
+      '<div class="qc-load-actions"><button type="button" class="qc-secondary-btn qc-load-cancel">Cancel</button></div>';
+    ROOT.appendChild(loadPanel);
+    var panel = loadPanel, list = panel.querySelector('.qc-load-list'), status = panel.querySelector('.qc-load-status');
+    var filter = panel.querySelector('.qc-load-filter');
+    panel.querySelector('.qc-load-cancel').addEventListener('click', closeLoadPanel);
+    var files = [];
+    function render() {
+      var q = filter.value.trim().toLowerCase();
+      var shown = files.filter(function(f) { return !q || f.name.toLowerCase().indexOf(q) >= 0; });
+      list.innerHTML = '';
+      shown.forEach(function(f) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'qc-load-row';
+        var name = document.createElement('span');
+        name.textContent = f.name;
+        var when = document.createElement('small');
+        when.textContent = f.when ? new Date(f.when).toLocaleString() : '';
+        row.appendChild(name);
+        row.appendChild(when);
+        row.addEventListener('click', function() { loadFromFile(f, status); });
+        list.appendChild(row);
+      });
+      status.textContent = files.length ? '' : 'No programs in File Manager › QuickCut yet. Turn on Save to File Manager, then Generate.';
+    }
+    filter.addEventListener('input', render);
+    try {
+      var res = await fetch(BASE_URL + '/api/gcode-files');
+      var data = res.ok ? await res.json() : null;
+      files = quickCutFiles(data && (data.tree || data.Tree));
+      if (panel !== loadPanel) return;
+      render();
+      filter.focus();
+    } catch (err) {
+      status.textContent = 'Could not read File Manager: ' + err.message;
+    }
+  }
+  async function loadFromFile(file, status) {
+    status.textContent = 'Reading ' + file.name + '…';
+    try {
+      var res = await fetch(BASE_URL + '/api/gcode-files/file?path=' + encodeURIComponent(file.path));
+      if (!res.ok) throw new Error('status ' + res.status);
+      var body = await res.json();
+      var data = readSettingsBlock(String(body && (body.content != null ? body.content : body.Content) || ''));
+      if (!data) {
+        status.textContent = file.name + ' has no QuickCut settings (it was made before Load, or not by QuickCut).';
+        return;
+      }
+      var loaded = { common: data.common || {} };
+      loaded[data.shape] = data.settings;
+      hydrateSavedSettings(loaded);
+      closeLoadPanel();
+      switchTab(data.shape);
+      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.');
+    } catch (err) {
+      status.textContent = 'Could not read ' + file.name + ': ' + err.message;
+    }
+  }
+  function wireLoad() {
+    $('qc-load-link').addEventListener('click', function(evt) {
+      evt.preventDefault();
+      openLoadPanel();
+    });
+  }
+
+  function readSettingsBlock(gcode) {
+    var b64 = '';
+    gcode.split(/\r?\n/).forEach(function(line) {
+      var m = /^\(QC1 ([A-Za-z0-9+\/=]+)\)\s*$/.exec(line.trim());
+      if (m) b64 += m[1];
+    });
+    if (!b64) return null;
+    try {
+      var data = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      return data && data.v === 1 && TOOL_SHAPES.indexOf(data.shape) >= 0 && data.settings ? data : null;
+    } catch (e) {
+      return null;
+    }
   }
 
   // The server replaces the whole settings file on every save. Sending only the
@@ -5002,7 +5185,7 @@
       params.shape = 'rectangle';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateRectangleProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Rectangle.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -5033,7 +5216,7 @@
       params.shape = 'planer';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generatePlanerProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Planer.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -5075,7 +5258,7 @@
       params.shape = 'cutter';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateCutterProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Cutter.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -5110,7 +5293,7 @@
       params.shape = 'jointer';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateJointerProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Jointer.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -5138,7 +5321,7 @@
       params.shape = 'circle';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateCircleProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Circle.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -6095,7 +6278,7 @@
       params.shape = 'keyhole';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateKeyholeProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Keyhole.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -6227,7 +6410,7 @@
       params.shape = 'drill';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateDrillProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Drill.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -6391,7 +6574,7 @@
       params.shape = 'polygon';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generatePolygonProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Polygon.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -6618,7 +6801,7 @@
         return;
       }
       var gcode = gen.generateSlotProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
         var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Slot.nc');
         if (!res.ok) throw new Error('load failed: ' + res.status);
@@ -6714,7 +6897,8 @@
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
-      '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.' ] },
+      '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.',
+      '<strong>Load</strong> fills a tab from a QuickCut program in File Manager: every program records the settings it was made with in a few comment lines after M30. Pick one, check the values, then Generate. Share a program file and someone else can Load its settings too.' ] },
     units: { title: 'Typing units', notes: [
       'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>5/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
       'With a keyboard, <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> step a number by 1, with <kbd>Shift</kbd> 10, <kbd>Alt</kbd> 0.1, and <kbd>Ctrl</kbd> 0.001.' ] }
