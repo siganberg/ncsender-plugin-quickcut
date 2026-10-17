@@ -109,6 +109,10 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 | Circular (Identical) | *Count* copies on a circle of *Radius*, starting at *Start Angle* and spread over *Total Angle* (see below). Every copy keeps the same orientation. |
 | Circular (Path Direction) | Same as above, but each copy turns with the circle: the first copy (at the Start Angle) looks like the shape preview, and each later copy is turned by how far round the circle it is from the first. |
 
+### Pattern preview
+
+With **Pattern** on, a preview beside the pattern fields shows the whole pattern and updates as you type: every copy's toolpath, a dot the size of the bit where each copy plunges, and a crosshair at X0 Y0. It's drawn from the same code as Generate, so Origin, Inset, Angle, Rotate shapes, Extent, Symmetric Ends and both Circular styles all match the program. It shows one depth pass and the outline of a clearing cut. Above 500 copies it shows only where each copy starts; above 3000 it shows the count.
+
 ### Circular Total Angle
 
 **Total Angle** (default 360°) is the arc the circular copies are spread over, counter-clockwise from the Start Angle, as in a CAD circular pattern:

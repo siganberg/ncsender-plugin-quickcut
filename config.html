@@ -795,6 +795,18 @@
   .qc-shape-preview-cell .qc-shape-fill.qc-hole-picked {
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
+  /* Pattern preview: every copy's toolpath, and a dot the size of the
+     bit where each one plunges. */
+  .qc-shape-preview-cell .qc-pattern-path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .qc-shape-preview-cell .qc-pattern-plunge {
+    fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
   .qc-shape-preview-cell svg.qc-preview-pickable {
     cursor: pointer;
   }
@@ -2758,6 +2770,7 @@
     wireHoldingTabs('circ', updateCirclePreview);
     wireHoldingTabs('poly', updatePolygonPreview);
     wireHoldingTabs('slt', updateSlotPreview);
+    mountPatternPreviews();
     wireMeasureTab();
     wireHelp();
     wireOriginCrosshairs();
@@ -2801,6 +2814,7 @@
     if (target === 'polygon') updatePolygonPreview();
     if (target === 'slot') updateSlotPreview();
     state.currentTab = target;
+    schedulePatternPreview();
     if (target === 'measure') {
       startMeasurePolling();
       return;
@@ -3980,6 +3994,167 @@
       if (honey)  honey.style.display  = (style === 'honeycomb') ? '' : 'none';
       updatePatternAngleLabels(prefix);
     }
+    schedulePatternPreview();
+  }
+
+  // Pattern preview: the whole pattern, drawn from the tab's own generator
+  // so origin, Inset, angle and rotation match what Generate cuts. One depth
+  // pass, no holding tabs and the outline instead of clearing keep it cheap;
+  // the cutting moves become one SVG path and each plunge a bit-sized dot.
+  var PATTERN_PREVIEW_TABS = {
+    rectangle: { prefix: 'rect', read: function() { return readRectangleForm(); }, gen: 'generateRectangleProgram' },
+    circle:    { prefix: 'circ', read: function() { return readCircleForm(); },    gen: 'generateCircleProgram' },
+    polygon:   { prefix: 'poly', read: function() { return readPolygonForm(); },   gen: 'generatePolygonProgram' },
+    slot:      { prefix: 'slt',  read: function() { return readSlotForm(); },      gen: 'generateSlotProgram' },
+    keyhole:   { prefix: 'key',  read: function() { return readKeyholeForm(); },   gen: 'generateKeyholeProgram' },
+    drill:     { prefix: 'drl',  read: function() { return readDrillForm(); },     gen: 'generateDrillProgram' }
+  };
+  var PATTERN_PREVIEW_MAX_COPIES = 3000;
+  var PATTERN_PREVIEW_MAX_OUTLINES = 500;
+  var patternPreviewQueued = false;
+
+  function mountPatternPreviews() {
+    Object.keys(PATTERN_PREVIEW_TABS).forEach(function(tab) {
+      var prefix = PATTERN_PREVIEW_TABS[tab].prefix;
+      var body = $('qc-' + prefix + '-pattern-body');
+      var grid = document.createElement('div');
+      grid.className = 'qc-shape-grid';
+      var fields = document.createElement('div');
+      fields.className = 'qc-shape-fields';
+      while (body.firstChild) fields.appendChild(body.firstChild);
+      var cell = document.createElement('div');
+      cell.className = 'qc-shape-preview-cell';
+      cell.innerHTML = '<svg id="qc-' + prefix + '-pattern-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>';
+      grid.appendChild(fields);
+      grid.appendChild(cell);
+      body.appendChild(grid);
+    });
+    ROOT.addEventListener('input', schedulePatternPreview);
+    ROOT.addEventListener('change', schedulePatternPreview);
+    schedulePatternPreview();
+  }
+
+  function schedulePatternPreview() {
+    if (patternPreviewQueued) return;
+    patternPreviewQueued = true;
+    requestAnimationFrame(function() {
+      patternPreviewQueued = false;
+      if (rootAlive()) updatePatternPreview();
+    });
+  }
+
+  function updatePatternPreview() {
+    var tab = PATTERN_PREVIEW_TABS[state.currentTab];
+    if (!tab) return;
+    var svg = $('qc-' + tab.prefix + '-pattern-preview');
+    if (!svg || !$('qc-' + tab.prefix + '-pattern-enable').checked) return;
+    var gen = makeQuickCutGenerator(state.isImperial);
+    var params = tab.read();
+    var copies = gen.computePatternPositions(params.pattern).length;
+    if (copies > PATTERN_PREVIEW_MAX_COPIES) {
+      svg.innerHTML = patternPreviewCaption(copies + ' copies, too many to preview');
+      return;
+    }
+    params.tabs = null;
+    if (params.cutType === 'clearing') params.cutType = 'inner';
+    if (params.depthOfCut > 0 && params.depth > params.depthOfCut) params.depth = params.depthOfCut;
+    var trace;
+    try {
+      trace = traceProgram(gen[tab.gen](params));
+    } catch (err) {
+      svg.innerHTML = patternPreviewCaption('Fix the shape to preview');
+      return;
+    }
+    var outlines = copies <= PATTERN_PREVIEW_MAX_OUTLINES;
+    if (!outlines) trace.moves = [];
+    svg.innerHTML = drawPatternTrace(trace, Math.max(0, params.bitDiameter || 0) / 2) +
+      patternPreviewCaption(copies + (copies === 1 ? ' copy' : ' copies') + (outlines ? '' : ', start points'));
+  }
+
+  function patternPreviewCaption(textValue) {
+    return '<text class="qc-shape-dim-label" x="0" y="46" text-anchor="middle">' + textValue + '</text>';
+  }
+
+  // Cutting moves (XY below Z0) and plunge points from a QuickCut program,
+  // which is absolute (G90) with I/J arcs.
+  var TRACE_WORDS = { X: /X(-?[\d.]+)/, Y: /Y(-?[\d.]+)/, Z: /Z(-?[\d.]+)/, I: /I(-?[\d.]+)/, J: /J(-?[\d.]+)/ };
+  function traceProgram(gcode) {
+    var moves = [], plunges = [];
+    var pos = { x: 0, y: 0, z: 0 }, mode = 0;
+    var lines = gcode.split('\n');
+    var line;
+    var word = function(letter) {
+      var m = line.match(TRACE_WORDS[letter]);
+      return m ? parseFloat(m[1]) : null;
+    };
+    for (var i = 0; i < lines.length; i++) {
+      line = lines[i].replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim().toUpperCase();
+      if (!line || /\bG53\b/.test(line)) continue;
+      var g = line.match(/\bG0*([0-3])(?![0-9])/);
+      if (g) mode = Number(g[1]);
+      var x = word('X'), y = word('Y'), z = word('Z');
+      var next = { x: x === null ? pos.x : x, y: y === null ? pos.y : y, z: z === null ? pos.z : z };
+      if (pos.z >= 0 && next.z < 0) plunges.push({ x: next.x, y: next.y });
+      var movesXY = next.x !== pos.x || next.y !== pos.y;
+      if (movesXY && mode !== 0 && Math.min(pos.z, next.z) < 0) {
+        if (mode === 1) {
+          moves.push({ x0: pos.x, y0: pos.y, x1: next.x, y1: next.y });
+        } else {
+          var cx = pos.x + (word('I') || 0), cy = pos.y + (word('J') || 0);
+          moves.push({ x0: pos.x, y0: pos.y, x1: next.x, y1: next.y, cx: cx, cy: cy, cw: mode === 2 });
+        }
+      }
+      pos = next;
+    }
+    return { moves: moves, plunges: plunges };
+  }
+
+  function drawPatternTrace(trace, bitRadius) {
+    var xs = [0], ys = [0];
+    trace.plunges.forEach(function(p) { xs.push(p.x); ys.push(p.y); });
+    trace.moves.forEach(function(m) {
+      xs.push(m.x0, m.x1); ys.push(m.y0, m.y1);
+      if (m.cx !== undefined) {
+        var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+        xs.push(m.cx - r, m.cx + r); ys.push(m.cy - r, m.cy + r);
+      }
+    });
+    var minX = Math.min.apply(null, xs) - bitRadius, maxX = Math.max.apply(null, xs) + bitRadius;
+    var minY = Math.min.apply(null, ys) - bitRadius, maxY = Math.max.apply(null, ys) + bitRadius;
+    var span = Math.max(maxX - minX, maxY - minY) || 1;
+    var s = 80 / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
+    var X = function(v) { return ((v - midX) * s).toFixed(2); };
+    var Y = function(v) { return ((midY - v) * s - 4).toFixed(2); };
+
+    var d = '', penX = null, penY = null;
+    trace.moves.forEach(function(m) {
+      if (penX !== m.x0 || penY !== m.y0) d += 'M' + X(m.x0) + ',' + Y(m.y0);
+      if (m.cx === undefined) {
+        d += 'L' + X(m.x1) + ',' + Y(m.y1);
+      } else {
+        var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+        var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+        var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
+        sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
+        if (sweepAngle < 1e-9) {
+          var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
+          d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+        } else {
+          d += 'A' + rr + (sweepAngle > Math.PI ? 1 : 0) + ' ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+        }
+      }
+      penX = m.x1; penY = m.y1;
+    });
+
+    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
+    var dots = trace.plunges.map(function(p) {
+      return '<circle class="qc-pattern-plunge" cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + dotR + '"/>';
+    }).join('');
+    var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
+    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
+      ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
+    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin;
   }
 
   // At 0° the grid runs along the machine axes, so X/Y labels are
@@ -4942,6 +5117,7 @@
   }
 
   function updateRectanglePreview() {
+    schedulePatternPreview();
     updateInsetState('rect');
     var svg = document.getElementById('qc-rect-preview');
     if (!svg) return;
@@ -5480,6 +5656,7 @@
   // Circle preview — bordered viewport, hatched waste based on cut
   // type, horizontal dimension arrow labeling the diameter.
   function updateCirclePreview() {
+    schedulePatternPreview();
     updateInsetState('circ');
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
@@ -5595,6 +5772,7 @@
   }
 
   function updateKeyholePreview() {
+    schedulePatternPreview();
     updateInsetState('key');
     updateKeyholeOriginPicker();
     var svg = document.getElementById('qc-key-preview');
@@ -5799,6 +5977,7 @@
   var drillPreviewMap = null;
   var DRILL_PREVIEW_MAX = 2500;
   function updateDrillPreview() {
+    schedulePatternPreview();
     updateInsetState('drl');
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
@@ -5907,6 +6086,7 @@
   }
 
   function updatePolygonPreview() {
+    schedulePatternPreview();
     updateInsetState('poly');
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
@@ -6137,6 +6317,7 @@
   // by more than a quarter. Twist to turn it; tap an end, or an arc's
   // center, to make it the Origin.
   function updateSlotPreview() {
+    schedulePatternPreview();
     updateInsetState('slt');
     updateSlotFields();
     var svg = $('qc-slt-preview');
