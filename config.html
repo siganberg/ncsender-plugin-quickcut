@@ -1971,11 +1971,13 @@
                       <option value="arc">Arc</option>
                     </select>
                   </div>
-                  <div class="qc-field qc-slt-arc-only" style="display: none;">
-                    <label for="qc-slt-arc-mode">Arc By</label>
-                    <select class="qc-select" id="qc-slt-arc-mode" title="Radius: the arc's radius and where it starts and ends. Chord: the straight distance between the slot's end centres and how far the middle bulges out.">
-                      <option value="radius" selected>Radius &amp; Sweep</option>
-                      <option value="chord">Chord &amp; Rise</option>
+                  <div class="qc-field">
+                    <label for="qc-slt-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-slt-cut-type">
+                      <option value="center">Center line</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
+                      <option value="outer">Outer (part)</option>
                     </select>
                   </div>
                   <div class="qc-field">
@@ -2022,13 +2024,11 @@
                   </div>
                 </div>
                 <div class="qc-row-3 qc-rect-type-row qc-slt-origin-row">
-                  <div class="qc-field">
-                    <label for="qc-slt-cut-type">Cut Type</label>
-                    <select class="qc-select" id="qc-slt-cut-type">
-                      <option value="center">Center line</option>
-                      <option value="inner" selected>Inner (perimeter)</option>
-                      <option value="clearing">Inner (clearing)</option>
-                      <option value="outer">Outer (part)</option>
+                  <div class="qc-field qc-slt-arc-only" style="display: none;">
+                    <label for="qc-slt-arc-mode">Arc By</label>
+                    <select class="qc-select" id="qc-slt-arc-mode" title="Radius: the arc's radius and where it starts and ends. Chord: the straight distance between the slot's end centres and how far the middle bulges out.">
+                      <option value="radius" selected>Radius &amp; Sweep</option>
+                      <option value="chord">Chord &amp; Rise</option>
                     </select>
                   </div>
                   <div class="qc-field qc-slt-clearing-only" style="display: none;">
