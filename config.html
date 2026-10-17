@@ -3034,8 +3034,13 @@
   // taken down explicitly: after a few seconds, on any edit in the
   // dialog, on Generate, and when the dialog goes away.
   var _tooltip = null, _tooltipEl = null, _tooltipTimer = null;
-  function showTooltip(el, message) {
+  // color: the bubble's colour; red for problems (the default), green
+  // (TOOLTIP_OK) for a confirmation such as Load's.
+  var TOOLTIP_OK = '#2e7d32';
+  function showTooltip(el, message, color) {
+    color = color || '#d32f2f';
     if (!_tooltip) _tooltip = createTooltip();
+    _tooltip.style.background = color;
     if (_tooltipEl && _tooltipEl !== el) _tooltipEl.style.borderColor = '';
     _tooltipEl = el;
     clearTimeout(_tooltipTimer);
@@ -3048,14 +3053,19 @@
     var rect = el.getBoundingClientRect();
     _tooltip.firstChild && (_tooltip.textContent = message);
     _tooltip.textContent = message;
+    // Above the field, or below it when there's no room above (the Load
+    // link at the top of the dialog).
+    var below = rect.top < 60;
     var arrow = document.createElement('div');
-    arrow.style.cssText = 'position:absolute;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #d32f2f;bottom:-6px;left:50%;transform:translateX(-50%);';
+    arrow.style.cssText = 'position:absolute;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;' +
+      (below ? 'border-bottom:6px solid ' + color + ';top:-6px;' : 'border-top:6px solid ' + color + ';bottom:-6px;') +
+      'left:50%;transform:translateX(-50%);';
     _tooltip.appendChild(arrow);
     _tooltip.style.left = rect.left + (rect.width / 2) + 'px';
-    _tooltip.style.top  = (rect.top - 10) + 'px';
-    _tooltip.style.transform = 'translate(-50%, -100%)';
+    _tooltip.style.top  = (below ? rect.bottom + 10 : rect.top - 10) + 'px';
+    _tooltip.style.transform = below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
     _tooltip.style.opacity = '1';
-    el.style.borderColor = '#d32f2f';
+    el.style.borderColor = color;
   }
   function hideTooltip() {
     clearTimeout(_tooltipTimer);
@@ -5018,7 +5028,7 @@
       hydrateSavedSettings(loaded);
       closeLoadPanel();
       switchTab(data.shape);
-      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.');
+      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK);
     } catch (err) {
       status.textContent = 'Could not read ' + file.name + ': ' + err.message;
     }
