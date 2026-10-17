@@ -2865,6 +2865,7 @@
     if (btn) btn.addEventListener('click', function() {
       // Same message the app's Esc handler dispatches internally — posted
       // to `window` (not `parent`), matches PneumaticATC's convention.
+      removeTooltip();
       window.postMessage({ type: 'close-plugin-dialog' }, '*');
     });
   }
@@ -2925,9 +2926,18 @@
     tooltip.appendChild(arrow);
     return tooltip;
   }
-  var _tooltip = null;
+  // The bubble lives on the host page's body (the dialog may be
+  // transformed, which would break position: fixed inside it), so it is
+  // taken down explicitly: after a few seconds, on any edit in the
+  // dialog, on Generate, and when the dialog goes away.
+  var _tooltip = null, _tooltipEl = null, _tooltipTimer = null;
   function showTooltip(el, message) {
     if (!_tooltip) _tooltip = createTooltip();
+    if (_tooltipEl && _tooltipEl !== el) _tooltipEl.style.borderColor = '';
+    _tooltipEl = el;
+    clearTimeout(_tooltipTimer);
+    _tooltipTimer = setTimeout(hideTooltip, 5000);
+    watchTooltipRoot();
     // Focus first: it scrolls the field into view, and the bubble must be
     // placed from the field's position AFTER that scroll, or it lands
     // off-screen or over an unrelated field.
@@ -2945,9 +2955,28 @@
     el.style.borderColor = '#d32f2f';
   }
   function hideTooltip() {
+    clearTimeout(_tooltipTimer);
+    if (_tooltipEl) { _tooltipEl.style.borderColor = ''; _tooltipEl = null; }
     if (!_tooltip) return;
     _tooltip.style.opacity = '0';
     setTimeout(function() { if (_tooltip) _tooltip.style.left = '-9999px'; }, 200);
+  }
+  function removeTooltip() {
+    hideTooltip();
+    if (_tooltip && _tooltip.parentNode) _tooltip.parentNode.removeChild(_tooltip);
+    _tooltip = null;
+  }
+  // Closing the dialog (Close, Esc, Generate, the host's own X) removes
+  // ROOT from the page; the bubble goes with it.
+  var _tooltipWatch = null;
+  function watchTooltipRoot() {
+    if (_tooltipWatch) return;
+    _tooltipWatch = setInterval(function() {
+      if (rootAlive() && _tooltip) return;
+      if (!rootAlive()) removeTooltip();
+      clearInterval(_tooltipWatch);
+      _tooltipWatch = null;
+    }, 500);
   }
 
   function validationRules() {
@@ -3318,6 +3347,8 @@
     return true;
   }
   function wireValidation() {
+    // Any edit (a select too, e.g. a cut type that resolves the problem) clears it.
+    ROOT.addEventListener('change', hideTooltip);
     var rules = validationRules();
     for (var id in rules) {
       (function(fieldId) {
@@ -4534,6 +4565,7 @@
     // Show the tap registered: the dialog closes when this resolves, but
     // the load (and a File Manager save) can take a moment. Put back if
     // anything fails and the dialog stays open.
+    removeTooltip();
     var btn = document.querySelector('.qc-content.active [id$="-generate"]');
     var label = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
