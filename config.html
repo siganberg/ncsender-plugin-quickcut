@@ -5122,6 +5122,49 @@
   // still probed once (a 404 is quick) so a listing that looks different
   // can never cause an overwrite; if it's taken after all, the probing
   // carries on from there as before.
+  // A name that says what the program is, like the BoxJoints plugin's:
+  // QuickCut-<Shape>, the main sizes as short tags, the depth, the cut
+  // type and any pattern, then the units. Values are as shown in the form.
+  // e.g. QuickCut-Rectangle_W-120_H-80_R-6_D-6_Outer_P-3x2_mm.nc
+  var CUT_TAGS = { inner: 'Inner', outer: 'Outer', clearing: 'Pocket', center: 'Center' };
+  function programFileName(params) {
+    var n = function(v) { return String(parseFloat(Number(v || 0).toFixed(3))); };
+    var tags = [];
+    var pat = params.pattern;
+    switch (params.shape) {
+      case 'rectangle':
+        tags.push('W-' + n(params.width), 'H-' + n(params.height));
+        if (params.cornerRadius > 0) tags.push('R-' + n(params.cornerRadius));
+        break;
+      case 'circle': tags.push('Dia-' + n(params.diameter)); break;
+      case 'polygon': tags.push('N-' + params.sides, 'Dia-' + n(params.diameter)); break;
+      case 'slot':
+        if (pat && pat.enabled && pat.style === 'grid' && params.slotType !== 'arc') {
+          tags.push('Grid-' + pat.xCount + 'x' + pat.yCount, 'Sp-' + n(pat.xDist) + 'x' + n(pat.yDist));
+          pat = null;
+        } else if (params.slotType === 'arc') {
+          tags.push(params.arcMode === 'chord' ? 'C-' + n(params.chord) : 'R-' + n(params.radius),
+                    params.arcMode === 'chord' ? 'Rise-' + n(params.rise) : 'Sweep-' + n(params.sweepDeg));
+        } else {
+          tags.push('L-' + n(params.length));
+        }
+        if (params.cutType !== 'center') tags.push('W-' + n(params.width));
+        break;
+      case 'keyhole': tags.push('L-' + n(params.slotLength)); break;
+      case 'planer': tags.push('W-' + n(params.width), 'H-' + n(params.height)); pat = null; break;
+      case 'jointer': tags.push('L-' + n(params.length)); break;
+      case 'cutter': tags.push('T-' + n(params.targetSize)); break;
+    }
+    tags.push('D-' + n(params.depth));
+    if (CUT_TAGS[params.cutType]) tags.push(CUT_TAGS[params.cutType]);
+    if (pat && pat.enabled) {
+      tags.push(/^circular/.test(pat.style) ? 'P-' + pat.count : 'P-' + pat.xCount + 'x' + pat.yCount);
+    }
+    tags.push(state.isImperial ? 'in' : 'mm');
+    var shapeName = params.shape.charAt(0).toUpperCase() + params.shape.slice(1);
+    return 'QuickCut-' + shapeName + '_' + tags.join('_') + '.nc';
+  }
+
   function savePathFor(filename, n) {
     var dot = filename.lastIndexOf('.');
     var stem = dot > 0 ? filename.slice(0, dot) : filename;
@@ -5189,7 +5232,7 @@
       var gcode = gen.generateRectangleProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Rectangle.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -5220,7 +5263,7 @@
       var gcode = gen.generatePlanerProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Planer.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
       } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
@@ -5262,7 +5305,7 @@
       var gcode = gen.generateCutterProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Cutter.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
       } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
@@ -5297,7 +5340,7 @@
       var gcode = gen.generateJointerProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Jointer.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
       } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
@@ -5325,7 +5368,7 @@
       var gcode = gen.generateCircleProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Circle.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -6311,7 +6354,7 @@
       var gcode = gen.generateKeyholeProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Keyhole.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -6445,7 +6488,7 @@
       var gcode = gen.generateDrillProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Drill.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -6610,7 +6653,7 @@
       var gcode = gen.generatePolygonProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Polygon.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -6840,7 +6883,7 @@
       var gcode = gen.generateSlotProgram(params);
       gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Slot.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');

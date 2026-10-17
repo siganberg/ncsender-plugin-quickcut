@@ -223,7 +223,7 @@ Every program QuickCut generates ends with its settings: a few comment lines aft
 
 **Load**, beside **Save to File Manager** at the top right of each tab, lists the programs in File Manager › QuickCut, newest first, with a filter box. Pick one and QuickCut switches to that program's tab and fills it with the values it was made with: shape, depths, tool, origin and inset, holding tabs, pattern, spindle and coolant. Nothing is generated or run; check the values (your bit may differ) and press Generate.
 
-- Turn on **Save to File Manager** so generated programs are kept there to Load later.
+- Turn on **Save to File Manager** so generated programs are kept there to Load later. Each is named after what it cuts, like the BoxJoints plugin's files: the shape, its main sizes as short tags, the depth, the cut type, any pattern, and the units, e.g. `QuickCut-Rectangle_W-120_H-80_R-6_D-6_Outer_P-3x2_mm.nc` or `QuickCut-Slot_Grid-4x3_Sp-20x30_D-2_Center_mm.nc`. A name that's already taken gets " (2)", " (3)" and so on.
 - To share a setup, share the program file: anyone who puts it in their File Manager › QuickCut folder can Load its settings, change what they need, and regenerate.
 - Programs made before this feature, or by other software, have no settings and say so.
 - The settings are stored in mm, so a program made in inches loads correctly in metric and the other way round.
