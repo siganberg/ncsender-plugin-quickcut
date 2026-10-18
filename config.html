@@ -694,6 +694,9 @@
   /* Origin above Inset, in their own column just left of the preview,
      each label centred over its control. */
   .qc-inset-field { width: 84px; }
+  /* Planer: the Origin picker sits centred under the preview. */
+  .qc-plan-side { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .qc-plan-side .qc-field { align-items: center; }
   .qc-shape-grid.qc-shape-grid--origin { grid-template-columns: minmax(0, 1fr) auto auto; }
   .qc-origin-stack { display: flex; flex-direction: column; gap: 12px; }
   .qc-origin-stack .qc-field { align-items: center; }
@@ -2599,10 +2602,6 @@
                 </div>
                 <div class="qc-row-3">
                   <div class="qc-field">
-                    <label>Origin</label>
-                    <div id="qc-plan-origin-picker"></div>
-                  </div>
-                  <div class="qc-field">
                     <label for="qc-plan-pattern">Pattern</label>
                     <select class="qc-select" id="qc-plan-pattern" title="Path the bit follows: back-and-forth rows running along Y or X, or a spiral from the outside in.">
                       <option value="zigzagY" selected>Zigzag (long-Y)</option>
@@ -2616,8 +2615,14 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
-                <svg id="qc-plan-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+              <div class="qc-plan-side">
+                <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
+                  <svg id="qc-plan-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                </div>
+                <div class="qc-field">
+                  <label>Origin</label>
+                  <div id="qc-plan-origin-picker"></div>
+                </div>
               </div>
             </div>
           </div>
