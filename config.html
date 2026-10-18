@@ -1416,22 +1416,22 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-rpm">Spindle RPM</label>
-                <input class="qc-input" type="number" id="qc-rpm" min="0" max="24000" step="100" value="15000">
+                <input class="qc-input" type="number" id="qc-rpm" min="0" max="24000" step="100" value="15000" title="Spindle speed. The spindle starts before the cut and stops at the end.">
               </div>
               <div class="qc-field">
                 <label for="qc-delay">Delay (s)</label>
-                <input class="qc-input" type="number" id="qc-delay" min="0" max="30" step="1" value="1">
+                <input class="qc-input" type="number" id="qc-delay" min="0" max="30" step="1" value="1" title="Seconds to wait after starting the spindle, so it reaches speed before cutting.">
               </div>
             </div>
             <div class="qc-coolant-toggles">
-              <label class="qc-switch-label">
+              <label class="qc-switch-label" title="Turns on mist coolant (M7) while cutting.">
                 <span>Mist (M7)</span>
                 <span class="qc-switch">
                   <input type="checkbox" id="qc-mist">
                   <span class="qc-switch-track"></span>
                 </span>
               </label>
-              <label class="qc-switch-label">
+              <label class="qc-switch-label" title="Turns on flood coolant (M8) while cutting.">
                 <span>Flood (M8)</span>
                 <span class="qc-switch">
                   <input type="checkbox" id="qc-flood">
@@ -1466,7 +1466,7 @@
                 <div class="qc-row-3 qc-rect-type-row">
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
-                    <select class="qc-select" id="qc-rect-cut-type">
+                    <select class="qc-select" id="qc-rect-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
                       <option value="inner">Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
                       <option value="outer" selected>Outer (part)</option>
@@ -1490,7 +1490,7 @@
                 <div class="qc-row-3">
                   <div class="qc-field qc-rect-clearing-only" style="display: none;">
                     <label for="qc-rect-stepover">Stepover (% of bit)</label>
-                    <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40">
+                    <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                 </div>
               </div>
@@ -1522,7 +1522,7 @@
               <div class="qc-row-3" id="qc-rect-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-rect-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-rect-tabs-count" min="1" max="24" step="1" value="4">
+                  <input class="qc-input" type="number" id="qc-rect-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-rect-tabs-width">Tab Width</label>
@@ -1549,7 +1549,7 @@
               <div class="qc-row-3 qc-pattern-top-row">
                 <div class="qc-field">
                   <label for="qc-rect-pattern-style">Pattern Style</label>
-                  <select class="qc-select" id="qc-rect-pattern-style">
+                  <select class="qc-select" id="qc-rect-pattern-style" title="How the copies are laid out: in rows, a staggered honeycomb, or around a circle. Path Direction turns each copy to follow the circle.">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
@@ -1608,7 +1608,7 @@
                 <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-rect-pattern-count">Count</label>
-                    <input class="qc-input" type="number" id="qc-rect-pattern-count" min="2" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-rect-pattern-count" min="2" step="1" value="6" required title="How many copies around the circle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-pattern-radius">Radius</label>
@@ -1655,7 +1655,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
-                    <select class="qc-select" id="qc-circ-cut-type">
+                    <select class="qc-select" id="qc-circ-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
                       <option value="inner">Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
                       <option value="outer" selected>Outer (part)</option>
@@ -1675,7 +1675,7 @@
                   </div>
                   <div class="qc-field qc-circ-clearing-only" style="display: none;">
                     <label for="qc-circ-stepover">Stepover (% of bit)</label>
-                    <input class="qc-input" type="number" id="qc-circ-stepover" min="1" max="90" step="1" value="40">
+                    <input class="qc-input" type="number" id="qc-circ-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                 </div>
               </div>
@@ -1707,7 +1707,7 @@
               <div class="qc-row-3" id="qc-circ-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-circ-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-circ-tabs-count" min="1" max="24" step="1" value="4">
+                  <input class="qc-input" type="number" id="qc-circ-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-circ-tabs-width">Tab Width</label>
@@ -1734,7 +1734,7 @@
               <div class="qc-row-3 qc-pattern-top-row">
                 <div class="qc-field">
                   <label for="qc-circ-pattern-style">Pattern Style</label>
-                  <select class="qc-select" id="qc-circ-pattern-style">
+                  <select class="qc-select" id="qc-circ-pattern-style" title="How the copies are laid out: in rows, a staggered honeycomb, or around a circle. Path Direction turns each copy to follow the circle.">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular</option>
@@ -1785,7 +1785,7 @@
                 <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-circ-pattern-count">Count</label>
-                    <input class="qc-input" type="number" id="qc-circ-pattern-count" min="2" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-circ-pattern-count" min="2" step="1" value="6" required title="How many copies around the circle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-pattern-radius">Radius</label>
@@ -1830,7 +1830,7 @@
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-poly-sides">Sides</label>
-                    <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required title="Number of sides: 3 for a triangle, 6 for a hexagon.">
                   </div>
                   <div class="qc-field">
                     <select class="qc-label-select" id="qc-poly-size-mode" aria-label="Size measured" title="What the size measures: across the corners (the circle the corners sit on), across the flats (between opposite sides; e.g. a hex pocket for a nut), or the length of one edge. Changing it converts the number so the polygon stays the same.">
@@ -1848,7 +1848,7 @@
                 <div class="qc-row-3 qc-rect-type-row qc-poly-origin-row">
                   <div class="qc-field">
                     <label for="qc-poly-cut-type">Cut Type</label>
-                    <select class="qc-select" id="qc-poly-cut-type">
+                    <select class="qc-select" id="qc-poly-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
                       <option value="inner">Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
                       <option value="outer" selected>Outer (part)</option>
@@ -1872,7 +1872,7 @@
                 <div class="qc-row-3">
                   <div class="qc-field qc-poly-clearing-only" style="display: none;">
                     <label for="qc-poly-stepover">Stepover (% of bit)</label>
-                    <input class="qc-input" type="number" id="qc-poly-stepover" min="1" max="90" step="1" value="40">
+                    <input class="qc-input" type="number" id="qc-poly-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                 </div>
               </div>
@@ -1904,7 +1904,7 @@
               <div class="qc-row-3" id="qc-poly-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-poly-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-poly-tabs-count" min="1" max="24" step="1" value="4">
+                  <input class="qc-input" type="number" id="qc-poly-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-poly-tabs-width">Tab Width</label>
@@ -1931,7 +1931,7 @@
               <div class="qc-row-3 qc-pattern-top-row">
                 <div class="qc-field">
                   <label for="qc-poly-pattern-style">Pattern Style</label>
-                  <select class="qc-select" id="qc-poly-pattern-style">
+                  <select class="qc-select" id="qc-poly-pattern-style" title="How the copies are laid out: in rows, a staggered honeycomb, or around a circle. Path Direction turns each copy to follow the circle.">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
@@ -1990,7 +1990,7 @@
                 <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-poly-pattern-count">Count</label>
-                    <input class="qc-input" type="number" id="qc-poly-pattern-count" min="2" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-poly-pattern-count" min="2" step="1" value="6" required title="How many copies around the circle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-pattern-radius">Radius</label>
@@ -2033,14 +2033,14 @@
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-slt-type">Slot Type</label>
-                    <select class="qc-select" id="qc-slt-type">
+                    <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc.">
                       <option value="straight" selected>Straight</option>
                       <option value="arc">Arc</option>
                     </select>
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-cut-type">Cut Type</label>
-                    <select class="qc-select" id="qc-slt-cut-type">
+                    <select class="qc-select" id="qc-slt-cut-type" title="Center line runs the bit once down the middle, so the slot is the bit's width. Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
                       <option value="center">Center line</option>
                       <option value="inner" selected>Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
@@ -2100,7 +2100,7 @@
                   </div>
                   <div class="qc-field qc-slt-clearing-only" style="display: none;">
                     <label for="qc-slt-stepover">Stepover (% of bit)</label>
-                    <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40">
+                    <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                   <div class="qc-field qc-origin-inset-field">
                     <div class="qc-origin-col">
@@ -2142,7 +2142,7 @@
               <div class="qc-row-3" id="qc-slt-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-slt-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4">
+                  <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-slt-tabs-width">Tab Width</label>
@@ -2169,7 +2169,7 @@
               <div class="qc-row-3 qc-pattern-top-row">
                 <div class="qc-field">
                   <label for="qc-slt-pattern-style">Pattern Style</label>
-                  <select class="qc-select" id="qc-slt-pattern-style">
+                  <select class="qc-select" id="qc-slt-pattern-style" title="How the copies are laid out: in rows, a grid of crossing lines, a staggered honeycomb, or around a circle. Path Direction turns each copy to follow the circle.">
                     <option value="linear" selected>Linear</option>
                     <option value="grid">Grid</option>
                     <option value="honeycomb">Honeycomb</option>
@@ -2229,7 +2229,7 @@
                 <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-slt-pattern-count">Count</label>
-                    <input class="qc-input" type="number" id="qc-slt-pattern-count" min="2" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-count" min="2" step="1" value="6" required title="How many copies around the circle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-pattern-radius">Radius</label>
@@ -2325,7 +2325,7 @@
               <div class="qc-row-3 qc-pattern-top-row">
                 <div class="qc-field">
                   <label for="qc-key-pattern-style">Pattern Style</label>
-                  <select class="qc-select" id="qc-key-pattern-style">
+                  <select class="qc-select" id="qc-key-pattern-style" title="How the copies are laid out: in rows, a staggered honeycomb, or around a circle. Path Direction turns each copy to follow the circle.">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular (Identical)</option>
@@ -2384,7 +2384,7 @@
                 <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-key-pattern-count">Count</label>
-                    <input class="qc-input" type="number" id="qc-key-pattern-count" min="2" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-key-pattern-count" min="2" step="1" value="6" required title="How many copies around the circle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-key-pattern-radius">Radius</label>
@@ -2436,14 +2436,14 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-drl-peck-mode">Peck Retract</label>
-                    <select class="qc-select" id="qc-drl-peck-mode">
+                    <select class="qc-select" id="qc-drl-peck-mode" title="Full lifts the bit out of the hole after each peck to clear chips. Short backs off a little to break them, which is faster.">
                       <option value="clear" selected>Full (clear chips)</option>
                       <option value="break">Short (break chips)</option>
                     </select>
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-dwell">Dwell at Bottom (s)</label>
-                    <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0">
+                    <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0" title="Seconds to pause at the bottom of each hole to clean up its floor.">
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -2481,7 +2481,7 @@
               <div class="qc-row-3 qc-pattern-top-row">
                 <div class="qc-field">
                   <label for="qc-drl-pattern-style">Pattern Style</label>
-                  <select class="qc-select" id="qc-drl-pattern-style">
+                  <select class="qc-select" id="qc-drl-pattern-style" title="How the holes are laid out: in rows, a staggered honeycomb, or around a circle.">
                     <option value="linear" selected>Linear</option>
                     <option value="honeycomb">Honeycomb</option>
                     <option value="circular">Circular</option>
@@ -2532,7 +2532,7 @@
                 <div class="qc-row-4 qc-pattern-axis-row">
                   <div class="qc-field">
                     <label for="qc-drl-pattern-count">Count</label>
-                    <input class="qc-input" type="number" id="qc-drl-pattern-count" min="2" step="1" value="6" required>
+                    <input class="qc-input" type="number" id="qc-drl-pattern-count" min="2" step="1" value="6" required title="How many holes around the circle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-pattern-radius">Radius</label>
@@ -2573,7 +2573,7 @@
                 <div class="qc-row-3 qc-plan-mode-row">
                   <div class="qc-field">
                     <label for="qc-plan-mode">Mode</label>
-                    <select class="qc-select" id="qc-plan-mode">
+                    <select class="qc-select" id="qc-plan-mode" title="Target Depth surfaces down from Z0 on top of the stock. Target Thickness leaves a set thickness above the wasteboard. Wasteboard Surfacing flattens the whole machine bed.">
                       <option value="depth" selected>Target Depth</option>
                       <option value="thickness">Target Thickness</option>
                       <option value="wasteboard">Wasteboard Surfacing</option>
@@ -2606,7 +2606,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-plan-pattern">Pattern</label>
-                    <select class="qc-select" id="qc-plan-pattern">
+                    <select class="qc-select" id="qc-plan-pattern" title="Path the bit follows: back-and-forth rows running along Y or X, or a spiral from the outside in.">
                       <option value="zigzagY" selected>Zigzag (long-Y)</option>
                       <option value="zigzagX">Zigzag (long-X)</option>
                       <option value="spiral">Spiral (outside-in)</option>
@@ -2614,7 +2614,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-plan-stepover">Stepover (% of bit)</label>
-                    <input class="qc-input" type="number" id="qc-plan-stepover" min="10" max="100" step="1" value="40">
+                    <input class="qc-input" type="number" id="qc-plan-stepover" min="10" max="100" step="1" value="40" title="Distance between neighbouring passes, as a % of the bit diameter. Lower overlaps more for a smoother surface.">
                   </div>
                 </div>
               </div>
@@ -2669,7 +2669,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-trims">Number of Trims</label>
-                    <input class="qc-input" type="number" id="qc-join-trims" min="1" max="50" step="1" value="3" required>
+                    <input class="qc-input" type="number" id="qc-join-trims" min="1" max="50" step="1" value="3" required title="How many trims to take. Each removes Trim Width.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-overrun">Overrun</label>
@@ -2679,14 +2679,14 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-join-axis">Trim Axis</label>
-                    <select class="qc-select" id="qc-join-axis">
+                    <select class="qc-select" id="qc-join-axis" title="Axis the edge runs along. The bit travels along it.">
                       <option value="x" selected>X-axis</option>
                       <option value="y">Y-axis</option>
                     </select>
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-direction">Cut Direction</label>
-                    <select class="qc-select" id="qc-join-direction">
+                    <select class="qc-select" id="qc-join-direction" title="Conventional feeds toward +axis and is gentler on lighter machines. Climb feeds the other way and can leave a cleaner edge.">
                       <option value="conventional" selected>Conventional</option>
                       <option value="climb">Climb</option>
                     </select>
@@ -2759,14 +2759,14 @@
                 </div>
                 <div class="qc-field">
                   <label for="qc-cut-axis">Cut Axis</label>
-                  <select class="qc-select" id="qc-cut-axis">
+                  <select class="qc-select" id="qc-cut-axis" title="Axis the bit travels along. The cut line runs parallel to it.">
                     <option value="x" selected>X-axis</option>
                     <option value="y">Y-axis</option>
                   </select>
                 </div>
                 <div class="qc-field">
                   <label for="qc-cut-direction">Cut Direction</label>
-                  <select class="qc-select" id="qc-cut-direction">
+                  <select class="qc-select" id="qc-cut-direction" title="Conventional feeds toward +axis and is gentler on lighter machines. Climb feeds the other way and can leave a cleaner edge.">
                     <option value="conventional" selected>Conventional</option>
                     <option value="climb">Climb</option>
                   </select>
@@ -3612,7 +3612,8 @@
       hide();
       var el = ev.target;
       if (lastPointer === 'mouse' || !el.matches || !el.matches('input, select, textarea')) return;
-      var text = el.getAttribute('title');
+      var holder = el.closest('[title]');
+      var text = holder && ROOT.contains(holder) ? holder.getAttribute('title') : '';
       if (!text || el.disabled) return;
       timer = setTimeout(function() {
         if (!rootAlive() || document.activeElement !== el || el.classList.contains('qc-input-error')) return;
@@ -4591,7 +4592,7 @@
   // label's tooltip so the narrow columns don't wrap.
   var PATTERN_TITLES = {
     axis:   { 'x-dist': 'Center-to-center between copies along X', 'y-dist': 'Center-to-center between copies along Y',
-              'x-count': '', 'y-count': '' },
+              'x-count': 'Number of copies along X', 'y-count': 'Number of copies along Y' },
     angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
               'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' },
     grid: { 'x-dist': 'Center-to-center between columns', 'y-dist': 'Center-to-center between rows',
@@ -4645,7 +4646,7 @@
         var gap = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
         labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
       }
-      if (/-dist$/.test(key)) $(labels[i].getAttribute('for')).title = labels[i].title;
+      $(labels[i].getAttribute('for')).title = labels[i].title;
     }
     // The Rotate switch only means something for an angled grid (Grid's
     // lines always turn with it); the Angle field is hidden for Circular.
@@ -7383,7 +7384,7 @@
   }
 
   // The tooltips in one part of the page, grouped by card. Skips the
-  // pattern labels' and spacing fields' angle-dependent tooltips.
+  // pattern labels' and count / spacing fields' angle-dependent tooltips.
   function collectHelpTips(root) {
     var groups = [];
     var cards = root.querySelectorAll('.qc-card, .qc-header-card');
@@ -7397,7 +7398,7 @@
       var seen = {}, tips = [];
       card.querySelectorAll('[title]').forEach(function(el) {
         var tip = el.getAttribute('title');
-        if (!tip || el.hasAttribute('data-pattern-label') || /-pattern-[xy]-dist$/.test(el.id)) return;
+        if (!tip || el.hasAttribute('data-pattern-label') || /-pattern-[xy]-(count|dist)$/.test(el.id)) return;
         var name = helpTipName(el, title);
         if (seen[name + tip]) return;
         seen[name + tip] = true;
