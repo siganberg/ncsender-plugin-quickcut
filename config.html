@@ -7203,7 +7203,7 @@
     updateClearingVisibility('slt');
   }
 
-  var slotPreviewNodes = null, slotSnapFrame = null;
+  var slotPreviewNodes = null, slotSnapFrame = null, slotZoomFrame = null;
   // What a tap on the Slot preview picks. Beside a straight slot, a band
   // outside each long side snaps to that side's points (its middle third
   // to the side's middle, the end thirds to its corners), since on a thin
@@ -7211,6 +7211,17 @@
   // nearest point as usual.
   var SLOT_SNAP_BAND = 14;
   function slotPickAt(pt) {
+    // Inside the magnified view (slotOriginZoom) the same points are
+    // tappable at its scale; a tap there that misses them does nothing.
+    var zf = slotZoomFrame;
+    if (zf && pt && Math.abs(pt.x - zf.cx) <= zf.size / 2 && Math.abs(pt.y - zf.cy) <= zf.size / 2) {
+      var hit = null, hitD = 6;
+      (slotPreviewNodes || []).forEach(function(nd) {
+        var dz = Math.hypot(zf.cx + (nd.x - zf.ox) * zf.z - pt.x, zf.cy + (nd.y - zf.oy) * zf.z - pt.y);
+        if (dz < hitD) { hitD = dz; hit = nd; }
+      });
+      return hit || { inZoom: true };
+    }
     var fr = slotSnapFrame;
     if (fr && pt) {
       var dx = pt.x - fr.mx, dy = pt.y - fr.my;
@@ -7244,6 +7255,7 @@
     var cl = gen.slotCenterline(params);
     slotPreviewNodes = null;
     slotSnapFrame = null;
+    slotZoomFrame = null;
     if (!isFinite(half) || gen.slotProblem(params, cl, half)) {
       svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="3" text-anchor="middle">?</text>';
       return;
@@ -7352,6 +7364,7 @@
   // width, all in preview units.
   var SLOT_ZOOM_SIZE = 32;
   function slotOriginZoom(ox, oy, d, ax, ay, bx, by, h) {
+    slotZoomFrame = null;
     if (!/^corner:[3-8]$/.test($('qc-slt-origin').value) || !isFinite(ox) || !isFinite(oy)) return '';
     var size = SLOT_ZOOM_SIZE, edge = 50 - 2 - size / 2;
     function distToLine(x, y) {
@@ -7369,6 +7382,7 @@
     var z = Math.max(2, Math.min(12, size / 3 / Math.max(2 * h, 1e-6)));
     var f = function(v) { return v.toFixed(2); };
     var x0 = best.x - size / 2, y0 = best.y - size / 2;
+    slotZoomFrame = { cx: best.x, cy: best.y, size: size, z: z, ox: ox, oy: oy };
     var box = 'x="' + f(x0) + '" y="' + f(y0) + '" width="' + size + '" height="' + size + '" rx="2"';
     return '<defs><clipPath id="qc-slt-zoomclip"><rect ' + box + '/></clipPath></defs>' +
       '<rect class="qc-slt-zoom-frame" ' + box + '/>' +
@@ -7394,6 +7408,7 @@
       var picked = slotPickAt(pt);
       if (!picked) return;
       markPreviewPick();
+      if (picked.inZoom) return;
       setOriginPickerValue('qc-slt-origin', picked.value);
       updateSlotPreview();
     }, function() {
@@ -7401,7 +7416,7 @@
       var arcByRadius = $('qc-slt-type').value === 'arc' && $('qc-slt-arc-mode').value !== 'chord';
       return arcByRadius ? num('qc-slt-sweep', 0) / 2 : 0;
     }, snapMiterAngle);
-    wirePickCursor($('qc-slt-preview'), function(pt) { return !!slotPickAt(pt); });
+    wirePickCursor($('qc-slt-preview'), function(pt) { var p = slotPickAt(pt); return !!p && !p.inZoom; });
     $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
     $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
     $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
@@ -7490,7 +7505,7 @@
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
-      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
