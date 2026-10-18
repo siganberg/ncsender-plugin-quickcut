@@ -1720,6 +1720,64 @@ test('origin on a picked corner or the polygon center', () => {
   assert.deepEqual(xy(tri({ origin: 'corner:5' })), xy(tri({ origin: 'center' })));
 });
 
+test('origin inset: the cut moves inward from a corner or edge origin, never for center or a picked point', () => {
+  const g = makeQuickCutGenerator(false);
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  const ext = (pts) => ({ minX: Math.min(...pts.map(q => q[0])), maxX: Math.max(...pts.map(q => q[0])), minY: Math.min(...pts.map(q => q[1])), maxY: Math.max(...pts.map(q => q[1])) });
+  const rect = (o) => g.generateRectangleProgram(baseParams(Object.assign({ width: 50, height: 30, cutType: 'outer', bitDiameter: 6 }, o)));
+  // Inset 0 is today's output.
+  for (const origin of ['front-left', 'center', 'back-center']) {
+    assert.equal(rect({ origin, inset: 0 }), rect({ origin }), origin);
+  }
+  // Front-left, inset 10: the part's box starts at X10 Y10, so the outer
+  // tool path (3 out) starts at 7.
+  let e = ext(xy(rect({ origin: 'front-left', inset: 10 })));
+  assert.ok(Math.abs(e.minX - 7) < 1e-3 && Math.abs(e.minY - 7) < 1e-3, JSON.stringify(e));
+  assert.match(rect({ origin: 'front-left', inset: 10 }), /\(Origin: front-left, inset 10mm\)/);
+  // Back-right: inward is -X and -Y.
+  e = ext(xy(rect({ origin: 'back-right', inset: 10 })));
+  assert.ok(Math.abs(e.maxX + 7) < 1e-3 && Math.abs(e.maxY + 7) < 1e-3, JSON.stringify(e));
+  // Front-center: only Y moves; X stays centred.
+  e = ext(xy(rect({ origin: 'front-center', inset: 10 })));
+  assert.ok(Math.abs(e.minX + 28) < 1e-3 && Math.abs(e.maxX - 28) < 1e-3 && Math.abs(e.minY - 7) < 1e-3, JSON.stringify(e));
+  // Left-center: only X.
+  e = ext(xy(rect({ origin: 'left-center', inset: 10 })));
+  assert.ok(Math.abs(e.minX - 7) < 1e-3 && Math.abs(e.minY + 18) < 1e-3, JSON.stringify(e));
+  // Center and a picked corner ignore it (and say nothing about it).
+  assert.equal(rect({ origin: 'center', inset: 10 }), rect({ origin: 'center' }));
+  assert.equal(rect({ origin: 'corner:1', inset: 10 }), rect({ origin: 'corner:1' }));
+  // Juice groove: 300 x 200 board, groove 10 in from the edges = a 280 x 180
+  // Inner (perimeter) groove centreline box... with a 6 mm bit, Inner keeps
+  // the tool 3 inside: path from X13 Y13.
+  e = ext(xy(rect({ width: 280, height: 180, cutType: 'inner', origin: 'front-left', inset: 10 })));
+  assert.ok(Math.abs(e.minX - 13) < 1e-3 && Math.abs(e.maxX - 287) < 1e-3, JSON.stringify(e));
+});
+
+test('origin inset on Circle, Polygon, Drill and Keyhole', () => {
+  const g = makeQuickCutGenerator(false);
+  const xy = (gcode) => [...gcode.matchAll(/^G[0123] X(-?[\d.]+) Y(-?[\d.]+)/mg)].map(m => [+m[1], +m[2]]);
+  // Circle D25 outer, bit 6 (path radius 15.5), back-right inset 5: centre
+  // at (-17.5, -17.5); the start point (rightmost) at X -2.
+  const circ = g.generateCircleProgram(baseParams({ diameter: 25, cutType: 'outer', bitDiameter: 6, origin: 'back-right', inset: 5 }));
+  assert.ok(xy(circ).some(q => Math.abs(q[0] + 2) < 1e-3 && Math.abs(q[1] + 17.5) < 1e-3), JSON.stringify(xy(circ).slice(0, 4)));
+  assert.match(circ, /\(Origin: back-right, inset 5mm\)/);
+  // Polygon box shifts the same way as with no inset, plus the inset.
+  const poly = (o) => xy(g.generatePolygonProgram(baseParams(Object.assign({ sides: 6, diameter: 40, cutType: 'outer', bitDiameter: 2, origin: 'front-left' }, o))));
+  const a = poly({}), b = poly({ inset: 4 });
+  assert.ok(a.every((q, i) => Math.abs(b[i][0] - q[0] - 4) < 1e-3 && Math.abs(b[i][1] - q[1] - 4) < 1e-3));
+  // Drill: first hole a bit radius plus the inset in from X0 Y0.
+  const drill = g.generateDrillProgram(drillBase({ origin: 'front-left', inset: 4, pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 2, xDist: 20, yDist: 20 } }));
+  assert.match(drill, /^G0 X6\.500 Y6\.500$/m);
+  assert.match(drill, /\(Origin: front-left, inset 4mm\)/);
+  // A picked hole ignores it.
+  const picked = drillBase({ origin: 'hole:1,1', pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 2, xDist: 20, yDist: 20 } });
+  assert.equal(g.generateDrillProgram(Object.assign({}, picked, { inset: 4 })), g.generateDrillProgram(picked));
+  // Keyhole: box origins take it, the plunge hole doesn't.
+  const key = (o) => g.generateKeyholeProgram(Object.assign({ bitDiameter: 10, slotLength: 20, startAngleDeg: 90, depth: 8, feedRate: 300, plungeFeedRate: 100, spindleRpm: 1, spindleDelay: 0 }, o));
+  assert.equal(key({ origin: 'hole', inset: 5 }), key({ origin: 'hole' }));
+  assert.match(key({ origin: 'front-left', inset: 5 }), /^G0 X10\.000 Y10\.000$/m);
+});
+
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
   const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
@@ -1830,4 +1888,330 @@ test('keyhole origin anchors the bounding box of the cut footprint', () => {
   const br = extents('back-right', { pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 30, startAngle: 0 } });
   assert.ok(near(br.maxX, 0) && near(br.maxY, 0), JSON.stringify(br));
   assert.ok(near(br.minX, -69.5) && near(br.minY, -69.5), JSON.stringify(br));
+});
+
+// ---------- Slot ----------
+
+function slotBase(overrides) {
+  return Object.assign({
+    slotType: 'straight', length: 60, width: 10, angleDeg: 0,
+    cutType: 'inner', origin: 'center',
+    bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200,
+    spindleRpm: 15000, spindleDelay: 1,
+    mistM7: false, floodM8: false
+  }, overrides || {});
+}
+
+// Points every ~0.5 along the cutting moves (G1/G2/G3 in XY) at depth z,
+// with G2 turning clockwise and G3 counter-clockwise.
+function slotSamples(gcode, z) {
+  let pos = { x: 0, y: 0 }, cz = null;
+  const pts = [];
+  for (const raw of gcode.split('\n')) {
+    const line = raw.replace(/;.*$/, '').trim();
+    if (!/^G[0123]\b/.test(line) || /^G53/.test(line)) continue;
+    const zm = line.match(/Z(-?[\d.]+)/);
+    if (zm) cz = parseFloat(zm[1]);
+    const cutting = !/^G0\b/.test(line) && cz !== null && Math.abs(cz - z) < 1e-6;
+    if (/^G[23]\b/.test(line)) {
+      const a = parseArc(line), cw = /^G2\b/.test(line);
+      const cx = pos.x + a.i, cy = pos.y + a.j, r = Math.hypot(a.i, a.j);
+      const s0 = Math.atan2(pos.y - cy, pos.x - cx);
+      let sweep = Math.atan2(a.endY - cy, a.endX - cx) - s0;
+      if (cw) { if (sweep >= -1e-9) sweep -= 2 * Math.PI; } else if (sweep <= 1e-9) sweep += 2 * Math.PI;
+      const n = Math.max(2, Math.ceil(Math.abs(sweep) * r / 0.5));
+      if (cutting) for (let k = 0; k <= n; k++) pts.push({ x: cx + r * Math.cos(s0 + sweep * k / n), y: cy + r * Math.sin(s0 + sweep * k / n) });
+      pos = { x: a.endX, y: a.endY };
+      continue;
+    }
+    const next = parseXY(line, pos);
+    if (cutting) {
+      const n = Math.max(1, Math.ceil(Math.hypot(next.x - pos.x, next.y - pos.y) / 0.5));
+      for (let k = 0; k <= n; k++) pts.push({ x: pos.x + (next.x - pos.x) * k / n, y: pos.y + (next.y - pos.y) * k / n });
+    }
+    pos = next;
+  }
+  return pts;
+}
+
+// Distance from p to a segment, and to an arc of radius r about the origin
+// from a0 to a1 (radians, a1 > a0).
+function distToSegment(p, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.y - ay) * dy) / L)) : 0;
+  return Math.hypot(p.x - ax - t * dx, p.y - ay - t * dy);
+}
+function distToArc(p, r, a0, a1) {
+  let a = Math.atan2(p.y, p.x);
+  while (a < a0) a += 2 * Math.PI;
+  while (a > a0 + 2 * Math.PI) a -= 2 * Math.PI;
+  if (a <= a1) return Math.abs(Math.hypot(p.x, p.y) - r);
+  return Math.min(Math.hypot(p.x - r * Math.cos(a0), p.y - r * Math.sin(a0)),
+                  Math.hypot(p.x - r * Math.cos(a1), p.y - r * Math.sin(a1)));
+}
+
+test('straight slot: inner and outer paths sit a bit radius inside / outside the slot edge', () => {
+  const g = makeQuickCutGenerator(false);
+  // 60 long, 10 wide at 30°: centre line ±25 along the angle.
+  const t = Math.PI / 6, ex = 25 * Math.cos(t), ey = 25 * Math.sin(t);
+  for (const [cutType, d] of [['inner', 2], ['outer', 8]]) {
+    const pts = slotSamples(g.generateSlotProgram(slotBase({ angleDeg: 30, cutType })), -6);
+    assert.ok(pts.length > 100, cutType);
+    for (const p of pts) {
+      const dist = distToSegment(p, -ex, -ey, ex, ey);
+      assert.ok(Math.abs(dist - d) < 0.002, `${cutType}: ${dist} at ${p.x},${p.y}`);
+    }
+  }
+  assert.ok(maxArcRadiusDelta(g.generateSlotProgram(slotBase({ angleDeg: 30 }))) < GRBL_ARC_TOLERANCE_MM);
+});
+
+test('arc slot: radius/sweep and chord/rise describe the same slot', () => {
+  const g = makeQuickCutGenerator(false);
+  // Chord 80, rise 20: R = (1600 + 400) / 40 = 50, sweep = 4·atan(0.5).
+  const sweep = 4 * Math.atan(0.5) * 180 / Math.PI;
+  const viaChord = g.generateSlotProgram(slotBase({ slotType: 'arc', arcMode: 'chord', chord: 80, rise: 20, bulgeAngleDeg: 90 }));
+  const viaRadius = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 50, startAngleDeg: 90 - sweep / 2, sweepDeg: sweep }));
+  const body = (s) => s.split('\n').filter(l => /^G[0123] [XY]/.test(l)).join('\n');
+  assert.equal(body(viaChord), body(viaRadius));
+  assert.match(viaChord, /\(Arc: radius 50mm, from /);
+});
+
+test('arc slot: every path is a bit radius from the slot edge, inner arc cut with G2', () => {
+  const g = makeQuickCutGenerator(false);
+  const a0 = 30 * Math.PI / 180, a1 = 150 * Math.PI / 180;
+  for (const [cutType, d] of [['inner', 2], ['outer', 8]]) {
+    // origin 'shape-center' keeps the arc's centre at X0 Y0.
+    const gcode = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 40, startAngleDeg: 30, sweepDeg: 120, cutType, origin: 'shape-center' }));
+    assert.match(gcode, /^G2 /m);
+    assert.ok(maxArcRadiusDelta(gcode) < GRBL_ARC_TOLERANCE_MM);
+    const pts = slotSamples(gcode, -6);
+    for (const p of pts) {
+      const dist = distToArc(p, 40, a0, a1);
+      assert.ok(Math.abs(dist - d) < 0.002, `${cutType}: ${dist} at ${p.x},${p.y}`);
+    }
+  }
+  // A negative sweep is the same slot, clockwise from Start.
+  const neg = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 40, startAngleDeg: 150, sweepDeg: -120, origin: 'shape-center' }));
+  const pos = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 40, startAngleDeg: 30, sweepDeg: 120, origin: 'shape-center' }));
+  const body = (s) => s.split('\n').filter(l => /^G[0123] [XY]/.test(l)).join('\n');
+  assert.equal(body(neg), body(pos));
+});
+
+test('slot clearing stays inside the slot and reaches its edge', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const extra of [{ angleDeg: 0 }, { slotType: 'arc', radius: 40, startAngleDeg: 30, sweepDeg: 120 }]) {
+    const gcode = g.generateSlotProgram(slotBase(Object.assign({ cutType: 'clearing', width: 20, stepoverPct: 40, origin: 'shape-center' }, extra)));
+    const pts = slotSamples(gcode, -6);
+    const dist = extra.slotType ? (p) => distToArc(p, 40, Math.PI / 6, 5 * Math.PI / 6) : (p) => distToSegment(p, -20, 0, 20, 0);
+    const ds = pts.map(dist);
+    // The bit (radius 3) never crosses the slot edge (half width 10)...
+    assert.ok(Math.max(...ds) < 7 + 0.002, JSON.stringify(extra));
+    // ...the outer ring touches it, and the centre line is cut.
+    assert.ok(Math.max(...ds) > 7 - 0.002 && Math.min(...ds) < 0.002, JSON.stringify(extra));
+    // No ring is more than a stepover (2.4) from the next.
+    const sorted = [...new Set(ds.map(v => Math.round(v * 1000) / 1000))].sort((a, b) => a - b);
+    for (let k = 1; k < sorted.length; k++) assert.ok(sorted[k] - sorted[k - 1] <= 2.4 + 0.002, `gap ${sorted[k - 1]} → ${sorted[k]}`);
+  }
+});
+
+test('slot centre line: alternate direction each depth pass, slot is the bit width', () => {
+  const g = makeQuickCutGenerator(false);
+  // Overall length 60 with a 6 mm bit: the centre line runs ±27.
+  const gcode = g.generateSlotProgram(slotBase({ cutType: 'center', depth: 9 }));
+  const cuts = gcode.split('\n').filter(l => /^G1 X/.test(l));
+  assert.deepEqual(cuts.map(l => l.split(' ')[1]), ['X27.00000', 'X-27.00000', 'X27.00000']);
+  assert.match(gcode, /Width: 6mm \[the bit\]/);
+  const arc = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }));
+  assert.deepEqual(arc.split('\n').filter(l => /^G[23] /.test(l)).map(l => l.slice(0, 2)), ['G3', 'G2']);
+});
+
+test('slot origins: end centres, the arc centre and box corners', () => {
+  const g = makeQuickCutGenerator(false);
+  const first = (gcode) => { const m = gcode.match(/^G0 X(-?[\d.]+) Y(-?[\d.]+)/m); return [parseFloat(m[1]), parseFloat(m[2])]; };
+  const near = (a, b) => Math.abs(a[0] - b[0]) < 0.002 && Math.abs(a[1] - b[1]) < 0.002;
+  // Straight, origin at the first end centre: centre line runs 0..54 on X.
+  const s = slotBase({ cutType: 'center', origin: 'corner:1' });
+  assert.ok(near(first(g.generateSlotProgram(s)), [0, 0]), String(first(g.generateSlotProgram(s))));
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'corner:2' }))), [-54, 0]));
+  // Front-left: a centre-line cut is the bit's width (6), so the slot box is
+  // 56 × 6 and the centre line starts at 3, 3.
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'front-left' }))), [3, 3]));
+  // With an inset, the box corner sits that far in from X0 Y0.
+  assert.ok(near(first(g.generateSlotProgram(Object.assign({}, s, { origin: 'front-left', inset: 7 }))), [10, 10]));
+  // Arc slot, origin at the arc's centre: the path starts at radius 40 from 0,0.
+  const a = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90, origin: 'shape-center' }));
+  assert.ok(near(first(a), [40, 0]));
+});
+
+test('slot holding tabs, patterns and warnings', () => {
+  const g = makeQuickCutGenerator(false);
+  const tabbed = g.generateSlotProgram(slotBase({ cutType: 'outer', depth: 9, tabs: { count: 2, width: 4, height: 2 } }));
+  assert.match(tabbed, /; Tab/);
+  const lifts = tabbed.split('\n').filter(l => /^G1 Z-7\.000.*; Tab/.test(l));
+  assert.ok(lifts.length >= 2, tabbed);
+  const pat = g.generateSlotProgram(slotBase({ pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 80, yDist: 0 } }));
+  assert.equal((pat.match(/\(Instance /g) || []).length, 3);
+  for (const [extra, re] of [
+    [{ width: 6, cutType: 'inner' }, /no wider than the bit/],
+    [{ slotType: 'arc', radius: 4, startAngleDeg: 0, sweepDeg: 90 }, /as wide as its radius/],
+    [{ slotType: 'arc', radius: 20, startAngleDeg: 0, sweepDeg: 340 }, /ends would overlap/],
+    [{ slotType: 'arc', radius: 20, sweepDeg: 0 }, /missing or zero/]
+  ]) {
+    const out = g.generateSlotProgram(slotBase(extra));
+    assert.match(out, re);
+    assert.doesNotMatch(out, /^G1 /m);
+  }
+  // Imperial units in the header.
+  assert.match(makeQuickCutGenerator(true).generateSlotProgram(slotBase({ length: 2, width: 0.5, bitDiameter: 0.25, depth: 0.25, depthOfCut: 0.125 })), /length 2inch/);
+});
+
+test('arc slots: a Path Direction pattern of radius 0 makes a ring about the arc centre', () => {
+  const g = makeQuickCutGenerator(false);
+  const gcode = g.generateSlotProgram(slotBase({ cutType: 'center', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90, origin: 'shape-center',
+    pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 0, startAngle: 0, totalAngle: 360 } }));
+  const pts = slotSamples(gcode, -6);
+  assert.ok(pts.length > 100);
+  for (const p of pts) assert.ok(Math.abs(Math.hypot(p.x, p.y) - 40) < 0.002, `${p.x},${p.y}`);
+  // Every quarter of the ring is cut.
+  const quads = new Set(pts.map(p => Math.floor(((Math.atan2(p.y, p.x) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 2 + 1e-9))));
+  assert.equal(quads.size, 4);
+});
+
+test('negative inset moves the cut outward past a corner or edge origin', () => {
+  const g = makeQuickCutGenerator(false);
+  const firstXY = (gcode) => { const m = gcode.match(/^G0 X(-?[\d.]+) Y(-?[\d.]+)/m); return [parseFloat(m[1]), parseFloat(m[2])]; };
+  const base = baseParams({ origin: 'front-left' });
+  const a = firstXY(g.generateRectangleProgram(base));
+  const b = firstXY(g.generateRectangleProgram(Object.assign({}, base, { inset: -5 })));
+  assert.ok(Math.abs(b[0] - (a[0] - 5)) < 1e-6 && Math.abs(b[1] - (a[1] - 5)) < 1e-6, `${a} vs ${b}`);
+  assert.match(g.generateRectangleProgram(Object.assign({}, base, { inset: -5 })), /Origin: front-left, inset -5mm/);
+  // Still ignored at the center.
+  assert.equal(g.generateRectangleProgram(Object.assign({}, base, { origin: 'center', inset: -5 })),
+               g.generateRectangleProgram(Object.assign({}, base, { origin: 'center' })));
+});
+
+test('slot recipe: rounding a stock corner with a centre line and a negative inset', () => {
+  const g = makeQuickCutGenerator(false);
+  // 10 mm round, 6 mm bit: Radius 13, Sweep 90, inset -6, zeroed on the corner.
+  const R = 10, tr = 3;
+  for (const [origin, start, sx, sy] of [['front-left', 180, 1, 1], ['front-right', 270, -1, 1], ['back-right', 0, -1, -1], ['back-left', 90, 1, -1]]) {
+    const gcode = g.generateSlotProgram(slotBase({ slotType: 'arc', radius: R + tr, startAngleDeg: start, sweepDeg: 90,
+      cutType: 'center', origin, inset: -2 * tr, depth: 3, depthOfCut: 3 }));
+    const pts = slotSamples(gcode, -3);
+    assert.ok(pts.length > 20, origin);
+    const cx = sx * R, cy = sy * R;   // the rounded edge's centre, R in from both stock edges
+    for (const p of pts) assert.ok(Math.abs(Math.hypot(p.x - cx, p.y - cy) - (R + tr)) < 0.002, `${origin}: ${p.x},${p.y}`);
+    // The ends sit a bit radius outside the two stock edges (x = 0 and y = 0), level with the tangent points.
+    const ends = [pts[0], pts[pts.length - 1]];
+    const onX = ends.find(p => Math.abs(p.x + sx * tr) < 0.002), onY = ends.find(p => Math.abs(p.y + sy * tr) < 0.002);
+    assert.ok(onX && Math.abs(onX.y - cy) < 0.002 && onY && Math.abs(onY.x - cx) < 0.002, `${origin}: ${JSON.stringify(ends)}`);
+  }
+});
+
+// --- Grid (straight Slot lines) ------------------------------------------
+
+const gridSlot = (overrides) => Object.assign({
+  slotType: 'straight', length: 10, width: 6, angleDeg: 33, cutType: 'center', origin: 'center', bitDiameter: 6,
+  depth: 2, depthOfCut: 2, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1,
+  pattern: { enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 }
+}, overrides || {});
+const gridLines = (gcode) => {
+  const out = [];
+  let pos = { x: 0, y: 0 };
+  for (const line of gcode.split('\n')) {
+    if (/^G0 X/.test(line)) pos = parseXY(line, pos);
+    else if (/^G1 X/.test(line)) { const end = parseXY(line, pos); out.push([pos.x, pos.y, end.x, end.y]); pos = end; }
+  }
+  return out;
+};
+
+test('grid: rows span the columns and columns span the rows', () => {
+  const g = makeQuickCutGenerator(false);
+  const pts = g.computePatternPositions({ enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 });
+  assert.equal(pts.length, 7);
+  assert.deepEqual(pts.slice(0, 3).map(p => [p.x, p.y, p.rotDeg, p.span]), [[30, 0, 0, 60], [30, 30, 0, 60], [30, 60, 0, 60]]);
+  assert.deepEqual(pts.slice(3).map(p => [p.x, p.y, p.rotDeg, p.span]), [[0, 30, 90, 60], [20, 30, 90, 60], [40, 30, 90, 60], [60, 30, 90, 60]]);
+});
+
+test('grid centre lines meet at the outer lines, ignoring the slot length and angle', () => {
+  const g = makeQuickCutGenerator(false);
+  const lines = gridLines(g.generateSlotProgram(gridSlot({ origin: 'front-left' })));
+  const tr = 3;
+  const rows = lines.filter(l => Math.abs(l[1] - l[3]) < 1e-6), cols = lines.filter(l => Math.abs(l[0] - l[2]) < 1e-6);
+  assert.equal(rows.length, 3); assert.equal(cols.length, 4);
+  rows.forEach(l => assert.deepEqual([Math.min(l[0], l[2]), Math.max(l[0], l[2])], [tr, tr + 60]));
+  cols.forEach(l => assert.deepEqual([Math.min(l[1], l[3]), Math.max(l[1], l[3])], [tr, tr + 60]));
+  assert.deepEqual(rows.map(l => l[1]), [tr, tr + 30, tr + 60]);
+  assert.deepEqual(cols.map(l => l[0]), [tr, tr + 20, tr + 40, tr + 60]);
+});
+
+test('grid extent, a single column, and the header', () => {
+  const g = makeQuickCutGenerator(false);
+  assert.deepEqual(g.computePatternPositions({ enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 60, yDist: 60, spacing: 'extent' }),
+    g.computePatternPositions({ enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 }));
+  const one = g.computePatternPositions({ enabled: true, style: 'grid', xCount: 1, yCount: 3, xDist: 20, yDist: 30 });
+  assert.deepEqual(one.map(p => [p.x, p.y, p.rotDeg, p.span]), [[0, 30, 90, 60]]);
+  const gcode = g.generateSlotProgram(gridSlot());
+  assert.match(gcode, /Grid 4x3 lines/);
+  assert.match(gcode, /straight grid lines/);
+});
+
+test('grid angle turns every line with the grid', () => {
+  const g = makeQuickCutGenerator(false);
+  const pts = g.computePatternPositions({ enabled: true, style: 'grid', xCount: 2, yCount: 2, xDist: 10, yDist: 10, angle: 30 });
+  assert.deepEqual(pts.map(p => p.rotDeg), [30, 30, 120, 120]);
+  const lines = gridLines(g.generateSlotProgram(gridSlot({ pattern: { enabled: true, style: 'grid', xCount: 2, yCount: 2, xDist: 10, yDist: 10, angle: 30 } })));
+  lines.forEach(l => {
+    const a = ((Math.atan2(l[3] - l[1], l[2] - l[0]) * 180 / Math.PI) % 180 + 180) % 180;
+    assert.ok([30, 120].some(t => Math.abs(a - t) < 1e-3), `line at ${a}°`);
+    assert.ok(Math.abs(Math.hypot(l[2] - l[0], l[3] - l[1]) - 10) < 1e-3);
+  });
+});
+
+test('slot header notes its holding tabs like the other shapes', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { bitDiameter: 6, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, depth: 6, depthOfCut: 2,
+    origin: 'center', slotType: 'straight', length: 60, width: 12, tabs: { count: 4, width: 8, height: 2 } };
+  const header = (p) => g.generateSlotProgram(Object.assign({}, base, p)).split('\n').filter(l => /^\((Tabs|WARNING)/.test(l));
+  assert.deepEqual(header({ cutType: 'outer' }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
+  assert.deepEqual(header({ cutType: 'inner', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
+  assert.deepEqual(header({ cutType: 'center' }), []);
+  assert.deepEqual(header({ cutType: 'clearing' }), []);
+  assert.deepEqual(header({ cutType: 'outer', tabs: null }), []);
+  assert.deepEqual(header({ cutType: 'outer', length: 30, tabs: { count: 20, width: 8, height: 2 } }),
+    ['(Tabs: 20 x 8mm wide, 2mm high)', '(WARNING: only 6 of 20 tabs fit; using 6)']);
+});
+
+test('grid center lines go back and forth: each starts where the last one finished', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const passes of [1, 2, 3]) {
+    const gcode = g.generateSlotProgram(gridSlot({ origin: 'front-left', depth: 2 * passes, depthOfCut: 2,
+      pattern: { enabled: true, style: 'grid', xCount: 4, yCount: 3, xDist: 20, yDist: 30 } }));
+    let pos = null, prevEnd = null, lineStart = null, hop = [];
+    for (const line of gcode.split('\n')) {
+      if (/^\(Instance/.test(line)) { if (pos) prevEnd = pos; lineStart = null; continue; }
+      const m = line.match(/^(G[01]) X(-?[\d.]+) Y(-?[\d.]+)/);
+      if (!m) continue;
+      pos = { x: +m[2], y: +m[3] };
+      if (m[1] === 'G0' && !lineStart) { lineStart = pos; if (prevEnd) hop.push(Math.hypot(pos.x - prevEnd.x, pos.y - prevEnd.y)); }
+    }
+    // Within rows (30 apart) and within columns (20 apart) the hop is one
+    // spacing; only the row-to-column change can be longer.
+    assert.equal(hop.length, 6);
+    assert.ok(hop.filter(h => h > 30 + 1e-6).length <= 1, `passes=${passes} hops=${hop.map(h => h.toFixed(1))}`);
+  }
+});
+
+test('polygon header notes the size as entered across flats or as an edge length', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { sides: 6, cutType: 'outer', origin: 'center', bitDiameter: 6, depth: 3, depthOfCut: 3, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
+  const dia = (gc) => gc.split('\n').find(l => /^\(Diameter:/.test(l));
+  assert.equal(dia(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 }))), '(Diameter: 40mm [circumscribed])');
+  assert.equal(dia(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 / Math.cos(Math.PI / 6), sizeMode: 'flats', sizeValue: 40 }))),
+    '(Diameter: 46.188mm [circumscribed; 40mm across flats])');
+  assert.equal(dia(g.generatePolygonProgram(Object.assign({}, base, { diameter: 20 / Math.sin(Math.PI / 6), sizeMode: 'edge', sizeValue: 20 }))),
+    '(Diameter: 40mm [circumscribed; 20mm edge length])');
+  assert.equal(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40, sizeMode: 'corners', sizeValue: 40 })),
+    g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 })));
 });

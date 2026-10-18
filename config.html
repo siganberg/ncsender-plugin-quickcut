@@ -195,6 +195,20 @@
   .qc-sidebar-footer .qc-help-btn { width: 100%; }
 
   /* Help page: one card per topic. */
+  .qc-help-index li { margin-bottom: 6px; }
+  /* A dropdown standing in for a field's label (Polygon's size measure). */
+  .qc-label-select {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+  }
   .qc-help-card ul {
     margin: 0;
     padding-left: 18px;
@@ -318,7 +332,46 @@
      the title row leaves room for it rather than running underneath. */
   .qc-panel-header { position: relative; }
   .qc-panel-title-row { padding-right: 220px; }
-  .qc-save-toggle { position: absolute; top: 15px; right: 20px; }
+  .qc-save-toggle { position: absolute; top: 15px; right: 20px; display: flex; align-items: center; gap: 10px; }
+  .qc-load-link { color: var(--color-accent); font-weight: 600; text-decoration: none; }
+  .qc-load-link:hover { text-decoration: underline; }
+  .qc-load-sep { color: var(--color-text-secondary); }
+  /* Load: QuickCut programs in File Manager, over the dialog. */
+  .qc-load-panel {
+    position: absolute;
+    inset: 16px;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+    background: var(--color-surface, #fff);
+    border: 2px solid var(--color-text-secondary, #888);
+    border-radius: var(--radius-medium);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+  .qc-load-panel h3 { margin: 0; }
+  .qc-load-panel p { margin: 0; font-size: 0.85rem; color: var(--color-text-secondary); }
+  .qc-load-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+  .qc-load-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-muted, var(--color-surface));
+    color: var(--color-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .qc-load-row:hover { border-color: var(--color-accent); }
+  .qc-load-row small { color: var(--color-text-secondary); white-space: nowrap; }
+  /* A text search, so not the right-aligned monospace of the number fields. */
+  .qc-input.qc-load-filter { text-align: left; font-family: inherit; }
+  .qc-load-status { min-height: 1.2em; font-size: 0.85rem; color: var(--color-accent); }
+  .qc-load-actions { display: flex; justify-content: flex-end; }
   .qc-panel-sub {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
@@ -629,6 +682,13 @@
     align-items: center;
     gap: 6px;
   }
+  /* Origin picker and the Inset box as two columns, labels level. */
+  .qc-field.qc-origin-inset-field { flex-direction: row; align-items: flex-start; gap: 16px; }
+  .qc-origin-col, .qc-inset-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .qc-inset-field { width: 84px; flex: none; }
+  /* Beside Start Angle / Corner Radius, the picker's corner dots overhang
+     its box; keep them clear of the input next to it. */
+  .qc-rect-type-row .qc-origin-col { padding-left: 8px; }
   .qc-origin-grid {
     position: relative;
     width: 64px;
@@ -788,15 +848,77 @@
   .qc-shape-preview-cell .qc-shape-fill.qc-hole-picked {
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
-  .qc-shape-preview-cell svg.qc-preview-pickable {
-    cursor: pointer;
+  /* Pattern preview: every copy's toolpath, and a dot the size of the
+     bit where each one plunges. */
+  .qc-shape-preview-cell .qc-pattern-path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
   }
-  /* Keyhole / Rectangle / Polygon previews: drag to set the angle.
+  .qc-shape-preview-cell .qc-pattern-plunge {
+    fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+  .qc-shape-preview-cell svg[id$="-pattern-preview"] { cursor: grab; touch-action: none; }
+  /* A click on a blank spot enlarges a preview over the dialog; taps and
+     drags still work on it. */
+  .qc-shape-preview-cell.qc-preview-big {
+    position: absolute;
+    inset: 16px;
+    z-index: 50;
+    width: auto;
+    height: auto;
+    background: var(--color-surface, #fff);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+  /* The drawing scales up; lines keep their on-screen width and the
+     labels stay readable-sized. */
+  .qc-shape-preview-cell.qc-preview-big svg * { vector-effect: non-scaling-stroke; }
+  .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label {
+    font-size: 3px;
+    stroke-width: 0.6px;
+  }
+  .qc-shape-preview-cell.qc-preview-big.qc-dragging::before {
+    content: attr(data-drag-angle);
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-accent, #1abc9c);
+    pointer-events: none;
+  }
+  .qc-shape-preview-cell.qc-preview-big::after {
+    content: attr(data-return-hint);
+    position: absolute;
+    top: 10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #888);
+    pointer-events: none;
+  }
+  /* Over an origin dot, end or hole a click picks it; while a twist is
+     under way the hand closes. (Beats the per-preview grab below.) */
+  .qc-shape-preview-cell svg.qc-over-pick { cursor: pointer !important; }
+  .qc-shape-preview-cell svg.qc-twisting { cursor: grabbing !important; }
+  /* Keyhole / Rectangle / Polygon / Slot previews: drag to set the angle.
      touch-action keeps a drag on the touchscreen from scrolling the
      dialog instead. */
-  #qc-key-preview, #qc-rect-preview, #qc-poly-preview {
+  #qc-key-preview, #qc-rect-preview, #qc-poly-preview, #qc-slt-preview {
     cursor: grab;
     touch-action: none;
+  }
+  .qc-shape-preview-cell .qc-shape-ideal {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    opacity: 0.8;
   }
   .qc-shape-preview-cell .qc-shape-inscribed {
     fill: none;
@@ -961,6 +1083,35 @@
     gap: 6px;
     min-width: 0;
   }
+  /* A field's own problem, until it's fixed (setFieldError). */
+  .qc-field-has-error { position: relative; }
+  .qc-field-error {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: max-content;
+    max-width: 260px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: #d32f2f;
+    color: #fff;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    text-align: center;
+    pointer-events: none;
+  }
+  .qc-field-error::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #d32f2f;
+  }
+  .qc-input.qc-input-error { border-color: #d32f2f; }
   .qc-field label {
     font-size: 0.78rem;
     font-weight: 600;
@@ -1144,6 +1295,10 @@
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
           <span class="qc-nav-label">Polygon</span>
         </button>
+        <button type="button" class="qc-nav-btn" data-tab="slot">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
+          <span class="qc-nav-label">Slot</span>
+        </button>
         <button type="button" class="qc-nav-btn" data-tab="keyhole">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
           <span class="qc-nav-label">Keyhole</span>
@@ -1184,13 +1339,17 @@
 
         <!-- One switch for every shape, moved into the active header with the
              common cards. -->
-        <label class="qc-switch-label qc-save-toggle" id="qc-save-toggle" title="Also save each generated program to File Manager › QuickCut">
-          <span>Save to File Manager</span>
-          <span class="qc-switch">
-            <input type="checkbox" id="qc-save-files">
-            <span class="qc-switch-track"></span>
-          </span>
-        </label>
+        <div class="qc-save-toggle" id="qc-file-actions">
+          <a href="#" class="qc-load-link" id="qc-load-link" title="Fill the form from a QuickCut program saved in File Manager">Load</a>
+          <span class="qc-load-sep" aria-hidden="true">|</span>
+          <label class="qc-switch-label" id="qc-save-toggle" title="Also save each generated program to File Manager › QuickCut">
+            <span>Save to File Manager</span>
+            <span class="qc-switch">
+              <input type="checkbox" id="qc-save-files">
+              <span class="qc-switch-track"></span>
+            </span>
+          </label>
+        </div>
 
         <!-- Common cards (Tool + Spindle & Coolant) live once in the DOM
              and are moved into whichever section's header is currently
@@ -1279,9 +1438,15 @@
                     <label for="qc-rect-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-rect-start-angle" step="1" value="0" title="Turns the rectangle about its center, CCW from +X (negative = CW). 90° = Width runs along Y. You can also twist the preview to turn it.">
                   </div>
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div id="qc-rect-origin-picker"></div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-rect-origin-picker"></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-rect-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    </div>
                   </div>
                 </div>
                 <div class="qc-row-3">
@@ -1460,9 +1625,15 @@
                   </div>
                 </div>
                 <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div id="qc-circ-origin-picker"></div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-circ-origin-picker"></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-circ-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    </div>
                   </div>
                   <div class="qc-field qc-circ-clearing-only" style="display: none;">
                     <label for="qc-circ-stepover">Stepover (% of bit)</label>
@@ -1608,7 +1779,7 @@
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
           <h2 class="qc-panel-title">Polygon</h2>
-          <p class="qc-panel-sub">Regular N-sided polygon by circumscribed radius (vertex-to-center).</p>
+          <p class="qc-panel-sub">Regular N-sided polygon, sized across the corners, across the flats, or by edge length.</p>
         </div>
       </header>
 
@@ -1624,8 +1795,12 @@
                     <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-poly-diameter">Diameter</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required>
+                    <select class="qc-label-select" id="qc-poly-size-mode" aria-label="Size measured" title="What the size measures: across the corners (the circle the corners sit on), across the flats (between opposite sides; e.g. a hex pocket for a nut), or the length of one edge. Changing it converts the number so the polygon stays the same.">
+                      <option value="corners" selected>Across Corners</option>
+                      <option value="flats">Across Flats</option>
+                      <option value="edge">Edge Length</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required aria-labelledby="qc-poly-size-mode">
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -1645,9 +1820,15 @@
                     <label for="qc-poly-corner">Corner Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get.">
                   </div>
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div id="qc-poly-origin-picker"></div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-poly-origin-picker"></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-poly-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    </div>
                   </div>
                 </div>
                 <div class="qc-row-3">
@@ -1796,6 +1977,245 @@
       </div>
     </section>
 
+    <!-- Slot tab -->
+    <section class="qc-content" data-view="slot">
+      <header class="qc-panel-header">
+        <div class="qc-panel-title-row">
+          <h2 class="qc-panel-title">Slot</h2>
+          <p class="qc-panel-sub">A straight or curved (arc) slot with rounded ends, or pattern grids of lines.</p>
+        </div>
+      </header>
+
+      <div class="qc-panel">
+        <form id="qc-slt-form" onsubmit="return false">
+          <div class="qc-card qc-section-card">
+            <h3 class="qc-card-title">Shape</h3>
+            <div class="qc-shape-grid">
+              <div class="qc-shape-fields">
+                <div class="qc-row-3">
+                  <div class="qc-field">
+                    <label for="qc-slt-type">Slot Type</label>
+                    <select class="qc-select" id="qc-slt-type">
+                      <option value="straight" selected>Straight</option>
+                      <option value="arc">Arc</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-slt-cut-type">
+                      <option value="center">Center line</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
+                      <option value="outer">Outer (part)</option>
+                    </select>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-width">Width</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-width" min="0.001" step="0.01" value="10" required>
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-slt-straight-only">
+                  <div class="qc-field">
+                    <label for="qc-slt-length">Length</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-length" min="0.001" step="0.01" value="60" required title="Overall, from end to end, including the rounded ends.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-angle">Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-angle" step="1" value="0" title="Direction the slot runs, CCW from +X. You can also twist the preview to turn it.">
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-slt-radius-only" style="display: none;">
+                  <div class="qc-field">
+                    <label for="qc-slt-radius">Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-radius" min="0.001" step="0.01" value="40" title="From the arc's center to the middle of the slot.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-start">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-start" step="1" value="45" title="Where the slot starts around the arc's center, CCW from +X. You can also twist the preview to turn it, in half degrees; the radius line to the slot's middle sticks at miter angles (15, 22.5, 30, 45° …).">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-sweep">Sweep (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-sweep" step="1" value="90" title="How far round the slot runs from the Start Angle: CCW, or CW if negative.">
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-slt-chord-only" style="display: none;">
+                  <div class="qc-field">
+                    <label for="qc-slt-chord">Chord</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-chord" min="0.001" step="0.01" value="60" title="Straight-line distance between the centres of the slot's two ends.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-rise">Rise</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-rise" min="0.001" step="0.01" value="10" title="How far the middle of the slot bulges out from the chord.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-bulge">Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-bulge" step="1" value="90" title="Direction the slot bulges toward, CCW from +X. 90 = toward the back. You can also twist the preview to turn it.">
+                  </div>
+                </div>
+                <div class="qc-row-3 qc-rect-type-row qc-slt-origin-row">
+                  <div class="qc-field qc-slt-arc-only" style="display: none;">
+                    <label for="qc-slt-arc-mode">Arc By</label>
+                    <select class="qc-select" id="qc-slt-arc-mode" title="Radius: the arc's radius and where it starts and ends. Chord: the straight distance between the slot's end centres and how far the middle bulges out.">
+                      <option value="radius" selected>Radius &amp; Sweep</option>
+                      <option value="chord">Chord &amp; Rise</option>
+                    </select>
+                  </div>
+                  <div class="qc-field qc-slt-clearing-only" style="display: none;">
+                    <label for="qc-slt-stepover">Stepover (% of bit)</label>
+                    <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40">
+                  </div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-slt-origin-picker"></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-slt-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="qc-shape-preview-cell">
+                <svg id="qc-slt-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="qc-card qc-section-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-2">
+              <div class="qc-field">
+                <label for="qc-slt-depth">Total Depth</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required>
+              </div>
+              <div class="qc-field">
+                <label for="qc-slt-step">Depth of Cut</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-step" min="0.001" step="0.01" value="1" required>
+              </div>
+            <div class="qc-tabs-block" id="qc-slt-tabs-block">
+              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-slt-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+              <div class="qc-row-3" id="qc-slt-tabs-fields" style="display: none;">
+                <div class="qc-field">
+                  <label for="qc-slt-tabs-count">Tabs</label>
+                  <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-slt-tabs-width">Tab Width</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-tabs-width" step="0.1" value="6" title="Width of each tab at the part edge.">
+                </div>
+                <div class="qc-field">
+                  <label for="qc-slt-tabs-height">Tab Height</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+
+          <div class="qc-card qc-section-card">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Pattern</h3>
+              <label class="qc-switch" title="Repeat this shape">
+                <input type="checkbox" id="qc-slt-pattern-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-pattern-body" id="qc-slt-pattern-body" style="display: none;">
+              <div class="qc-row-3 qc-pattern-top-row">
+                <div class="qc-field">
+                  <label for="qc-slt-pattern-style">Pattern Style</label>
+                  <select class="qc-select" id="qc-slt-pattern-style">
+                    <option value="linear" selected>Linear</option>
+                    <option value="grid">Grid</option>
+                    <option value="honeycomb">Honeycomb</option>
+                    <option value="circular">Circular (Identical)</option>
+                    <option value="circular-follow">Circular (Path Direction)</option>
+                  </select>
+                </div>
+                <div class="qc-field qc-pattern-grid-only">
+                  <label for="qc-slt-pattern-angle">Angle (°) <a href="#" class="qc-measure-link" data-measure-for="slt" title="Measure the angle on the machine">Measure</a></label>
+                  <input class="qc-input" type="number" id="qc-slt-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
+                </div>
+                <div class="qc-pattern-toggle-cell">
+                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
+                    <span>Extent</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-slt-pattern-extent">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                  <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
+                    <span>Symmetric Ends</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-slt-pattern-hex-trim">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                  <label class="qc-switch-label qc-pattern-angled-only" style="display: none;" title="Turn each shape by the pattern angle so it sits square to the angled row">
+                    <span>Rotate shapes</span>
+                    <span class="qc-switch">
+                      <input type="checkbox" id="qc-slt-pattern-rotate-shapes">
+                      <span class="qc-switch-track"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div class="qc-pattern-linear-fields" data-shape="slt">
+                <div class="qc-row-4 qc-pattern-axis-row">
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-x-count" data-pattern-label="x-count">X Count</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-x-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-x-dist" data-pattern-label="x-dist">X Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-x-dist" step="0.1" value="40">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-y-count" data-pattern-label="y-count">Y Count</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-y-count" min="1" step="1" value="2" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-y-dist" data-pattern-label="y-dist">Y Spacing</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-y-dist" step="0.1" value="40">
+                  </div>
+                </div>
+              </div>
+              <div class="qc-pattern-circular-fields" data-shape="slt" style="display: none;">
+                <div class="qc-row-4 qc-pattern-axis-row">
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-count">Count</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-count" min="2" step="1" value="6" required>
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-radius">Radius</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-pattern-radius" min="0" step="0.1" value="40" required title="From the pattern's center to each copy's center (an arc slot's: its arc's center). With Path Direction, 0 turns arc slots about their shared center: e.g. 4 copies with a 90° Sweep make a full ring.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-start-angle">Start Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-start-angle" step="1" value="0" title="Where the first copy sits around the circle's center, CCW from +X (negative = CW). 90° = toward the back (+Y).">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-slt-pattern-total-angle">Total Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-slt-pattern-total-angle" step="1" value="360" title="Arc the copies are spread over, from the Start Angle. 360 spaces them evenly all the way round; less puts the first and last copy at the two ends of the arc. Negative = CW.">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="qc-panel-footer">
+        <button type="button" class="qc-primary-btn" id="qc-slt-generate">Generate</button>
+      </div>
+    </section>
+
     <!-- Keyhole tab -->
     <section class="qc-content" data-view="keyhole">
       <header class="qc-panel-header">
@@ -1822,9 +2242,15 @@
                   </div>
                 </div>
                 <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-key-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    </div>
                   </div>
                 </div>
                 <p class="qc-mode-hint">
@@ -1983,9 +2409,15 @@
                   </div>
                 </div>
                 <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label>Origin</label>
-                    <div id="qc-drl-origin-picker"></div>
+                  <div class="qc-field qc-origin-inset-field">
+                    <div class="qc-origin-col">
+                      <label>Origin</label>
+                      <div id="qc-drl-origin-picker"></div>
+                    </div>
+                    <div class="qc-inset-field">
+                      <label for="qc-drl-inset">Inset</label>
+                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    </div>
                   </div>
                 </div>
                 <p class="qc-mode-hint">
@@ -2388,7 +2820,7 @@
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
           <h2 class="qc-panel-title">Help<span id="qc-help-for"></span></h2>
-          <p class="qc-panel-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</p>
+          <p class="qc-panel-sub"><span id="qc-help-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</span> <a href="#" class="qc-load-link" id="qc-help-all">All help topics</a></p>
         </div>
       </header>
       <div class="qc-panel" id="qc-help-body"></div>
@@ -2430,7 +2862,7 @@
     currentTab: 'rectangle',
     toolByShape: {}
   };
-  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'keyhole', 'drill'];
+  var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
   async function init() {
     try {
@@ -2472,11 +2904,16 @@
     wireJointerForm();
     wireCutterForm();
     wirePolygonForm();
+    wireSlotForm();
     wireKeyholeForm();
     wireDrillForm();
     wireHoldingTabs('rect', updateRectanglePreview);
     wireHoldingTabs('circ', updateCirclePreview);
     wireHoldingTabs('poly', updatePolygonPreview);
+    wireHoldingTabs('slt', updateSlotPreview);
+    mountPatternPreviews();
+    wirePreviewEnlarge();
+    wireLoad();
     wireMeasureTab();
     wireHelp();
     wireOriginCrosshairs();
@@ -2518,7 +2955,10 @@
     if (target === 'drill') updateDrillPreview();
     if (target === 'rectangle') updateRectanglePreview();
     if (target === 'polygon') updatePolygonPreview();
+    if (target === 'slot') updateSlotPreview();
     state.currentTab = target;
+    closeEnlargedPreview();
+    schedulePatternPreview();
     if (target === 'measure') {
       startMeasurePolling();
       return;
@@ -2564,7 +3004,7 @@
     var header = section.querySelector('.qc-panel-header');
     if (!header) return;
     header.appendChild(cards);
-    var saveToggle = $('qc-save-toggle');
+    var saveToggle = $('qc-file-actions');
     if (saveToggle) header.appendChild(saveToggle);
     // The measure page generates no g-code, so Tool / Spindle / Save don't apply.
     var noCommon = view === 'measure' || view === 'help';
@@ -2583,6 +3023,7 @@
     if (btn) btn.addEventListener('click', function() {
       // Same message the app's Esc handler dispatches internally — posted
       // to `window` (not `parent`), matches PneumaticATC's convention.
+      removeTooltip();
       window.postMessage({ type: 'close-plugin-dialog' }, '*');
     });
   }
@@ -2643,29 +3084,71 @@
     tooltip.appendChild(arrow);
     return tooltip;
   }
-  var _tooltip = null;
-  function showTooltip(el, message) {
+  // The bubble lives on the host page's body (the dialog may be
+  // transformed, which would break position: fixed inside it), so it is
+  // taken down explicitly: after a few seconds, on any edit in the
+  // dialog, on Generate, and when the dialog goes away.
+  var _tooltip = null, _tooltipEl = null, _tooltipTimer = null;
+  // color: the bubble's colour; red for problems (the default), green
+  // (TOOLTIP_OK) for a confirmation such as Load's. stay: don't move the
+  // cursor into el. Only Generate's checks take the cursor to the field;
+  // a note on leaving a field, or on a related field, must not, or the
+  // rest of what's being typed lands in the other field and two fields
+  // that need each other fixed can't both be reached.
+  var TOOLTIP_OK = '#2e7d32';
+  function showTooltip(el, message, color, stay) {
+    color = color || '#d32f2f';
     if (!_tooltip) _tooltip = createTooltip();
+    _tooltip.style.background = color;
+    if (_tooltipEl && _tooltipEl !== el) _tooltipEl.style.borderColor = '';
+    _tooltipEl = el;
+    clearTimeout(_tooltipTimer);
+    _tooltipTimer = setTimeout(hideTooltip, 5000);
+    watchTooltipRoot();
     // Focus first: it scrolls the field into view, and the bubble must be
     // placed from the field's position AFTER that scroll, or it lands
     // off-screen or over an unrelated field.
-    el.focus();
+    if (!stay) el.focus();
     var rect = el.getBoundingClientRect();
     _tooltip.firstChild && (_tooltip.textContent = message);
     _tooltip.textContent = message;
+    // Above the field, or below it when there's no room above (the Load
+    // link at the top of the dialog).
+    var below = rect.top < 60;
     var arrow = document.createElement('div');
-    arrow.style.cssText = 'position:absolute;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #d32f2f;bottom:-6px;left:50%;transform:translateX(-50%);';
+    arrow.style.cssText = 'position:absolute;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;' +
+      (below ? 'border-bottom:6px solid ' + color + ';top:-6px;' : 'border-top:6px solid ' + color + ';bottom:-6px;') +
+      'left:50%;transform:translateX(-50%);';
     _tooltip.appendChild(arrow);
     _tooltip.style.left = rect.left + (rect.width / 2) + 'px';
-    _tooltip.style.top  = (rect.top - 10) + 'px';
-    _tooltip.style.transform = 'translate(-50%, -100%)';
+    _tooltip.style.top  = (below ? rect.bottom + 10 : rect.top - 10) + 'px';
+    _tooltip.style.transform = below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
     _tooltip.style.opacity = '1';
-    el.style.borderColor = '#d32f2f';
+    el.style.borderColor = color;
   }
   function hideTooltip() {
+    clearTimeout(_tooltipTimer);
+    if (_tooltipEl) { _tooltipEl.style.borderColor = ''; _tooltipEl = null; }
     if (!_tooltip) return;
     _tooltip.style.opacity = '0';
     setTimeout(function() { if (_tooltip) _tooltip.style.left = '-9999px'; }, 200);
+  }
+  function removeTooltip() {
+    hideTooltip();
+    if (_tooltip && _tooltip.parentNode) _tooltip.parentNode.removeChild(_tooltip);
+    _tooltip = null;
+  }
+  // Closing the dialog (Close, Esc, Generate, the host's own X) removes
+  // ROOT from the page; the bubble goes with it.
+  var _tooltipWatch = null;
+  function watchTooltipRoot() {
+    if (_tooltipWatch) return;
+    _tooltipWatch = setInterval(function() {
+      if (rootAlive() && _tooltip) return;
+      if (!rootAlive()) removeTooltip();
+      clearInterval(_tooltipWatch);
+      _tooltipWatch = null;
+    }, 500);
   }
 
   function validationRules() {
@@ -2676,6 +3159,7 @@
         'qc-rect-width':  { min: 0.004, max: 200,     label: 'Width' },
         'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
         'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
+        'qc-rect-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-rect-depth':  { min: 0.001, max: 20,      label: 'Total Depth' },
         'qc-rect-step':   { min: 0.001, max: 5,       label: 'Depth of Cut' },
@@ -2697,6 +3181,7 @@
         'qc-rect-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
         // Circle
         'qc-circ-diameter': { min: 0.004, max: 200, label: 'Diameter' },
+        'qc-circ-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
@@ -2732,6 +3217,7 @@
         // Polygon
         'qc-poly-sides':    { min: 3,     max: 12,  label: 'Sides', integer: true },
         'qc-poly-diameter': { min: 0.004, max: 200, label: 'Diameter' },
+        'qc-poly-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-poly-corner': { min: 0, max: 100, label: 'Corner Radius' },
         'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
@@ -2749,6 +3235,7 @@
         // Keyhole
         'qc-key-length':    { min: 0.004, max: 20,  label: 'Slot Length' },
         'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
+        'qc-key-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-key-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-key-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-key-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -2769,9 +3256,36 @@
         'qc-poly-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
         'qc-poly-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
         'qc-poly-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        // Slot
+        'qc-slt-width':  { min: 0.004, max: 100, label: 'Width' },
+        'qc-slt-length': { min: 0.004, max: 200, label: 'Length' },
+        'qc-slt-angle':  { min: -360, max: 360, label: 'Angle' },
+        'qc-slt-radius': { min: 0.004, max: 200, label: 'Radius' },
+        'qc-slt-start':  { min: -360, max: 360, label: 'Start Angle' },
+        'qc-slt-sweep':  { min: -360, max: 360, label: 'Sweep' },
+        'qc-slt-chord':  { min: 0.004, max: 200, label: 'Chord' },
+        'qc-slt-rise':   { min: 0.004, max: 200, label: 'Rise' },
+        'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
+        'qc-slt-inset':  { min: -200, max: 200, label: 'Inset' },
+        'qc-slt-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
+        'qc-slt-step':   { min: 0.001, max: 5, label: 'Depth of Cut' },
+        'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
+        'qc-slt-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+        'qc-slt-tabs-width':  { min: 0.004, max: 4, label: 'Tab Width' },
+        'qc-slt-tabs-height': { min: 0.004, max: 4, label: 'Tab Height' },
+        'qc-slt-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
+        'qc-slt-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
+        'qc-slt-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
+        'qc-slt-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
+        'qc-slt-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
+        'qc-slt-pattern-radius':  { min: 0, max: 200, label: 'Pattern Radius' },
+        'qc-slt-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+        'qc-slt-pattern-total-angle': { min: -360, max: 360, label: 'Total Angle' },
+        'qc-slt-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
         // Drill
         'qc-drl-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-drl-peck':   { min: 0,     max: 20, label: 'Peck Depth' },
+        'qc-drl-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
         'qc-drl-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-drl-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -2788,6 +3302,7 @@
       'qc-rect-width':  { min: 0.1,   max: 5000,   label: 'Width' },
       'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
       'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
+      'qc-rect-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-rect-depth':  { min: 0.01,  max: 500,    label: 'Total Depth' },
       'qc-rect-step':   { min: 0.01,  max: 100,    label: 'Depth of Cut' },
@@ -2809,6 +3324,7 @@
       'qc-rect-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
       // Circle
       'qc-circ-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
+      'qc-circ-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
@@ -2844,6 +3360,7 @@
       // Polygon
       'qc-poly-sides':    { min: 3,    max: 12,   label: 'Sides', integer: true },
       'qc-poly-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
+      'qc-poly-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-poly-corner': { min: 0, max: 2500, label: 'Corner Radius' },
       'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
@@ -2861,6 +3378,7 @@
       // Keyhole
       'qc-key-length':    { min: 0.1,  max: 500,  label: 'Slot Length' },
       'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
+      'qc-key-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-key-depth':     { min: 0.01, max: 100,  label: 'Total Depth' },
       'qc-key-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-key-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -2881,9 +3399,36 @@
       'qc-poly-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
       'qc-poly-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
       'qc-poly-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      // Slot
+      'qc-slt-width':  { min: 0.1, max: 2500, label: 'Width' },
+      'qc-slt-length': { min: 0.1, max: 5000, label: 'Length' },
+      'qc-slt-angle':  { min: -360, max: 360, label: 'Angle' },
+      'qc-slt-radius': { min: 0.1, max: 5000, label: 'Radius' },
+      'qc-slt-start':  { min: -360, max: 360, label: 'Start Angle' },
+      'qc-slt-sweep':  { min: -360, max: 360, label: 'Sweep' },
+      'qc-slt-chord':  { min: 0.1, max: 5000, label: 'Chord' },
+      'qc-slt-rise':   { min: 0.1, max: 5000, label: 'Rise' },
+      'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
+      'qc-slt-inset':  { min: -5000, max: 5000, label: 'Inset' },
+      'qc-slt-depth':  { min: 0.01, max: 500, label: 'Total Depth' },
+      'qc-slt-step':   { min: 0.01, max: 100, label: 'Depth of Cut' },
+      'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
+      'qc-slt-tabs-count':  { min: 1, max: 24, label: 'Tabs', integer: true },
+      'qc-slt-tabs-width':  { min: 0.1, max: 100, label: 'Tab Width' },
+      'qc-slt-tabs-height': { min: 0.1, max: 100, label: 'Tab Height' },
+      'qc-slt-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
+      'qc-slt-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
+      'qc-slt-pattern-x-count': { min: 1, max: 200, label: 'X Count', integer: true },
+      'qc-slt-pattern-y-count': { min: 1, max: 200, label: 'Y Count', integer: true },
+      'qc-slt-pattern-count':   { min: 2, max: 360, label: 'Pattern Count', integer: true },
+      'qc-slt-pattern-radius':  { min: 0, max: 5000, label: 'Pattern Radius' },
+      'qc-slt-pattern-start-angle': { min: -360, max: 360, label: 'Start Angle' },
+      'qc-slt-pattern-total-angle': { min: -360, max: 360, label: 'Total Angle' },
+      'qc-slt-pattern-angle': { min: -360, max: 360, label: 'Pattern Angle' },
       // Drill
       'qc-drl-depth':  { min: 0.01, max: 100, label: 'Total Depth' },
       'qc-drl-peck':   { min: 0,    max: 100, label: 'Peck Depth' },
+      'qc-drl-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
       'qc-drl-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-drl-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -2929,12 +3474,26 @@
     if (/-pattern-total-angle$/.test(id) && n === 0) return 'Total Angle must not be 0';
     // A polygon's corner radius can't be more than half its across-flats size.
     if (id === 'qc-poly-corner') {
-      var polyD = num('qc-poly-diameter', NaN);
+      var polyD = polygonCornerDiameter(NaN);
       var polyN = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
       var polyA = polyD / 2 * Math.cos(Math.PI / polyN);
       if (isFinite(polyA) && n > polyA + 1e-9) return 'Corner Radius must not exceed ' + roundDisplay(polyA) + ' (half the size across the flats)';
     }
-    var tabDepth = /^qc-(rect|circ|poly)-tabs-height$/.exec(id);
+    if (id === 'qc-slt-step') {
+      var sTot = num('qc-slt-depth', NaN);
+      if (isFinite(sTot) && n > sTot) return 'Depth of Cut must not exceed Total Depth (' + sTot + ')';
+    }
+    if (id === 'qc-slt-sweep' && n === 0) return 'Sweep must not be 0';
+    // Radius 0 turns each copy about one center: only Path Direction turns them.
+    if (id === 'qc-slt-pattern-radius' && n === 0 && $('qc-slt-pattern-style').value !== 'circular-follow') {
+      return 'Radius 0 only works with Circular (Path Direction), which turns each copy';
+    }
+    // A straight slot's Length is overall, so it can't be shorter than the slot is wide.
+    if (id === 'qc-slt-length') {
+      var sW = slotWidthNow();
+      if (isFinite(sW) && n < sW - 1e-9) return 'Length must be at least the slot width (' + roundDisplay(sW) + ')';
+    }
+    var tabDepth = /^qc-(rect|circ|poly|slt)-tabs-height$/.exec(id);
     if (tabDepth) {
       var tTot = num('qc-' + tabDepth[1] + '-depth', NaN);
       if (isFinite(tTot) && n >= tTot) return 'Tab Height must be less than Total Depth (' + tTot + ')';
@@ -2959,26 +3518,62 @@
       // and pointer-inert, so its value doesn't gate the current cut.
       if (!el || el.disabled || el.offsetParent === null) continue;
       var err = validateField(id, el.value);
-      if (err) { showTooltip(el, err); return false; }
+      if (err) { setFieldError(el, err); el.focus(); return false; }
     }
     return true;
   }
+
+  // A field's problem stays on it, as a bubble over the field and a red
+  // border, until its value is valid: other fields can be clicked and
+  // typed in meanwhile (e.g. Total Depth 0 and Depth of Cut both flagged,
+  // fixed in either order). Shown when a field is left or by Generate,
+  // never while typing; cleared as soon as the value passes.
+  function setFieldError(el, message) {
+    var holder = el.closest('.qc-field') || el.parentNode;
+    var bubble = holder.querySelector(':scope > .qc-field-error');
+    if (!message) {
+      if (bubble) bubble.remove();
+      el.classList.remove('qc-input-error');
+      return;
+    }
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.className = 'qc-field-error';
+      bubble.setAttribute('role', 'alert');
+      holder.classList.add('qc-field-has-error');
+      holder.appendChild(bubble);
+    }
+    bubble.textContent = message;
+    bubble.style.bottom = (holder.offsetHeight - el.offsetTop + 8) + 'px';
+    el.classList.add('qc-input-error');
+  }
+  function recheckField(fieldId) {
+    var el = document.getElementById(fieldId);
+    if (el) setFieldError(el, validateField(fieldId, el.value));
+  }
+
   function wireValidation() {
+    // Any edit (a select too, e.g. a cut type that resolves the problem) clears it,
+    // and re-checks the flagged fields, whose problem may be gone now.
+    ROOT.addEventListener('change', function() {
+      hideTooltip();
+      ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
+    });
     var rules = validationRules();
     for (var id in rules) {
       (function(fieldId) {
         var el = document.getElementById(fieldId);
         if (!el) return;
-        el.addEventListener('input', function() { this.style.borderColor = ''; hideTooltip(); });
-        el.addEventListener('blur', function() {
-          var err = validateField(fieldId, this.value);
-          if (err) { showTooltip(this, err); setTimeout(hideTooltip, 3000); }
+        // While typing, a flagged field clears the moment it's valid (or
+        // updates its message); a new problem waits until the field is left.
+        el.addEventListener('input', function() {
+          if (this.classList.contains('qc-input-error')) recheckField(fieldId);
         });
+        el.addEventListener('blur', function() { recheckField(fieldId); });
       })(id);
     }
-    // Cross-field: when Total Depth changes, re-check Depth of Cut so
-    // the operator sees the DOC error immediately rather than waiting
-    // for a blur on the DOC field.
+    // Cross-field: when Total Depth is changed, re-check Depth of Cut so
+    // the operator sees the DOC error without having to visit it.
     wireDepthCrossCheck('rect');
     wireDepthCrossCheck('circ');
     wireDepthCrossCheck('plan');
@@ -2990,11 +3585,13 @@
     var depthEl = $('qc-' + prefix + '-depth');
     var stepId = 'qc-' + prefix + '-step';
     if (!depthEl || !$(stepId)) return;
+    // On change (when the edit is done), not on each keystroke: "0.25"
+    // starts as "0", which would flag Depth of Cut mid-typing.
+    depthEl.addEventListener('change', function() { recheckField(stepId); });
+    // A flagged Depth of Cut that only fails because of Total Depth clears
+    // as soon as Total Depth allows it.
     depthEl.addEventListener('input', function() {
-      var stepEl = $(stepId);
-      stepEl.style.borderColor = '';
-      var err = validateField(stepId, stepEl.value);
-      if (err) { showTooltip(stepEl, err); setTimeout(hideTooltip, 3000); }
+      if ($(stepId).classList.contains('qc-input-error')) recheckField(stepId);
     });
   }
 
@@ -3176,6 +3773,7 @@
       cutType:      $('qc-rect-cut-type').value,
       tabs:         readTabsForm('rect'),
       origin:       $('qc-rect-origin').value,
+      inset:      num('qc-rect-inset', 0),
       depth:        num('qc-rect-depth', 0),
       depthOfCut:   num('qc-rect-step', 0),
       // Stepover only used for 'clearing' cutType; safe to always pass.
@@ -3194,6 +3792,7 @@
       cutType:      $('qc-circ-cut-type').value,
       tabs:         readTabsForm('circ'),
       origin:       $('qc-circ-origin').value,
+      inset:      num('qc-circ-inset', 0),
       depth:        num('qc-circ-depth', 0),
       depthOfCut:   num('qc-circ-step', 0),
       stepoverPct:  num('qc-circ-stepover', 40),
@@ -3338,7 +3937,7 @@
   function wireSidePicker(svgId, sideId, axisId) {
     $(svgId).addEventListener('click', function(e) {
       var hit = e.target.closest && e.target.closest('.qc-side-hit, .qc-side-hit-face');
-      if (hit) setSide(sideId, axisId, hit.getAttribute('data-side'));
+      if (hit) { markPreviewPick(); setSide(sideId, axisId, hit.getAttribute('data-side')); }
     });
   }
 
@@ -3380,12 +3979,28 @@
     });
   }
 
+  // Polygon size: the field is measured across the corners, across the
+  // flats, or along one edge (qc-poly-size-mode); the generator takes the
+  // across-corners (circumscribed) diameter.
+  function polygonCornerDiameterFrom(value, sides, mode) {
+    if (mode === 'flats') return value / Math.cos(Math.PI / sides);
+    if (mode === 'edge') return value / Math.sin(Math.PI / sides);
+    return value;
+  }
+  function polygonSides() { return Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))); }
+  function polygonCornerDiameter(def) {
+    return polygonCornerDiameterFrom(num('qc-poly-diameter', def), polygonSides(), $('qc-poly-size-mode').value);
+  }
+
   function readPolygonForm() {
     var common = readCommonParams();
-    var diameter = num('qc-poly-diameter', 0);
+    var diameter = polygonCornerDiameter(0);
     return Object.assign({}, common, {
       sides:         Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))),
       diameter:      diameter,
+      // What the size field holds (for the header, file name and Load).
+      sizeMode:      $('qc-poly-size-mode').value,
+      sizeValue:     num('qc-poly-diameter', 0),
       // Generator still takes radius (its natural math input). UI
       // stores/reads diameter for parity with the Circle tab.
       radius:        diameter / 2,
@@ -3394,6 +4009,7 @@
       cutType:       $('qc-poly-cut-type').value,
       tabs:          readTabsForm('poly'),
       origin:        $('qc-poly-origin').value,
+      inset:       num('qc-poly-inset', 0),
       depth:         num('qc-poly-depth', 0),
       depthOfCut:    num('qc-poly-step', 0),
       stepoverPct:   num('qc-poly-stepover', 40),
@@ -3462,12 +4078,14 @@
     updateTabsVisibility(prefix);
   }
 
-  // Holding tabs are hidden for clearing (a pocket frees nothing). The
+  // Holding tabs are hidden for clearing (a pocket frees nothing) and a
+  // slot's centre-line cut (one pass, no outline). The
   // Tabs / Width / Height row shows only while the switch is on.
   function updateTabsVisibility(prefix) {
     var block = $('qc-' + prefix + '-tabs-block');
     if (!block) return;
-    block.style.display = $('qc-' + prefix + '-cut-type').value === 'clearing' ? 'none' : '';
+    var cut = $('qc-' + prefix + '-cut-type').value;
+    block.style.display = cut === 'clearing' || cut === 'center' ? 'none' : '';
     $('qc-' + prefix + '-tabs-fields').style.display = $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
   }
 
@@ -3518,7 +4136,8 @@
   // land where the tabs will even though the preview isn't to scale.
   function tabMarks(prefix, segs) {
     var tabs = readTabsForm(prefix);
-    if (!tabs || !(tabs.count >= 1) || $('qc-' + prefix + '-cut-type').value === 'clearing') return '';
+    var cutNow = $('qc-' + prefix + '-cut-type').value;
+    if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center') return '';
     tabs.count = Math.min(24, tabs.count);
     tabs.width = Math.max(0, tabs.width);
     var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, Math.max(0, num('qc-bit', 0)));
@@ -3572,7 +4191,7 @@
     $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
     if (enabled) {
       var style = $('qc-' + prefix + '-pattern-style').value;
-      var isGrid = style === 'linear' || style === 'honeycomb';
+      var isGrid = style === 'linear' || style === 'honeycomb' || style === 'grid';
       var isCircular = style === 'circular' || style === 'circular-follow';
       var body = $('qc-' + prefix + '-pattern-body');
       var linear = body.querySelector('.qc-pattern-linear-fields');
@@ -3585,6 +4204,301 @@
       if (honey)  honey.style.display  = (style === 'honeycomb') ? '' : 'none';
       updatePatternAngleLabels(prefix);
     }
+    schedulePatternPreview();
+  }
+
+  // Pattern preview: the whole pattern, drawn from the tab's own generator
+  // so origin, Inset, angle and rotation match what Generate cuts. One depth
+  // pass, no holding tabs and the outline instead of clearing keep it cheap;
+  // the cutting moves become one SVG path and each plunge a bit-sized dot.
+  var PATTERN_PREVIEW_TABS = {
+    rectangle: { prefix: 'rect', read: function() { return readRectangleForm(); }, gen: 'generateRectangleProgram' },
+    circle:    { prefix: 'circ', read: function() { return readCircleForm(); },    gen: 'generateCircleProgram' },
+    polygon:   { prefix: 'poly', read: function() { return readPolygonForm(); },   gen: 'generatePolygonProgram' },
+    slot:      { prefix: 'slt',  read: function() { return readSlotForm(); },      gen: 'generateSlotProgram' },
+    keyhole:   { prefix: 'key',  read: function() { return readKeyholeForm(); },   gen: 'generateKeyholeProgram' },
+    drill:     { prefix: 'drl',  read: function() { return readDrillForm(); },     gen: 'generateDrillProgram' }
+  };
+  var PATTERN_PREVIEW_MAX_COPIES = 3000;
+  var PATTERN_PREVIEW_MAX_OUTLINES = 500;
+  var patternPreviewQueued = false;
+  var patternPreviewKey = null;
+
+  function mountPatternPreviews() {
+    Object.keys(PATTERN_PREVIEW_TABS).forEach(function(tab) {
+      var prefix = PATTERN_PREVIEW_TABS[tab].prefix;
+      var body = $('qc-' + prefix + '-pattern-body');
+      var grid = document.createElement('div');
+      grid.className = 'qc-shape-grid';
+      var fields = document.createElement('div');
+      fields.className = 'qc-shape-fields';
+      while (body.firstChild) fields.appendChild(body.firstChild);
+      var cell = document.createElement('div');
+      cell.className = 'qc-shape-preview-cell';
+      cell.innerHTML = '<svg id="qc-' + prefix + '-pattern-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>';
+      grid.appendChild(fields);
+      grid.appendChild(cell);
+      body.appendChild(grid);
+      var svgId = 'qc-' + prefix + '-pattern-preview';
+      cell.title = 'Click to enlarge; drag to turn the pattern';
+      // Grid styles turn by the row Angle; Circular by its Start Angle.
+      wirePreviewAngleDrag(svgId, function() {
+        var circular = /^circular/.test($('qc-' + prefix + '-pattern-style').value);
+        return $('qc-' + prefix + '-pattern-' + (circular ? 'start-angle' : 'angle'));
+      }, true, null, null, snapMiterAngle);
+    });
+    ROOT.addEventListener('input', schedulePatternPreview);
+    ROOT.addEventListener('change', schedulePatternPreview);
+    schedulePatternPreview();
+  }
+
+  // Clicking a blank spot on any preview enlarges it over the dialog; a
+  // blank click there, or Esc, returns. A click that picks something (a
+  // corner, end, hole, side or the feed arrow) or ends a drag calls
+  // markPreviewPick, and the cell's click handler, which runs after the
+  // preview's own, then leaves the size alone. The flag resets at the
+  // start of each press.
+  var previewPicked = false;
+  function markPreviewPick() { previewPicked = true; }
+  function setPreviewEnlarged(cell, big) {
+    cell.classList.toggle('qc-preview-big', big);
+  }
+  function closeEnlargedPreview() {
+    var big = ROOT.querySelector('.qc-preview-big');
+    if (big) setPreviewEnlarged(big, false);
+    return !!big;
+  }
+  function wirePreviewEnlarge() {
+    ROOT.querySelectorAll('.qc-shape-preview-cell').forEach(function(cell) {
+      cell.setAttribute('data-return-hint', 'Click a blank spot or press Esc to return');
+      cell.addEventListener('pointerdown', function() { previewPicked = false; }, true);
+      cell.addEventListener('click', function() {
+        if (previewPicked) return;
+        setPreviewEnlarged(cell, !cell.classList.contains('qc-preview-big'));
+      });
+    });
+    // Esc closes an enlarged preview, not the dialog: ncSender closes the
+    // dialog from a window keydown listener (bubble phase), so this one
+    // runs first in the capture phase and stops it. Page-wide, so it
+    // removes itself once this open's dialog is gone.
+    function closeEnlargedOnEscape(evt) {
+      if (!rootAlive()) { window.removeEventListener('keydown', closeEnlargedOnEscape, true); return; }
+      if (evt.key !== 'Escape' || !(closeLoadPanel() || closeEnlargedPreview())) return;
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
+    window.addEventListener('keydown', closeEnlargedOnEscape, true);
+  }
+
+  // While a drag turns an enlarged preview, the field it sets and its value
+  // (e.g. "Start Angle 22.5°") show at the top; only drawn when enlarged.
+  function showDragAngle(cell, input, deg) {
+    if (!cell) return;
+    var label = ROOT.querySelector('label[for="' + input.id + '"]');
+    var name = label ? label.textContent.replace(/\(°\)|Measure/g, '').trim() : '';
+    cell.setAttribute('data-drag-angle', (name ? name + ' ' : '') + deg + '°');
+    cell.classList.add('qc-dragging');
+  }
+  function hideDragAngle(cell) {
+    if (cell) cell.classList.remove('qc-dragging');
+  }
+
+  // Dragging any preview moves in half degrees and sticks within a degree
+  // of a miter stop (within 5° of square): multiples of 180/n for the common frames
+  // (n = 3, 4, 5, 6, 8, 10, 12: 60, 45, 36, 30, 22.5, 18, 15°).
+  var MITER_ANGLE_STOPS = (function() {
+    var stops = {};
+    [3, 4, 5, 6, 8, 10, 12].forEach(function(n) {
+      for (var a = 0; a < 360; a += 180 / n) stops[parseFloat(a.toFixed(3))] = true;
+    });
+    return Object.keys(stops).map(Number).concat(360);
+  })();
+  var MITER_ANGLE_SNAP = 1;
+  // Square (0, 90, 180, 270) catches from farther; the nearest other stop
+  // is 15° away, so the two never overlap.
+  var MITER_SQUARE_SNAP = 5;
+  function snapMiterAngle(deg) {
+    var square = Math.round(deg / 90) * 90;
+    if (Math.abs(deg - square) <= MITER_SQUARE_SNAP) return square % 360;
+    for (var i = 0; i < MITER_ANGLE_STOPS.length; i++) {
+      if (Math.abs(deg - MITER_ANGLE_STOPS[i]) <= MITER_ANGLE_SNAP) return MITER_ANGLE_STOPS[i] % 360;
+    }
+    return (Math.round(deg * 2) / 2) % 360;
+  }
+
+  function schedulePatternPreview() {
+    if (patternPreviewQueued) return;
+    patternPreviewQueued = true;
+    requestAnimationFrame(function() {
+      patternPreviewQueued = false;
+      if (rootAlive()) updatePatternPreview();
+    });
+  }
+
+  function updatePatternPreview() {
+    var tab = PATTERN_PREVIEW_TABS[state.currentTab];
+    if (!tab) return;
+    var svg = $('qc-' + tab.prefix + '-pattern-preview');
+    if (!svg || !$('qc-' + tab.prefix + '-pattern-enable').checked) return;
+    var gen = makeQuickCutGenerator(state.isImperial);
+    var params = tab.read();
+    // The drawing is one pass of the outline, so depths, feeds, spindle
+    // and coolant don't change it: they're fixed here, and an edit to
+    // them (e.g. typing 0.1 into Depth of Cut) costs nothing. Fixing the
+    // depth also keeps a half-typed Depth of Cut of 0 away from the
+    // generator, whose depth loops never end with a step of 0 (Generate
+    // can't reach that: validation needs more than 0).
+    params.tabs = null;
+    if (params.cutType === 'clearing') params.cutType = 'inner';
+    params.depth = params.depthOfCut = 1;
+    params.peckDepth = 0;
+    params.feedRate = params.plungeFeedRate = 1;
+    params.spindleRpm = params.spindleDelay = 0;
+    params.mistM7 = params.floodM8 = false;
+    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(params);
+    if (key === patternPreviewKey && svg.firstChild) return;
+    patternPreviewKey = key;
+    if (!(params.bitDiameter > 0)) {
+      svg.innerHTML = patternPreviewCaption(['Set a bit', 'diameter'], -3);
+      return;
+    }
+    var copies = gen.computePatternPositions(params.pattern).length;
+    if (copies > PATTERN_PREVIEW_MAX_COPIES) {
+      svg.innerHTML = patternPreviewCaption([copies + ' copies:', 'too many', 'to preview'], -9);
+      return;
+    }
+    var trace;
+    try {
+      trace = traceProgram(gen[tab.gen](params));
+    } catch (err) {
+      svg.innerHTML = patternPreviewCaption(['Fix the shape', 'to preview'], -3);
+      return;
+    }
+    var outlines = copies <= PATTERN_PREVIEW_MAX_OUTLINES;
+    var bitRadius = Math.max(0, params.bitDiameter || 0) / 2;
+    // Overall size of the cut (where the bit reaches), from the full trace.
+    var size = traceBounds(trace, bitRadius);
+    if (!outlines) trace.moves = [];
+    var noun = params.pattern && params.pattern.style === 'grid' ? [' line', ' lines'] : [' copy', ' copies'];
+    var caption = [copies + (copies === 1 ? noun[0] : noun[1])];
+    var dp = state.isImperial ? 3 : 2;
+    var sizeText = function(v) { return String(parseFloat(v.toFixed(dp))); };
+    if (size) caption.push(sizeText(size.maxX - size.minX) + ' × ' + sizeText(size.maxY - size.minY) + ' ' + state.unitLabel);
+    if (!outlines) caption.push('start points');
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length) +
+      patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
+  }
+
+  // SVG text doesn't wrap, so the caption is short lines, one per tspan.
+  var PATTERN_PREVIEW_LINE = 9;
+  function patternPreviewCaption(lines, y) {
+    return '<text class="qc-shape-dim-label" x="0" y="' + y + '" text-anchor="middle">' +
+      lines.map(function(line, i) {
+        return '<tspan x="0" dy="' + (i ? '1.1em' : 0) + '">' + line + '</tspan>';
+      }).join('') + '</text>';
+  }
+
+  // Cutting moves (XY below Z0) and plunge points from a QuickCut program,
+  // which is absolute (G90) with I/J arcs.
+  var TRACE_WORDS = { X: /X(-?[\d.]+)/, Y: /Y(-?[\d.]+)/, Z: /Z(-?[\d.]+)/, I: /I(-?[\d.]+)/, J: /J(-?[\d.]+)/ };
+  function traceProgram(gcode) {
+    var moves = [], plunges = [];
+    var pos = { x: 0, y: 0, z: 0 }, mode = 0;
+    var lines = gcode.split('\n');
+    var line;
+    var word = function(letter) {
+      var m = line.match(TRACE_WORDS[letter]);
+      return m ? parseFloat(m[1]) : null;
+    };
+    for (var i = 0; i < lines.length; i++) {
+      line = lines[i].replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim().toUpperCase();
+      if (!line || /\bG53\b/.test(line)) continue;
+      var g = line.match(/\bG0*([0-3])(?![0-9])/);
+      if (g) mode = Number(g[1]);
+      var x = word('X'), y = word('Y'), z = word('Z');
+      var next = { x: x === null ? pos.x : x, y: y === null ? pos.y : y, z: z === null ? pos.z : z };
+      if (pos.z >= 0 && next.z < 0) plunges.push({ x: next.x, y: next.y });
+      var movesXY = next.x !== pos.x || next.y !== pos.y;
+      if (movesXY && mode !== 0 && Math.min(pos.z, next.z) < 0) {
+        if (mode === 1) {
+          moves.push({ x0: pos.x, y0: pos.y, x1: next.x, y1: next.y });
+        } else {
+          var cx = pos.x + (word('I') || 0), cy = pos.y + (word('J') || 0);
+          moves.push({ x0: pos.x, y0: pos.y, x1: next.x, y1: next.y, cx: cx, cy: cy, cw: mode === 2 });
+        }
+      }
+      pos = next;
+    }
+    return { moves: moves, plunges: plunges };
+  }
+
+  // The area the bit touches: the tool path's box (arcs exact: their ends
+  // plus any 0/90/180/270° point they pass) grown by the bit radius.
+  function traceBounds(trace, bitRadius) {
+    var b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    var add = function(x, y) {
+      if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x;
+      if (y < b.minY) b.minY = y; if (y > b.maxY) b.maxY = y;
+    };
+    trace.plunges.forEach(function(p) { add(p.x, p.y); });
+    trace.moves.forEach(function(m) {
+      add(m.x0, m.y0); add(m.x1, m.y1);
+      if (m.cx === undefined) return;
+      var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+      var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+      var sweep = m.cw ? a0 - a1 : a1 - a0;
+      sweep = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
+      for (var k = 0; k < 4; k++) {
+        var a = k * Math.PI / 2;
+        var from = m.cw ? a0 - a : a - a0;
+        if (((from % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) <= sweep) add(m.cx + r * Math.cos(a), m.cy + r * Math.sin(a));
+      }
+    });
+    if (b.minX === Infinity) return null;
+    return { minX: b.minX - bitRadius, maxX: b.maxX + bitRadius, minY: b.minY - bitRadius, maxY: b.maxY + bitRadius };
+  }
+
+  function drawPatternTrace(trace, bitRadius, captionLines) {
+    // The drawing also keeps X0 Y0 in view.
+    var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+    var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
+    var minY = Math.min(tb.minY, 0), maxY = Math.max(tb.maxY, 0);
+    var span = Math.max(maxX - minX, maxY - minY) || 1;
+    // Each caption line past the first takes room from the bottom.
+    var extra = ((captionLines || 1) - 1) * PATTERN_PREVIEW_LINE;
+    var s = (80 - extra) / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
+    var X = function(v) { return ((v - midX) * s).toFixed(2); };
+    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
+
+    var d = '', penX = null, penY = null;
+    trace.moves.forEach(function(m) {
+      if (penX !== m.x0 || penY !== m.y0) d += 'M' + X(m.x0) + ',' + Y(m.y0);
+      if (m.cx === undefined) {
+        d += 'L' + X(m.x1) + ',' + Y(m.y1);
+      } else {
+        var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+        var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+        var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
+        sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
+        if (sweepAngle < 1e-9) {
+          var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
+          d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+        } else {
+          d += 'A' + rr + (sweepAngle > Math.PI ? 1 : 0) + ' ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+        }
+      }
+      penX = m.x1; penY = m.y1;
+    });
+
+    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
+    var dots = trace.plunges.map(function(p) {
+      return '<circle class="qc-pattern-plunge" cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + dotR + '"/>';
+    }).join('');
+    var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
+    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
+      ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
+    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin;
   }
 
   // At 0° the grid runs along the machine axes, so X/Y labels are
@@ -3595,14 +4509,19 @@
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
     // Extent mode renames only the distance fields.
     axisExtent:   { 'x-dist': 'X Extent', 'y-dist': 'Y Extent' },
-    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' }
+    angledExtent: { 'x-dist': 'Extent', 'y-dist': 'Row Extent' },
+    // Grid (Slot): columns run front to back, rows left to right.
+    grid:       { 'x-dist': 'Column Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Columns', 'y-count': 'Rows' },
+    gridExtent: { 'x-dist': 'Width', 'y-dist': 'Height' }
   };
   // The short angled labels need a word of explanation; it goes in the
   // label's tooltip so the narrow columns don't wrap.
   var PATTERN_TITLES = {
     axis:   { 'x-dist': '', 'y-dist': '', 'x-count': '', 'y-count': '' },
     angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
-              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' }
+              'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' },
+    grid: { 'x-dist': 'Center-to-center between columns', 'y-dist': 'Center-to-center between rows',
+            'x-count': 'Lines running across the rows (front to back at 0°)', 'y-count': 'Lines running along the rows (left to right at 0°)' }
   };
   // Extent switch: flipping it converts both distance fields so the
   // pattern stays where it is (spacing x (count - 1) = extent), then the
@@ -3610,7 +4529,7 @@
   // so its field is left alone. Any edit to a count or distance keeps
   // the extent tooltip's worked-out spacing current.
   function wirePatternExtent() {
-    ['rect', 'circ', 'poly', 'key', 'drl'].forEach(function(prefix) {
+    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
       var pre = 'qc-' + prefix + '-pattern-';
       var sw = $(pre + 'extent');
       if (!sw) return;
@@ -3633,15 +4552,18 @@
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
     var angle = num('qc-' + prefix + '-pattern-angle', 0);
-    var set = angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
+    var style = $('qc-' + prefix + '-pattern-style').value;
+    var isLineGrid = style === 'grid';
+    var set = isLineGrid ? PATTERN_LABELS.grid : angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
+    var titles = isLineGrid ? PATTERN_TITLES.grid : angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis;
     var extentEl = $('qc-' + prefix + '-pattern-extent');
     var extent = extentEl && extentEl.checked;
-    var extSet = angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
+    var extSet = isLineGrid ? PATTERN_LABELS.gridExtent : angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
     var labels = body.querySelectorAll('[data-pattern-label]');
     for (var i = 0; i < labels.length; i++) {
       var key = labels[i].getAttribute('data-pattern-label');
       labels[i].textContent = ((extent && extSet[key]) || set[key]).replace('{a}', angle);
-      labels[i].title = (angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis)[key].replace('{a}', angle);
+      labels[i].title = titles[key].replace('{a}', angle);
       // In extent mode the tooltip gives the spacing it works out to.
       if (extent && extSet[key]) {
         var axis = key.charAt(0);
@@ -3650,12 +4572,11 @@
         labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
       }
     }
-    // The Rotate switch only means something for an angled grid; the
-    // Angle field itself is hidden for Circular.
-    var style = $('qc-' + prefix + '-pattern-style').value;
-    var isGrid = style === 'linear' || style === 'honeycomb';
+    // The Rotate switch only means something for an angled grid (Grid's
+    // lines always turn with it); the Angle field is hidden for Circular.
+    var isGrid = style === 'linear' || style === 'honeycomb' || isLineGrid;
     var rotate = body.querySelector('.qc-pattern-angled-only');
-    if (rotate) rotate.style.display = angle && isGrid ? '' : 'none';
+    if (rotate) rotate.style.display = angle && isGrid && !isLineGrid ? '' : 'none';
     // The switch cell (Extent, Symmetric Ends, Rotate shapes) is for the
     // grid styles only; Circular hides it with the Angle field.
     var toggles = body.querySelector('.qc-pattern-toggle-cell');
@@ -3747,6 +4668,7 @@
       { host: 'qc-rect-origin-picker', input: 'qc-rect-origin', def: 'center'     },
       { host: 'qc-circ-origin-picker', input: 'qc-circ-origin', def: 'center'     },
       { host: 'qc-poly-origin-picker', input: 'qc-poly-origin', def: 'center'     },
+      { host: 'qc-slt-origin-picker',  input: 'qc-slt-origin',  def: 'center'     },
       // Keyhole adds its plunge hole, the default (it was the only
       // origin before the picker existed).
       { host: 'qc-key-origin-picker',  input: 'qc-key-origin',  def: 'hole', extra: ['hole'] },
@@ -3778,8 +4700,11 @@
     }
   }
 
-  function hydrateSavedSettings() {
-    var saved = initialConfig || {};
+  // With no argument: restore everything saved, at startup. With `loaded`
+  // (Load: one shape's settings and the common spindle values), only what
+  // it carries changes.
+  function hydrateSavedSettings(loaded) {
+    var saved = loaded || initialConfig || {};
     var common = saved.common || {};
     var rect = saved.rectangle || {};
     // Spindle & Coolant stay common across shapes.
@@ -3787,13 +4712,16 @@
     if (common.spindleDelay != null)   $('qc-delay').value  = common.spindleDelay;
     if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
     if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
-    $('qc-save-files').checked = !!common.saveToFileManager;
-    $('qc-save-files').addEventListener('change', function() {
-      persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
-    });
+    if (!loaded) {
+      $('qc-save-files').checked = !!common.saveToFileManager;
+      $('qc-save-files').addEventListener('change', function() {
+        persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
+      });
+    }
     // Tool card is per-shape. Falls back to common.bit/feed/plunge for
     // shapes without a per-shape override yet (first-run + legacy).
     TOOL_SHAPES.forEach(function(shape) {
+      if (loaded && !saved[shape]) return;
       var s = saved[shape] || {};
       state.toolByShape[shape] = s.tool || {
         bitDiameter:    common.bitDiameter,
@@ -3809,6 +4737,7 @@
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
     if (rect.origin)                setOriginPickerValue('qc-rect-origin', migrateOrigin(rect.origin));
+    if (rect.inset != null) $('qc-rect-inset').value = roundDisplay(mmToDisplay(rect.inset));
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
     if (rect.depthOfCut != null)    $('qc-rect-step').value   = roundDisplay(mmToDisplay(rect.depthOfCut));
     // Stepover is a percent — unitless, stored as-is.
@@ -3820,6 +4749,7 @@
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
     if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
     if (circ.origin)                setOriginPickerValue('qc-circ-origin', migrateOrigin(circ.origin));
+    if (circ.inset != null) $('qc-circ-inset').value = roundDisplay(mmToDisplay(circ.inset));
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
@@ -3866,21 +4796,48 @@
     var polyDiameterMm = poly.diameter != null
       ? poly.diameter
       : (poly.radius != null ? poly.radius * 2 : null);
-    if (polyDiameterMm != null)     $('qc-poly-diameter').value = roundDisplay(mmToDisplay(polyDiameterMm));
+    var polyModeEl = $('qc-poly-size-mode');
+    if (poly.sizeMode && poly.sizeValue != null) {
+      polyModeEl.value = poly.sizeMode;
+      $('qc-poly-diameter').value = roundDisplay(mmToDisplay(poly.sizeValue));
+    } else if (polyDiameterMm != null) {
+      polyModeEl.value = 'corners';
+      $('qc-poly-diameter').value = roundDisplay(mmToDisplay(polyDiameterMm));
+    }
+    polyModeEl.setAttribute('data-was', polyModeEl.value);
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
     if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
+    if (poly.inset != null) $('qc-poly-inset').value = roundDisplay(mmToDisplay(poly.inset));
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
     if (poly.depthOfCut != null)    $('qc-poly-step').value     = roundDisplay(mmToDisplay(poly.depthOfCut));
     if (poly.stepoverPct != null)   $('qc-poly-stepover').value = poly.stepoverPct;
     hydrateTabs('poly', poly.tabs);
     hydratePattern('poly', poly.pattern);
 
+    var slt = saved.slot || {};
+    if (slt.slotType)               $('qc-slt-type').value     = slt.slotType;
+    if (slt.arcMode)                $('qc-slt-arc-mode').value = slt.arcMode;
+    ['width', 'length', 'radius', 'chord', 'rise', 'inset', 'depth'].forEach(function(k) {
+      if (slt[k] != null) $('qc-slt-' + k).value = roundDisplay(mmToDisplay(slt[k]));
+    });
+    if (slt.depthOfCut != null)     $('qc-slt-step').value     = roundDisplay(mmToDisplay(slt.depthOfCut));
+    if (slt.angleDeg != null)       $('qc-slt-angle').value    = slt.angleDeg;
+    if (slt.startAngleDeg != null)  $('qc-slt-start').value    = slt.startAngleDeg;
+    if (slt.sweepDeg != null)       $('qc-slt-sweep').value    = slt.sweepDeg;
+    if (slt.bulgeAngleDeg != null)  $('qc-slt-bulge').value    = slt.bulgeAngleDeg;
+    if (slt.cutType)                $('qc-slt-cut-type').value = slt.cutType;
+    if (slt.origin)                 setOriginPickerValue('qc-slt-origin', slt.origin);
+    if (slt.stepoverPct != null)    $('qc-slt-stepover').value = slt.stepoverPct;
+    hydrateTabs('slt', slt.tabs);
+    hydratePattern('slt', slt.pattern);
+
     var key = saved.keyhole || {};
     if (key.slotLength != null)     $('qc-key-length').value      = roundDisplay(mmToDisplay(key.slotLength));
     if (key.startAngleDeg != null)  $('qc-key-start-angle').value = key.startAngleDeg;
     if (key.origin)                 setOriginPickerValue('qc-key-origin', key.origin);
+    if (key.inset != null) $('qc-key-inset').value = roundDisplay(mmToDisplay(key.inset));
     if (key.depth != null)          $('qc-key-depth').value       = roundDisplay(mmToDisplay(key.depth));
     hydratePattern('key', key.pattern);
 
@@ -3897,6 +4854,7 @@
     if (drl.peckMode)          $('qc-drl-peck-mode').value = drl.peckMode;
     if (drl.dwell != null)     $('qc-drl-dwell').value     = drl.dwell;
     if (drl.origin)            setOriginPickerValue('qc-drl-origin', drl.origin);
+    if (drl.inset != null) $('qc-drl-inset').value = roundDisplay(mmToDisplay(drl.inset));
     hydratePattern('drl', drl.pattern);
 
     updateClearingVisibility('rect');
@@ -3905,11 +4863,14 @@
     updatePatternVisibility('circ');
     updateClearingVisibility('poly');
     updatePatternVisibility('poly');
+    updateSlotFields();
+    updatePatternVisibility('slt');
     updatePatternVisibility('key');
     updatePatternVisibility('drl');
     updateRectanglePreview();
     updateCirclePreview();
     updatePolygonPreview();
+    updateSlotPreview();
     updateKeyholePreview();
     updateDrillPreview();
     updatePlanerPreview();
@@ -3971,6 +4932,7 @@
         startAngleDeg: params.startAngleDeg,
         cutType:      params.cutType,
         origin:       params.origin,
+        inset:      displayToMm(params.inset),
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
@@ -3983,6 +4945,7 @@
         diameter:     displayToMm(params.diameter),
         cutType:      params.cutType,
         origin:       params.origin,
+        inset:      displayToMm(params.inset),
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
@@ -4032,14 +4995,40 @@
         tool:          toolForShape,
         sides:         params.sides,
         diameter:      displayToMm(params.diameter),
+        sizeMode:      params.sizeMode,
+        sizeValue:     displayToMm(params.sizeValue),
         startAngleDeg: params.startAngleDeg,
         cornerRadius:  displayToMm(params.cornerRadius),
         cutType:       params.cutType,
         origin:        params.origin,
+        inset:       displayToMm(params.inset),
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
         tabs:          packTabsForm('poly'),
+        pattern:       packPattern(params.pattern)
+      };
+    } else if (params.shape === 'slot') {
+      body.slot = {
+        tool:          toolForShape,
+        slotType:      params.slotType,
+        arcMode:       params.arcMode,
+        width:         displayToMm(params.width),
+        length:        displayToMm(params.length),
+        angleDeg:      params.angleDeg,
+        radius:        displayToMm(params.radius),
+        startAngleDeg: params.startAngleDeg,
+        sweepDeg:      params.sweepDeg,
+        chord:         displayToMm(params.chord),
+        rise:          displayToMm(params.rise),
+        bulgeAngleDeg: params.bulgeAngleDeg,
+        cutType:       params.cutType,
+        origin:        params.origin,
+        inset:         displayToMm(params.inset),
+        depth:         displayToMm(params.depth),
+        depthOfCut:    displayToMm(params.depthOfCut),
+        stepoverPct:   params.stepoverPct,
+        tabs:          packTabsForm('slt'),
         pattern:       packPattern(params.pattern)
       };
     } else if (params.shape === 'keyhole') {
@@ -4048,6 +5037,7 @@
         slotLength:    displayToMm(params.slotLength),
         startAngleDeg: params.startAngleDeg,
         origin:        params.origin,
+        inset:       displayToMm(params.inset),
         depth:         displayToMm(params.depth),
         pattern:       packPattern(params.pattern)
       };
@@ -4059,6 +5049,7 @@
         peckMode:      params.peckMode,
         dwell:         params.dwell,
         origin:        params.origin,
+        inset:       displayToMm(params.inset),
         pattern:       packPattern(params.pattern)
       };
     }
@@ -4067,6 +5058,141 @@
       state.toolByShape[params.shape] = toolForShape;
     }
     persistSettings(body);
+    return { shape: params.shape, settings: body[params.shape], common: common };
+  }
+
+  // Settings block: the values Generate saved (mm), as base64 JSON in short
+  // comment lines after M30, so Load can fill the form from a program in
+  // File Manager. Short lines because ncSender sends comment lines to the
+  // controller too, and GRBL's line buffer is small.
+  var SETTINGS_LINE = 'QC1 ';
+  function settingsBlock(saved) {
+    var json = JSON.stringify({
+      v: 1,
+      shape: saved.shape,
+      settings: saved.settings,
+      common: { spindleRpm: saved.common.spindleRpm, spindleDelay: saved.common.spindleDelay,
+                mistM7: saved.common.mistM7, floodM8: saved.common.floodM8 }
+    });
+    var b64 = btoa(unescape(encodeURIComponent(json)));
+    var out = ['', '', '(QuickCut settings - used by Load)'];
+    for (var i = 0; i < b64.length; i += 60) out.push('(' + SETTINGS_LINE + b64.slice(i, i + 60) + ')');
+    return out.join('\n') + '\n';
+  }
+  // Load: lists the programs in File Manager › QuickCut, newest first; a
+  // pick reads its settings block, fills that shape's tab and switches to
+  // it. Nothing is generated or run. Programs from before Load have no
+  // block and say so.
+  var loadPanel = null;
+  function closeLoadPanel() {
+    if (!loadPanel) return false;
+    loadPanel.remove();
+    loadPanel = null;
+    return true;
+  }
+  function quickCutFiles(tree) {
+    var files = [];
+    (function walk(entries) {
+      (entries || []).forEach(function(e) {
+        var path = String(e && (e.path != null ? e.path : e.Path) || '').replace(/\\/g, '/').replace(/^\//, '');
+        var kids = e && (e.children || e.Children);
+        if (kids && kids.length) walk(kids);
+        else if (/^QuickCut\//i.test(path) && /\.(nc|gcode|ngc|tap)$/i.test(path)) {
+          files.push({ path: path, name: e.name || path.slice(9), when: e.uploadedAt || '' });
+        }
+      });
+    })(tree);
+    return files.sort(function(a, b) { return a.when < b.when ? 1 : a.when > b.when ? -1 : 0; });
+  }
+  async function openLoadPanel() {
+    closeLoadPanel();
+    loadPanel = document.createElement('div');
+    loadPanel.className = 'qc-load-panel';
+    loadPanel.innerHTML =
+      '<h3>Load settings</h3>' +
+      '<p>Pick a QuickCut program saved in File Manager to fill its tab with the settings it was made with. Programs made before Load existed have no saved settings.</p>' +
+      '<input class="qc-input qc-load-filter" type="text" placeholder="Search QuickCut files..." autocomplete="off" spellcheck="false">' +
+      '<div class="qc-load-status">Loading the list…</div>' +
+      '<div class="qc-load-list"></div>' +
+      '<div class="qc-load-actions"><button type="button" class="qc-secondary-btn qc-load-cancel">Cancel</button></div>';
+    ROOT.appendChild(loadPanel);
+    var panel = loadPanel, list = panel.querySelector('.qc-load-list'), status = panel.querySelector('.qc-load-status');
+    var filter = panel.querySelector('.qc-load-filter');
+    panel.querySelector('.qc-load-cancel').addEventListener('click', closeLoadPanel);
+    var files = [];
+    function render() {
+      var q = filter.value.trim().toLowerCase();
+      var shown = files.filter(function(f) { return !q || f.name.toLowerCase().indexOf(q) >= 0; });
+      list.innerHTML = '';
+      shown.forEach(function(f) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'qc-load-row';
+        var name = document.createElement('span');
+        name.textContent = f.name;
+        var when = document.createElement('small');
+        when.textContent = f.when ? new Date(f.when).toLocaleString() : '';
+        row.appendChild(name);
+        row.appendChild(when);
+        row.addEventListener('click', function() { loadFromFile(f, status); });
+        list.appendChild(row);
+      });
+      status.textContent = files.length ? '' : 'No programs in File Manager › QuickCut yet. Turn on Save to File Manager, then Generate.';
+    }
+    filter.addEventListener('input', render);
+    try {
+      var res = await fetch(BASE_URL + '/api/gcode-files');
+      var data = res.ok ? await res.json() : null;
+      files = quickCutFiles(data && (data.tree || data.Tree));
+      if (panel !== loadPanel) return;
+      render();
+      filter.focus();
+    } catch (err) {
+      status.textContent = 'Could not read File Manager: ' + err.message;
+    }
+  }
+  async function loadFromFile(file, status) {
+    status.textContent = 'Reading ' + file.name + '…';
+    try {
+      var res = await fetch(BASE_URL + '/api/gcode-files/file?path=' + encodeURIComponent(file.path));
+      if (!res.ok) throw new Error('status ' + res.status);
+      var body = await res.json();
+      var data = readSettingsBlock(String(body && (body.content != null ? body.content : body.Content) || ''));
+      if (!data) {
+        status.textContent = file.name + ' has no QuickCut settings (it was made before Load, or not by QuickCut).';
+        return;
+      }
+      var loaded = { common: data.common || {} };
+      loaded[data.shape] = data.settings;
+      hydrateSavedSettings(loaded);
+      ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
+      closeLoadPanel();
+      switchTab(data.shape);
+      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK, true);
+    } catch (err) {
+      status.textContent = 'Could not read ' + file.name + ': ' + err.message;
+    }
+  }
+  function wireLoad() {
+    $('qc-load-link').addEventListener('click', function(evt) {
+      evt.preventDefault();
+      openLoadPanel();
+    });
+  }
+
+  function readSettingsBlock(gcode) {
+    var b64 = '';
+    gcode.split(/\r?\n/).forEach(function(line) {
+      var m = /^\(QC1 ([A-Za-z0-9+\/=]+)\)\s*$/.exec(line.trim());
+      if (m) b64 += m[1];
+    });
+    if (!b64) return null;
+    try {
+      var data = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      return data && data.v === 1 && TOOL_SHAPES.indexOf(data.shape) >= 0 && data.settings ? data : null;
+    } catch (e) {
+      return null;
+    }
   }
 
   // The server replaces the whole settings file on every save. Sending only the
@@ -4120,6 +5246,7 @@
     // Show the tap registered: the dialog closes when this resolves, but
     // the load (and a File Manager save) can take a moment. Put back if
     // anything fails and the dialog stays open.
+    removeTooltip();
     var btn = document.querySelector('.qc-content.active [id$="-generate"]');
     var label = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
@@ -4170,6 +5297,52 @@
   // still probed once (a 404 is quick) so a listing that looks different
   // can never cause an overwrite; if it's taken after all, the probing
   // carries on from there as before.
+  // A name that says what the program is, like the BoxJoints plugin's:
+  // QuickCut-<Shape>, the main sizes as short tags, the depth, the cut
+  // type and any pattern, then the units. Values are as shown in the form.
+  // e.g. QuickCut-Rectangle_W-120_H-80_R-6_D-6_Outer_P-3x2_mm.nc
+  var CUT_TAGS = { inner: 'Inner', outer: 'Outer', clearing: 'Pocket', center: 'Center' };
+  function programFileName(params) {
+    var n = function(v) { return String(parseFloat(Number(v || 0).toFixed(3))); };
+    var tags = [];
+    var pat = params.pattern;
+    switch (params.shape) {
+      case 'rectangle':
+        tags.push('W-' + n(params.width), 'H-' + n(params.height));
+        if (params.cornerRadius > 0) tags.push('R-' + n(params.cornerRadius));
+        break;
+      case 'circle': tags.push('Dia-' + n(params.diameter)); break;
+      case 'polygon':
+        tags.push('N-' + params.sides, (params.sizeMode === 'flats' ? 'AF-' : params.sizeMode === 'edge' ? 'Edge-' : 'Dia-') +
+          n(params.sizeMode === 'flats' || params.sizeMode === 'edge' ? params.sizeValue : params.diameter));
+        break;
+      case 'slot':
+        if (pat && pat.enabled && pat.style === 'grid' && params.slotType !== 'arc') {
+          tags.push('Grid-' + pat.xCount + 'x' + pat.yCount, 'Sp-' + n(pat.xDist) + 'x' + n(pat.yDist));
+          pat = null;
+        } else if (params.slotType === 'arc') {
+          tags.push(params.arcMode === 'chord' ? 'C-' + n(params.chord) : 'R-' + n(params.radius),
+                    params.arcMode === 'chord' ? 'Rise-' + n(params.rise) : 'Sweep-' + n(params.sweepDeg));
+        } else {
+          tags.push('L-' + n(params.length));
+        }
+        if (params.cutType !== 'center') tags.push('W-' + n(params.width));
+        break;
+      case 'keyhole': tags.push('L-' + n(params.slotLength)); break;
+      case 'planer': tags.push('W-' + n(params.width), 'H-' + n(params.height)); pat = null; break;
+      case 'jointer': tags.push('L-' + n(params.length)); break;
+      case 'cutter': tags.push('T-' + n(params.targetSize)); break;
+    }
+    tags.push('D-' + n(params.depth));
+    if (CUT_TAGS[params.cutType]) tags.push(CUT_TAGS[params.cutType]);
+    if (pat && pat.enabled) {
+      tags.push(/^circular/.test(pat.style) ? 'P-' + pat.count : 'P-' + pat.xCount + 'x' + pat.yCount);
+    }
+    tags.push(state.isImperial ? 'in' : 'mm');
+    var shapeName = params.shape.charAt(0).toUpperCase() + params.shape.slice(1);
+    return 'QuickCut-' + shapeName + '_' + tags.join('_') + '.nc';
+  }
+
   function savePathFor(filename, n) {
     var dot = filename.lastIndexOf('.');
     var stem = dot > 0 ? filename.slice(0, dot) : filename;
@@ -4220,7 +5393,8 @@
     $('qc-rect-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('rect'); });
     wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, function(pt) {
       pickPreviewNode(rectPreviewNodes, 'qc-rect-origin', pt, updateRectanglePreview);
-    });
+    }, null, snapMiterAngle);
+    wirePickCursor($('qc-rect-preview'), function(pt) { return !!nearestPreviewNode(rectPreviewNodes, pt); });
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -4234,9 +5408,9 @@
       params.shape = 'rectangle';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateRectangleProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Rectangle.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -4265,9 +5439,9 @@
       params.shape = 'planer';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generatePlanerProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Planer.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
       } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
@@ -4292,6 +5466,7 @@
     wireSidePicker('qc-cut-preview', 'qc-cut-origin', 'qc-cut-axis');
     $('qc-cut-preview').addEventListener('click', function(e) {
       if (!(e.target.closest && e.target.closest('.qc-feed-hit'))) return;
+      markPreviewPick();
       var dir = $('qc-cut-direction');
       dir.value = dir.value === 'climb' ? 'conventional' : 'climb';
       dir.dispatchEvent(new Event('change', { bubbles: true }));
@@ -4306,9 +5481,9 @@
       params.shape = 'cutter';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateCutterProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Cutter.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
       } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
@@ -4341,9 +5516,9 @@
       params.shape = 'jointer';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateJointerProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Jointer.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
       } catch (err) { alert('QuickCut Generate failed: ' + err.message); }
@@ -4369,9 +5544,9 @@
       params.shape = 'circle';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateCircleProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Circle.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -4433,11 +5608,32 @@
            ' H' + (px + arm).toFixed(2) + ' M' + px.toFixed(2) + ',' + (py - arm).toFixed(2) +
            ' V' + (py + arm).toFixed(2) + '"/>';
   }
-  // The crosshair follows the Origin picker and the pattern (with a
-  // pattern, the origin box is around every copy).
+  // Inset only applies to a corner or edge origin (not center, a tapped
+  // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
+  // from each preview update, which every way of changing the origin hits.
+  function updateInsetState(prefix) {
+    var el = $('qc-' + prefix + '-inset'), o = $('qc-' + prefix + '-origin');
+    if (!el || !o) return;
+    var on = /^(front|back|left|right)-/.test(o.value);
+    el.disabled = !on;
+    el.title = on ? 'Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin.'
+                  : 'Only for a corner or edge origin.';
+  }
+
+  // The inset a preview leaves room for (0 when it doesn't apply), in the
+  // shape's units, so X0 Y0 stays inside the drawing.
+  function insetPad(prefix) {
+    var el = $('qc-' + prefix + '-inset');
+    return el && !el.disabled ? Math.max(0, num('qc-' + prefix + '-inset', 0)) : 0;
+  }
+
+  // The crosshair follows the Origin picker, the Inset and the pattern
+  // (with a pattern, the origin box is around every copy).
   function wireOriginCrosshairs() {
+    $('qc-drl-inset').addEventListener('input', updateDrillPreview);
     [['rect', updateRectanglePreview], ['circ', updateCirclePreview],
-     ['poly', updatePolygonPreview], ['key', updateKeyholePreview]].forEach(function(t) {
+     ['poly', updatePolygonPreview], ['slt', updateSlotPreview], ['key', updateKeyholePreview]].forEach(function(t) {
+      $('qc-' + t[0] + '-inset').addEventListener('input', t[1]);
       $('qc-' + t[0] + '-origin').addEventListener('change', t[1]);
       $('qc-' + t[0] + '-pattern-enable').addEventListener('change', t[1]);
       $('qc-' + t[0] + '-pattern-body').addEventListener('input', t[1]);
@@ -4450,20 +5646,50 @@
   // [{x, y, value}] in the SVG's coordinates; they aren't drawn, the
   // crosshair shows where the Origin is.
   // A tap on the preview: the nearest node within reach becomes the Origin.
-  function pickPreviewNode(nodes, inputId, pt, redraw) {
+  function nearestPreviewNode(nodes, pt) {
     var best = null, bestD = 8;
     (nodes || []).forEach(function(nd) {
       var d = Math.hypot(nd.x - pt.x, nd.y - pt.y);
       if (d < bestD) { bestD = d; best = nd; }
     });
+    return best;
+  }
+  function pickPreviewNode(nodes, inputId, pt, redraw) {
+    var best = nearestPreviewNode(nodes, pt);
     if (!best) return;
+    markPreviewPick();
     setOriginPickerValue(inputId, best.value);
     redraw();
   }
   var rectPreviewNodes = null, polyPreviewNodes = null;
 
+  // With a mouse, the cursor turns to a pointer over a spot a click would
+  // pick (an origin dot, an end, a Drill hole); elsewhere the preview's
+  // own cursor (grab) stays. Same distances as the click.
+  function svgPointOf(svg, ev) {
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    var pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    return pt.matrixTransform(ctm.inverse());
+  }
+  function wirePickCursor(svg, isOverPick) {
+    svg.addEventListener('pointermove', function(ev) {
+      if (ev.buttons) return;
+      var pt = svgPointOf(svg, ev);
+      svg.classList.toggle('qc-over-pick', !!(pt && isOverPick(pt)));
+    });
+    svg.addEventListener('pointerleave', function() { svg.classList.remove('qc-over-pick'); });
+  }
+
   // Corner radius the cut will really leave: on an inner or clearing
   // cut, never less than the bit's radius.
+  // When the bit, not the typed Corner Radius, sets an inside corner, the
+  // previews also draw the shape as typed, dashed, so a small shape whose
+  // corners the bit rounds a lot doesn't look like a mistake.
+  function idealOutline(d) {
+    return '<path class="qc-shape-ideal" d="' + d + '"><title>Your shape as typed; the bit rounds the inside corners to its radius</title></path>';
+  }
   function previewCornerRadius(typed, cutType) {
     var r = Math.max(0, typed || 0);
     if (cutType === 'inner' || cutType === 'clearing') r = Math.max(r, Math.max(0, num('qc-bit', 0)) / 2);
@@ -4471,6 +5697,8 @@
   }
 
   function updateRectanglePreview() {
+    schedulePatternPreview();
+    updateInsetState('rect');
     var svg = document.getElementById('qc-rect-preview');
     if (!svg) return;
     var W = num('qc-rect-width', 0);
@@ -4487,10 +5715,12 @@
     // radius is drawn in proportion too, and the Start Angle turns the
     // whole drawing (CCW, like the machine). Dim labels show the real
     // values.
-    var aspect = W > 0 && H > 0 ? W / H : 76 / 46;
-    var fit = Math.min(76 / aspect, 60);
-    if (turn % 180) fit = Math.min(fit, 80 / Math.hypot(aspect, 1));
-    var w = Math.max(14, aspect * fit), h = Math.max(14, fit);
+    // An inset adds that much room on every side, so X0 Y0 stays in view.
+    var pad = insetPad('rect');
+    var Wp = W > 0 && H > 0 ? W + 2 * pad : 76, Hp = W > 0 && H > 0 ? H + 2 * pad : 46;
+    var fit = Math.min(76 / Wp, 60 / Hp);
+    if (turn % 180) fit = Math.min(fit, 80 / Math.hypot(Wp, Hp));
+    var w = Math.max(14, (W > 0 && H > 0 ? W : 76) * fit), h = Math.max(14, (W > 0 && H > 0 ? H : 46) * fit);
     var shortSide = Math.min(W, H);
     var cr = CR > 0 && shortSide > 0 ? Math.min(CR / shortSide * Math.min(w, h), Math.min(w, h) / 2) : 0;
     var centerY = 0;
@@ -4501,6 +5731,9 @@
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
     var outline = roundedRectPath(x, y, w, h, cr, T);
+    var typedCR = Math.max(0, num('qc-rect-corner', 0));
+    var ideal = CR > typedCR + 1e-9 && shortSide > 0
+      ? idealOutline(roundedRectPath(x, y, w, h, Math.min(typedCR / shortSide * Math.min(w, h), Math.min(w, h) / 2), T)) : '';
 
     // Hatched waste area.
     var hatchFill = 'fill="url(#qc-rect-hatch)"';
@@ -4564,6 +5797,7 @@
       shapePreviewDefs('qc-rect') +
       hatched +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
+      ideal +
       wLine + hLine + wLabel + hLabel +
       tabMarks('rect', previewLines(tabPts, rectTabLens())) +
       rectOriginCross();
@@ -5006,11 +6240,15 @@
   // Circle preview — bordered viewport, hatched waste based on cut
   // type, horizontal dimension arrow labeling the diameter.
   function updateCirclePreview() {
+    schedulePatternPreview();
+    updateInsetState('circ');
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
     var D = num('qc-circ-diameter', 0);
     var cutType = $('qc-circ-cut-type').value;
-    var r = 40;
+    // Smaller when an inset needs room, so X0 Y0 stays in view.
+    var pad = insetPad('circ');
+    var r = D > 0 && pad > 0 ? Math.min(40, 44 * (D / 2) / (D / 2 + pad)) : 40;
     var boxHalf = 50;
     var arrowInset = 4;
 
@@ -5064,6 +6302,7 @@
       slotLength:    num('qc-key-length', 0),
       startAngleDeg: num('qc-key-start-angle', 90),
       origin:        $('qc-key-origin').value,
+      inset:       num('qc-key-inset', 0),
       depth:         num('qc-key-depth', 0),
       pattern:       readPatternForm('key'),
       isImperial:    state.isImperial,
@@ -5117,6 +6356,8 @@
   }
 
   function updateKeyholePreview() {
+    schedulePatternPreview();
+    updateInsetState('key');
     updateKeyholeOriginPicker();
     var svg = document.getElementById('qc-key-preview');
     if (!svg) return;
@@ -5124,9 +6365,10 @@
     var dia = num('qc-bit', 0);
     var angle = num('qc-key-start-angle', 90);
     var L = Math.max(0, len), D = Math.max(0, dia);
-    // Fit the full extent (slot length + head diameter) into ~62 units,
-    // leaving the rest of the -50…50 box for the labels.
-    var extent = L + D;
+    // Fit the full extent (slot length + head diameter, plus room for an
+    // inset either side) into ~62 units, leaving the rest of the -50…50
+    // box for the labels.
+    var extent = L + D + 2 * insetPad('key');
     // The hole is also capped at ~44 units across so a very short slot
     // still leaves room for the labels.
     var scale = extent > 0 ? Math.min(62 / extent, D > 0 ? 44 / D : Infinity) : 1;
@@ -5191,8 +6433,9 @@
       })() : '');
   }
 
-  // Dragging on a preview sets an angle field, in whole degrees,
-  // snapping to the nearest multiple of 90 within PREVIEW_ANGLE_SNAP.
+  // Dragging on a preview sets an angle field; without a snap function it
+  // moves in whole degrees, snapping to the nearest multiple of 90 within
+  // PREVIEW_ANGLE_SNAP.
   // Absolute (Keyhole's Slot Angle): the angle points at the pointer,
   // measured about the preview center, where the slot is drawn
   // centered; a tap works too. Relative (Rectangle / Polygon Start
@@ -5201,9 +6444,18 @@
   // the pointer has moved a few units, so a tap is left for onTap (point
   // in the SVG's coordinates), e.g. picking a corner as the origin.
   var PREVIEW_ANGLE_SNAP = 8;
-  function wirePreviewAngleDrag(svgId, inputId, relative, onTap) {
+  // snapOffset (optional): a function giving how far the drawn line that
+  // should snap is turned from the angle being set (Slot's arc: Sweep / 2,
+  // so the radius line to the slot's middle snaps square, not the Start).
+  // snap (optional): replaces the 90° snap and whole degrees, given the
+  // angle in [0, 360) plus any snapOffset. Every preview passes
+  // snapMiterAngle (half degrees and miter stops).
+  function wirePreviewAngleDrag(svgId, inputId, relative, onTap, snapOffset, snap) {
     var svg = $(svgId);
-    var input = $(inputId);
+    var cell = svg.closest('.qc-shape-preview-cell');
+    // inputId may be a function, for a preview whose angle field changes
+    // (Slot: Angle, Start Angle or the bulge Angle).
+    var input = typeof inputId === 'function' ? inputId() : $(inputId);
     var dragging = false, downDeg = null, baseDeg = 0, downPt = null, twisting = false;
     function svgPoint(ev) {
       var ctm = svg.getScreenCTM();
@@ -5226,14 +6478,24 @@
         if (!twisting) {
           if (!downPt || Math.hypot(pt.x - downPt.x, pt.y - downPt.y) < 4) return;
           twisting = true;
+          svg.classList.add('qc-twisting');
         }
+        // A greyed-out field (Slot's Angle under a Grid pattern) isn't
+        // turned; the gesture still counts as a drag, not a tap.
+        if (input.disabled) return;
         if (downDeg == null) { downDeg = deg; return; }
         deg = baseDeg + (deg - downDeg);
+      } else if (input.disabled) {
+        return;
       }
       deg = ((deg % 360) + 360) % 360;
-      var right = Math.round(deg / 90) * 90;
-      deg = Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? right : Math.round(deg);
-      deg = deg % 360;
+      var off = snapOffset ? snapOffset() : 0;
+      var right = Math.round((deg + off) / 90) * 90 - off;
+      deg = snap ? parseFloat((snap(((deg + off) % 360 + 360) % 360) - off).toFixed(3))
+        : Math.abs(deg - right) <= PREVIEW_ANGLE_SNAP ? parseFloat(right.toFixed(3)) : Math.round(deg);
+      // With an offset the snapped angle can be just below 0.
+      deg = ((deg % 360) + 360) % 360;
+      showDragAngle(cell, input, deg);
       if (String(deg) === input.value) return;
       input.value = deg;
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -5241,6 +6503,7 @@
     svg.addEventListener('pointerdown', function(ev) {
       dragging = true;
       twisting = false;
+      if (typeof inputId === 'function') input = inputId();
       downPt = svgPoint(ev);
       // Relative: the twist is measured from where the pointer was pressed.
       downDeg = relative ? pointerDeg(ev) : null;
@@ -5251,16 +6514,18 @@
     });
     svg.addEventListener('pointermove', function(ev) { if (dragging) setFromPointer(ev); });
     svg.addEventListener('pointerup', function(ev) {
+      if (dragging && (twisting || !relative)) markPreviewPick();
       if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
       dragging = false;
     });
-    svg.addEventListener('pointercancel', function() { dragging = false; });
+    svg.addEventListener('pointerup', function() { hideDragAngle(cell); svg.classList.remove('qc-twisting'); });
+    svg.addEventListener('pointercancel', function() { dragging = false; hideDragAngle(cell); svg.classList.remove('qc-twisting'); });
   }
 
   function wireKeyholeForm() {
     $('qc-key-length').addEventListener('input', updateKeyholePreview);
     $('qc-key-start-angle').addEventListener('input', updateKeyholePreview);
-    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', false);
+    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', true, null, null, snapMiterAngle);
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
@@ -5275,9 +6540,9 @@
       params.shape = 'keyhole';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateKeyholeProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Keyhole.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -5296,6 +6561,7 @@
       peckMode:      $('qc-drl-peck-mode').value,
       dwell:         num('qc-drl-dwell', 0),
       origin:        $('qc-drl-origin').value,
+      inset:       num('qc-drl-inset', 0),
       pattern:       readPatternForm('drl'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
@@ -5310,6 +6576,8 @@
   var drillPreviewMap = null;
   var DRILL_PREVIEW_MAX = 2500;
   function updateDrillPreview() {
+    schedulePatternPreview();
+    updateInsetState('drl');
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
     var dia = num('qc-bit', 0);
@@ -5328,13 +6596,13 @@
         '<text class="qc-shape-dim-label" x="0" y="8" text-anchor="middle">too many to show</text>';
       return;
     }
-    var picked = gen.resolveDrillOrigin($('qc-drl-origin').value, pattern, positions, D);
+    var picked = gen.resolveDrillOrigin($('qc-drl-origin').value, pattern, positions, D, num('qc-drl-inset', 0));
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     positions.forEach(function(p) {
       minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
       minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
     });
-    var extent = Math.max(maxX - minX, maxY - minY) + D;
+    var extent = Math.max(maxX - minX, maxY - minY) + D + 2 * insetPad('drl');
     var scale = Math.min(76 / extent, 30 / D);
     var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     var r = Math.max(0.8, D * scale / 2);
@@ -5377,20 +6645,23 @@
     $('qc-drl-origin').addEventListener('change', updateDrillPreview);
     // Tapping the preview makes the nearest hole the Origin. Holes in a
     // big grid are tiny, so anything within a few px of one counts.
-    $('qc-drl-preview').addEventListener('click', function(ev) {
+    function drillHoleAt(pt) {
       var map = drillPreviewMap;
-      var ctm = this.getScreenCTM();
-      if (!map || !ctm) return;
-      var pt = this.createSVGPoint();
-      pt.x = ev.clientX; pt.y = ev.clientY;
-      pt = pt.matrixTransform(ctm.inverse());
+      if (!map || !pt) return -1;
       var best = -1, bestD = Math.max(map.r * 1.5, 6);
       for (var i = 0; i < map.positions.length; i++) {
         var d = Math.hypot((map.positions[i].x - map.cx) * map.scale - pt.x,
                            -(map.positions[i].y - map.cy) * map.scale - pt.y);
         if (d < bestD) { bestD = d; best = i; }
       }
+      return best;
+    }
+    wirePickCursor($('qc-drl-preview'), function(pt) { return drillHoleAt(pt) >= 0; });
+    $('qc-drl-preview').addEventListener('click', function(ev) {
+      var map = drillPreviewMap;
+      var best = drillHoleAt(svgPointOf(this, ev));
       if (best < 0) return;
+      markPreviewPick();
       setOriginPickerValue('qc-drl-origin', 'hole:' + map.keys[best]);
       updateDrillPreview();
     });
@@ -5403,9 +6674,9 @@
       params.shape = 'drill';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateDrillProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Drill.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -5417,13 +6688,18 @@
   }
 
   function updatePolygonPreview() {
+    schedulePatternPreview();
+    updateInsetState('poly');
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
     var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
     var startDeg = num('qc-poly-start-angle', 0);
-    var diameter = num('qc-poly-diameter', 0);
+    var diameter = polygonCornerDiameter(0);
+    var sizeMode = $('qc-poly-size-mode').value;
     var cutType = $('qc-poly-cut-type').value;
-    var R = 40;
+    // Smaller when an inset needs room, so X0 Y0 stays in view.
+    var pad = insetPad('poly');
+    var R = diameter > 0 && pad > 0 ? Math.min(40, 44 * (diameter / 2) / (diameter / 2 + pad)) : 40;
     // Hatched-region boundary — extends to the full SVG viewBox so
     // the "outer" waste hatch fills all the way to the preview cell's
     // border, which serves as the visible container box (no need to
@@ -5445,7 +6721,9 @@
     // generator. Machine CCW stays CCW on screen (sweep-flag 0).
     var half = Math.PI / n;
     var CR = previewCornerRadius(num('qc-poly-corner', 0), cutType);
-    var crP = diameter > 0 && CR > 0 ? Math.min(CR * R / (diameter / 2), apothem) : 0;
+    var toPx = function(r) { return diameter > 0 && r > 0 ? Math.min(r * R / (diameter / 2), apothem) : 0; };
+    var crP = toPx(CR);
+    var outlineFor = function(crP) {
     var outline;
     if (crP > 0) {
       var coreR = (apothem - crP) / Math.cos(half);
@@ -5464,8 +6742,39 @@
     } else {
       outline = 'M' + pts.map(function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(' L') + ' Z';
     }
-    var armX = apothem * 0.92;
-    var label = diameter > 0 ? String(diameter) : '?';
+    return outline;
+    };
+    var outline = outlineFor(crP);
+    var typedCR = Math.max(0, num('qc-poly-corner', 0));
+    var ideal = CR > typedCR + 1e-9 ? idealOutline(outlineFor(toPx(typedCR))) : '';
+    var sizeValue = num('qc-poly-diameter', 0);
+    var label = sizeValue > 0 ? String(sizeValue) : '?';
+    // The dashed circle and dimension show what the size measures: the
+    // circle through the corners, the circle touching the flats, or the
+    // bottom-most edge, dimensioned just inside it.
+    var dim;
+    if (sizeMode === 'edge') {
+      var e = 0;
+      for (var ei = 1; ei < n; ei++) {
+        if (pts[ei].y + pts[(ei + 1) % n].y > pts[e].y + pts[(e + 1) % n].y) e = ei;
+      }
+      var ea = pts[e], eb = pts[(e + 1) % n];
+      var emx = (ea.x + eb.x) / 2, emy = (ea.y + eb.y) / 2, ein = Math.hypot(emx, emy) || 1;
+      var eo = 6 / ein, ek = 0.88;
+      var ex = function(q) { return (emx + (q.x - emx) * ek - emx * eo).toFixed(2); };
+      var ey = function(q) { return (emy + (q.y - emy) * ek - emy * eo).toFixed(2); };
+      dim = '<line class="qc-shape-dim-line" x1="' + ex(ea) + '" y1="' + ey(ea) + '" x2="' + ex(eb) + '" y2="' + ey(eb) + '" ' +
+              'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
+            '<text class="qc-shape-dim-label" x="' + (emx - emx * 14 / ein).toFixed(2) + '" y="' + (emy - emy * 14 / ein).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
+    } else {
+      var dimR = sizeMode === 'flats' ? apothem : R;
+      var armX = dimR * 0.92;
+      dim = '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + dimR.toFixed(2) + '"/>' +
+            '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
+              'x2="' + armX.toFixed(2) + '" y2="0" ' +
+              'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
+            '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>';
+    }
 
     // Hatched waste area — the region the cut leaves as scrap.
     //   Inner (perimeter) cut → keep the outside, waste the polygon interior
@@ -5496,11 +6805,8 @@
       shapePreviewDefs('qc-poly') +
       hatchedPath +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
-      '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + apothem.toFixed(2) + '"/>' +
-      '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
-            'x2="' + armX.toFixed(2) + '" y2="0" ' +
-            'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-      '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>' +
+      ideal +
+      dim +
       // The cut starts at the first vertex (or its corner arc) and runs CCW.
       tabMarks('poly', polyTabSegs()) +
       (diameter > 0 ? (function() {
@@ -5543,8 +6849,23 @@
     $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
     wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true, function(pt) {
       pickPreviewNode(polyPreviewNodes, 'qc-poly-origin', pt, updatePolygonPreview);
-    });
+    }, null, snapMiterAngle);
+    wirePickCursor($('qc-poly-preview'), function(pt) { return !!nearestPreviewNode(polyPreviewNodes, pt); });
     $('qc-poly-diameter').addEventListener('input', updatePolygonPreview);
+    // Switching the measure keeps the polygon: the number is converted.
+    var polyMode = $('qc-poly-size-mode');
+    polyMode.setAttribute('data-was', polyMode.value);
+    polyMode.addEventListener('change', function() {
+      var v = num('qc-poly-diameter', NaN), sides = polygonSides();
+      if (isFinite(v) && v > 0) {
+        var corners = polygonCornerDiameterFrom(v, sides, polyMode.getAttribute('data-was'));
+        var back = polyMode.value === 'flats' ? corners * Math.cos(Math.PI / sides)
+                 : polyMode.value === 'edge' ? corners * Math.sin(Math.PI / sides) : corners;
+        $('qc-poly-diameter').value = roundDisplay(back);
+      }
+      polyMode.setAttribute('data-was', polyMode.value);
+      updatePolygonPreview();
+    });
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
       updateClearingVisibility('poly');
@@ -5563,9 +6884,239 @@
       params.shape = 'polygon';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generatePolygonProgram(params);
-      saveSettings(params);
+      gcode += settingsBlock(saveSettings(params));
       try {
-        var res = await loadGcodeIntoVisualizer(gcode, 'QuickCut-Polygon.nc');
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
+        if (!res.ok) throw new Error('load failed: ' + res.status);
+        setTimeout(function() {
+          window.postMessage({ type: 'close-plugin-dialog' }, '*');
+        }, 100);
+      } catch (err) {
+        alert('QuickCut Generate failed: ' + err.message);
+      }
+    });
+  }
+
+  // ---------- Slot ----------
+
+  function readSlotForm() {
+    var common = readCommonParams();
+    return Object.assign({}, common, {
+      slotType:      $('qc-slt-type').value,
+      arcMode:       $('qc-slt-arc-mode').value,
+      width:         num('qc-slt-width', 0),
+      length:        num('qc-slt-length', 0),
+      angleDeg:      num('qc-slt-angle', 0),
+      radius:        num('qc-slt-radius', 0),
+      startAngleDeg: num('qc-slt-start', 0),
+      sweepDeg:      num('qc-slt-sweep', 0),
+      chord:         num('qc-slt-chord', 0),
+      rise:          num('qc-slt-rise', 0),
+      bulgeAngleDeg: num('qc-slt-bulge', 90),
+      cutType:       $('qc-slt-cut-type').value,
+      tabs:          readTabsForm('slt'),
+      origin:        $('qc-slt-origin').value,
+      inset:         num('qc-slt-inset', 0),
+      depth:         num('qc-slt-depth', 0),
+      depthOfCut:    num('qc-slt-step', 0),
+      stepoverPct:   num('qc-slt-stepover', 40),
+      pattern:       readPatternForm('slt'),
+      isImperial:    state.isImperial,
+      safeZHeightMm: state.safeZHeightMm
+    });
+  }
+
+  // The slot's finished width: the bit's on a Center line cut.
+  function slotWidthNow() {
+    return $('qc-slt-cut-type').value === 'center' ? Math.max(0, num('qc-bit', 0)) : num('qc-slt-width', NaN);
+  }
+
+  // The field a twist of the preview turns: Angle (straight), Start
+  // Angle (arc by radius) or the bulge Angle (arc by chord).
+  function slotAngleInput() {
+    if ($('qc-slt-type').value !== 'arc') return $('qc-slt-angle');
+    return $('qc-slt-arc-mode').value === 'chord' ? $('qc-slt-bulge') : $('qc-slt-start');
+  }
+
+  // Show the fields for the slot type and arc mode; Width is the bit's on
+  // a Center line cut, so it's greyed out there.
+  function updateSlotFields() {
+    var arc = $('qc-slt-type').value === 'arc';
+    var chord = arc && $('qc-slt-arc-mode').value === 'chord';
+    var show = function(cls, on) {
+      var els = document.querySelectorAll('.' + cls);
+      for (var i = 0; i < els.length; i++) els[i].style.display = on ? '' : 'none';
+    };
+    show('qc-slt-arc-only', arc);
+    show('qc-slt-straight-only', !arc);
+    show('qc-slt-radius-only', arc && !chord);
+    show('qc-slt-chord-only', chord);
+    // Grid is for straight slots; its lines take their length from the
+    // grid, so Length and Angle don't apply.
+    var styleEl = $('qc-slt-pattern-style'), gridOpt = styleEl.querySelector('option[value="grid"]');
+    gridOpt.hidden = gridOpt.disabled = arc;
+    if (arc && styleEl.value === 'grid') { styleEl.value = 'linear'; updatePatternVisibility('slt'); }
+    var gridOn = !arc && $('qc-slt-pattern-enable').checked && styleEl.value === 'grid';
+    $('qc-slt-length').disabled = gridOn;
+    $('qc-slt-angle').disabled = gridOn;
+    // The Grid's lines ignore it; show what applies (0) rather than a stale angle.
+    if (gridOn && Number($('qc-slt-angle').value) !== 0) $('qc-slt-angle').value = 0;
+    var w = $('qc-slt-width'), center = $('qc-slt-cut-type').value === 'center';
+    w.disabled = center;
+    w.title = center ? 'A Center line cut is the bit’s width.' : 'The finished width of the slot.';
+    updateClearingVisibility('slt');
+  }
+
+  var slotPreviewNodes = null;
+
+  // Slot preview, to scale: the outline (hatched where the waste is), the
+  // centre line dashed, and a dimension for the length or the radius. An
+  // arc slot's center is kept in view unless that would shrink the slot
+  // by more than a quarter. Twist to turn it; tap an end, or an arc's
+  // center, to make it the Origin.
+  function updateSlotPreview() {
+    schedulePatternPreview();
+    updateInsetState('slt');
+    updateSlotFields();
+    var svg = $('qc-slt-preview');
+    if (!svg) return;
+    var params = readSlotForm();
+    var gen = makeQuickCutGenerator(state.isImperial);
+    var cut = params.cutType;
+    var half = Math.max(0, slotWidthNow()) / 2;
+    var cl = gen.slotCenterline(params);
+    slotPreviewNodes = null;
+    if (!isFinite(half) || gen.slotProblem(params, cl, half)) {
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="3" text-anchor="middle">?</text>';
+      return;
+    }
+    var pc = gen.placeSlot(cl, 0, 0, 0);
+    var outline = gen.slotOutline(pc, half);
+    var b = gen.segmentsBbox(outline);
+    var pad = insetPad('slt');
+    var fit = function(bb) { return 80 / Math.max(bb.maxX - bb.minX + 2 * pad, bb.maxY - bb.minY + 2 * pad, 1e-9); };
+    var k = fit(b);
+    if (pc.type === 'arc') {
+      var withCenter = { minX: Math.min(b.minX, 0), maxX: Math.max(b.maxX, 0), minY: Math.min(b.minY, 0), maxY: Math.max(b.maxY, 0) };
+      if (fit(withCenter) >= k * 0.75) { b = withCenter; k = fit(b); }
+    }
+    var ox = (b.minX + b.maxX) / 2, oy = (b.minY + b.maxY) / 2;
+    var X = function(x) { return (x - ox) * k; }, Y = function(y) { return -(y - oy) * k; };
+    var f = function(v) { return v.toFixed(2); };
+    var P = function(x, y) { return f(X(x)) + ',' + f(Y(y)); };
+    var clamp = function(v) { return Math.max(-42, Math.min(42, v)); };
+    // Machine CCW stays CCW on screen (sweep-flag 0); dir -1 is CW.
+    var arcTo = function(sg) {
+      return ' A' + f(sg.r * k) + ',' + f(sg.r * k) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' +
+             (sg.dir === -1 ? 1 : 0) + ' ' + P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
+    };
+    var path = function(segs) {
+      var st = segs[0].type === 'line' ? { x: segs[0].x0, y: segs[0].y0 }
+        : { x: segs[0].cx + segs[0].r * Math.cos(segs[0].a0), y: segs[0].cy + segs[0].r * Math.sin(segs[0].a0) };
+      return 'M' + P(st.x, st.y) + segs.map(function(sg) {
+        return sg.type === 'line' ? ' L' + P(sg.x1, sg.y1) : arcTo(sg);
+      }).join('');
+    };
+    var d = path(outline) + ' Z';
+    var hatched = cut === 'outer'
+      ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="M-50,-50 L50,-50 L50,50 L-50,50 Z ' + d + '"/>'
+      : '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" d="' + d + '"/>';
+    var e0, e1, dim;
+    if (pc.type === 'line') {
+      e0 = { x: pc.x0, y: pc.y0 }; e1 = { x: pc.x1, y: pc.y1 };
+      var lenLabel = params.length > 0 ? String(params.length) : '?';
+      // The length label sits beside the slot, off its upper long side.
+      var nx = -Math.sin(pc.t), ny = -Math.cos(pc.t), off = half * k + 9;
+      if (ny > 0) { nx = -nx; ny = -ny; }
+      dim = '<line class="qc-shape-dim-line" x1="' + f(X(pc.x0)) + '" y1="' + f(Y(pc.y0)) + '" x2="' + f(X(pc.x1)) + '" y2="' + f(Y(pc.y1)) + '"/>' +
+            '<text class="qc-shape-dim-label" x="' + f(clamp(nx * off)) + '" y="' + f(clamp(ny * off) + 3) + '" text-anchor="middle">' + lenLabel + '</text>';
+    } else {
+      e0 = { x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) };
+      e1 = { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) };
+      var am = (pc.a0 + pc.a1) / 2;
+      var mid = { x: pc.r * Math.cos(am), y: pc.r * Math.sin(am) };
+      var rLabel = 'R' + roundDisplay(cl.r);
+      dim = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1 }) + '"/>' +
+            '<line class="qc-shape-dim-line" x1="' + f(X(0)) + '" y1="' + f(Y(0)) + '" x2="' + f(X(mid.x)) + '" y2="' + f(Y(mid.y)) + '" marker-end="url(#qc-slt-arr)"/>' +
+            '<text class="qc-shape-dim-label" x="' + f(clamp(X(mid.x / 2))) + '" y="' + f(clamp(Y(mid.y / 2) - 2)) + '" text-anchor="middle">' + rLabel + '</text>';
+    }
+    slotPreviewNodes = [{ x: X(e0.x), y: Y(e0.y), value: 'corner:1' }, { x: X(e1.x), y: Y(e1.y), value: 'corner:2' },
+                        { x: X(0), y: Y(0), value: 'shape-center' }];
+
+    // Holding tabs, spaced as the generator spaces them: along the tool
+    // path (a bit radius in or out), drawn on the outline when it has
+    // the same pieces.
+    var tr = Math.max(0, num('qc-bit', 0)) / 2;
+    var marks = '';
+    if ((cut === 'inner' && half - tr > 1e-9) || cut === 'outer') {
+      var toolPath = gen.slotOutline(pc, cut === 'outer' ? half + tr : half - tr);
+      var drawn = toolPath.length === outline.length ? outline : toolPath;
+      marks = tabMarks('slt', drawn.map(function(sg, i) {
+        var len = toolPath[i].len;
+        return sg.type === 'line'
+          ? { type: 'line', x0: X(sg.x0), y0: Y(sg.y0), x1: X(sg.x1), y1: Y(sg.y1), len: len }
+          : { type: 'arc', cx: X(sg.cx), cy: Y(sg.cy), r: sg.r * k, a0: sg.a0, a1: sg.a1, len: len };
+      }));
+    }
+    var off = gen.shapeOriginOffset('slot', params);
+    svg.innerHTML =
+      shapePreviewDefs('qc-slt') +
+      hatched +
+      '<path class="qc-shape-fill" d="' + d + '"/>' +
+      dim + marks +
+      originCross(X(off.x), Y(off.y));
+  }
+
+  function wireSlotForm() {
+    ['qc-slt-width', 'qc-slt-length', 'qc-slt-angle', 'qc-slt-radius', 'qc-slt-start', 'qc-slt-sweep',
+     'qc-slt-chord', 'qc-slt-rise', 'qc-slt-bulge'].forEach(function(id) {
+      $(id).addEventListener('input', updateSlotPreview);
+    });
+    ['qc-slt-type', 'qc-slt-arc-mode', 'qc-slt-cut-type'].forEach(function(id) {
+      $(id).addEventListener('change', updateSlotPreview);
+    });
+    $('qc-bit').addEventListener('input', updateSlotPreview);
+    wirePreviewAngleDrag('qc-slt-preview', slotAngleInput, true, function(pt) {
+      pickPreviewNode(slotPreviewNodes, 'qc-slt-origin', pt, updateSlotPreview);
+    }, function() {
+      // Arc by radius: snap the line to the slot's middle, Start + Sweep / 2.
+      var arcByRadius = $('qc-slt-type').value === 'arc' && $('qc-slt-arc-mode').value !== 'chord';
+      return arcByRadius ? num('qc-slt-sweep', 0) / 2 : 0;
+    }, snapMiterAngle);
+    wirePickCursor($('qc-slt-preview'), function(pt) { return !!nearestPreviewNode(slotPreviewNodes, pt); });
+    $('qc-slt-pattern-enable').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
+    $('qc-slt-pattern-style').addEventListener('change', function() { updatePatternVisibility('slt'); updateSlotFields(); });
+    $('qc-slt-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('slt'); });
+    updateSlotPreview();
+    updatePatternVisibility('slt');
+
+    $('qc-slt-generate').addEventListener('click', async function() {
+      if (!validateAll()) return;
+      var params = readSlotForm();
+      params.shape = 'slot';
+      var gen = makeQuickCutGenerator(state.isImperial);
+      // Shapes that can't be cut are caught here, at the field to change,
+      // rather than as a warning in an empty program.
+      var half = slotWidthNow() / 2;
+      var problem = gen.slotProblem(params, gen.slotCenterline(params), half), field = null;
+      if (problem) {
+        var arc = params.slotType === 'arc', chord = arc && params.arcMode === 'chord';
+        field = /width must/.test(problem) ? 'qc-slt-width'
+          : /as wide as its radius/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-radius')
+          : /overlap/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-sweep')
+          : (arc ? (chord ? 'qc-slt-chord' : 'qc-slt-radius') : 'qc-slt-length');
+      } else if ((params.cutType === 'inner' || params.cutType === 'clearing') && half - params.bitDiameter / 2 <= 1e-9) {
+        problem = 'the slot is no wider than the bit; use the Center line cut type';
+        field = 'qc-slt-width';
+      }
+      if (problem) {
+        showTooltip($(field), problem.charAt(0).toUpperCase() + problem.slice(1));
+        return;
+      }
+      var gcode = gen.generateSlotProgram(params);
+      gcode += settingsBlock(saveSettings(params));
+      try {
+        var res = await loadGcodeIntoVisualizer(gcode, programFileName(params));
         if (!res.ok) throw new Error('load failed: ' + res.status);
         setTimeout(function() {
           window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -5595,7 +7146,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset. A negative Inset moves it out past the origin instead.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
@@ -5603,19 +7154,29 @@
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
-      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse.',
+      '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     polygon: { name: 'Polygon', notes: [
-      '<strong>Sides</strong> is 3 to 12. <strong>Diameter</strong> is measured across the corners (the circle the corners sit on). <strong>Start Angle</strong> turns the polygon (or twist the preview). <strong>Corner Radius</strong> rounds the corners, up to fully round.',
+      '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+    slot: { name: 'Slot', notes: [
+      '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
+      '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
+      'For a grid of grooves, use a straight slot, the <strong>Center line</strong> cut type and a <strong>Grid</strong> pattern: Columns and Rows are the number of lines each way, and every line spans the grid, so the outer lines meet at the corners (the Slot&rsquo;s Length and Angle don&rsquo;t apply; the pattern Angle turns the grid). Rows are cut first, then columns, each to full depth, going back and forth so each line starts near where the last one ended.',
+      'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
+      'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
+      '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
+      '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
+      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
-      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Drag or tap on the preview to point the slot; it snaps to 0, 90, 180 and 270&deg; when close.',
+      '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
     drill: { name: 'Drill', notes: [
@@ -5644,11 +7205,13 @@
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
-      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.' ] },
+      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
+      'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
-      '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.' ] },
+      '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.',
+      '<strong>Load</strong> fills a tab from a QuickCut program in File Manager: every program records the settings it was made with in a few comment lines after M30. Pick one, check the values, then Generate. Share a program file and someone else can Load its settings too.' ] },
     units: { title: 'Typing units', notes: [
       'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>5/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
       'With a keyboard, <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> step a number by 1, with <kbd>Shift</kbd> 10, <kbd>Alt</kbd> 0.1, and <kbd>Ctrl</kbd> 0.001.' ] }
@@ -5740,13 +7303,41 @@
       html += helpCard(HELP_SHARED.tool.title, helpNotes(HELP_SHARED.tool.notes) + (toolTips.length ? helpTips(toolTips) : ''));
     }
     html += helpCard(HELP_SHARED.units.title, helpNotes(HELP_SHARED.units.notes));
-    // One link to the manual's QuickCut page. The URL is shown as text
-    // so it can be typed on another device (e.g. from a kiosk screen
-    // with no browser).
-    html += helpCard('More detail', '<p>The QuickCut page of the ncSender manual explains more: ' +
-      '<a href="' + HELP_DOCS + '" target="_blank" rel="noopener">' + HELP_DOCS + '</a></p>');
+    html += helpDocsCard();
     $('qc-help-body').innerHTML = html;
     $('qc-help-for').textContent = ' — ' + topic.name;
+    $('qc-help-sub').style.display = '';
+    $('qc-help-all').style.display = '';
+    $('qc-help-body').scrollTop = 0;
+  }
+
+  // One link to the manual's QuickCut page. The URL is shown as text
+  // so it can be typed on another device (e.g. from a kiosk screen
+  // with no browser).
+  function helpDocsCard() {
+    return helpCard('More detail', '<p>The QuickCut page of the ncSender manual explains more: ' +
+      '<a href="' + HELP_DOCS + '" target="_blank" rel="noopener">' + HELP_DOCS + '</a></p>');
+  }
+
+  // All help topics: every tab has its own help, so this lists them (in
+  // sidebar order, then the measure page) with the tab's one-line
+  // description; a pick shows that topic in place. Back still returns to
+  // the tab Help was opened from.
+  var HELP_ORDER = ['rectangle', 'circle', 'polygon', 'slot', 'keyhole', 'drill', 'planer', 'jointer', 'cutter', 'measure'];
+  function renderHelpIndex() {
+    var rows = HELP_ORDER.map(function(tab) {
+      var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
+      var sub = section && section.querySelector('.qc-panel-sub');
+      return '<li><a href="#" class="qc-help-topic" data-help-topic="' + tab + '">' + HELP_TOPICS[tab].name + '</a>' +
+        (sub ? ' &mdash; ' + helpEscape(sub.textContent.trim()) : '') + '</li>';
+    }).join('');
+    $('qc-help-body').innerHTML =
+      helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>') +
+      helpDocsCard();
+    $('qc-help-for').textContent = ' — All topics';
+    $('qc-help-sub').style.display = 'none';
+    $('qc-help-all').style.display = 'none';
+    $('qc-help-body').scrollTop = 0;
   }
 
   function openHelp() {
@@ -5764,6 +7355,16 @@
   function wireHelp() {
     $('qc-help-btn').addEventListener('click', openHelp);
     $('qc-help-back').addEventListener('click', closeHelp);
+    $('qc-help-all').addEventListener('click', function(evt) {
+      evt.preventDefault();
+      renderHelpIndex();
+    });
+    $('qc-help-body').addEventListener('click', function(evt) {
+      var link = evt.target.closest && evt.target.closest('[data-help-topic]');
+      if (!link) return;
+      evt.preventDefault();
+      renderHelp(link.getAttribute('data-help-topic'));
+    });
   }
 
   var measure = { machine: {}, timer: null, angleDeg: null, returnTo: null };
@@ -5912,8 +7513,8 @@
     saveSecondPoint();
   }
 
-  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', key: 'Keyhole', drl: 'Drill' };
-  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', key: 'keyhole', drl: 'drill' };
+  var SHAPE_NAMES = { rect: 'Rectangle', circ: 'Circle', poly: 'Polygon', slt: 'Slot', key: 'Keyhole', drl: 'Drill' };
+  var SHAPE_TABS = { rect: 'rectangle', circ: 'circle', poly: 'polygon', slt: 'slot', key: 'keyhole', drl: 'drill' };
 
   // A pattern's "Measure" link is the only way in; Use Angle and Back
   // both return to that shape.
@@ -5936,7 +7537,7 @@
     $(pre + 'angle').value = measure.angleDeg;
     $(pre + 'enable').checked = true;
     var styleEl = $(pre + 'style');
-    if (styleEl.value !== 'linear' && styleEl.value !== 'honeycomb') styleEl.value = 'linear';
+    if (['linear', 'honeycomb', 'grid'].indexOf(styleEl.value) < 0) styleEl.value = 'linear';
     updatePatternVisibility(prefix);
     closeMeasure();
   }
@@ -6155,7 +7756,7 @@
       var rotDeg = pattern.rotateShapes ? angle : 0;
       return positions.map(function(p) {
         var r = rotatePoint(0, 0, p.x, p.y, angle);
-        return { x: r.x, y: r.y, rotDeg: rotDeg };
+        return Object.assign({}, p, { x: r.x, y: r.y, rotDeg: (p.rotDeg || 0) + rotDeg });
       });
     }
 
@@ -6204,6 +7805,30 @@
           }
         }
         return applyGridAngle(positions, pattern);
+      }
+      // Grid (straight Slot): one copy per line, each carrying the length it
+      // spans, so the lines run from the first to the last line across them.
+      // Rows (along X) first, then columns turned 90°. With one row or
+      // column there's nothing for the other direction to span.
+      if (pattern.style === 'grid') {
+        var gxCount = Math.max(1, Math.floor(pattern.xCount || 1));
+        var gyCount = Math.max(1, Math.floor(pattern.yCount || 1));
+        var gxDist = pattern.xDist || 0;
+        var gyDist = pattern.yDist || 0;
+        if (pattern.spacing === 'extent') {
+          gxDist = patternStep(gxDist, gxCount);
+          gyDist = patternStep(gyDist, gyCount);
+        }
+        var spanX = (gxCount - 1) * gxDist, spanY = (gyCount - 1) * gyDist;
+        if (gxCount > 1) {
+          for (var gr = 0; gr < gyCount; gr++) positions.push({ x: spanX / 2, y: gr * gyDist, rotDeg: 0, span: Math.abs(spanX) });
+        }
+        if (gyCount > 1) {
+          for (var gc = 0; gc < gxCount; gc++) positions.push({ x: gc * gxDist, y: spanY / 2, rotDeg: 90, span: Math.abs(spanY) });
+        }
+        if (!positions.length) positions.push({ x: 0, y: 0, rotDeg: 0, span: 0 });
+        // The lines always run along the turned grid.
+        return applyGridAngle(positions, Object.assign({}, pattern, { rotateShapes: true }));
       }
       if (pattern.style === 'circular' || pattern.style === 'circular-follow') {
         var count = Math.max(1, Math.floor(pattern.count || 1));
@@ -6263,7 +7888,7 @@
     // Drill origin: one of the nine bbox points, or "hole:<key>" to put
     // X0 Y0 on that hole's center (picked by clicking the preview). A
     // hole the pattern no longer has falls back to center.
-    function resolveDrillOrigin(origin, pattern, positions, bitDiameter) {
+    function resolveDrillOrigin(origin, pattern, positions, bitDiameter, inset) {
       origin = origin || 'center';
       var note = '';
       var m = /^hole:(.+)$/.exec(origin);
@@ -6283,9 +7908,9 @@
         note = ' (picked hole not in pattern)';
       }
       return {
-        shift: computePatternAnchorShift(origin, positions, circleShapeBbox({ diameter: bitDiameter || 0 })),
+        shift: computePatternAnchorShift(origin, positions, circleShapeBbox({ diameter: bitDiameter || 0 }), inset),
         index: -1,
-        label: origin + note
+        label: origin + note + insetNote(origin, inset)
       };
     }
 
@@ -6309,7 +7934,7 @@
     // See lib/quickcut-gcode.cjs::computePatternAnchorShift for
     // documentation. Origin is applied to the aggregate bounding
     // box of the whole pattern, not to a single instance.
-    function computePatternAnchorShift(origin, positions, shapeBbox) {
+    function computePatternAnchorShift(origin, positions, shapeBbox, inset) {
       var minX = Infinity, maxX = -Infinity;
       var minY = Infinity, maxY = -Infinity;
       for (var i = 0; i < positions.length; i++) {
@@ -6335,7 +7960,23 @@
         case 'front-right':  anchorX = maxX; anchorY = minY; break;
         default:             anchorX = cx;   anchorY = cy;   break;
       }
+      var ins = insetApplies(origin, inset) ? inset : 0;
+      if (/left/.test(origin)) anchorX -= ins;
+      if (/right/.test(origin)) anchorX += ins;
+      if (/^front/.test(origin)) anchorY -= ins;
+      if (/^back/.test(origin)) anchorY += ins;
       return { x: -anchorX, y: -anchorY };
+    }
+
+    // Inset only means something for a corner or edge of the origin box.
+    function insetApplies(origin, inset) {
+      // A negative inset moves the cut outward past the origin instead.
+      return !!inset && /^(front|back|left|right)-/.test(origin || '');
+    }
+
+    // ", inset 10mm" for the header's Origin line, when it applies.
+    function insetNote(origin, inset) {
+      return insetApplies(origin, inset) ? ', inset ' + inset + (isImperial ? 'inch' : 'mm') : '';
     }
 
     function rectangleShapeBbox(params) {
@@ -6591,9 +8232,11 @@
                    ' Y' + fixed(seg.y0 + (seg.y1 - seg.y0) * f, xyDp) + feedSuffix);
         return;
       }
-      var as = seg.a0 + s / seg.r, ae = seg.a0 + e / seg.r;
+      // dir -1: a clockwise arc (angles decrease), written as G2.
+      var sg = seg.dir === -1 ? -1 : 1;
+      var as = seg.a0 + sg * s / seg.r, ae = seg.a0 + sg * e / seg.r;
       var sx = seg.cx + seg.r * Math.cos(as), sy = seg.cy + seg.r * Math.sin(as);
-      lines.push('G3 X' + fixed(seg.cx + seg.r * Math.cos(ae), 5) +
+      lines.push((sg < 0 ? 'G2' : 'G3') + ' X' + fixed(seg.cx + seg.r * Math.cos(ae), 5) +
                  ' Y' + fixed(seg.cy + seg.r * Math.sin(ae), 5) +
                  ' I' + fixed(seg.cx - sx, 5) + ' J' + fixed(seg.cy - sy, 5) + feedSuffix);
     }
@@ -6674,6 +8317,13 @@
                ' (' + dims + ')' +
                (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
       }
+      if (p.style === 'grid') {
+        var gAngle = Number(p.angle) || 0;
+        var gDims = p.spacing === 'extent'
+          ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0)
+          : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
+        return 'Grid ' + (p.xCount || 1) + 'x' + (p.yCount || 1) + ' lines (' + gDims + ')' + (gAngle ? ' angle=' + gAngle + '°' : '');
+      }
       var follow = p.style === 'circular-follow' || !!p.rotate;
       return 'Circular' + (follow ? ' (Path Direction)' : ' (Identical)') + ' n=' + (p.count || 1) +
              ' r=' + (p.radius || 0) + ' start=' + (p.startAngle || 0) + '°' +
@@ -6699,7 +8349,7 @@
         origin = 'center';
         note = ' (picked corner not on shape)';
       }
-      return { shift: computePatternAnchorShift(origin, positions, bbox), label: origin + note };
+      return { shift: computePatternAnchorShift(origin, positions, bbox, params.inset), label: origin + note + insetNote(origin, params.inset) };
     }
 
     // A copy's corners about its own center, for a turn of rot degrees
@@ -6733,12 +8383,17 @@
       } else if (shape === 'polygon') {
         shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
       } else if (shape === 'circle') {
-        shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
+        shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
+      } else if (shape === 'slot') {
+        var cl = slotCenterline(params);
+        if (slotProblem(params, cl, slotHalfWidth(params))) return { x: 0, y: 0 };
+        var op = slotOriginParts(params, cl);
+        shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
       } else if (shape === 'keyhole') {
         var startDeg = params.startAngleDeg || 0;
         shift = (params.origin || 'hole') === 'hole' ? { x: 0, y: 0 } : computePatternAnchorShift(params.origin, positions, function(pos) {
           return keyholeBbox(params, startDeg + (pos.rotDeg || 0));
-        });
+        }, params.inset);
       } else {
         return { x: 0, y: 0 };
       }
@@ -7038,7 +8693,7 @@
       var extras = [
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + (params.origin || 'center') + insetNote(params.origin, params.inset)
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
       var tabNotes = tabHeaderNotes(params, circleSegments(baseGeom), extras);
@@ -7057,7 +8712,7 @@
       lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -7143,7 +8798,7 @@
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: helical bore then expanding outward',
-        'Origin: ' + (params.origin || 'center')
+        'Origin: ' + (params.origin || 'center') + insetNote(params.origin, params.inset)
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
@@ -7165,7 +8820,7 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params));
+      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -7673,7 +9328,10 @@
       var polyDiameter = params.diameter != null ? params.diameter : params.radius * 2;
       var extras = [
         'Sides: ' + baseGeom.sides,
-        'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
+        'Diameter: ' + (params.sizeMode === 'flats' || params.sizeMode === 'edge'
+          ? parseFloat(polyDiameter.toFixed(4)) + unitsLabel + ' (circumscribed; ' + params.sizeValue + unitsLabel +
+            (params.sizeMode === 'flats' ? ' across flats)' : ' edge length)')
+          : polyDiameter + unitsLabel + ' (circumscribed)'),
         'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
           (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
@@ -7777,7 +9435,10 @@
 
       var extras = [
         'Sides: ' + baseGeom.sides,
-        'Diameter: ' + polyDiameter + unitsLabel + ' (circumscribed)',
+        'Diameter: ' + (params.sizeMode === 'flats' || params.sizeMode === 'edge'
+          ? parseFloat(polyDiameter.toFixed(4)) + unitsLabel + ' (circumscribed; ' + params.sizeValue + unitsLabel +
+            (params.sizeMode === 'flats' ? ' across flats)' : ' edge length)')
+          : polyDiameter + unitsLabel + ' (circumscribed)'),
         'Start Angle: ' + (params.startAngleDeg || 0) + '°' +
           (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
@@ -7946,6 +9607,322 @@
       lines.push('G0 Z' + safeHeight);
     }
 
+    // === SLOT ================================================================
+    //
+    // A straight or arc (kidney) slot of a set width. Straight: overall Length
+    // (end to end) at Angle. Arc: a centre line of Radius from Start Angle
+    // through Sweep (CCW; negative = CW), or the same arc given as Chord and
+    // Rise, bulging toward Angle. The outline is the centre line grown by half
+    // the width, with half-circle ends. Cut types:
+    //   center    one pass along the centre line; the slot is the bit's width
+    //   inner     the outline, a bit radius inside (holding tabs allowed)
+    //   clearing  rings from the centre line out to that outline
+    //   outer     the outline, a bit radius outside: a slot-shaped part
+    // Local coordinates: a straight slot is centred on (0, 0); an arc slot has
+    // the arc's centre at (0, 0), so origin 'shape-center' is its pivot.
+
+    // The centre line, normalised to run CCW: {type:'line', x0..y1, t} (t =
+    // its direction, radians) or {type:'arc', r, a0, a1} (a1 > a0, radians),
+    // or null when the numbers don't make a slot.
+    function slotCenterline(params) {
+      if ((params.slotType || 'straight') === 'arc') {
+        var r, a0, sweep;
+        if (params.arcMode === 'chord') {
+          var c = params.chord || 0, h = params.rise || 0;
+          if (!(c > 0 && h > 0)) return null;
+          r = (c * c / 4 + h * h) / (2 * h);
+          sweep = 4 * Math.atan(2 * h / c) * 180 / Math.PI;
+          a0 = (params.bulgeAngleDeg != null ? params.bulgeAngleDeg : 90) - sweep / 2;
+        } else {
+          r = params.radius || 0;
+          a0 = params.startAngleDeg || 0;
+          sweep = params.sweepDeg || 0;
+        }
+        if (!(r > 0) || !sweep) return null;
+        if (sweep < 0) { a0 += sweep; sweep = -sweep; }
+        return { type: 'arc', r: r, a0: a0 * Math.PI / 180, a1: (a0 + sweep) * Math.PI / 180 };
+      }
+      var half = Math.max(0, (params.length || 0) - 2 * slotHalfWidth(params)) / 2;
+      var t = (params.angleDeg || 0) * Math.PI / 180;
+      return { type: 'line', t: t,
+               x0: -half * Math.cos(t), y0: -half * Math.sin(t),
+               x1: half * Math.cos(t), y1: half * Math.sin(t) };
+    }
+
+    // The centre line turned by rotDeg about the local origin and moved to
+    // (cx, cy): line ends get x0..y1, an arc gets its centre cx, cy.
+    function placeSlot(cl, cx, cy, rotDeg) {
+      var rot = (rotDeg || 0) * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
+      if (cl.type === 'line') {
+        return { type: 'line', t: cl.t + rot,
+                 x0: cx + cl.x0 * c - cl.y0 * s, y0: cy + cl.x0 * s + cl.y0 * c,
+                 x1: cx + cl.x1 * c - cl.y1 * s, y1: cy + cl.x1 * s + cl.y1 * c };
+      }
+      return { type: 'arc', cx: cx, cy: cy, r: cl.r, a0: cl.a0 + rot, a1: cl.a1 + rot };
+    }
+
+    function arcSeg(cx, cy, r, a0, a1, dir) {
+      var seg = { type: 'arc', cx: cx, cy: cy, r: r, a0: a0, a1: a1, len: r * Math.abs(a1 - a0) };
+      if (dir === -1) seg.dir = -1;
+      return seg;
+    }
+
+    // Closed outline at half-width d (> 0) around a placed centre line, CCW.
+    // Straight: from the middle of one long side. Arc: from the start of the
+    // outer arc; the inner arc runs back clockwise (dir -1, G2).
+    function slotOutline(pc, d) {
+      var segs = [];
+      if (pc.type === 'line') {
+        var nx = -Math.sin(pc.t), ny = Math.cos(pc.t);
+        var mx = (pc.x0 + pc.x1) / 2, my = (pc.y0 + pc.y1) / 2;
+        var p = function(x, y, k) { return { x: x + k * nx, y: y + k * ny }; };
+        pushLine(segs, p(mx, my, -d), p(pc.x1, pc.y1, -d));
+        segs.push(arcSeg(pc.x1, pc.y1, d, pc.t - Math.PI / 2, pc.t + Math.PI / 2));
+        pushLine(segs, p(pc.x1, pc.y1, d), p(pc.x0, pc.y0, d));
+        segs.push(arcSeg(pc.x0, pc.y0, d, pc.t + Math.PI / 2, pc.t + 3 * Math.PI / 2));
+        pushLine(segs, p(pc.x0, pc.y0, -d), p(mx, my, -d));
+        return segs;
+      }
+      var e0 = { x: pc.cx + pc.r * Math.cos(pc.a0), y: pc.cy + pc.r * Math.sin(pc.a0) };
+      var e1 = { x: pc.cx + pc.r * Math.cos(pc.a1), y: pc.cy + pc.r * Math.sin(pc.a1) };
+      segs.push(arcSeg(pc.cx, pc.cy, pc.r + d, pc.a0, pc.a1));
+      segs.push(arcSeg(e1.x, e1.y, d, pc.a1, pc.a1 + Math.PI));
+      if (pc.r - d > 1e-9) segs.push(arcSeg(pc.cx, pc.cy, pc.r - d, pc.a1, pc.a0, -1));
+      segs.push(arcSeg(e0.x, e0.y, d, pc.a0 + Math.PI, pc.a0 + 2 * Math.PI));
+      return segs;
+    }
+
+    // The centre line out and back as one path (the innermost clearing ring,
+    // and the pass for a centre-line cut): straight from its middle, arc from
+    // its start. Empty for a zero-length straight slot (a round hole).
+    function slotCenterLoop(pc) {
+      var segs = [];
+      if (pc.type === 'line') {
+        var m = { x: (pc.x0 + pc.x1) / 2, y: (pc.y0 + pc.y1) / 2 };
+        pushLine(segs, m, { x: pc.x1, y: pc.y1 });
+        pushLine(segs, { x: pc.x1, y: pc.y1 }, { x: pc.x0, y: pc.y0 });
+        pushLine(segs, { x: pc.x0, y: pc.y0 }, m);
+        return segs;
+      }
+      segs.push(arcSeg(pc.cx, pc.cy, pc.r, pc.a0, pc.a1));
+      segs.push(arcSeg(pc.cx, pc.cy, pc.r, pc.a1, pc.a0, -1));
+      return segs;
+    }
+
+    // The centre line one way, for alternate passes of a centre-line cut.
+    function slotCenterPass(pc, backward) {
+      var segs = [];
+      if (pc.type === 'line') {
+        if (backward) pushLine(segs, { x: pc.x1, y: pc.y1 }, { x: pc.x0, y: pc.y0 });
+        else pushLine(segs, { x: pc.x0, y: pc.y0 }, { x: pc.x1, y: pc.y1 });
+        return segs;
+      }
+      segs.push(backward ? arcSeg(pc.cx, pc.cy, pc.r, pc.a1, pc.a0, -1) : arcSeg(pc.cx, pc.cy, pc.r, pc.a0, pc.a1));
+      return segs;
+    }
+
+    // Bounding box of a segment path, arcs included exactly.
+    function segmentsBbox(segs) {
+      var b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+      function add(x, y) {
+        if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x;
+        if (y < b.minY) b.minY = y; if (y > b.maxY) b.maxY = y;
+      }
+      segs.forEach(function(s) {
+        if (s.type === 'line') { add(s.x0, s.y0); add(s.x1, s.y1); return; }
+        var lo = Math.min(s.a0, s.a1), hi = Math.max(s.a0, s.a1);
+        add(s.cx + s.r * Math.cos(lo), s.cy + s.r * Math.sin(lo));
+        add(s.cx + s.r * Math.cos(hi), s.cy + s.r * Math.sin(hi));
+        for (var k = Math.ceil(lo / (Math.PI / 2)); k * Math.PI / 2 <= hi; k++) {
+          add(s.cx + s.r * Math.cos(k * Math.PI / 2), s.cy + s.r * Math.sin(k * Math.PI / 2));
+        }
+      });
+      return b;
+    }
+
+    // Why the numbers don't make a slot, or null when they do.
+    function slotProblem(params, cl, half) {
+      if (!cl) return 'the slot\'s size or angles are missing or zero';
+      if (!(half > 0)) return 'the slot width must be more than 0';
+      if (cl.type === 'arc') {
+        if (half >= cl.r) return 'the slot is as wide as its radius or wider, so its inner edge would cross the centre';
+        var gap = 2 * Math.PI - (cl.a1 - cl.a0);
+        if (gap <= 0 || 2 * cl.r * Math.sin(gap / 2) < 2 * half) return 'the slot\'s ends would overlap (the sweep is too close to a full circle for this width)';
+      }
+      return null;
+    }
+
+    // The slot's box (per copy) and its tappable points (the two end
+    // centres) for resolveShapeOrigin. A centre-line cut is the bit's width.
+    function slotHalfWidth(params) {
+      return ((params.cutType || 'inner') === 'center' ? (params.bitDiameter || 0) : (params.width || 0)) / 2;
+    }
+    function slotOriginParts(params, cl) {
+      var half = slotHalfWidth(params);
+      return {
+        bbox: function(pos) { return segmentsBbox(slotOutline(placeSlot(cl, 0, 0, pos.rotDeg), half)); },
+        corners: function(rot) {
+          var pc = placeSlot(cl, 0, 0, rot);
+          return pc.type === 'line'
+            ? [{ x: pc.x0, y: pc.y0 }, { x: pc.x1, y: pc.y1 }]
+            : [{ x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) }, { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) }];
+        }
+      };
+    }
+
+    function generateSlotProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var cutType = params.cutType || 'inner';
+      var tr = (params.bitDiameter || 0) / 2;
+      var half = slotHalfWidth(params), width = half * 2;
+      var cl = slotCenterline(params);
+      var isArc = (params.slotType || 'straight') === 'arc';
+      // Grid: each line is a straight slot as long as the span its copy
+      // carries (centre line from the first line to the last), so the Slot's
+      // own Length and Angle don't apply.
+      var isGrid = !isArc && !!(params.pattern && params.pattern.enabled && params.pattern.style === 'grid');
+      var lineParams = function(pos) {
+        return Object.assign({}, params, { slotType: 'straight', length: (pos.span || 0) + width, angleDeg: 0 });
+      };
+      var clFor = function(pos) { return isGrid ? slotCenterline(lineParams(pos)) : cl; };
+      var deg = function(rad) { return parseFloat((rad * 180 / Math.PI).toFixed(3)); };
+      var size = isArc
+        ? (params.arcMode === 'chord'
+            ? 'Slot: arc, chord ' + params.chord + unitsLabel + ', rise ' + params.rise + unitsLabel + ', bulging toward ' + (params.bulgeAngleDeg != null ? params.bulgeAngleDeg : 90) + '°'
+            : 'Slot: arc, radius ' + params.radius + unitsLabel + ', start ' + (params.startAngleDeg || 0) + '°, sweep ' + (params.sweepDeg || 0) + '°')
+        : isGrid ? 'Slot: straight grid lines, each spanning the grid'
+        : 'Slot: straight, length ' + params.length + unitsLabel + ', angle ' + (params.angleDeg || 0) + '°';
+      var extras = [size];
+      if (isArc && cl && params.arcMode === 'chord') {
+        extras.push('Arc: radius ' + parseFloat(cl.r.toFixed(4)) + unitsLabel + ', from ' + deg(cl.a0) + '° to ' + deg(cl.a1) + '°');
+      }
+      extras.push('Width: ' + (cutType === 'center' ? width + unitsLabel + ' (the bit)' : params.width + unitsLabel) +
+                  ', Cut: ' + ({ center: 'centre line', inner: 'inner (perimeter)', clearing: 'inner (clearing)', outer: 'outer (part)' }[cutType] || cutType));
+      extras.push('Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel);
+      var problem = isGrid ? slotProblem(lineParams(positions[0]), clFor(positions[0]), half) : slotProblem(params, cl, half);
+      var op = problem ? null : !isGrid ? slotOriginParts(params, cl) : {
+        bbox: function(pos) { return slotOriginParts(lineParams(pos), clFor(pos)).bbox(pos); },
+        corners: slotOriginParts(lineParams(positions[0]), clFor(positions[0])).corners
+      };
+      if (op) extras.push('Origin: ' + resolveShapeOrigin(params, positions, op.bbox, op.corners).label);
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      // Holding tabs (inner / outer only), noted like the other shapes and
+      // checked on the first copy's outline.
+      var tabNotes = !problem && (cutType === 'outer' || (cutType === 'inner' && half - tr > 1e-9))
+        ? tabHeaderNotes(params, slotOutline(placeSlot(clFor(positions[0]), 0, 0, positions[0].rotDeg), cutType === 'outer' ? half + tr : half - tr), extras)
+        : [];
+      var lines = programHeader(params, {
+        shapeLabel: 'Slot' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+      if (!problem && (cutType === 'inner' || cutType === 'clearing') && half - tr <= 1e-9) {
+        problem = 'the slot is no wider than the bit; use the Centre line cut type';
+      }
+      if (problem) {
+        lines.push('(WARNING: ' + problem + '; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      var shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
+      lines.push.apply(lines, tabNotes);
+      lines.push.apply(lines, startupBlock(params));
+      // Grid center lines go back and forth: each starts at the end nearer
+      // where the last one finished (an odd number of passes ends at the far
+      // end), so the hop between lines is short instead of back across.
+      var serpentine = isGrid && cutType === 'center';
+      var passCount = serpentine ? depthLevels(params.depth, params.depthOfCut, null).length : 0;
+      var here = null;
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        var mx = pos.x + shift.x, my = pos.y + shift.y;
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
+        }
+        var pc = placeSlot(clFor(pos), mx, my, pos.rotDeg);
+        if (serpentine && here && Math.hypot(pc.x1 - here.x, pc.y1 - here.y) < Math.hypot(pc.x0 - here.x, pc.y0 - here.y) - 1e-9) {
+          pc = { type: 'line', t: pc.t + Math.PI, x0: pc.x1, y0: pc.y1, x1: pc.x0, y1: pc.y0 };
+        }
+        emitOneSlot(lines, params, pc, cutType, half, tr);
+        if (serpentine) here = passCount % 2 ? { x: pc.x1, y: pc.y1 } : { x: pc.x0, y: pc.y0 };
+      }
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function emitOneSlot(lines, params, pc, cutType, half, tr) {
+      var depth = params.depth, feed = params.feedRate, plunge = params.plungeFeedRate;
+      var safeHeight = safeHopDelta.toFixed(3);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      function moveTo(cmd, pt, feedSuffix) { lines.push(cmd + ' X' + fixed(pt.x, 5) + ' Y' + fixed(pt.y, 5) + (feedSuffix || '')); }
+      function approach(pt) {
+        moveTo('G0', pt);
+        lines.push('G0 Z' + safeHeight);
+        lines.push('G0 Z' + slowPlungeStart);
+      }
+      var mid = pc.type === 'line' ? { x: (pc.x0 + pc.x1) / 2, y: (pc.y0 + pc.y1) / 2 } : null;
+
+      if (cutType === 'center') {
+        // Back and forth along the centre line, one pass per depth step.
+        var fwd = slotCenterPass(pc, false), back = slotCenterPass(pc, true);
+        var levelsC = depthLevels(depth, params.depthOfCut, null);
+        approach(fwd.length ? segmentStart(fwd[0]) : mid);
+        for (var i = 0; i < levelsC.length; i++) {
+          lines.push('G1 Z' + (-levelsC[i]).toFixed(3) + ' F' + plunge);
+          emitSegmentLap(lines, i % 2 ? back : fwd, feed);
+        }
+        lines.push('G0 Z' + safeHeight);
+        return;
+      }
+
+      if (cutType === 'clearing') {
+        // Rings from the centre line out to the outline, a stepover apart.
+        var step = (params.bitDiameter || 0) * ((params.stepoverPct || 40) / 100);
+        var outer = half - tr, ds = [];
+        for (var d = outer; d > 1e-9; d -= step) ds.push(d);
+        ds.reverse();
+        var rings = [slotCenterLoop(pc)].concat(ds.map(function(dd) { return slotOutline(pc, dd); }))
+          .filter(function(r) { return r.length; });
+        var first = rings.length ? segmentStart(rings[0][0]) : mid;
+        var levelsR = depthLevels(depth, params.depthOfCut, null);
+        approach(first);
+        for (var l = 0; l < levelsR.length; l++) {
+          lines.push('G1 Z' + (-levelsR[l]).toFixed(3) + ' F' + plunge);
+          for (var r = 0; r < rings.length; r++) {
+            if (r > 0) moveTo('G1', segmentStart(rings[r][0]), ' F' + feed);
+            emitSegmentLap(lines, rings[r], feed);
+          }
+          if (l < levelsR.length - 1) {
+            lines.push('G0 Z' + safeHeight);
+            moveTo('G0', first);
+            lines.push('G0 Z' + slowPlungeStart);
+          }
+        }
+        lines.push('G0 Z' + safeHeight);
+        return;
+      }
+
+      // inner / outer: the closed outline, with holding tabs if set.
+      var segs = slotOutline(pc, cutType === 'outer' ? half + tr : half - tr);
+      var tabs = tabSettings(params);
+      var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
+      var tabTop = intervals.length ? depth - tabs.height : null;
+      var levels = depthLevels(depth, params.depthOfCut, tabTop);
+      approach(segmentStart(segs[0]));
+      for (var k = 0; k < levels.length; k++) {
+        if (tabTop != null && levels[k] > tabTop + 1e-6) {
+          emitTabbedLap(lines, segs, intervals, -levels[k], -tabTop, feed, plunge);
+          continue;
+        }
+        lines.push('G1 Z' + (-levels[k]).toFixed(3) + ' F' + plunge);
+        emitSegmentLap(lines, segs, feed);
+      }
+      lines.push('G0 Z' + safeHeight);
+    }
+
     // === KEYHOLE ============================================================
     //
     // Hanging slot cut with a keyhole / T-slot bit. The head is wider than
@@ -7982,7 +9959,7 @@
       var extras = [
         'Slot Length: ' + slotLength + unitsLabel + ', Slot Angle: ' + startDeg + '°',
         'Depth: ' + params.depth + unitsLabel,
-        'Origin: ' + (origin === 'hole' ? 'plunge hole center' : origin),
+        'Origin: ' + (origin === 'hole' ? 'plunge hole center' : origin + insetNote(origin, params.inset)),
         'Entry: single plunge, retrace to hole before retract'
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
@@ -8002,7 +9979,7 @@
 
       var shift = origin === 'hole' ? { x: 0, y: 0 } : computePatternAnchorShift(origin, positions, function(pos) {
         return keyholeBbox(params, startDeg + (pos.rotDeg || 0));
-      });
+      }, params.inset);
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -8053,7 +10030,7 @@
       var peck = params.peckDepth > 0 && params.peckDepth < params.depth ? params.peckDepth : 0;
       var mode = params.peckMode === 'break' ? 'break' : 'clear';
 
-      var origin = resolveDrillOrigin(params.origin, params.pattern, positions, params.bitDiameter);
+      var origin = resolveDrillOrigin(params.origin, params.pattern, positions, params.bitDiameter, params.inset);
 
       var extras = [
         'Depth: ' + params.depth + unitsLabel,
@@ -8132,7 +10109,13 @@
       resolveDrillOrigin: resolveDrillOrigin,
       rectangleCorners: rectangleCorners,
       polygonCorners: polygonCorners,
-      shapeOriginOffset: shapeOriginOffset
+      shapeOriginOffset: shapeOriginOffset,
+      generateSlotProgram: generateSlotProgram,
+      slotCenterline: slotCenterline,
+      placeSlot: placeSlot,
+      slotOutline: slotOutline,
+      segmentsBbox: segmentsBbox,
+      slotProblem: slotProblem
     };
   }
 
