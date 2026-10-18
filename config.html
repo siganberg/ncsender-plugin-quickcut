@@ -4541,8 +4541,7 @@
     params.feedRate = params.plungeFeedRate = 1;
     params.spindleRpm = params.spindleDelay = 0;
     params.mistM7 = params.floodM8 = false;
-    var big = previewIsBig(svg);
-    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + (big ? 'big ' : '') + JSON.stringify(params);
+    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(params);
     if (key === patternPreviewKey && svg.firstChild) return;
     patternPreviewKey = key;
     if (!(params.bitDiameter > 0)) {
@@ -4572,7 +4571,7 @@
     var sizeText = function(v) { return String(parseFloat(v.toFixed(dp))); };
     if (size) caption.push(sizeText(size.maxX - size.minX) + ' × ' + sizeText(size.maxY - size.minY) + ' ' + state.unitLabel);
     if (!outlines) caption.push('start points');
-    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, big) +
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
@@ -4645,7 +4644,7 @@
     return { minX: b.minX - bitRadius, maxX: b.maxX + bitRadius, minY: b.minY - bitRadius, maxY: b.maxY + bitRadius };
   }
 
-  function drawPatternTrace(trace, bitRadius, captionLines, prefix, big) {
+  function drawPatternTrace(trace, bitRadius, captionLines, prefix) {
     // The drawing also keeps X0 Y0 in view.
     var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
@@ -4685,19 +4684,7 @@
     var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
     var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
       ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
-    // Enlarged, small copies are also shown magnified around X0 Y0, the
-    // bit's dot about a third of the box across.
-    var zoom = '';
-    var zz = big && prefix ? ORIGIN_ZOOM_SIZE / 3 / (2 * Number(dotR)) : 0;
-    if (zz >= 2) {
-      var zpts = trace.plunges.map(function(p) { return [Number(X(p.x)), Number(Y(p.y))]; });
-      var every = Math.max(1, Math.ceil(trace.moves.length / 400));
-      trace.moves.forEach(function(m, i) { if (i % every === 0) zpts.push([Number(X(m.x0)), Number(Y(m.y0))]); });
-      zoom = originZoom(prefix + '-pattern', ox, oy, '<path class="qc-pattern-path" d="' + d + '"/>' + dots, zpts, zz, prefix, s);
-    } else if (prefix) {
-      originZoomFrames[prefix + '-pattern'] = null;
-    }
-    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') + zoom;
+    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin + (prefix ? insetMarks(prefix, ox, oy, s) : '');
   }
 
   // At 0° the grid runs along the machine axes, so X/Y labels are
@@ -7491,7 +7478,6 @@
     var redraw = { 'qc-slt-preview': updateSlotPreview, 'qc-rect-preview': updateRectanglePreview,
                    'qc-poly-preview': updatePolygonPreview, 'qc-drl-preview': updateDrillPreview }[svg.id];
     if (redraw) redraw();
-    else if (/-pattern-preview$/.test(svg.id)) { patternPreviewKey = null; updatePatternPreview(); }
   }
   // The box sits in the preview's real corners, so a preview showing one
   // redraws when its size changes (an enlarged preview as the window is
