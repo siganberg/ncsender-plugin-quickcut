@@ -686,9 +686,11 @@
   .qc-field.qc-origin-inset-field { flex-direction: row; align-items: flex-start; gap: 16px; }
   .qc-origin-col, .qc-inset-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .qc-inset-field { width: 84px; flex: none; }
-  /* Beside Start Angle / Corner Radius, the picker's corner dots overhang
-     its box; keep them clear of the input next to it. */
-  .qc-rect-type-row .qc-origin-col { padding-left: 8px; }
+  /* The corner dots overhang the picker's box by half their width; inset
+     the box so their outer edge lines up with the Origin label, the card
+     title and inputs above when it's first in a row, and stays clear of
+     the input beside it otherwise. */
+  .qc-origin-inset-field .qc-origin-grid { margin-left: 7px; }
   .qc-origin-grid {
     position: relative;
     width: 64px;
