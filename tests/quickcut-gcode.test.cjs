@@ -2387,3 +2387,22 @@ test('rectangle edge middles (corner:5-8) set the origin at any Start Angle', ()
   }
 });
 
+test('inset X and Y apart: X from a left / right origin, Y from front / back', () => {
+  const gen = makeQuickCutGenerator(false);
+  const base = { width: 40, height: 20, cutType: 'outer', bitDiameter: 6, feedRate: 800, plungeFeedRate: 200,
+    depth: 3, depthOfCut: 3, spindleRpm: 15000, spindleDelay: 1 };
+  // Front-left: the rectangle's front-left corner moves to (+10, +4).
+  const off = gen.shapeOriginOffset('rectangle', Object.assign({}, base, { origin: 'front-left', inset: { x: 10, y: 4 } }));
+  assert.ok(Math.abs(off.x - (-20 - 10)) < 1e-9 && Math.abs(off.y - (-10 - 4)) < 1e-9, `${off.x}, ${off.y}`);
+  assert.match(gen.generateRectangleProgram(Object.assign({}, base, { origin: 'front-left', inset: { x: 10, y: 4 } })),
+    /Origin: front-left, inset X 10mm, Y 4mm/);
+  // An edge uses only its own axis: front-center ignores X.
+  assert.match(gen.generateRectangleProgram(Object.assign({}, base, { origin: 'front-center', inset: { x: 10, y: 4 } })),
+    /Origin: front-center, inset Y 4mm\)/);
+  assert.doesNotMatch(gen.generateRectangleProgram(Object.assign({}, base, { origin: 'left-center', inset: { x: 0, y: 4 } })), /inset/);
+  // Equal parts cut the same as one number.
+  const strip = (g) => g.split('\n').filter(l => !/^\(Origin/.test(l)).join('\n');
+  assert.equal(strip(gen.generateCircleProgram(Object.assign({}, base, { diameter: 30, origin: 'back-right', inset: { x: 5, y: 5 } }))),
+               strip(gen.generateCircleProgram(Object.assign({}, base, { diameter: 30, origin: 'back-right', inset: 5 }))));
+});
+

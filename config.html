@@ -696,6 +696,11 @@
   /* Origin above Inset, in their own column just left of the preview,
      each label centred over its control. */
   .qc-inset-field { width: 84px; }
+  .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
+  /* Inset X / Y: two boxes in the one box's width. */
+  .qc-inset-inputs { display: flex; gap: 4px; width: 100%; }
+  .qc-inset-inputs .qc-input { flex: 1; min-width: 0; width: 100%; }
+  .qc-inset-split .qc-input { padding-left: 4px; padding-right: 4px; }
   /* Planer: the Origin picker sits centred under the preview. */
   .qc-plan-side { display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .qc-plan-side .qc-field { align-items: center; }
@@ -1527,8 +1532,14 @@
                   <div id="qc-rect-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <label for="qc-rect-inset">Inset</label>
-                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                  <select class="qc-label-select" id="qc-rect-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
+                    <option value="both" selected>Inset</option>
+                    <option value="xy">Inset X / Y</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-rect-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -1710,8 +1721,14 @@
                   <div id="qc-circ-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <label for="qc-circ-inset">Inset</label>
-                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                  <select class="qc-label-select" id="qc-circ-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
+                    <option value="both" selected>Inset</option>
+                    <option value="xy">Inset X / Y</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-circ-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -1905,8 +1922,14 @@
                   <div id="qc-poly-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <label for="qc-poly-inset">Inset</label>
-                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                  <select class="qc-label-select" id="qc-poly-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
+                    <option value="both" selected>Inset</option>
+                    <option value="xy">Inset X / Y</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-poly-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -2143,8 +2166,14 @@
                   <div id="qc-slt-origin-picker" title="Where X0 Y0 is: a corner, edge or the center of the box around the slot. Or tap the preview: an end, the middle, a corner of a straight slot or the middle of its long side. On a Center line cut the box includes the bit, so an edge point puts that edge of the cut on the origin line."></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <label for="qc-slt-inset">Inset</label>
-                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                  <select class="qc-label-select" id="qc-slt-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
+                    <option value="both" selected>Inset</option>
+                    <option value="xy">Inset X / Y</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-slt-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -2323,8 +2352,14 @@
                   <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <label for="qc-key-inset">Inset</label>
-                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                  <select class="qc-label-select" id="qc-key-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
+                    <option value="both" selected>Inset</option>
+                    <option value="xy">Inset X / Y</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-key-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -2488,8 +2523,14 @@
                   <div id="qc-drl-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <label for="qc-drl-inset">Inset</label>
-                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                  <select class="qc-label-select" id="qc-drl-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
+                    <option value="both" selected>Inset</option>
+                    <option value="xy">Inset X / Y</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-drl-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -3001,6 +3042,7 @@
     wireTabs();
     wireValidation();
     wireFocusTips();
+    wireInsetModes();
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -3274,6 +3316,7 @@
         'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
         'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
         'qc-rect-inset': { min: -200, max: 200, label: 'Inset' },
+        'qc-rect-inset-y': { min: -200, max: 200, label: 'Inset Y' },
         'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-rect-depth':  { min: 0.001, max: 20,      label: 'Total Depth' },
         'qc-rect-step':   { min: 0.001, max: 5,       label: 'Depth of Cut' },
@@ -3296,6 +3339,7 @@
         // Circle
         'qc-circ-diameter': { min: 0.004, max: 200, label: 'Diameter' },
         'qc-circ-inset': { min: -200, max: 200, label: 'Inset' },
+        'qc-circ-inset-y': { min: -200, max: 200, label: 'Inset Y' },
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
@@ -3332,6 +3376,7 @@
         'qc-poly-sides':    { min: 3,     max: 12,  label: 'Sides', integer: true },
         'qc-poly-diameter': { min: 0.004, max: 200, label: 'Diameter' },
         'qc-poly-inset': { min: -200, max: 200, label: 'Inset' },
+        'qc-poly-inset-y': { min: -200, max: 200, label: 'Inset Y' },
         'qc-poly-corner': { min: 0, max: 100, label: 'Corner Radius' },
         'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
         'qc-poly-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
@@ -3350,6 +3395,7 @@
         'qc-key-length':    { min: 0.004, max: 20,  label: 'Slot Length' },
         'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
         'qc-key-inset': { min: -200, max: 200, label: 'Inset' },
+        'qc-key-inset-y': { min: -200, max: 200, label: 'Inset Y' },
         'qc-key-depth':     { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-key-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-key-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -3381,6 +3427,7 @@
         'qc-slt-rise':   { min: 0.004, max: 200, label: 'Rise' },
         'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
         'qc-slt-inset':  { min: -200, max: 200, label: 'Inset' },
+        'qc-slt-inset-y': { min: -200, max: 200, label: 'Inset Y' },
         'qc-slt-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-slt-step':   { min: 0.001, max: 5, label: 'Depth of Cut' },
         'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
@@ -3400,6 +3447,7 @@
         'qc-drl-depth':  { min: 0.001, max: 20, label: 'Total Depth' },
         'qc-drl-peck':   { min: 0,     max: 20, label: 'Peck Depth' },
         'qc-drl-inset': { min: -200, max: 200, label: 'Inset' },
+        'qc-drl-inset-y': { min: -200, max: 200, label: 'Inset Y' },
         'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
         'qc-drl-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-drl-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -3417,6 +3465,7 @@
       'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
       'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
       'qc-rect-inset': { min: -5000, max: 5000, label: 'Inset' },
+      'qc-rect-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
       'qc-rect-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-rect-depth':  { min: 0.01,  max: 500,    label: 'Total Depth' },
       'qc-rect-step':   { min: 0.01,  max: 100,    label: 'Depth of Cut' },
@@ -3439,6 +3488,7 @@
       // Circle
       'qc-circ-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
       'qc-circ-inset': { min: -5000, max: 5000, label: 'Inset' },
+      'qc-circ-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
@@ -3475,6 +3525,7 @@
       'qc-poly-sides':    { min: 3,    max: 12,   label: 'Sides', integer: true },
       'qc-poly-diameter': { min: 0.1,  max: 5000, label: 'Diameter' },
       'qc-poly-inset': { min: -5000, max: 5000, label: 'Inset' },
+      'qc-poly-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
       'qc-poly-corner': { min: 0, max: 2500, label: 'Corner Radius' },
       'qc-poly-start-angle': { min: -360, max: 360, label: 'Start Angle' },
       'qc-poly-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
@@ -3493,6 +3544,7 @@
       'qc-key-length':    { min: 0.1,  max: 500,  label: 'Slot Length' },
       'qc-key-start-angle': { min: -360, max: 360, label: 'Slot Angle' },
       'qc-key-inset': { min: -5000, max: 5000, label: 'Inset' },
+      'qc-key-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
       'qc-key-depth':     { min: 0.01, max: 100,  label: 'Total Depth' },
       'qc-key-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-key-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -3524,6 +3576,7 @@
       'qc-slt-rise':   { min: 0.1, max: 5000, label: 'Rise' },
       'qc-slt-bulge':  { min: -360, max: 360, label: 'Angle' },
       'qc-slt-inset':  { min: -5000, max: 5000, label: 'Inset' },
+      'qc-slt-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
       'qc-slt-depth':  { min: 0.01, max: 500, label: 'Total Depth' },
       'qc-slt-step':   { min: 0.01, max: 100, label: 'Depth of Cut' },
       'qc-slt-stepover': { min: 1, max: 90, label: 'Stepover', integer: true },
@@ -3543,6 +3596,7 @@
       'qc-drl-depth':  { min: 0.01, max: 100, label: 'Total Depth' },
       'qc-drl-peck':   { min: 0,    max: 100, label: 'Peck Depth' },
       'qc-drl-inset': { min: -5000, max: 5000, label: 'Inset' },
+      'qc-drl-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
       'qc-drl-dwell':  { min: 0, max: 10, label: 'Dwell' },
       'qc-drl-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-drl-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -3922,7 +3976,7 @@
       cutType:      $('qc-rect-cut-type').value,
       tabs:         readTabsForm('rect'),
       origin:       $('qc-rect-origin').value,
-      inset:      num('qc-rect-inset', 0),
+      inset:      readInset('rect'),
       depth:        num('qc-rect-depth', 0),
       depthOfCut:   num('qc-rect-step', 0),
       // Stepover only used for 'clearing' cutType; safe to always pass.
@@ -3941,7 +3995,7 @@
       cutType:      $('qc-circ-cut-type').value,
       tabs:         readTabsForm('circ'),
       origin:       $('qc-circ-origin').value,
-      inset:      num('qc-circ-inset', 0),
+      inset:      readInset('circ'),
       depth:        num('qc-circ-depth', 0),
       depthOfCut:   num('qc-circ-step', 0),
       stepoverPct:  num('qc-circ-stepover', 40),
@@ -4189,7 +4243,7 @@
       cutType:       $('qc-poly-cut-type').value,
       tabs:          readTabsForm('poly'),
       origin:        $('qc-poly-origin').value,
-      inset:       num('qc-poly-inset', 0),
+      inset:       readInset('poly'),
       depth:         num('qc-poly-depth', 0),
       depthOfCut:    num('qc-poly-step', 0),
       stepoverPct:   num('qc-poly-stepover', 40),
@@ -4929,7 +4983,7 @@
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
     if (rect.origin)                setOriginPickerValue('qc-rect-origin', migrateOrigin(rect.origin));
-    if (rect.inset != null) $('qc-rect-inset').value = roundDisplay(mmToDisplay(rect.inset));
+    hydrateInset('rect', rect.inset);
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
     if (rect.depthOfCut != null)    $('qc-rect-step').value   = roundDisplay(mmToDisplay(rect.depthOfCut));
     // Stepover is a percent — unitless, stored as-is.
@@ -4941,7 +4995,7 @@
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
     if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
     if (circ.origin)                setOriginPickerValue('qc-circ-origin', migrateOrigin(circ.origin));
-    if (circ.inset != null) $('qc-circ-inset').value = roundDisplay(mmToDisplay(circ.inset));
+    hydrateInset('circ', circ.inset);
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
@@ -5002,7 +5056,7 @@
     if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
-    if (poly.inset != null) $('qc-poly-inset').value = roundDisplay(mmToDisplay(poly.inset));
+    hydrateInset('poly', poly.inset);
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
     if (poly.depthOfCut != null)    $('qc-poly-step').value     = roundDisplay(mmToDisplay(poly.depthOfCut));
     if (poly.stepoverPct != null)   $('qc-poly-stepover').value = poly.stepoverPct;
@@ -5012,9 +5066,10 @@
     var slt = saved.slot || {};
     if (slt.slotType)               $('qc-slt-type').value     = slt.slotType;
     if (slt.arcMode)                $('qc-slt-arc-mode').value = slt.arcMode;
-    ['width', 'length', 'radius', 'chord', 'rise', 'inset', 'depth'].forEach(function(k) {
+    ['width', 'length', 'radius', 'chord', 'rise', 'depth'].forEach(function(k) {
       if (slt[k] != null) $('qc-slt-' + k).value = roundDisplay(mmToDisplay(slt[k]));
     });
+    hydrateInset('slt', slt.inset);
     if (slt.depthOfCut != null)     $('qc-slt-step').value     = roundDisplay(mmToDisplay(slt.depthOfCut));
     if (slt.angleDeg != null)       $('qc-slt-angle').value    = slt.angleDeg;
     if (slt.startAngleDeg != null)  $('qc-slt-start').value    = slt.startAngleDeg;
@@ -5030,7 +5085,7 @@
     if (key.slotLength != null)     $('qc-key-length').value      = roundDisplay(mmToDisplay(key.slotLength));
     if (key.startAngleDeg != null)  $('qc-key-start-angle').value = key.startAngleDeg;
     if (key.origin)                 setOriginPickerValue('qc-key-origin', key.origin);
-    if (key.inset != null) $('qc-key-inset').value = roundDisplay(mmToDisplay(key.inset));
+    hydrateInset('key', key.inset);
     if (key.depth != null)          $('qc-key-depth').value       = roundDisplay(mmToDisplay(key.depth));
     hydratePattern('key', key.pattern);
 
@@ -5047,7 +5102,7 @@
     if (drl.peckMode)          $('qc-drl-peck-mode').value = drl.peckMode;
     if (drl.dwell != null)     $('qc-drl-dwell').value     = drl.dwell;
     if (drl.origin)            setOriginPickerValue('qc-drl-origin', drl.origin);
-    if (drl.inset != null) $('qc-drl-inset').value = roundDisplay(mmToDisplay(drl.inset));
+    hydrateInset('drl', drl.inset);
     hydratePattern('drl', drl.pattern);
 
     updateClearingVisibility('rect');
@@ -5125,7 +5180,7 @@
         startAngleDeg: params.startAngleDeg,
         cutType:      params.cutType,
         origin:       params.origin,
-        inset:      displayToMm(params.inset),
+        inset:      insetToMm(params.inset),
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
@@ -5138,7 +5193,7 @@
         diameter:     displayToMm(params.diameter),
         cutType:      params.cutType,
         origin:       params.origin,
-        inset:      displayToMm(params.inset),
+        inset:      insetToMm(params.inset),
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
@@ -5195,7 +5250,7 @@
         cornerRadius:  displayToMm(params.cornerRadius),
         cutType:       params.cutType,
         origin:        params.origin,
-        inset:       displayToMm(params.inset),
+        inset:       insetToMm(params.inset),
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
@@ -5218,7 +5273,7 @@
         bulgeAngleDeg: params.bulgeAngleDeg,
         cutType:       params.cutType,
         origin:        params.origin,
-        inset:         displayToMm(params.inset),
+        inset:         insetToMm(params.inset),
         depth:         displayToMm(params.depth),
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
@@ -5231,7 +5286,7 @@
         slotLength:    displayToMm(params.slotLength),
         startAngleDeg: params.startAngleDeg,
         origin:        params.origin,
-        inset:       displayToMm(params.inset),
+        inset:       insetToMm(params.inset),
         depth:         displayToMm(params.depth),
         pattern:       packPattern(params.pattern)
       };
@@ -5243,7 +5298,7 @@
         peckMode:      params.peckMode,
         dwell:         params.dwell,
         origin:        params.origin,
-        inset:       displayToMm(params.inset),
+        inset:       insetToMm(params.inset),
         pattern:       packPattern(params.pattern)
       };
     }
@@ -5833,22 +5888,75 @@
   function insetMarks(prefix, px, py, scale) {
     var el = $('qc-' + prefix + '-inset'), o = $('qc-' + prefix + '-origin');
     if (!el || !o || el.disabled || !(scale > 0)) return '';
-    var ins = num('qc-' + prefix + '-inset', 0);
-    if (!ins || !isFinite(ins)) return '';
+    var ins = insetXY(prefix);
     var v = o.value;
     var sx = /left/.test(v) ? 1 : /right/.test(v) ? -1 : 0;
     var sy = /^front/.test(v) ? -1 : /^back/.test(v) ? 1 : 0;
-    var len = ins * scale, out = '';
+    if (!isFinite(ins.x) || !isFinite(ins.y) || !((sx && ins.x) || (sy && ins.y))) return '';
+    var out = '';
     var f = function(n) { return n.toFixed(2); };
-    if (sx) out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px + sx * len) + '" y2="' + f(py) + '"/>';
-    if (sy) out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px) + '" y2="' + f(py + sy * len) + '"/>';
-    // One label (there's one Inset), just off the crosshair between the
-    // marks, or beside a single mark, on the side the marks run to.
-    var lx = sx || 1, ly = sy || -1, dir = ins < 0 ? -1 : 1;
-    out += '<text class="qc-inset-label" x="' + f(px + lx * dir * 3) + '" y="' + f(py + ly * dir * 3) + '" ' +
-           'text-anchor="' + (lx * dir > 0 ? 'start' : 'end') + '" dominant-baseline="' + (ly * dir > 0 ? 'hanging' : 'auto') + '">' +
-           roundDisplay(ins) + '</text>';
-    return out;
+    if (sx && ins.x) out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px + sx * ins.x * scale) + '" y2="' + f(py) + '"/>';
+    if (sy && ins.y) out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px) + '" y2="' + f(py + sy * ins.y * scale) + '"/>';
+    function label(lx, ly, value) {
+      var dir = value < 0 ? -1 : 1;
+      return '<text class="qc-inset-label" x="' + f(px + lx * dir * 3) + '" y="' + f(py + ly * dir * 3) + '" ' +
+             'text-anchor="' + (lx * dir > 0 ? 'start' : 'end') + '" dominant-baseline="' + (ly * dir > 0 ? 'hanging' : 'auto') + '">' +
+             roundDisplay(value) + '</text>';
+    }
+    // One label when it's one Inset (or only one axis applies), just off
+    // the crosshair between the marks, or beside a single mark, on the side
+    // the marks run to. Apart, each mark gets its own, at its far end.
+    var xOnly = sx && ins.x && !(sy && ins.y), yOnly = sy && ins.y && !(sx && ins.x);
+    if (ins.x === ins.y || xOnly || yOnly) {
+      return out + label(sx || 1, sy || -1, xOnly ? ins.x : ins.y);
+    }
+    var xl = '<text class="qc-inset-label" x="' + f(px + sx * ins.x * scale / 2) + '" y="' + f(py + 3) + '" text-anchor="middle" dominant-baseline="hanging">' + roundDisplay(ins.x) + '</text>';
+    var yl = '<text class="qc-inset-label" x="' + f(px + 3) + '" y="' + f(py + sy * ins.y * scale / 2) + '" text-anchor="start" dominant-baseline="middle">' + roundDisplay(ins.y) + '</text>';
+    return out + xl + yl;
+  }
+
+  // Inset: one value for both axes, or X and Y apart (the label's menu,
+  // qc-<p>-inset-mode, with qc-<p>-inset-y beside qc-<p>-inset). The
+  // generator takes a number or { x, y }, and settings keep it that way.
+  function insetSplit(prefix) { return $('qc-' + prefix + '-inset-mode').value === 'xy'; }
+  function readInset(prefix) {
+    var x = num('qc-' + prefix + '-inset', 0);
+    return insetSplit(prefix) ? { x: x, y: num('qc-' + prefix + '-inset-y', 0) } : x;
+  }
+  function insetXY(prefix) {
+    var v = readInset(prefix);
+    return typeof v === 'object' ? v : { x: v, y: v };
+  }
+  function insetToMm(v) {
+    return v && typeof v === 'object' ? { x: displayToMm(v.x), y: displayToMm(v.y) } : displayToMm(v);
+  }
+  function hydrateInset(prefix, v) {
+    if (v == null) return;
+    var split = typeof v === 'object';
+    $('qc-' + prefix + '-inset-mode').value = split ? 'xy' : 'both';
+    $('qc-' + prefix + '-inset').value = roundDisplay(mmToDisplay(split ? v.x : v));
+    if (split) $('qc-' + prefix + '-inset-y').value = roundDisplay(mmToDisplay(v.y));
+    updateInsetMode(prefix);
+  }
+  // Show one box or two (in the same width). Splitting starts Y at the
+  // shared value, so nothing moves; joining keeps X.
+  function updateInsetMode(prefix, fromMenu) {
+    var split = insetSplit(prefix), y = $('qc-' + prefix + '-inset-y');
+    if (fromMenu && split) y.value = $('qc-' + prefix + '-inset').value;
+    y.style.display = split ? '' : 'none';
+    y.closest('.qc-inset-inputs').classList.toggle('qc-inset-split', split);
+    updateInsetState(prefix);
+  }
+  function wireInsetModes() {
+    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
+      $('qc-' + prefix + '-inset-mode').addEventListener('change', function() {
+        updateInsetMode(prefix, true);
+        $('qc-' + prefix + '-inset').dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      $('qc-' + prefix + '-inset-y').addEventListener('input', function() {
+        $('qc-' + prefix + '-inset').dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
   }
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
@@ -5857,16 +5965,17 @@
     var el = $('qc-' + prefix + '-inset'), o = $('qc-' + prefix + '-origin');
     if (!el || !o) return;
     var on = /^(front|back|left|right)-/.test(o.value);
-    el.disabled = !on;
-    el.title = on ? 'Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin.'
-                  : 'Only for a corner or edge origin.';
+    el.disabled = $('qc-' + prefix + '-inset-y').disabled = $('qc-' + prefix + '-inset-mode').disabled = !on;
+    el.title = !on ? 'Only for a corner or edge origin.'
+      : insetSplit(prefix) ? 'Inset along X: from a left or right origin point. Negative moves the cut out past it.'
+      : 'Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin.';
   }
 
   // The inset a preview leaves room for (0 when it doesn't apply), in the
   // shape's units, so X0 Y0 stays inside the drawing.
   function insetPad(prefix) {
-    var el = $('qc-' + prefix + '-inset');
-    return el && !el.disabled ? Math.max(0, num('qc-' + prefix + '-inset', 0)) : 0;
+    var el = $('qc-' + prefix + '-inset'), ins = insetXY(prefix);
+    return el && !el.disabled ? Math.max(0, ins.x, ins.y) : 0;
   }
 
   // The crosshair follows the Origin picker, the Inset and the pattern
@@ -6540,7 +6649,7 @@
       slotLength:    num('qc-key-length', 0),
       startAngleDeg: num('qc-key-start-angle', 90),
       origin:        $('qc-key-origin').value,
-      inset:       num('qc-key-inset', 0),
+      inset:       readInset('key'),
       depth:         num('qc-key-depth', 0),
       pattern:       readPatternForm('key'),
       isImperial:    state.isImperial,
@@ -6815,7 +6924,7 @@
       peckMode:      $('qc-drl-peck-mode').value,
       dwell:         num('qc-drl-dwell', 0),
       origin:        $('qc-drl-origin').value,
-      inset:       num('qc-drl-inset', 0),
+      inset:       readInset('drl'),
       pattern:       readPatternForm('drl'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
@@ -6850,7 +6959,7 @@
         '<text class="qc-shape-dim-label" x="0" y="8" text-anchor="middle">too many to show</text>';
       return;
     }
-    var picked = gen.resolveDrillOrigin($('qc-drl-origin').value, pattern, positions, D, num('qc-drl-inset', 0));
+    var picked = gen.resolveDrillOrigin($('qc-drl-origin').value, pattern, positions, D, readInset('drl'));
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     positions.forEach(function(p) {
       minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
@@ -7187,7 +7296,7 @@
       cutType:       $('qc-slt-cut-type').value,
       tabs:          readTabsForm('slt'),
       origin:        $('qc-slt-origin').value,
-      inset:         num('qc-slt-inset', 0),
+      inset:         readInset('slt'),
       depth:         num('qc-slt-depth', 0),
       depthOfCut:    num('qc-slt-step', 0),
       stepoverPct:   num('qc-slt-stepover', 40),
@@ -7531,8 +7640,11 @@
     var o = $('qc-' + prefix + '-origin').value;
     if (o === 'center' || o === 'shape-center') return 0;
     var z = 0;
-    var el = $('qc-' + prefix + '-inset'), ins = Math.abs(num('qc-' + prefix + '-inset', 0)) * scale;
-    if (el && !el.disabled && ins > 0 && ins < 5) z = Math.max(z, 12 / ins);
+    var el = $('qc-' + prefix + '-inset'), ixy = insetXY(prefix);
+    [ixy.x, ixy.y].forEach(function(v) {
+      var ins = Math.abs(v) * scale;
+      if (el && !el.disabled && ins > 0 && ins < 5) z = Math.max(z, 12 / ins);
+    });
     var atCorner = /^corner:/.test(o) || /^(front|back)-(left|right)$/.test(o);
     if (atCorner && crPx > 0 && crPx < 3) z = Math.max(z, 8 / crPx);
     return z >= 2 ? z : 0;
@@ -7626,7 +7738,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset. A negative Inset moves it out past the origin instead. The <strong>Inset</strong> beside it keeps the cut that far in from a corner or edge origin (negative: out past it); the preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
@@ -8442,23 +8554,36 @@
         case 'front-right':  anchorX = maxX; anchorY = minY; break;
         default:             anchorX = cx;   anchorY = cy;   break;
       }
-      var ins = insetApplies(origin, inset) ? inset : 0;
-      if (/left/.test(origin)) anchorX -= ins;
-      if (/right/.test(origin)) anchorX += ins;
-      if (/^front/.test(origin)) anchorY -= ins;
-      if (/^back/.test(origin)) anchorY += ins;
+      var ins = insetApplies(origin, inset) ? insetXY(inset) : { x: 0, y: 0 };
+      if (/left/.test(origin)) anchorX -= ins.x;
+      if (/right/.test(origin)) anchorX += ins.x;
+      if (/^front/.test(origin)) anchorY -= ins.y;
+      if (/^back/.test(origin)) anchorY += ins.y;
       return { x: -anchorX, y: -anchorY };
     }
 
-    // Inset only means something for a corner or edge of the origin box.
+    // Inset only means something for a corner or edge of the origin box, on
+    // the axis that edge is on. It's one number for both axes, or { x, y }
+    // apart: X for a left / right origin, Y for front / back.
+    function insetXY(inset) {
+      return inset && typeof inset === 'object' ? { x: +inset.x || 0, y: +inset.y || 0 } : { x: inset || 0, y: inset || 0 };
+    }
     function insetApplies(origin, inset) {
-      // A negative inset moves the cut outward past the origin instead.
-      return !!inset && /^(front|back|left|right)-/.test(origin || '');
+      if (!/^(front|back|left|right)-/.test(origin || '')) return false;
+      var i = insetXY(inset);
+      return !!((/left|right/.test(origin) && i.x) || (/^(front|back)/.test(origin) && i.y));
     }
 
-    // ", inset 10mm" for the header's Origin line, when it applies.
+    // ", inset 10mm" (or ", inset X 10mm, Y 5mm") for the header's Origin
+    // line, when it applies.
     function insetNote(origin, inset) {
-      return insetApplies(origin, inset) ? ', inset ' + inset + (isImperial ? 'inch' : 'mm') : '';
+      if (!insetApplies(origin, inset)) return '';
+      var u = isImperial ? 'inch' : 'mm';
+      if (!inset || typeof inset !== 'object') return ', inset ' + inset + u;
+      var i = insetXY(inset), parts = [];
+      if (/left|right/.test(origin)) parts.push('X ' + i.x + u);
+      if (/^(front|back)/.test(origin)) parts.push('Y ' + i.y + u);
+      return ', inset ' + parts.join(', ');
     }
 
     function rectangleShapeBbox(params) {
