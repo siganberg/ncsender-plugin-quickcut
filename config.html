@@ -823,6 +823,8 @@
      draw their own material rectangle inside the cell, so the outer
      container border would be a redundant second frame. Drop the
      border and let the drawing speak for itself. */
+  /* Jointer: a bigger top view, so each trim's line and arrow read. */
+  .qc-shape-preview-cell.qc-join-preview-cell { width: 200px; height: 200px; }
   .qc-shape-preview-cell.qc-shape-preview-cell--frameless {
     border: none;
     background: transparent;
@@ -895,6 +897,10 @@
   .qc-shape-preview-cell.qc-preview-big svg marker path[fill="none"] {
     transform: scale(2.5);
     transform-origin: 8px 5px;
+  }
+  .qc-shape-preview-cell.qc-preview-big svg marker .qc-arrowhead {
+    transform: scale(2);
+    transform-origin: 6px 5px;
   }
   .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label {
     font-size: 3px;
@@ -2710,7 +2716,7 @@
                 <input type="hidden" id="qc-join-origin" value="front">
                 <p class="qc-mode-hint" id="qc-join-hint"></p>
               </div>
-              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
+              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless qc-join-preview-cell">
                 <svg id="qc-join-preview" viewBox="-50 -50 100 100" aria-label="Click the edge to trim"></svg>
               </div>
             </div>
@@ -5615,7 +5621,7 @@
       dir.value = dir.value === 'climb' ? 'conventional' : 'climb';
       dir.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    ['qc-join-length', 'qc-join-width'].forEach(function(id) {
+    ['qc-join-length', 'qc-join-width', 'qc-join-trims'].forEach(function(id) {
       var el = $(id);
       if (el) el.addEventListener('input', updateJointerPreview);
     });
@@ -6088,13 +6094,16 @@
   }
 
   // Jointer preview — top view of the workpiece with a hatched strip
-  // marking the trim area on the selected side. Fixed geometry: the
-  // hatch thickness never scales with Trim Width, and the material
-  // rectangle is a constant preview size. Length arrow sits outside
-  // the material parallel to the trim edge (same visual band as the
-  // hatch); Trim Width label is centered inside the hatched strip
-  // like the Planer's Total Depth. Cut border line marks the final
-  // trimmed edge (where the material ends after the cut).
+  // marking the trim area on the selected side, at a constant preview
+  // size. Each trim is a bright line across the strip, the first on the
+  // edge itself, with an arrowhead the way the bit travels (from Cut
+  // Direction and the side, as in the generator); a tap on one flips
+  // Conventional / Climb. The cut border marks where the material ends
+  // after the last trim; Length sits outside the edge and "trims × Trim
+  // Width" just inside the border.
+  // Past a handful the lines merge, so at most this many are drawn; the
+  // "trims × width" label still gives the count.
+  var JOIN_MAX_LINES = 6;
   function updateJointerPreview() {
     var svg = document.getElementById('qc-join-preview');
     if (!svg) return;
@@ -6102,112 +6111,59 @@
     var side   = $('qc-join-origin').value;
     var length = num('qc-join-length', 0);
     var trimW  = num('qc-join-width', 0);
-    // The Length line doubles as the feed arrow: one head, the way the bit
-    // travels, from Cut Direction and the side (as in the generator).
+    var trims  = Math.max(1, Math.floor(num('qc-join-trims', 1)));
     var plusIsConventional = axis === 'x' ? side === 'front' : side === 'right';
     var climb = $('qc-join-direction').value === 'climb';
     var feedPlus = plusIsConventional !== climb;
 
-    var w = 76, h = 46;
+    // Narrower along Y, so the turned labels beside it stay in the box.
+    var w = axis === 'x' ? 88 : 80, h = 52, cy = -4;
     var matL = -w / 2, matR = w / 2;
-    var matT = -h / 2, matB = h / 2;
-    // Fixed hatched strip thickness (~26% like the Planer's cut layer).
-    var stripThickness = 12;
-    var arrowInset = 4;
-    var dimGap = 4;
+    var matT = cy - h / 2, matB = cy + h / 2;
+    var lines = Math.min(trims, JOIN_MAX_LINES);
+    var stripThickness = Math.min(24, Math.max(8, 5 * lines));
+    var overshoot = 3, labelGap = 6;
 
-    var shapeAttrs = 'x="' + matL.toFixed(2) + '" y="' + matT.toFixed(2) +
-                     '" width="' + w.toFixed(2) + '" height="' + h.toFixed(2) + '"';
-
-    var hatchAttrs, cutBorder, trimLabelX, trimLabelY, lengthLine, lengthLabel;
-
-    if (axis === 'x') {
-      // Trim runs along X — hatched strip on the front (bottom) or
-      // back (top) edge; Length dim outside on the same side.
-      var lY;
-      if (side === 'back') {
-        hatchAttrs = 'x="' + matL.toFixed(2) + '" y="' + matT.toFixed(2) +
-                     '" width="' + w.toFixed(2) + '" height="' + stripThickness.toFixed(2) + '"';
-        var cbY = matT + stripThickness;
-        cutBorder = '<line class="qc-plan-cut-border" x1="' + matL.toFixed(2) +
-                    '" y1="' + cbY.toFixed(2) +
-                    '" x2="' + matR.toFixed(2) + '" y2="' + cbY.toFixed(2) + '"/>';
-        trimLabelX = 0;
-        trimLabelY = matT + stripThickness / 2;
-        lY = matT - dimGap;
-        lengthLabel = '<text class="qc-shape-dim-label" x="0" y="' + (lY - 2).toFixed(2) +
-                      '" text-anchor="middle">' +
-                      (length > 0 ? length : '?') + '</text>';
-      } else {  // 'front' (default)
-        var stripY = matB - stripThickness;
-        hatchAttrs = 'x="' + matL.toFixed(2) + '" y="' + stripY.toFixed(2) +
-                     '" width="' + w.toFixed(2) + '" height="' + stripThickness.toFixed(2) + '"';
-        cutBorder = '<line class="qc-plan-cut-border" x1="' + matL.toFixed(2) +
-                    '" y1="' + stripY.toFixed(2) +
-                    '" x2="' + matR.toFixed(2) + '" y2="' + stripY.toFixed(2) + '"/>';
-        trimLabelX = 0;
-        trimLabelY = matB - stripThickness / 2;
-        lY = matB + dimGap;
-        lengthLabel = '<text class="qc-shape-dim-label" x="0" y="' + (lY + 2).toFixed(2) +
-                      '" text-anchor="middle" dominant-baseline="hanging">' +
-                      (length > 0 ? length : '?') + '</text>';
-      }
-      var xs = [matL + arrowInset, matR - arrowInset];
-      if (!feedPlus) xs.reverse();
-      lengthLine = '<line class="qc-shape-dim-line" x1="' + xs[0].toFixed(2) +
-                   '" y1="' + lY.toFixed(2) +
-                   '" x2="' + xs[1].toFixed(2) + '" y2="' + lY.toFixed(2) + '" ' +
-                   'marker-end="url(#qc-join-arr)"/>';
-    } else {
-      // Trim runs along Y — hatched strip on the left or right edge;
-      // Length dim vertical, outside on the same side.
-      var lX;
-      if (side === 'left') {
-        hatchAttrs = 'x="' + matL.toFixed(2) + '" y="' + matT.toFixed(2) +
-                     '" width="' + stripThickness.toFixed(2) + '" height="' + h.toFixed(2) + '"';
-        var cbX = matL + stripThickness;
-        cutBorder = '<line class="qc-plan-cut-border" x1="' + cbX.toFixed(2) +
-                    '" y1="' + matT.toFixed(2) +
-                    '" x2="' + cbX.toFixed(2) + '" y2="' + matB.toFixed(2) + '"/>';
-        trimLabelX = matL + stripThickness / 2;
-        trimLabelY = 0;
-        lX = matL - dimGap;
-        // Rotate the label so it reads along the Y axis — a horizontal
-        // "150" would overflow the viewBox on the left side.
-        var lTx = lX - 2;
-        lengthLabel = '<text class="qc-shape-dim-label" x="' + lTx.toFixed(2) +
-                      '" y="0" text-anchor="middle" dominant-baseline="central" ' +
-                      'transform="rotate(-90 ' + lTx.toFixed(2) + ' 0)">' +
-                      (length > 0 ? length : '?') + '</text>';
-      } else {  // 'right'
-        var stripX = matR - stripThickness;
-        hatchAttrs = 'x="' + stripX.toFixed(2) + '" y="' + matT.toFixed(2) +
-                     '" width="' + stripThickness.toFixed(2) + '" height="' + h.toFixed(2) + '"';
-        cutBorder = '<line class="qc-plan-cut-border" x1="' + stripX.toFixed(2) +
-                    '" y1="' + matT.toFixed(2) +
-                    '" x2="' + stripX.toFixed(2) + '" y2="' + matB.toFixed(2) + '"/>';
-        trimLabelX = stripX + stripThickness / 2;
-        trimLabelY = 0;
-        lX = matR + dimGap;
-        var rTx = lX + 2;
-        lengthLabel = '<text class="qc-shape-dim-label" x="' + rTx.toFixed(2) +
-                      '" y="0" text-anchor="middle" dominant-baseline="central" ' +
-                      'transform="rotate(-90 ' + rTx.toFixed(2) + ' 0)">' +
-                      (length > 0 ? length : '?') + '</text>';
-      }
-      // +Y (back) is up in the drawing.
-      var ys = [matB - arrowInset, matT + arrowInset];
-      if (!feedPlus) ys.reverse();
-      lengthLine = '<line class="qc-shape-dim-line" x1="' + lX.toFixed(2) +
-                   '" y1="' + ys[0].toFixed(2) +
-                   '" x2="' + lX.toFixed(2) + '" y2="' + ys[1].toFixed(2) + '" ' +
-                   'marker-end="url(#qc-join-arr)"/>';
+    // The trimmed edge at `edge` along the axis across it; `inward` points
+    // into the material (SVG units, y down; +Y is up).
+    var alongX = axis === 'x';
+    var edge = alongX ? (side === 'back' ? matT : matB) : (side === 'left' ? matL : matR);
+    var inward = alongX ? (side === 'back' ? 1 : -1) : (side === 'left' ? 1 : -1);
+    var border = edge + inward * stripThickness;
+    var from = alongX ? (feedPlus ? matL - overshoot : matR + overshoot) : (feedPlus ? matB + overshoot : matT - overshoot);
+    var to   = alongX ? (feedPlus ? matR + overshoot : matL - overshoot) : (feedPlus ? matT - overshoot : matB + overshoot);
+    function seg(cls, at, extra) {
+      var xy = alongX
+        ? 'x1="' + from.toFixed(2) + '" y1="' + at.toFixed(2) + '" x2="' + to.toFixed(2) + '" y2="' + at.toFixed(2) + '"'
+        : 'x1="' + at.toFixed(2) + '" y1="' + from.toFixed(2) + '" x2="' + at.toFixed(2) + '" y2="' + to.toFixed(2) + '"';
+      return '<line class="' + cls + '" ' + xy + extra;
+    }
+    var tip = (climb ? 'Climb' : 'Conventional') + ' — click to switch';
+    var cuts = '', hits = '';
+    for (var i = 0; i < lines; i++) {
+      var at = edge + inward * stripThickness * i / lines;
+      cuts += i === 0
+        ? seg('qc-side-active', at, ' marker-end="url(#qc-join-edgearr)"/>')
+        : seg('qc-cut-feed', at, ' marker-end="url(#qc-join-feedarr)"/>');
+      hits += seg('qc-feed-hit', at, '><title>' + tip + '</title></line>');
     }
 
-    var trimWLabel = '<text class="qc-shape-dim-label" x="' + trimLabelX.toFixed(2) +
-                     '" y="' + trimLabelY.toFixed(2) +
-                     '" text-anchor="middle" dominant-baseline="central">' +
-                     (trimW > 0 ? trimW : '?') + '</text>';
+    var strip = alongX
+      ? 'x="' + matL + '" y="' + Math.min(edge, border) + '" width="' + w + '" height="' + stripThickness + '"'
+      : 'x="' + Math.min(edge, border) + '" y="' + matT + '" width="' + stripThickness + '" height="' + h + '"';
+    var cutBorder = alongX
+      ? '<line class="qc-plan-cut-border" x1="' + matL + '" y1="' + border + '" x2="' + matR + '" y2="' + border + '"/>'
+      : '<line class="qc-plan-cut-border" x1="' + border + '" y1="' + matT + '" x2="' + border + '" y2="' + matB + '"/>';
+    // Labels: horizontal along X, turned to read along Y.
+    function label(pos, text) {
+      var x = alongX ? 0 : pos, y = alongX ? pos : cy;
+      return '<text class="qc-shape-dim-label" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
+             '" text-anchor="middle" dominant-baseline="central"' +
+             (alongX ? '' : ' transform="rotate(-90 ' + x.toFixed(2) + ' ' + y.toFixed(2) + ')"') + '>' + text + '</text>';
+    }
+    var lengthLabel = label(edge - inward * labelGap, length > 0 ? length : '?');
+    var trimText = trimW > 0 ? trimW : '?';
+    var trimLabel = label(border + inward * labelGap, trims > 1 ? trims + ' × ' + trimText : trimText);
 
     // Caption below the material — this is a top-down view, spelled
     // out so nobody confuses it with the side-view previews.
@@ -6216,17 +6172,20 @@
 
     svg.innerHTML =
       shapePreviewDefs('qc-join') +
-      '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
-      '<rect class="qc-shape-hatch" fill="url(#qc-join-hatch)" ' + hatchAttrs + '/>' +
+      // Heads sized from each line's stroke (3 on the edge, 1.8 on the
+      // other trims), so they come out the same size and clear of it.
+      '<defs>' + [['edgearr', 2], ['feedarr', 3.3]].map(function(m) {
+        return '<marker id="qc-join-' + m[0] + '" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="' + m[1] +
+               '" markerHeight="' + m[1] + '" orient="auto" markerUnits="strokeWidth">' +
+               '<path class="qc-arrowhead" d="M0,0 L10,5 L0,10 z" style="fill: var(--color-accent)"/></marker>';
+      }).join('') + '</defs>' +
+      '<rect class="qc-shape-fill" x="' + matL + '" y="' + matT + '" width="' + w + '" height="' + h + '"/>' +
+      '<rect class="qc-shape-hatch" fill="url(#qc-join-hatch)" ' + strip + '/>' +
       cutBorder +
-      lengthLine + lengthLabel +
-      trimWLabel +
+      lengthLabel + trimLabel +
       caption +
-      sideEdgesSvg(side, rectEdges(matL, matR, matT, matB)) +
-      // Tap the feed arrow to flip Conventional / Climb, as on Cutter.
-      lengthLine.replace('qc-shape-dim-line', 'qc-feed-hit')
-        .replace(' marker-end="url(#qc-join-arr)"/>', '><title>' + (climb ? 'Climb' : 'Conventional') +
-                 ' \u2014 click to switch</title></line>');
+      sideEdgesSvg(null, rectEdges(matL, matR, matT, matB)) +
+      cuts + hits;
   }
 
   // Cutter preview — the stock seen from the front, above and in
