@@ -4434,6 +4434,8 @@
       if (honey)  honey.style.display  = (style === 'honeycomb') ? '' : 'none';
       updatePatternAngleLabels(prefix);
     }
+    var shapeSvg = $('qc-' + prefix + '-preview');
+    if (shapeSvg) redrawPreview(shapeSvg);
     schedulePatternPreview();
   }
 
@@ -6014,6 +6016,21 @@
   // A very faint ring at each point a tap on the preview picks, so they
   // can be found without cluttering the drawing (drawn under the
   // crosshair, and taps pass through).
+  // With a pattern on, a box point (a corner, edge middle or the center)
+  // means that point of the box around every copy, not of the one shape
+  // drawn here, so a tap picks the drawn shape's own point instead
+  // (corner:N numbered as the generator's corners, or its center); the
+  // Origin picker beside the preview still sets the pattern's box points.
+  var BOX_POINT_CORNERS = { 'front-left': 1, 'front-right': 2, 'back-right': 3, 'back-left': 4,
+                            'front-center': 5, 'right-center': 6, 'back-center': 7, 'left-center': 8 };
+  function ownPreviewNodes(prefix, nodes, centerValue) {
+    if (!$('qc-' + prefix + '-pattern-enable').checked) return nodes;
+    return nodes.map(function(nd) {
+      var c = BOX_POINT_CORNERS[nd.value];
+      var value = c ? 'corner:' + c : nd.value === 'center' ? centerValue : nd.value;
+      return { x: nd.x, y: nd.y, value: value };
+    });
+  }
   function pickHints(nodes) {
     return (nodes || []).map(function(nd) {
       return '<circle class="qc-pick-hint" cx="' + nd.x.toFixed(2) + '" cy="' + nd.y.toFixed(2) + '" r="1.3"/>';
@@ -6146,11 +6163,11 @@
     // Corners in the generator's order (front-left, front-right,
     // back-right, back-left, before turning), the middles of the front,
     // right, back and left edges, then the center.
-    rectPreviewNodes = [[x, y + h], [x + w, y + h], [x + w, y], [x, y],
+    rectPreviewNodes = ownPreviewNodes('rect', [[x, y + h], [x + w, y + h], [x + w, y], [x, y],
                         [x + w / 2, y + h], [x + w, y + h / 2], [x + w / 2, y], [x, y + h / 2]].map(function(q, i) {
       var t = T(q[0], q[1]);
       return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
-    }).concat([{ x: 0, y: 0, value: 'center' }]);
+    }).concat([{ x: 0, y: 0, value: 'center' }]), 'shape-center');
 
     svg.innerHTML =
       shapePreviewDefs('qc-rect') +
@@ -6613,11 +6630,11 @@
     // Tap targets for the 9-dot Origin picker: the circle's box corners,
     // its four quadrant points (the box's edge midpoints) and the center.
     // SVG y is down, so back is up.
-    circPreviewNodes = [
+    circPreviewNodes = ownPreviewNodes('circ', [
       ['back-left', -r, -r], ['back-center', 0, -r], ['back-right', r, -r],
       ['left-center', -r, 0], ['center', 0, 0], ['right-center', r, 0],
       ['front-left', -r, r], ['front-center', 0, r], ['front-right', r, r]
-    ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; });
+    ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; }), 'shape-center');
 
     var dLine = '<line class="qc-shape-dim-line" x1="' + (-r + arrowInset) + '" y1="0" ' +
                 'x2="' + (r - arrowInset) + '" y2="0" ' +
@@ -6705,12 +6722,12 @@
     var bx0 = Math.min(H.x, E.x) - r, bx1 = Math.max(H.x, E.x) + r;
     var by0 = Math.min(H.y, E.y) - r, by1 = Math.max(H.y, E.y) + r;
     var bxm = (bx0 + bx1) / 2, bym = (by0 + by1) / 2;
-    keyPreviewNodes = [
+    keyPreviewNodes = ownPreviewNodes('key', [
       ['hole', H.x, H.y],
       ['back-left', bx0, by0], ['back-center', bxm, by0], ['back-right', bx1, by0],
       ['left-center', bx0, bym], ['center', bxm, bym], ['right-center', bx1, bym],
       ['front-left', bx0, by1], ['front-center', bxm, by1], ['front-right', bx1, by1]
-    ].map(function(q) { return { value: q[0], x: q[1], y: q[2] }; });
+    ].map(function(q) { return { value: q[0], x: q[1], y: q[2] }; }), 'corner:9');
 
     function stadium(rr) {
       return 'M' + f(pt(H, rr, n)) + ' L' + f(pt(E, rr, n)) +
@@ -7582,7 +7599,8 @@
   // enlarged or resized.
   function redrawPreview(svg) {
     var redraw = { 'qc-slt-preview': updateSlotPreview, 'qc-rect-preview': updateRectanglePreview,
-                   'qc-poly-preview': updatePolygonPreview, 'qc-drl-preview': updateDrillPreview }[svg.id];
+                   'qc-poly-preview': updatePolygonPreview, 'qc-drl-preview': updateDrillPreview,
+                   'qc-circ-preview': updateCirclePreview, 'qc-key-preview': updateKeyholePreview }[svg.id];
     if (redraw) redraw();
   }
   // The box sits in the preview's real corners, so a preview showing one
@@ -7733,7 +7751,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
@@ -8966,6 +8984,26 @@
           .map(function(c) { return rotatePoint(0, 0, c[0], c[1], rot); });
       };
     }
+    // Circle: the box points of the first copy, numbered as Rectangle's
+    // (corners, then edge middles), so they can be X0 Y0 with a pattern on.
+    function circleCorners(params) {
+      return function() {
+        var r = params.diameter / 2;
+        return [[-r, -r], [r, -r], [r, r], [-r, r], [0, -r], [r, 0], [0, r], [-r, 0]]
+          .map(function(c) { return { x: c[0], y: c[1] }; });
+      };
+    }
+    // Keyhole: the same points of the box around the first keyhole, about
+    // its plunge hole, then that box's center (corner:9).
+    function keyholeCorners(params) {
+      return function(rot) {
+        var b = keyholeBbox(params, (params.startAngleDeg || 0) + rot);
+        var mx = (b.minX + b.maxX) / 2, my = (b.minY + b.maxY) / 2;
+        return [[b.minX, b.minY], [b.maxX, b.minY], [b.maxX, b.maxY], [b.minX, b.maxY],
+                [mx, b.minY], [b.maxX, my], [mx, b.maxY], [b.minX, my], [mx, my]]
+          .map(function(c) { return { x: c[0], y: c[1] }; });
+      };
+    }
     function polygonCorners(params) {
       return function(rot) {
         var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
@@ -8987,7 +9025,7 @@
       } else if (shape === 'polygon') {
         shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
       } else if (shape === 'circle') {
-        shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
+        shift = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params)).shift;
       } else if (shape === 'slot') {
         var cl = slotCenterline(params);
         if (slotProblem(params, cl, slotHalfWidth(params))) return { x: 0, y: 0 };
@@ -8995,9 +9033,7 @@
         shift = resolveShapeOrigin(params, positions, op.bbox, op.corners).shift;
       } else if (shape === 'keyhole') {
         var startDeg = params.startAngleDeg || 0;
-        shift = (params.origin || 'hole') === 'hole' ? { x: 0, y: 0 } : computePatternAnchorShift(params.origin, positions, function(pos) {
-          return keyholeBbox(params, startDeg + (pos.rotDeg || 0));
-        }, params.inset);
+        shift = (params.origin || 'hole') === 'hole' ? { x: 0, y: 0 } : resolveKeyholeOrigin(params, positions).shift;
       } else {
         return { x: 0, y: 0 };
       }
@@ -9294,10 +9330,11 @@
       var positions = computePatternPositions(params.pattern);
       var baseGeom = computeCircleGeom(params);
 
+      var placed = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params));
       var extras = [
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + (params.origin || 'center') + insetNote(params.origin, params.inset)
+        'Origin: ' + placed.label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
       var tabNotes = tabHeaderNotes(params, circleSegments(baseGeom), extras);
@@ -9316,7 +9353,7 @@
       lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
+      var shift = placed.shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -9397,12 +9434,13 @@
       var stepoverPct = params.stepoverPct || 40;
       var step = params.bitDiameter * (stepoverPct / 100);
 
+      var placed = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params));
       var extras = [
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
         'Entry: helical bore then expanding outward',
-        'Origin: ' + (params.origin || 'center') + insetNote(params.origin, params.inset)
+        'Origin: ' + placed.label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
@@ -9424,7 +9462,7 @@
 
       Array.prototype.push.apply(lines, startupBlock(params));
 
-      var shift = computePatternAnchorShift(params.origin || 'center', positions, circleShapeBbox(params), params.inset);
+      var shift = placed.shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -10611,6 +10649,13 @@
                minY: Math.min(0, ey) - R, maxY: Math.max(0, ey) + R };
     }
 
+    function resolveKeyholeOrigin(params, positions) {
+      var startDeg = params.startAngleDeg || 0;
+      return resolveShapeOrigin(params, positions, function(pos) {
+        return keyholeBbox(params, startDeg + (pos.rotDeg || 0));
+      }, keyholeCorners(params));
+    }
+
     // Origin 'hole' (the default) puts the first plunge hole at X0 Y0.
     // Any other origin is a point of the bounding box of every keyhole's
     // footprint, as with the other shapes.
@@ -10624,7 +10669,7 @@
       var extras = [
         'Slot Length: ' + slotLength + unitsLabel + ', Slot Angle: ' + startDeg + '°',
         'Depth: ' + params.depth + unitsLabel,
-        'Origin: ' + (origin === 'hole' ? 'plunge hole center' : origin + insetNote(origin, params.inset)),
+        'Origin: ' + (origin === 'hole' ? 'plunge hole center' : resolveKeyholeOrigin(params, positions).label),
         'Entry: single plunge, retrace to hole before retract'
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
@@ -10642,9 +10687,7 @@
 
       lines.push.apply(lines, startupBlock(params));
 
-      var shift = origin === 'hole' ? { x: 0, y: 0 } : computePatternAnchorShift(origin, positions, function(pos) {
-        return keyholeBbox(params, startDeg + (pos.rotDeg || 0));
-      }, params.inset);
+      var shift = origin === 'hole' ? { x: 0, y: 0 } : resolveKeyholeOrigin(params, positions).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;

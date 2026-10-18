@@ -119,7 +119,7 @@ For example, a **cutting board juice groove** 10 mm in from the edges of a 300 Ã
 
 ## Patterns
 
-Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. (Keyhole's picker also offers its plunge hole, the default.)
+Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, or Drill to cut several copies in one program. The spindle and coolant start once; each copy gets its own approach, plunge, and retract. The **Origin** you pick applies to the bounding box of the whole pattern, not to each copy. Tapping a point on the shape preview instead makes that point of the first copy X0 Y0, so every dot there stays useful with a pattern on. (Keyhole's picker also offers its plunge hole, the default.)
 
 | Style | What it does |
 | --- | --- |
