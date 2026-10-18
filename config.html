@@ -3011,6 +3011,14 @@
     wireHelp();
     wireOriginCrosshairs();
     wireCloseButton();
+    // First open in this browser (no remembered tab): start on All help
+    // topics; Back goes to Rectangle. The tab is remembered at once, so
+    // this shows only once even if the dialog is closed from Help.
+    if (state.firstOpen) {
+      try { localStorage.setItem(LAST_TAB_KEY, state.currentTab); } catch (e) {}
+      openHelp();
+      renderHelpIndex();
+    }
   }
 
   function updateUnitBadges() {
@@ -3080,6 +3088,8 @@
       if (saved) {
         var savedBtn = document.querySelector('.qc-nav-btn[data-tab="' + saved + '"]');
         if (savedBtn) savedBtn.click();
+      } else {
+        state.firstOpen = true;
       }
     } catch (e) {}
   }
