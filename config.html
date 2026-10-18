@@ -2860,6 +2860,15 @@
           <h2 class="qc-panel-title">Help<span id="qc-help-for"></span></h2>
           <p class="qc-panel-sub"><span id="qc-help-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</span> <a href="#" class="qc-load-link" id="qc-help-all">All help topics</a></p>
         </div>
+        <div class="qc-save-toggle">
+          <label class="qc-switch-label" title="Show a field's tip below it after it's been touched (or tabbed to) for a second">
+            <span>Touch Tooltips</span>
+            <span class="qc-switch">
+              <input type="checkbox" id="qc-touch-tips" checked>
+              <span class="qc-switch-track"></span>
+            </span>
+          </label>
+        </div>
       </header>
       <div class="qc-panel" id="qc-help-body"></div>
       <div class="qc-panel-footer">
@@ -3597,7 +3606,8 @@
   // a second, styled and placed like Chrome's own: a box just below
   // where the field was touched. Not after a mouse click (Chrome's hover
   // tooltip covers that), not over a field's error bubble; gone on typing,
-  // a tap, scrolling or leaving the field.
+  // a tap, scrolling or leaving the field. Help's Touch Tooltips switch
+  // turns it off.
   var FOCUS_TIP_MS = 1000;
   function wireFocusTips() {
     var lastPointer = 'keyboard', lastX = null, timer = null, tip = null;
@@ -3611,7 +3621,7 @@
     ROOT.addEventListener('focusin', function(ev) {
       hide();
       var el = ev.target;
-      if (lastPointer === 'mouse' || !el.matches || !el.matches('input, select, textarea')) return;
+      if (!$('qc-touch-tips').checked || lastPointer === 'mouse' || !el.matches || !el.matches('input, select, textarea')) return;
       var holder = el.closest('[title]');
       var text = holder && ROOT.contains(holder) ? holder.getAttribute('title') : '';
       if (!text || el.disabled) return;
@@ -4792,6 +4802,10 @@
       $('qc-save-files').checked = !!common.saveToFileManager;
       $('qc-save-files').addEventListener('change', function() {
         persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
+      });
+      $('qc-touch-tips').checked = common.touchTooltips !== false;
+      $('qc-touch-tips').addEventListener('change', function() {
+        persistSettings({ common: { touchTooltips: $('qc-touch-tips').checked } });
       });
     }
     // Tool card is per-shape. Falls back to common.bit/feed/plunge for
