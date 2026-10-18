@@ -4441,6 +4441,8 @@
   function markPreviewPick() { previewPicked = true; }
   function setPreviewEnlarged(cell, big) {
     cell.classList.toggle('qc-preview-big', big);
+    // The Slot preview adds its magnified origin view when enlarged.
+    if (cell.querySelector('#qc-slt-preview')) updateSlotPreview();
   }
   function closeEnlargedPreview() {
     var big = ROOT.querySelector('.qc-preview-big');
@@ -7347,30 +7349,50 @@
       }));
     }
     var off = gen.shapeOriginOffset('slot', params);
+    // The centre line, and points along it, for the magnified view.
+    var zoomCentre, zoomPts;
+    if (pc.type === 'line') {
+      zoomCentre = '<line class="qc-shape-dim-line" x1="' + f(X(e0.x)) + '" y1="' + f(Y(e0.y)) + '" x2="' + f(X(e1.x)) + '" y2="' + f(Y(e1.y)) + '"/>';
+      zoomPts = [[X(e0.x), Y(e0.y)], [X(e1.x), Y(e1.y)]];
+    } else {
+      zoomCentre = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1, dir: pc.dir }) + '"/>';
+      zoomPts = [];
+      for (var zi = 0; zi <= 12; zi++) {
+        var za = pc.a0 + (pc.a1 - pc.a0) * zi / 12;
+        zoomPts.push([X(pc.r * Math.cos(za)), Y(pc.r * Math.sin(za))]);
+      }
+    }
     svg.innerHTML =
       shapePreviewDefs('qc-slt') +
       hatched +
       '<path class="qc-shape-fill" d="' + d + '"/>' +
       dim + marks +
       originCross(X(off.x), Y(off.y), 'slt', k) +
-      (pc.type === 'line' ? slotOriginZoom(X(off.x), Y(off.y), d, X(e0.x), Y(e0.y), X(e1.x), Y(e1.y), half * k) : '');
+      slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k,
+                     svg.closest('.qc-shape-preview-cell').classList.contains('qc-preview-big'));
   }
 
-  // A picked corner or long-side point of a straight slot (corner:3-8) is
-  // only a bit radius from the middle on a thin slot, so the slot around
-  // X0 Y0 is shown magnified in a box a third of the preview's size, in
-  // the corner farthest from the slot. (ox, oy): the crosshair; d: the
-  // outline path; (ax, ay)-(bx, by): the centre line; h: half the slot's
-  // width, all in preview units.
+  // The slot around X0 Y0, magnified in a box a third of the preview's
+  // size, in the corner farthest from the slot: always in the enlarged
+  // preview, and in the small one for a picked corner or long-side point
+  // of a straight slot (corner:3-8), which on a thin slot is only a bit
+  // radius from the middle. (ox, oy): the crosshair; d: the outline path;
+  // centre: the centre line's markup; pts: points along it; h: half the
+  // slot's width, all in preview units.
   var SLOT_ZOOM_SIZE = 32;
-  function slotOriginZoom(ox, oy, d, ax, ay, bx, by, h) {
+  function slotOriginZoom(ox, oy, d, centre, pts, h, big) {
     slotZoomFrame = null;
-    if (!/^corner:[3-8]$/.test($('qc-slt-origin').value) || !isFinite(ox) || !isFinite(oy)) return '';
+    if (!(big || /^corner:[3-8]$/.test($('qc-slt-origin').value)) || !isFinite(ox) || !isFinite(oy)) return '';
     var size = SLOT_ZOOM_SIZE, edge = 50 - 2 - size / 2;
     function distToLine(x, y) {
-      var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1e-9;
-      var u = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
-      return Math.hypot(x - (ax + u * dx), y - (ay + u * dy));
+      var best = Infinity;
+      for (var i = 0; i < pts.length; i++) {
+        var a = pts[i], b = pts[Math.min(i + 1, pts.length - 1)];
+        var dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1e-9;
+        var u = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / l2));
+        best = Math.min(best, Math.hypot(x - (a[0] + u * dx), y - (a[1] + u * dy)));
+      }
+      return best;
     }
     // Bottom corners win near-ties: the enlarged view's caption is at the top.
     var best = null;
@@ -7389,7 +7411,7 @@
       '<g clip-path="url(#qc-slt-zoomclip)">' +
         '<g transform="translate(' + f(best.x) + ',' + f(best.y) + ') scale(' + z.toFixed(3) + ') translate(' + f(-ox) + ',' + f(-oy) + ')">' +
           '<path class="qc-shape-fill" d="' + d + '" style="vector-effect: non-scaling-stroke"/>' +
-          '<line class="qc-shape-dim-line" x1="' + f(ax) + '" y1="' + f(ay) + '" x2="' + f(bx) + '" y2="' + f(by) + '" style="vector-effect: non-scaling-stroke"/>' +
+          centre.replace('/>', ' style="vector-effect: non-scaling-stroke"/>') +
         '</g>' +
       '</g>' +
       originCross(best.x, best.y);
@@ -7505,7 +7527,7 @@
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
-      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, and always in the enlarged preview, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
