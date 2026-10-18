@@ -479,7 +479,6 @@
   .qc-section-card { background: var(--color-surface-muted); }
   .qc-section-card .qc-shape-preview-cell,
   .qc-section-card .qc-origin-grid,
-  .qc-section-card .qc-origin-point.qc-origin-hole,
   .qc-section-card .qc-unit-badge {
     background: var(--color-surface);
   }
@@ -776,33 +775,6 @@
   .qc-origin-point[data-origin="front-left"]    { top: 100%; left: 0;    }
   .qc-origin-point[data-origin="front-center"]  { top: 100%; left: 50%;  }
   .qc-origin-point[data-origin="front-right"]   { top: 100%; left: 100%; }
-  /* Keyhole: the grid is sized to the keyhole's footprint (head swept
-     along the slot) and draws it, like Circle's inscribed circle. The
-     extra ring-shaped point is the plunge hole; its position is set
-     inline from the slot geometry. */
-  .qc-origin-grid[data-picker-for="qc-key-origin"] {
-    border-style: dashed;
-  }
-  .qc-origin-grid > svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    pointer-events: none;
-    color: var(--color-text-secondary, #888);
-  }
-  .qc-origin-point.qc-origin-hole {
-    z-index: 1;
-    background: var(--color-surface-muted, var(--color-surface));
-    border: 2px solid var(--color-text-secondary, #888);
-    box-sizing: border-box;
-  }
-  .qc-origin-point.qc-origin-hole:hover,
-  .qc-origin-point.qc-origin-hole.active {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-  }
 
   /* Shape card layout — fields on the left, live preview on the
      right taking the full card height so the shape reads at a
@@ -2356,14 +2328,14 @@
                   </div>
                 </div>
                 <p class="qc-mode-hint">
-                  The ring in the Origin picker is the <strong>plunge hole</strong> (the first one, with a pattern).
+                  X0 Y0 starts at the <strong>plunge hole</strong> (the first one, with a pattern); tap it, or a point of the box around the cut, in the preview to change it.
                   Set <strong>Bit Diameter</strong> to the keyhole bit&rsquo;s head diameter.
                 </p>
               </div>
               <div class="qc-origin-stack">
                 <div class="qc-field qc-origin-col">
                   <label>Origin</label>
-                  <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
+                  <div id="qc-key-origin-picker" title="The corners, edges and center of the box around the whole cut. The plunge hole, the default, is picked on the preview."></div>
                 </div>
                 <div class="qc-field qc-inset-field">
                   <select class="qc-label-select" id="qc-key-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
@@ -4871,16 +4843,16 @@
   var ORIGIN_CORNERS = ['back-left', 'back-right', 'front-left', 'front-right', 'center'];
   var ORIGIN_EDGES   = ['back-center', 'left-center', 'right-center', 'front-center'];
   var ORIGIN_ALL     = ORIGIN_CORNERS.concat(ORIGIN_EDGES);
-  function originPickerHtml(inputId, selected, cornersOnly, extraKeys) {
+  function originPickerHtml(inputId, selected, cornersOnly) {
     var sel = selected;
-    var keys = (cornersOnly ? ORIGIN_CORNERS : ORIGIN_ALL).concat(extraKeys || []);
+    var keys = cornersOnly ? ORIGIN_CORNERS : ORIGIN_ALL;
     var html = '' +
       '<div class="qc-origin-picker">' +
         '<div class="qc-origin-grid" data-picker-for="' + inputId + '">' +
           '<input type="hidden" id="' + inputId + '" value="' + sel + '">';
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
-      var kind = ORIGIN_CORNERS.indexOf(key) >= 0 ? 'qc-corner' : (ORIGIN_EDGES.indexOf(key) >= 0 ? 'qc-edge' : 'qc-corner qc-origin-' + key);
+      var kind = ORIGIN_CORNERS.indexOf(key) >= 0 ? 'qc-corner' : 'qc-edge';
       html += '<div class="qc-origin-point ' + kind +
               (sel === key ? ' active' : '') +
               '" data-origin="' + key + '"></div>';
@@ -4925,9 +4897,9 @@
       { host: 'qc-circ-origin-picker', input: 'qc-circ-origin', def: 'center'     },
       { host: 'qc-poly-origin-picker', input: 'qc-poly-origin', def: 'center'     },
       { host: 'qc-slt-origin-picker',  input: 'qc-slt-origin',  def: 'center'     },
-      // Keyhole adds its plunge hole, the default (it was the only
-      // origin before the picker existed).
-      { host: 'qc-key-origin-picker',  input: 'qc-key-origin',  def: 'hole', extra: ['hole'] },
+      // Keyhole's default is its plunge hole (the only origin before the
+      // picker existed), picked on the preview like other shape points.
+      { host: 'qc-key-origin-picker',  input: 'qc-key-origin',  def: 'hole' },
       { host: 'qc-drl-origin-picker',  input: 'qc-drl-origin',  def: 'center'     },
       // Planer only offers the 4 corners + center — edge midpoints
       // don't map to a useful surfacing start position.
@@ -4935,7 +4907,7 @@
     ];
     for (var i = 0; i < slots.length; i++) {
       var host = document.getElementById(slots[i].host);
-      if (host) host.innerHTML = originPickerHtml(slots[i].input, slots[i].def, slots[i].cornersOnly, slots[i].extra);
+      if (host) host.innerHTML = originPickerHtml(slots[i].input, slots[i].def, slots[i].cornersOnly);
     }
     wireOriginPickers();
   }
@@ -6676,50 +6648,9 @@
   // both scaled together to fit the box, then turned to the Slot Angle.
   // The undercut channel the head cuts below the surface is hatched
   // with a dashed outline; the plunge hole is the solid circle.
-  // Draw the keyhole's footprint (head swept along the slot) inside the
-  // Keyhole origin grid, which stays square like the other pickers.
-  // The footprint keeps its true proportions, centred and fitted to the
-  // square, and the plunge-hole ring sits on its hole.
-  function updateKeyholeOriginPicker() {
-    var grid = document.querySelector('.qc-origin-grid[data-picker-for="qc-key-origin"]');
-    if (!grid) return;
-    var R = Math.max(num('qc-bit', 0), 0.001) / 2;
-    var L = Math.max(num('qc-key-length', 0), 0);
-    var a = num('qc-key-start-angle', 90) * Math.PI / 180;
-    var ex = L * Math.cos(a), ey = L * Math.sin(a);
-    var minX = Math.min(0, ex) - R, maxX = Math.max(0, ex) + R;
-    var minY = Math.min(0, ey) - R, maxY = Math.max(0, ey) + R;
-    var side = Math.max(maxX - minX, maxY - minY);
-    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-    // Square view around the footprint, in machine units.
-    var vx = cx - side / 2, vTop = cy + side / 2;
-    // SVG y points down: machine (x, y) → (x, -y).
-    var ux = Math.cos(a), uy = Math.sin(a), nx = -uy * R, ny = ux * R;
-    function pt(x, y) { return x.toFixed(3) + ',' + (-y).toFixed(3); }
-    // Both end caps bulge outward, which is clockwise on screen once y
-    // is flipped (sweep-flag 1).
-    var d = 'M' + pt(nx, ny) + ' L' + pt(ex + nx, ey + ny) +
-            ' A' + R + ',' + R + ' 0 0 1 ' + pt(ex - nx, ey - ny) +
-            ' L' + pt(-nx, -ny) + ' A' + R + ',' + R + ' 0 0 1 ' + pt(nx, ny) + ' Z';
-    var svg = grid.querySelector('svg');
-    if (!svg) {
-      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('aria-hidden', 'true');
-      grid.insertBefore(svg, grid.firstChild);
-    }
-    svg.setAttribute('viewBox', vx + ' ' + (-vTop) + ' ' + side + ' ' + side);
-    svg.innerHTML = '<path d="' + d + '" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"/>';
-    var hole = grid.querySelector('.qc-origin-hole');
-    if (hole) {
-      hole.style.left = (-vx / side * 100).toFixed(2) + '%';
-      hole.style.top = (vTop / side * 100).toFixed(2) + '%';
-    }
-  }
-
   function updateKeyholePreview() {
     schedulePatternPreview();
     updateInsetState('key');
-    updateKeyholeOriginPicker();
     var svg = document.getElementById('qc-key-preview');
     if (!svg) return;
     var len = num('qc-key-length', 0);
@@ -7785,7 +7716,7 @@
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
-      'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut. You can also tap them on the preview: the hole, or a corner, edge midpoint or the center of the box around the cut.' ] },
+      'X0 Y0 starts at the <strong>plunge hole</strong>; tap it on the preview to go back to it. The Origin picker&rsquo;s dots are the box around the whole cut, which you can also tap on the preview: a corner, edge midpoint or its center.' ] },
     drill: { name: 'Drill', notes: [
       'Holes the size of the <strong>Bit Diameter</strong>. Every move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
