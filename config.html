@@ -7484,7 +7484,8 @@
         (sub ? ' &mdash; ' + helpEscape(sub.textContent.trim()) : '') + '</li>';
     }).join('');
     $('qc-help-body').innerHTML =
-      helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>') +
+      helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>' +
+        '<p>On a touchscreen, touch a field (or tab to it) and wait a second to see its tip below it, like a mouse hover would. The <strong>Touch Tooltips</strong> switch at the top right turns them off.</p>') +
       helpDocsCard();
     $('qc-help-for').textContent = ' — All topics';
     $('qc-help-sub').style.display = 'none';
