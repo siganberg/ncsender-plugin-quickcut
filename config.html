@@ -1097,6 +1097,30 @@
     gap: 6px;
     min-width: 0;
   }
+  /* A title tooltip shown on touch / keyboard focus (wireFocusTips), made
+     to look like Chrome's own: a system-font box, dark or light with
+     ncSender's theme. */
+  .qc-focus-tip {
+    position: fixed;
+    z-index: 10001;
+    max-width: min(480px, 90vw);
+    padding: 5px 9px;
+    background: #1e1e1e;
+    color: #ececec;
+    border: 1px solid #4a4a4a;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    font: 17px system-ui, -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.3;
+    pointer-events: none;
+    white-space: normal;
+  }
+  body.theme-light .qc-focus-tip {
+    background: #f6f6f6;
+    color: #1e1e1e;
+    border-color: #c4c4c4;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
   /* A field's own problem, until it's fixed (setFieldError). */
   .qc-field-has-error { position: relative; }
   .qc-field-error {
@@ -2912,6 +2936,7 @@
     wirePatternExtent();
     wireTabs();
     wireValidation();
+    wireFocusTips();
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -3564,6 +3589,47 @@
   function recheckField(fieldId) {
     var el = document.getElementById(fieldId);
     if (el) setFieldError(el, validateField(fieldId, el.value));
+  }
+
+  // Touchscreens never show a field's title tooltip (Chrome only shows it
+  // on mouse hover), so a field focused by touch or keyboard shows it after
+  // a second, styled and placed like Chrome's own: a box just below
+  // where the field was touched. Not after a mouse click (Chrome's hover
+  // tooltip covers that), not over a field's error bubble; gone on typing,
+  // a tap, scrolling or leaving the field.
+  var FOCUS_TIP_MS = 1000;
+  function wireFocusTips() {
+    var lastPointer = 'keyboard', lastX = null, timer = null, tip = null;
+    function hide() {
+      clearTimeout(timer);
+      timer = null;
+      if (tip) { tip.remove(); tip = null; }
+    }
+    ROOT.addEventListener('pointerdown', function(ev) { lastPointer = ev.pointerType || 'mouse'; lastX = ev.clientX; hide(); }, true);
+    ROOT.addEventListener('keydown', function() { lastPointer = 'keyboard'; lastX = null; hide(); }, true);
+    ROOT.addEventListener('focusin', function(ev) {
+      hide();
+      var el = ev.target;
+      if (lastPointer === 'mouse' || !el.matches || !el.matches('input, select, textarea')) return;
+      var text = el.getAttribute('title');
+      if (!text || el.disabled) return;
+      timer = setTimeout(function() {
+        if (!rootAlive() || document.activeElement !== el || el.classList.contains('qc-input-error')) return;
+        var r = el.getBoundingClientRect();
+        tip = document.createElement('div');
+        tip.className = 'qc-focus-tip';
+        tip.textContent = text;
+        ROOT.appendChild(tip);
+        var x = lastX !== null && lastX >= r.left && lastX <= r.right ? lastX : r.left + 8;
+        var left = Math.min(x, window.innerWidth - tip.offsetWidth - 4);
+        var top = r.bottom + 2 + tip.offsetHeight > window.innerHeight ? r.top - tip.offsetHeight - 2 : r.bottom + 2;
+        tip.style.left = Math.max(4, left) + 'px';
+        tip.style.top = Math.max(4, top) + 'px';
+      }, FOCUS_TIP_MS);
+    });
+    ROOT.addEventListener('focusout', hide);
+    ROOT.addEventListener('input', hide);
+    ROOT.addEventListener('scroll', hide, true);
   }
 
   function wireValidation() {
