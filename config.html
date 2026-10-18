@@ -845,12 +845,16 @@
   }
   /* Drill preview: a crosshair marks the Origin (X0 Y0), and a hole
      tapped to be the Origin is filled. */
-  /* Slot: the magnified view of a picked side point (slotOriginZoom). */
-  .qc-shape-preview-cell .qc-slt-zoom-frame {
-    fill: var(--color-surface, #fff);
+  /* The magnified view of the drawing around X0 Y0 (originZoom). */
+  .qc-shape-preview-cell .qc-origin-zoom-frame { fill: var(--color-surface, #fff); }
+  /* Its inner edges, drawn like the preview's own 2 px border. */
+  .qc-shape-preview-cell .qc-origin-zoom-edge {
+    fill: none;
     stroke: var(--color-text-secondary, #888);
-    stroke-width: 0.8;
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
   }
+  .qc-shape-preview-cell .qc-origin-zoom * { vector-effect: non-scaling-stroke; }
   .qc-shape-preview-cell .qc-origin-mark {
     stroke: var(--color-accent);
     stroke-width: 1;
@@ -4441,8 +4445,9 @@
   function markPreviewPick() { previewPicked = true; }
   function setPreviewEnlarged(cell, big) {
     cell.classList.toggle('qc-preview-big', big);
-    // The Slot preview adds its magnified origin view when enlarged.
-    if (cell.querySelector('#qc-slt-preview')) updateSlotPreview();
+    // Previews with a magnified origin view (originZoom) redraw for it.
+    var svg = cell.querySelector('svg');
+    if (svg) redrawPreview(svg);
   }
   function closeEnlargedPreview() {
     var big = ROOT.querySelector('.qc-preview-big');
@@ -4536,7 +4541,8 @@
     params.feedRate = params.plungeFeedRate = 1;
     params.spindleRpm = params.spindleDelay = 0;
     params.mistM7 = params.floodM8 = false;
-    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(params);
+    var big = previewIsBig(svg);
+    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + (big ? 'big ' : '') + JSON.stringify(params);
     if (key === patternPreviewKey && svg.firstChild) return;
     patternPreviewKey = key;
     if (!(params.bitDiameter > 0)) {
@@ -4566,7 +4572,7 @@
     var sizeText = function(v) { return String(parseFloat(v.toFixed(dp))); };
     if (size) caption.push(sizeText(size.maxX - size.minX) + ' × ' + sizeText(size.maxY - size.minY) + ' ' + state.unitLabel);
     if (!outlines) caption.push('start points');
-    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix) +
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, big) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
@@ -4639,7 +4645,7 @@
     return { minX: b.minX - bitRadius, maxX: b.maxX + bitRadius, minY: b.minY - bitRadius, maxY: b.maxY + bitRadius };
   }
 
-  function drawPatternTrace(trace, bitRadius, captionLines, prefix) {
+  function drawPatternTrace(trace, bitRadius, captionLines, prefix, big) {
     // The drawing also keeps X0 Y0 in view.
     var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
@@ -4679,7 +4685,19 @@
     var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
     var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
       ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
-    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin + (prefix ? insetMarks(prefix, ox, oy, s) : '');
+    // Enlarged, small copies are also shown magnified around X0 Y0, the
+    // bit's dot about a third of the box across.
+    var zoom = '';
+    var zz = big && prefix ? ORIGIN_ZOOM_SIZE / 3 / (2 * Number(dotR)) : 0;
+    if (zz >= 2) {
+      var zpts = trace.plunges.map(function(p) { return [Number(X(p.x)), Number(Y(p.y))]; });
+      var every = Math.max(1, Math.ceil(trace.moves.length / 400));
+      trace.moves.forEach(function(m, i) { if (i % every === 0) zpts.push([Number(X(m.x0)), Number(Y(m.y0))]); });
+      zoom = originZoom(prefix + '-pattern', ox, oy, '<path class="qc-pattern-path" d="' + d + '"/>' + dots, zpts, zz, prefix, s);
+    } else if (prefix) {
+      originZoomFrames[prefix + '-pattern'] = null;
+    }
+    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') + zoom;
   }
 
   // At 0° the grid runs along the machine axes, so X/Y labels are
@@ -5892,8 +5910,11 @@
     return best;
   }
   function pickPreviewNode(nodes, inputId, pt, redraw) {
-    var best = nearestPreviewNode(nodes, pt);
+    // A tap inside the magnified view picks among the points shown there.
+    var zoomed = originZoomPick(inputId.replace(/^qc-|-origin$/g, ''), nodes, pt);
+    var best = zoomed || nearestPreviewNode(nodes, pt);
     if (!best) return;
+    if (best.inZoom) { markPreviewPick(); return; }
     markPreviewPick();
     setOriginPickerValue(inputId, best.value);
     redraw();
@@ -6040,13 +6061,19 @@
       rectOriginCross();
 
     // X0 Y0, from the generator: undo the turn, scale each local axis
-    // as drawn, then turn back.
+    // as drawn, then turn back. Enlarged, a small Inset or corner radius
+    // there is also shown magnified (detailZoom).
     function rectOriginCross() {
+      originZoomFrames.rect = null;
       if (!(W > 0 && H > 0)) return '';
       var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('rectangle', readRectangleForm());
       var lx = off.x * c + off.y * sn, ly = -off.x * sn + off.y * c;
       var q = T(lx * w / W, -ly * h / H);
-      return originCross(q.x, q.y, 'rect', fit);
+      var z = previewIsBig(svg) ? detailZoom('rect', fit, cr) : 0;
+      var pts = [[x, y], [x + w / 2, y], [x + w, y], [x + w, y + h / 2], [x + w, y + h], [x + w / 2, y + h], [x, y + h], [x, y + h / 2]]
+        .map(function(p) { var t = T(p[0], p[1]); return [t.x, t.y]; });
+      return originCross(q.x, q.y, 'rect', fit) +
+        (z ? originZoom('rect', q.x, q.y, '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, pts, z, 'rect', fit) : '');
     }
 
     // Edge lengths of the tool path (the part size grown or shrunk by
@@ -6860,9 +6887,15 @@
                  ' H' + (ox + arm).toFixed(2) + ' M' + ox.toFixed(2) + ',' + (oy - arm).toFixed(2) +
                  ' V' + (oy + arm).toFixed(2) + '"/>';
     var text = positions.length > 1 ? positions.length + ' × ⌀' + (dia > 0 ? dia : '?') : '⌀' + (dia > 0 ? dia : '?');
+    // Enlarged, small holes are also shown magnified around X0 Y0, a hole
+    // about a third of the box across.
+    var zoomZ = previewIsBig(svg) ? ORIGIN_ZOOM_SIZE / 3 / (2 * r) : 0;
+    var zoom = zoomZ >= 2
+      ? originZoom('drl', ox, oy, holes, positions.map(function(p) { return [(p.x - cx) * scale, -(p.y - cy) * scale]; }), zoomZ, 'drl', scale)
+      : (originZoomFrames.drl = null, '');
     svg.innerHTML =
       shapePreviewDefs('qc-drl') + holes + origin + insetMarks('drl', ox, oy, scale) +
-      '<text class="qc-shape-dim-label" x="0" y="47" text-anchor="middle">' + text + '</text>';
+      '<text class="qc-shape-dim-label" x="0" y="47" text-anchor="middle">' + text + '</text>' + zoom;
   }
 
   function wireDrillForm() {
@@ -6897,8 +6930,13 @@
     wirePickCursor($('qc-drl-preview'), function(pt) { return drillHoleAt(pt) >= 0; });
     $('qc-drl-preview').addEventListener('click', function(ev) {
       var map = drillPreviewMap;
-      var best = drillHoleAt(svgPointOf(this, ev));
-      if (best < 0) return;
+      var pt = svgPointOf(this, ev);
+      // Inside the magnified view: the hole under the tap, at its scale;
+      // a miss there does nothing.
+      var inZoom = originZoomPick('drl', [], pt);
+      if (inZoom) pt = originZoomUnmap('drl', pt);
+      var best = drillHoleAt(pt);
+      if (best < 0) { if (inZoom) markPreviewPick(); return; }
       markPreviewPick();
       setOriginPickerValue('qc-drl-origin', 'hole:' + map.keys[best]);
       updateDrillPreview();
@@ -6983,6 +7021,7 @@
     return outline;
     };
     var outline = outlineFor(crP);
+    originZoomFrames.poly = null;
     var typedCR = Math.max(0, num('qc-poly-corner', 0));
     var ideal = CR > typedCR + 1e-9 ? idealOutline(outlineFor(toPx(typedCR))) : '';
     var sizeValue = num('qc-poly-diameter', 0);
@@ -7050,7 +7089,12 @@
       (diameter > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('polygon', readPolygonForm());
         var k = R / (diameter / 2);
-        return originCross(off.x * k, -off.y * k, 'poly', k);
+        // Enlarged, a small Inset or corner radius at X0 Y0 is also shown
+        // magnified (detailZoom).
+        var z = previewIsBig(svg) ? detailZoom('poly', k, crP) : 0;
+        return originCross(off.x * k, -off.y * k, 'poly', k) +
+          (z ? originZoom('poly', off.x * k, -off.y * k, '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal,
+                          pts.map(function(q) { return [q.x, q.y]; }), z, 'poly', k) : '');
       })() : '');
 
     // The path the tabs are spaced along: in preview units, but with the
@@ -7205,7 +7249,7 @@
     updateClearingVisibility('slt');
   }
 
-  var slotPreviewNodes = null, slotSnapFrame = null, slotZoomFrame = null;
+  var slotPreviewNodes = null, slotSnapFrame = null;
   // What a tap on the Slot preview picks. Beside a straight slot, a band
   // outside each long side snaps to that side's points (its middle third
   // to the side's middle, the end thirds to its corners), since on a thin
@@ -7213,17 +7257,10 @@
   // nearest point as usual.
   var SLOT_SNAP_BAND = 14;
   function slotPickAt(pt) {
-    // Inside the magnified view (slotOriginZoom) the same points are
-    // tappable at its scale; a tap there that misses them does nothing.
-    var zf = slotZoomFrame;
-    if (zf && pt && Math.abs(pt.x - zf.cx) <= zf.size / 2 && Math.abs(pt.y - zf.cy) <= zf.size / 2) {
-      var hit = null, hitD = 6;
-      (slotPreviewNodes || []).forEach(function(nd) {
-        var dz = Math.hypot(zf.cx + (nd.x - zf.ox) * zf.z - pt.x, zf.cy + (nd.y - zf.oy) * zf.z - pt.y);
-        if (dz < hitD) { hitD = dz; hit = nd; }
-      });
-      return hit || { inZoom: true };
-    }
+    // Inside the magnified view the same points are tappable at its scale;
+    // a tap there that misses them does nothing.
+    var inZoom = originZoomPick('slt', slotPreviewNodes, pt);
+    if (inZoom) return inZoom;
     var fr = slotSnapFrame;
     if (fr && pt) {
       var dx = pt.x - fr.mx, dy = pt.y - fr.my;
@@ -7257,7 +7294,7 @@
     var cl = gen.slotCenterline(params);
     slotPreviewNodes = null;
     slotSnapFrame = null;
-    slotZoomFrame = null;
+    originZoomFrames.slt = null;
     if (!isFinite(half) || gen.slotProblem(params, cl, half)) {
       svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="3" text-anchor="middle">?</text>';
       return;
@@ -7353,7 +7390,10 @@
     var zoomCentre, zoomPts;
     if (pc.type === 'line') {
       zoomCentre = '<line class="qc-shape-dim-line" x1="' + f(X(e0.x)) + '" y1="' + f(Y(e0.y)) + '" x2="' + f(X(e1.x)) + '" y2="' + f(Y(e1.y)) + '"/>';
-      zoomPts = [[X(e0.x), Y(e0.y)], [X(e1.x), Y(e1.y)]];
+      zoomPts = [];
+      for (var zj = 0; zj <= 12; zj++) {
+        zoomPts.push([X(e0.x + (e1.x - e0.x) * zj / 12), Y(e0.y + (e1.y - e0.y) * zj / 12)]);
+      }
     } else {
       zoomCentre = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1, dir: pc.dir }) + '"/>';
       zoomPts = [];
@@ -7368,53 +7408,150 @@
       '<path class="qc-shape-fill" d="' + d + '"/>' +
       dim + marks +
       originCross(X(off.x), Y(off.y), 'slt', k) +
-      slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k,
-                     svg.closest('.qc-shape-preview-cell').classList.contains('qc-preview-big'));
+      slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k, previewIsBig(svg), k);
   }
 
-  // The slot around X0 Y0, magnified in a box a third of the preview's
-  // size, in the corner farthest from the slot: always in the enlarged
-  // preview, and in the small one for a picked corner or long-side point
-  // of a straight slot (corner:3-8), which on a thin slot is only a bit
-  // radius from the middle. (ox, oy): the crosshair; d: the outline path;
-  // centre: the centre line's markup; pts: points along it; h: half the
-  // slot's width, all in preview units.
-  var SLOT_ZOOM_SIZE = 32;
-  function slotOriginZoom(ox, oy, d, centre, pts, h, big) {
-    slotZoomFrame = null;
-    if (!(big || /^corner:[3-8]$/.test($('qc-slt-origin').value)) || !isFinite(ox) || !isFinite(oy)) return '';
-    var size = SLOT_ZOOM_SIZE, edge = 50 - 2 - size / 2;
-    function distToLine(x, y) {
-      var best = Infinity;
-      for (var i = 0; i < pts.length; i++) {
-        var a = pts[i], b = pts[Math.min(i + 1, pts.length - 1)];
-        var dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1e-9;
-        var u = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / l2));
-        best = Math.min(best, Math.hypot(x - (a[0] + u * dx), y - (a[1] + u * dy)));
-      }
-      return best;
+  // A magnified view of a preview's drawing around X0 Y0, in a box a third
+  // of the preview's size, in the corner farthest from the drawing (top
+  // corners win near-ties: Drill's and the pattern previews' captions are
+  // at the bottom). inner: the drawing's markup in preview units (its strokes stay
+  // thin); pts: points on the drawing, to find the emptiest corner; z: the
+  // magnification; insetPrefix / scale: the Inset marks at the zoomed
+  // scale. originZoomFrames[key] keeps the box, so a tap inside it can be
+  // mapped back to the drawing (originZoomPick).
+  var ORIGIN_ZOOM_SIZE = 32;
+  var originZoomFrames = {};
+  function originZoom(key, ox, oy, inner, pts, z, insetPrefix, scale) {
+    originZoomFrames[key] = null;
+    if (!isFinite(ox) || !isFinite(oy) || !(z > 1)) return '';
+    z = Math.min(12, z);
+    // The preview's own edges in its units: the drawing area is square
+    // when small, wider than the 100-unit view when enlarged. The box sits
+    // flush in a corner, sharing the preview's border and its rounded
+    // corner (8 px border radius less the 2 px border).
+    var el = $('qc-' + key + '-preview');
+    var pw = el ? el.clientWidth : 0, ph = el ? el.clientHeight : 0;
+    if (el && originZoomResize) {
+      el.setAttribute('data-zoom-size', pw + 'x' + ph);
+      originZoomResize.observe(el);
     }
-    // Bottom corners win near-ties: the enlarged view's caption is at the top.
+    var upp = pw > 0 && ph > 0 ? 100 / Math.min(pw, ph) : 100 / 156;
+    var hx = pw > 0 ? pw / 2 * upp : 50, hy = ph > 0 ? ph / 2 * upp : 50;
+    var size = ORIGIN_ZOOM_SIZE, outerR = 6 * upp, innerR = 3;
+    function nearest(x, y) {
+      var m = Infinity;
+      for (var i = 0; i < pts.length; i++) m = Math.min(m, Math.hypot(x - pts[i][0], y - pts[i][1]));
+      return m;
+    }
     var best = null;
-    [[-edge, edge], [edge, edge], [-edge, -edge], [edge, -edge]].forEach(function(c) {
-      var dd = distToLine(c[0], c[1]) - (c[1] < 0 ? 6 : 0);
-      if (!best || dd > best.d) best = { x: c[0], y: c[1], d: dd };
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function(c) {
+      var cx = c[0] * (hx - size / 2), cy = c[1] * (hy - size / 2);
+      var dd = nearest(cx, cy) - (c[1] > 0 ? 6 : 0);
+      if (!best || dd > best.d) best = { sx: c[0], sy: c[1], x: cx, y: cy, d: dd };
     });
-    // The slot's width fills about a third of the box.
-    var z = Math.max(2, Math.min(12, size / 3 / Math.max(2 * h, 1e-6)));
+    originZoomFrames[key] = { cx: best.x, cy: best.y, size: size, z: z, ox: ox, oy: oy };
     var f = function(v) { return v.toFixed(2); };
-    var x0 = best.x - size / 2, y0 = best.y - size / 2;
-    slotZoomFrame = { cx: best.x, cy: best.y, size: size, z: z, ox: ox, oy: oy };
-    var box = 'x="' + f(x0) + '" y="' + f(y0) + '" width="' + size + '" height="' + size + '" rx="2"';
-    return '<defs><clipPath id="qc-slt-zoomclip"><rect ' + box + '/></clipPath></defs>' +
-      '<rect class="qc-slt-zoom-frame" ' + box + '/>' +
-      '<g clip-path="url(#qc-slt-zoomclip)">' +
-        '<g transform="translate(' + f(best.x) + ',' + f(best.y) + ') scale(' + z.toFixed(3) + ') translate(' + f(-ox) + ',' + f(-oy) + ')">' +
-          '<path class="qc-shape-fill" d="' + d + '" style="vector-effect: non-scaling-stroke"/>' +
-          centre.replace('/>', ' style="vector-effect: non-scaling-stroke"/>') +
+    // Corner radii, clockwise from top-left: the outer corner matches the
+    // preview's, the innermost is rounded, the two between are square.
+    var x0 = best.x - size / 2, x1 = best.x + size / 2, y0 = best.y - size / 2, y1 = best.y + size / 2;
+    var outerIdx = best.sy < 0 ? (best.sx < 0 ? 0 : 1) : (best.sx > 0 ? 2 : 3);
+    var r = [0, 0, 0, 0];
+    r[outerIdx] = outerR;
+    r[(outerIdx + 2) % 4] = innerR;
+    var arc = function(rr, x, y) { return rr ? ' A' + f(rr) + ',' + f(rr) + ' 0 0 1 ' + f(x) + ',' + f(y) : ' L' + f(x) + ',' + f(y); };
+    var shape = 'M' + f(x0 + r[0]) + ',' + f(y0) + ' H' + f(x1 - r[1]) + arc(r[1], x1, y0 + r[1]) +
+                ' V' + f(y1 - r[2]) + arc(r[2], x1 - r[2], y1) + ' H' + f(x0 + r[3]) + arc(r[3], x0, y1 - r[3]) +
+                ' V' + f(y0 + r[0]) + arc(r[0], x0 + r[0], y0) + ' Z';
+    // Only the two inner edges get a border line; the others are the
+    // preview's own border. They run from the preview's edges to the
+    // rounded innermost corner.
+    var ix = best.sx > 0 ? x0 : x1, iy = best.sy > 0 ? y0 : y1;
+    var ex = best.sx > 0 ? x1 : x0, ey = best.sy > 0 ? y1 : y0;
+    var gx = Math.sign(ex - ix), gy = Math.sign(ey - iy);
+    var edges = 'M' + f(ix) + ',' + f(ey) + ' L' + f(ix) + ',' + f(iy + gy * innerR) +
+                ' A' + innerR + ',' + innerR + ' 0 0 ' + (gx * gy > 0 ? 1 : 0) + ' ' + f(ix + gx * innerR) + ',' + f(iy) +
+                ' L' + f(ex) + ',' + f(iy);
+    return '<defs><clipPath id="qc-' + key + '-zoomclip"><path d="' + shape + '"/></clipPath></defs>' +
+      '<path class="qc-origin-zoom-frame" d="' + shape + '"/>' +
+      '<g clip-path="url(#qc-' + key + '-zoomclip)">' +
+        '<g class="qc-origin-zoom" transform="translate(' + f(best.x) + ',' + f(best.y) + ') scale(' + z.toFixed(3) + ') translate(' + f(-ox) + ',' + f(-oy) + ')">' +
+          inner +
         '</g>' +
+        (insetPrefix ? insetMarks(insetPrefix, best.x, best.y, scale * z) : '') +
       '</g>' +
-      originCross(best.x, best.y);
+      '<path class="qc-origin-zoom-edge" d="' + edges + '"/>' +
+      // The crosshair at its centre; originCross only draws inside the
+      // square drawing, and an enlarged preview's corners are outside it.
+      '<path class="qc-origin-mark" d="M' + f(best.x - 5) + ',' + f(best.y) + ' H' + f(best.x + 5) +
+        ' M' + f(best.x) + ',' + f(best.y - 5) + ' V' + f(best.y + 5) + '"/>';
+  }
+  // Redraw a preview that can have a magnified view, e.g. when it's
+  // enlarged or resized.
+  function redrawPreview(svg) {
+    var redraw = { 'qc-slt-preview': updateSlotPreview, 'qc-rect-preview': updateRectanglePreview,
+                   'qc-poly-preview': updatePolygonPreview, 'qc-drl-preview': updateDrillPreview }[svg.id];
+    if (redraw) redraw();
+    else if (/-pattern-preview$/.test(svg.id)) { patternPreviewKey = null; updatePatternPreview(); }
+  }
+  // The box sits in the preview's real corners, so a preview showing one
+  // redraws when its size changes (an enlarged preview as the window is
+  // resized).
+  var originZoomResize = typeof ResizeObserver === 'function' ? new ResizeObserver(function(entries) {
+    entries.forEach(function(en) {
+      var size = en.target.clientWidth + 'x' + en.target.clientHeight;
+      if (en.target.getAttribute('data-zoom-size') === size) return;
+      en.target.setAttribute('data-zoom-size', size);
+      if (en.target.querySelector('.qc-origin-zoom-frame')) redrawPreview(en.target);
+    });
+  }) : null;
+
+  // A tap inside a preview's magnified view: the nearest of nodes (preview
+  // units) within 6 box units, or { inZoom: true } for a miss there; null
+  // outside the box.
+  function originZoomPick(key, nodes, pt) {
+    var zf = originZoomFrames[key];
+    if (!zf || !pt || Math.abs(pt.x - zf.cx) > zf.size / 2 || Math.abs(pt.y - zf.cy) > zf.size / 2) return null;
+    var hit = null, hitD = 6;
+    (nodes || []).forEach(function(nd) {
+      var dz = Math.hypot(zf.cx + (nd.x - zf.ox) * zf.z - pt.x, zf.cy + (nd.y - zf.oy) * zf.z - pt.y);
+      if (dz < hitD) { hitD = dz; hit = nd; }
+    });
+    return hit || { inZoom: true };
+  }
+  // The point in the drawing under a tap inside the magnified view.
+  function originZoomUnmap(key, pt) {
+    var zf = originZoomFrames[key];
+    return { x: zf.ox + (pt.x - zf.cx) / zf.z, y: zf.oy + (pt.y - zf.cy) / zf.z };
+  }
+
+  // The Slot's magnified view: always in the enlarged preview, and in the
+  // small one for a picked corner or long-side point of a straight slot
+  // (corner:3-8), which on a thin slot is only a bit radius from the
+  // middle. The slot's width fills about a third of the box.
+  function slotOriginZoom(ox, oy, d, centre, pts, h, big, k) {
+    if (!(big || /^corner:[3-8]$/.test($('qc-slt-origin').value))) { originZoomFrames.slt = null; return ''; }
+    var z = Math.max(2, ORIGIN_ZOOM_SIZE / 3 / Math.max(2 * h, 1e-6));
+    return originZoom('slt', ox, oy, '<path class="qc-shape-fill" d="' + d + '"/>' + centre, pts, z, 'slt', k);
+  }
+
+  // How far a Rectangle or Polygon preview's magnified view zooms: only
+  // when the detail at X0 Y0 is too small to see there, an Inset under 5
+  // units drawn (shown at about 12) or, at a corner, a corner radius
+  // under 3 (shown at about 8); 0 (no view) otherwise, and for a center
+  // origin. scale: preview units per machine unit; crPx: the drawn radius.
+  function detailZoom(prefix, scale, crPx) {
+    var o = $('qc-' + prefix + '-origin').value;
+    if (o === 'center' || o === 'shape-center') return 0;
+    var z = 0;
+    var el = $('qc-' + prefix + '-inset'), ins = Math.abs(num('qc-' + prefix + '-inset', 0)) * scale;
+    if (el && !el.disabled && ins > 0 && ins < 5) z = Math.max(z, 12 / ins);
+    var atCorner = /^corner:/.test(o) || /^(front|back)-(left|right)$/.test(o);
+    if (atCorner && crPx > 0 && crPx < 3) z = Math.max(z, 8 / crPx);
+    return z >= 2 ? z : 0;
+  }
+  function previewIsBig(svg) {
+    var cell = svg.closest('.qc-shape-preview-cell');
+    return !!cell && cell.classList.contains('qc-preview-big');
   }
 
   function wireSlotForm() {
