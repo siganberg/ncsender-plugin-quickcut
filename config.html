@@ -1083,6 +1083,35 @@
     gap: 6px;
     min-width: 0;
   }
+  /* A field's own problem, until it's fixed (setFieldError). */
+  .qc-field-has-error { position: relative; }
+  .qc-field-error {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: max-content;
+    max-width: 260px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: #d32f2f;
+    color: #fff;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    text-align: center;
+    pointer-events: none;
+  }
+  .qc-field-error::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #d32f2f;
+  }
+  .qc-input.qc-input-error { border-color: #d32f2f; }
   .qc-field label {
     font-size: 0.78rem;
     font-weight: 600;
@@ -3061,9 +3090,13 @@
   // dialog, on Generate, and when the dialog goes away.
   var _tooltip = null, _tooltipEl = null, _tooltipTimer = null;
   // color: the bubble's colour; red for problems (the default), green
-  // (TOOLTIP_OK) for a confirmation such as Load's.
+  // (TOOLTIP_OK) for a confirmation such as Load's. stay: don't move the
+  // cursor into el. Only Generate's checks take the cursor to the field;
+  // a note on leaving a field, or on a related field, must not, or the
+  // rest of what's being typed lands in the other field and two fields
+  // that need each other fixed can't both be reached.
   var TOOLTIP_OK = '#2e7d32';
-  function showTooltip(el, message, color) {
+  function showTooltip(el, message, color, stay) {
     color = color || '#d32f2f';
     if (!_tooltip) _tooltip = createTooltip();
     _tooltip.style.background = color;
@@ -3075,7 +3108,7 @@
     // Focus first: it scrolls the field into view, and the bubble must be
     // placed from the field's position AFTER that scroll, or it lands
     // off-screen or over an unrelated field.
-    el.focus();
+    if (!stay) el.focus();
     var rect = el.getBoundingClientRect();
     _tooltip.firstChild && (_tooltip.textContent = message);
     _tooltip.textContent = message;
@@ -3485,28 +3518,62 @@
       // and pointer-inert, so its value doesn't gate the current cut.
       if (!el || el.disabled || el.offsetParent === null) continue;
       var err = validateField(id, el.value);
-      if (err) { showTooltip(el, err); return false; }
+      if (err) { setFieldError(el, err); el.focus(); return false; }
     }
     return true;
   }
+
+  // A field's problem stays on it, as a bubble over the field and a red
+  // border, until its value is valid: other fields can be clicked and
+  // typed in meanwhile (e.g. Total Depth 0 and Depth of Cut both flagged,
+  // fixed in either order). Shown when a field is left or by Generate,
+  // never while typing; cleared as soon as the value passes.
+  function setFieldError(el, message) {
+    var holder = el.closest('.qc-field') || el.parentNode;
+    var bubble = holder.querySelector(':scope > .qc-field-error');
+    if (!message) {
+      if (bubble) bubble.remove();
+      el.classList.remove('qc-input-error');
+      return;
+    }
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.className = 'qc-field-error';
+      bubble.setAttribute('role', 'alert');
+      holder.classList.add('qc-field-has-error');
+      holder.appendChild(bubble);
+    }
+    bubble.textContent = message;
+    bubble.style.bottom = (holder.offsetHeight - el.offsetTop + 8) + 'px';
+    el.classList.add('qc-input-error');
+  }
+  function recheckField(fieldId) {
+    var el = document.getElementById(fieldId);
+    if (el) setFieldError(el, validateField(fieldId, el.value));
+  }
+
   function wireValidation() {
-    // Any edit (a select too, e.g. a cut type that resolves the problem) clears it.
-    ROOT.addEventListener('change', hideTooltip);
+    // Any edit (a select too, e.g. a cut type that resolves the problem) clears it,
+    // and re-checks the flagged fields, whose problem may be gone now.
+    ROOT.addEventListener('change', function() {
+      hideTooltip();
+      ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
+    });
     var rules = validationRules();
     for (var id in rules) {
       (function(fieldId) {
         var el = document.getElementById(fieldId);
         if (!el) return;
-        el.addEventListener('input', function() { this.style.borderColor = ''; hideTooltip(); });
-        el.addEventListener('blur', function() {
-          var err = validateField(fieldId, this.value);
-          if (err) { showTooltip(this, err); setTimeout(hideTooltip, 3000); }
+        // While typing, a flagged field clears the moment it's valid (or
+        // updates its message); a new problem waits until the field is left.
+        el.addEventListener('input', function() {
+          if (this.classList.contains('qc-input-error')) recheckField(fieldId);
         });
+        el.addEventListener('blur', function() { recheckField(fieldId); });
       })(id);
     }
-    // Cross-field: when Total Depth changes, re-check Depth of Cut so
-    // the operator sees the DOC error immediately rather than waiting
-    // for a blur on the DOC field.
+    // Cross-field: when Total Depth is changed, re-check Depth of Cut so
+    // the operator sees the DOC error without having to visit it.
     wireDepthCrossCheck('rect');
     wireDepthCrossCheck('circ');
     wireDepthCrossCheck('plan');
@@ -3518,11 +3585,13 @@
     var depthEl = $('qc-' + prefix + '-depth');
     var stepId = 'qc-' + prefix + '-step';
     if (!depthEl || !$(stepId)) return;
+    // On change (when the edit is done), not on each keystroke: "0.25"
+    // starts as "0", which would flag Depth of Cut mid-typing.
+    depthEl.addEventListener('change', function() { recheckField(stepId); });
+    // A flagged Depth of Cut that only fails because of Total Depth clears
+    // as soon as Total Depth allows it.
     depthEl.addEventListener('input', function() {
-      var stepEl = $(stepId);
-      stepEl.style.borderColor = '';
-      var err = validateField(stepId, stepEl.value);
-      if (err) { showTooltip(stepEl, err); setTimeout(hideTooltip, 3000); }
+      if ($(stepId).classList.contains('qc-input-error')) recheckField(stepId);
     });
   }
 
@@ -5078,9 +5147,10 @@
       var loaded = { common: data.common || {} };
       loaded[data.shape] = data.settings;
       hydrateSavedSettings(loaded);
+      ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
       closeLoadPanel();
       switchTab(data.shape);
-      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK);
+      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK, true);
     } catch (err) {
       status.textContent = 'Could not read ' + file.name + ': ' + err.message;
     }
