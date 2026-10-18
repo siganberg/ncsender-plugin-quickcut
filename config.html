@@ -5668,7 +5668,7 @@
     setOriginPickerValue(inputId, best.value);
     redraw();
   }
-  var rectPreviewNodes = null, polyPreviewNodes = null, circPreviewNodes = null;
+  var rectPreviewNodes = null, polyPreviewNodes = null, circPreviewNodes = null, keyPreviewNodes = null;
 
   // With a mouse, the cursor turns to a pointer over a spot a click would
   // pick (an origin dot, an end, a Drill hole); elsewhere the preview's
@@ -6399,6 +6399,19 @@
     var H = { x: -Ls / 2 * u.x, y: -Ls / 2 * u.y };
     var E = { x: Ls / 2 * u.x, y: Ls / 2 * u.y };
 
+    // Tap targets for the Origin picker: the plunge hole, and the nine
+    // points of the box around the cut (hole plus slot, a stadium from H
+    // to E). SVG y is down, so back is the top.
+    var bx0 = Math.min(H.x, E.x) - r, bx1 = Math.max(H.x, E.x) + r;
+    var by0 = Math.min(H.y, E.y) - r, by1 = Math.max(H.y, E.y) + r;
+    var bxm = (bx0 + bx1) / 2, bym = (by0 + by1) / 2;
+    keyPreviewNodes = [
+      ['hole', H.x, H.y],
+      ['back-left', bx0, by0], ['back-center', bxm, by0], ['back-right', bx1, by0],
+      ['left-center', bx0, bym], ['center', bxm, bym], ['right-center', bx1, bym],
+      ['front-left', bx0, by1], ['front-center', bxm, by1], ['front-right', bx1, by1]
+    ].map(function(q) { return { value: q[0], x: q[1], y: q[2] }; });
+
     var channel = 'M' + f(pt(H, r, n)) + ' L' + f(pt(E, r, n)) +
                   ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 0 0 ' + f(pt(E, -r, n)) +
                   ' L' + f(pt(H, -r, n)) +
@@ -6541,7 +6554,10 @@
   function wireKeyholeForm() {
     $('qc-key-length').addEventListener('input', updateKeyholePreview);
     $('qc-key-start-angle').addEventListener('input', updateKeyholePreview);
-    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', true, null, null, snapMiterAngle);
+    wirePreviewAngleDrag('qc-key-preview', 'qc-key-start-angle', true, function(pt) {
+      pickPreviewNode(keyPreviewNodes, 'qc-key-origin', pt, updateKeyholePreview);
+    }, null, snapMiterAngle);
+    wirePickCursor($('qc-key-preview'), function(pt) { return !!nearestPreviewNode(keyPreviewNodes, pt); });
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
@@ -7195,7 +7211,7 @@
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
-      'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut.' ] },
+      'In the Origin picker the <strong>ring</strong> is the plunge hole (the default); the dots are the box around the whole cut. You can also tap them on the preview: the hole, or a corner, edge midpoint or the center of the box around the cut.' ] },
     drill: { name: 'Drill', notes: [
       'Holes the size of the <strong>Bit Diameter</strong>. Every move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',

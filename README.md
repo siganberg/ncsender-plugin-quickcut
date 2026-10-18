@@ -70,7 +70,7 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
-- **Origin:** by default X0 Y0 is the plunge hole (the first one, when a pattern is on): the ring in the Origin picker. The picker's other points are the corners, edge midpoints, and center of the whole cut (every keyhole's head swept along its slot), as on the other shapes.
+- **Origin:** by default X0 Y0 is the plunge hole (the first one, when a pattern is on): the ring in the Origin picker. The picker's other points are the corners, edge midpoints, and center of the whole cut (every keyhole's head swept along its slot), as on the other shapes. On the preview, tap the plunge hole or one of those box points to pick it.
 - Set **Bit Diameter** to the bit's head diameter.
 - There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.
 - Patterns work as on the other shapes. With **Circular (Path Direction)**, or **Rotate shapes** on an angled Linear pattern, each slot turns with its copy.
