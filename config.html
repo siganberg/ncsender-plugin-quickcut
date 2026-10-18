@@ -886,6 +886,16 @@
   /* The drawing scales up; lines keep their on-screen width and the
      labels stay readable-sized. */
   .qc-shape-preview-cell.qc-preview-big svg * { vector-effect: non-scaling-stroke; }
+  /* Not inside arrowhead markers: they're drawn at the line's own scale,
+     and a non-scaling outline there all but vanishes. Sized from the thin
+     on-screen line, the open (outline) heads also come out tiny, so they
+     grow about their tip. */
+  .qc-shape-preview-cell.qc-preview-big svg marker * { vector-effect: none; }
+  .qc-shape-preview-cell.qc-preview-big svg marker { overflow: visible; }
+  .qc-shape-preview-cell.qc-preview-big svg marker path[fill="none"] {
+    transform: scale(2.5);
+    transform-origin: 8px 5px;
+  }
   .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label {
     font-size: 3px;
     stroke-width: 0.6px;
@@ -2689,7 +2699,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-direction">Cut Direction</label>
-                    <select class="qc-select" id="qc-join-direction" title="Conventional feeds toward +axis and is gentler on lighter machines. Climb feeds the other way and can leave a cleaner edge.">
+                    <select class="qc-select" id="qc-join-direction" title="Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. The arrow in the preview shows the way the bit travels; tap it to switch.">
                       <option value="conventional" selected>Conventional</option>
                       <option value="climb">Climb</option>
                     </select>
@@ -2769,7 +2779,7 @@
                 </div>
                 <div class="qc-field">
                   <label for="qc-cut-direction">Cut Direction</label>
-                  <select class="qc-select" id="qc-cut-direction" title="Conventional feeds toward +axis and is gentler on lighter machines. Climb feeds the other way and can leave a cleaner edge.">
+                  <select class="qc-select" id="qc-cut-direction" title="For the kept piece's edge. Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. The arrow in the preview shows the way the bit travels; tap it to switch.">
                     <option value="conventional" selected>Conventional</option>
                     <option value="climb">Climb</option>
                   </select>
@@ -4045,7 +4055,7 @@
     hint.innerHTML =
       'XY zero is on the <strong>' + origin + '</strong> edge — click an edge in the preview to change it. ' +
       'Tool feeds <strong>' + length + ' ' + u + '</strong> along the ' + feedAxis.toUpperCase() +
-      '-axis from ' + feedAxis.toUpperCase() + '0. Single cut line <strong>' + target + ' ' + u +
+      '-axis (the arrow shows which way). Single cut line <strong>' + target + ' ' + u +
       '</strong> in from that edge — the final <strong>' + perpAxis +
       '-dimension</strong> of the kept material. Depth passes reduce bit load.<br>' + dirText;
   }
@@ -5597,6 +5607,14 @@
     });
     wireSidePicker('qc-join-preview', 'qc-join-origin', 'qc-join-axis');
     $('qc-join-origin').addEventListener('change', updateJointerPreview);
+    $('qc-join-direction').addEventListener('change', updateJointerPreview);
+    $('qc-join-preview').addEventListener('click', function(e) {
+      if (!(e.target.closest && e.target.closest('.qc-feed-hit'))) return;
+      markPreviewPick();
+      var dir = $('qc-join-direction');
+      dir.value = dir.value === 'climb' ? 'conventional' : 'climb';
+      dir.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     ['qc-join-length', 'qc-join-width'].forEach(function(id) {
       var el = $(id);
       if (el) el.addEventListener('input', updateJointerPreview);
@@ -6084,6 +6102,11 @@
     var side   = $('qc-join-origin').value;
     var length = num('qc-join-length', 0);
     var trimW  = num('qc-join-width', 0);
+    // The Length line doubles as the feed arrow: one head, the way the bit
+    // travels, from Cut Direction and the side (as in the generator).
+    var plusIsConventional = axis === 'x' ? side === 'front' : side === 'right';
+    var climb = $('qc-join-direction').value === 'climb';
+    var feedPlus = plusIsConventional !== climb;
 
     var w = 76, h = 46;
     var matL = -w / 2, matR = w / 2;
@@ -6129,10 +6152,12 @@
                       '" text-anchor="middle" dominant-baseline="hanging">' +
                       (length > 0 ? length : '?') + '</text>';
       }
-      lengthLine = '<line class="qc-shape-dim-line" x1="' + (matL + arrowInset).toFixed(2) +
+      var xs = [matL + arrowInset, matR - arrowInset];
+      if (!feedPlus) xs.reverse();
+      lengthLine = '<line class="qc-shape-dim-line" x1="' + xs[0].toFixed(2) +
                    '" y1="' + lY.toFixed(2) +
-                   '" x2="' + (matR - arrowInset).toFixed(2) + '" y2="' + lY.toFixed(2) + '" ' +
-                   'marker-start="url(#qc-join-arr)" marker-end="url(#qc-join-arr)"/>';
+                   '" x2="' + xs[1].toFixed(2) + '" y2="' + lY.toFixed(2) + '" ' +
+                   'marker-end="url(#qc-join-arr)"/>';
     } else {
       // Trim runs along Y — hatched strip on the left or right edge;
       // Length dim vertical, outside on the same side.
@@ -6170,10 +6195,13 @@
                       'transform="rotate(-90 ' + rTx.toFixed(2) + ' 0)">' +
                       (length > 0 ? length : '?') + '</text>';
       }
+      // +Y (back) is up in the drawing.
+      var ys = [matB - arrowInset, matT + arrowInset];
+      if (!feedPlus) ys.reverse();
       lengthLine = '<line class="qc-shape-dim-line" x1="' + lX.toFixed(2) +
-                   '" y1="' + (matT + arrowInset).toFixed(2) +
-                   '" x2="' + lX.toFixed(2) + '" y2="' + (matB - arrowInset).toFixed(2) + '" ' +
-                   'marker-start="url(#qc-join-arr)" marker-end="url(#qc-join-arr)"/>';
+                   '" y1="' + ys[0].toFixed(2) +
+                   '" x2="' + lX.toFixed(2) + '" y2="' + ys[1].toFixed(2) + '" ' +
+                   'marker-end="url(#qc-join-arr)"/>';
     }
 
     var trimWLabel = '<text class="qc-shape-dim-label" x="' + trimLabelX.toFixed(2) +
@@ -6194,7 +6222,11 @@
       lengthLine + lengthLabel +
       trimWLabel +
       caption +
-      sideEdgesSvg(side, rectEdges(matL, matR, matT, matB));
+      sideEdgesSvg(side, rectEdges(matL, matR, matT, matB)) +
+      // Tap the feed arrow to flip Conventional / Climb, as on Cutter.
+      lengthLine.replace('qc-shape-dim-line', 'qc-feed-hit')
+        .replace(' marker-end="url(#qc-join-arr)"/>', '><title>' + (climb ? 'Climb' : 'Conventional') +
+                 ' \u2014 click to switch</title></line>');
   }
 
   // Cutter preview — the stock seen from the front, above and in
@@ -6231,7 +6263,6 @@
       waste = side === 'front'
         ? [P(0, cv), P(1, cv), br, bl]
         : [fl, fr, P(1, cv), P(0, cv)];
-      // Feed runs X0 -> +X (left to right); climb runs it back.
       cutA = P(0, cv); cutB = P(1, cv);
       // Back origin leaves the offcut at the front, so the whole front
       // face is waste; front origin hides it behind the kept part.
@@ -6244,7 +6275,6 @@
       waste = side === 'left'
         ? [P(cu, 0), fr, br, P(cu, 1)]
         : [fl, P(cu, 0), P(cu, 1), bl];
-      // Feed runs Y0 -> +Y (front to back); climb runs it back.
       cutA = P(cu, 0); cutB = P(cu, 1);
       frontWaste = side === 'left'
         ? [P(cu, 0), fr, down(fr), down(P(cu, 0))]
@@ -6256,7 +6286,11 @@
       kerf = '<line class="qc-cut-kerf" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
              '" x2="' + cutA[0].toFixed(2) + '" y2="' + (cutA[1] + THICK).toFixed(2) + '"/>';
     }
-    if (climb) { var t = cutA; cutA = cutB; cutB = t; }
+    // cutA -> cutB runs +X / +Y. As in the generator, Cut Direction is for
+    // the kept edge: with the spindle clockwise, conventional runs +X from
+    // a back origin and +Y from a left one, the other way otherwise.
+    var plusIsConventional = side === 'back' || side === 'left';
+    if (climb === plusIsConventional) { var t = cutA; cutA = cutB; cutB = t; }
 
     // Cutting Length, written along the cut arrow on the offcut side
     // (away from the Target Size dimension).
@@ -9251,7 +9285,10 @@
 
       var feedStart = -overrun;
       var feedEnd = length + overrun;
-      if (cutDirection === 'climb') {
+      // With the spindle clockwise (M3), conventional keeps the material
+      // (stepDir side) on the left of the travel, climb on the right.
+      var plusIsConventional = feedAxis === 'x' ? stepDir > 0 : stepDir < 0;
+      if ((cutDirection === 'climb') === plusIsConventional) {
         var tmp = feedStart; feedStart = feedEnd; feedEnd = tmp;
       }
 
@@ -9332,7 +9369,10 @@
       var cutPos = perpDir * (target + bitRadius);
       var feedFrom = 0;
       var feedTo = cuttingLength;
-      if (cutDirection === 'climb') {
+      // Cut Direction is for the kept piece's edge (origin side of the
+      // bit): conventional keeps it on the left of the travel (M3).
+      var plusIsConventional = feedAxis === 'x' ? perpDir < 0 : perpDir > 0;
+      if ((cutDirection === 'climb') === plusIsConventional) {
         var tmp = feedFrom; feedFrom = feedTo; feedTo = tmp;
       }
 

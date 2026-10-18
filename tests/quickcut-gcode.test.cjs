@@ -863,7 +863,7 @@ function jointerBase(overrides) {
   }, overrides || {});
 }
 
-test('jointer conventional feeds +axis; climb feeds -axis (uses length param)', () => {
+test('jointer front edge: conventional feeds +X, climb -X (uses length param)', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
   const conv = gen(jointerBase({
     length: 150, feedAxis: 'x', cutDirection: 'conventional',
@@ -889,17 +889,18 @@ test('jointer origin front vs back flips stepover direction (feed X)', () => {
   assert.match(front, /G0 X0\.000 Y0\.000/);
   assert.match(front, /G0 X0\.000 Y1\.000/);
   assert.match(front, /G0 X0\.000 Y2\.000/);
-  // back → -Y stepover. Trims at Y=0, -1, -2.
+  // back → -Y stepover. Trims at Y=0, -1, -2; conventional runs -X.
   const back = gen(jointerBase({ feedAxis: 'x', origin: 'back', trimWidth: 1, numTrims: 3 }));
-  assert.match(back, /G0 X0\.000 Y-1\.000/);
-  assert.match(back, /G0 X0\.000 Y-2\.000/);
+  assert.match(back, /G0 X150\.000 Y-1\.000/);
+  assert.match(back, /G0 X150\.000 Y-2\.000/);
 });
 
 test('jointer origin left vs right flips stepover direction (feed Y)', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
+  // Left: material at +X, so conventional runs -Y.
   const left = gen(jointerBase({ feedAxis: 'y', origin: 'left', trimWidth: 1, numTrims: 3 }));
-  assert.match(left, /G0 X0\.000 Y0\.000/);
-  assert.match(left, /G0 X1\.000 Y0\.000/);
+  assert.match(left, /G0 X0\.000 Y150\.000/);
+  assert.match(left, /G0 X1\.000 Y150\.000/);
   const right = gen(jointerBase({ feedAxis: 'y', origin: 'right', trimWidth: 1, numTrims: 3 }));
   assert.match(right, /G0 X-1\.000 Y0\.000/);
 });
@@ -927,14 +928,15 @@ function cutterBase(overrides) {
 test('cutter feed X: tool travels X, cut line on Y at target + bitRadius', () => {
   const gen = makeQuickCutGenerator(false).generateCutterProgram;
   // axis=X → feed along X. target=100, cuttingLength=200, bitRadius=3
-  // Feed from X=0 to X=200. Cut line at Y = 100 + 3 = 103.
+  // Cut line at Y = 100 + 3 = 103. The kept piece (Y 0..100) is on the
+  // bit's -Y side, so conventional feeds -X: from X=200 to X=0.
   const gcode = gen(cutterBase({
     axis: 'x', targetSize: 100, cuttingLength: 200, bitDiameter: 6,
     origin: 'front', depth: 5, depthOfCut: 5
   }));
   assert.match(gcode, /^\(QuickCut: Cutter\)/m);
-  assert.match(gcode, /G0 X0\.000 Y103\.000/);
-  assert.match(gcode, /G1 X200\.000 Y103\.000/);
+  assert.match(gcode, /G0 X200\.000 Y103\.000/);
+  assert.match(gcode, /G1 X0\.000 Y103\.000/);
 });
 
 test('cutter feed Y: tool travels Y, cut line on X at target + bitRadius', () => {
@@ -964,7 +966,7 @@ test('cutter multi-pass depth repeats the same cut line deeper', () => {
   }));
   const plunges = gcode.split('\n').filter(l => /^G1 Z-\d/.test(l.trim())).length;
   assert.equal(plunges, 3, `expected 3 plunges, got ${plunges}`);
-  const cutLines = gcode.split('\n').filter(l => /^G1 X200\.000 Y103\.000/.test(l.trim())).length;
+  const cutLines = gcode.split('\n').filter(l => /^G1 X0\.000 Y103\.000/.test(l.trim())).length;
   assert.equal(cutLines, 3, `expected 3 identical cut lines, got ${cutLines}`);
 });
 
@@ -974,9 +976,51 @@ test('cutter climb reverses feed direction on feed axis', () => {
     axis: 'x', cutDirection: 'climb', origin: 'front',
     targetSize: 100, cuttingLength: 200
   }));
-  // Climb: feed from X=200 back to X=0.
-  assert.match(gcode, /G0 X200\.000 Y103\.000/);
-  assert.match(gcode, /G1 X0\.000 Y103\.000/);
+  // Climb at a front origin: feed +X, from X=0 to X=200.
+  assert.match(gcode, /G0 X0\.000 Y103\.000/);
+  assert.match(gcode, /G1 X200\.000 Y103\.000/);
+});
+
+// With the spindle clockwise from above (M3), a cut is conventional when
+// the material is on the left of the bit's travel (each tooth's chip
+// starts thin; G42 with M3) and climb when it's on the right (G41). For
+// material in direction m, the conventional feed is (m.y, -m.x).
+function feedVector(gcode) {
+  const cut = gcode.split('\n').map(l => l.trim());
+  const i = cut.findIndex(l => /^G1 X/.test(l));
+  const to = cut[i].match(/X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number);
+  const from = cut.slice(0, i).reverse().find(l => /^G0 X/.test(l)).match(/X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number);
+  return [Math.sign(to[0] - from[0]), Math.sign(to[1] - from[1])];
+}
+const FACING = { front: [0, -1], back: [0, 1], left: [-1, 0], right: [1, 0] };
+function expectedFeed(materialDir, cutDirection) {
+  const s = cutDirection === 'conventional' ? 1 : -1;
+  return [s * materialDir[1] || 0, -s * materialDir[0] || 0];
+}
+
+test('jointer cut direction matches the spindle rotation on every side', () => {
+  const gen = makeQuickCutGenerator(false).generateJointerProgram;
+  for (const [axis, sides] of [['x', ['front', 'back']], ['y', ['left', 'right']]]) {
+    for (const origin of sides) for (const cutDirection of ['conventional', 'climb']) {
+      // The trimmed edge faces `origin`; the material is the other way.
+      const material = FACING[origin].map(v => -v);
+      const got = feedVector(gen(jointerBase({ feedAxis: axis, origin, cutDirection })));
+      assert.deepEqual(got, expectedFeed(material, cutDirection), `${axis} ${origin} ${cutDirection}`);
+    }
+  }
+});
+
+test('cutter cut direction matches the spindle rotation for the kept edge', () => {
+  const gen = makeQuickCutGenerator(false).generateCutterProgram;
+  for (const [axis, sides] of [['x', ['front', 'back']], ['y', ['left', 'right']]]) {
+    for (const origin of sides) for (const cutDirection of ['conventional', 'climb']) {
+      // The kept piece runs from the origin edge to the cut, so it's on
+      // the origin side of the bit.
+      const kept = FACING[origin];
+      const got = feedVector(gen(cutterBase({ axis, origin, cutDirection })));
+      assert.deepEqual(got, expectedFeed(kept, cutDirection), `${axis} ${origin} ${cutDirection}`);
+    }
+  }
 });
 
 // ---------- Degenerate case ----------
