@@ -846,6 +846,13 @@
     vector-effect: non-scaling-stroke;
   }
   .qc-shape-preview-cell .qc-origin-zoom * { vector-effect: non-scaling-stroke; }
+  .qc-shape-preview-cell .qc-pick-hint {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 0.5;
+    opacity: 0.4;
+    pointer-events: none;
+  }
   .qc-shape-preview-cell .qc-origin-mark {
     stroke: var(--color-accent);
     stroke-width: 1;
@@ -6002,6 +6009,14 @@
     redraw();
   }
   var rectPreviewNodes = null, polyPreviewNodes = null, circPreviewNodes = null, keyPreviewNodes = null;
+  // A very faint ring at each point a tap on the preview picks, so they
+  // can be found without cluttering the drawing (drawn under the
+  // crosshair, and taps pass through).
+  function pickHints(nodes) {
+    return (nodes || []).map(function(nd) {
+      return '<circle class="qc-pick-hint" cx="' + nd.x.toFixed(2) + '" cy="' + nd.y.toFixed(2) + '" r="1.3"/>';
+    }).join('');
+  }
 
   // With a mouse, the cursor turns to a pointer over a spot a click would
   // pick (an origin dot, an end, a Drill hole); elsewhere the preview's
@@ -6142,6 +6157,7 @@
       ideal +
       wLine + hLine + wLabel + hLabel +
       tabMarks('rect', previewLines(tabPts, rectTabLens())) +
+      pickHints(rectPreviewNodes) +
       rectOriginCross();
 
     // X0 Y0, from the generator: undo the turn, scale each local axis
@@ -6614,6 +6630,7 @@
       dLine + dLabel +
       // The cut starts at the rightmost point and runs CCW.
       tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]) +
+      pickHints(circPreviewNodes) +
       (D > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
         var k = r / (D / 2);
@@ -6732,6 +6749,7 @@
       label(lenLabel, n, len > 0 ? len : '?') +
       label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?')) +
       // X0 Y0 relative to the plunge hole (H), to the same scale.
+      pickHints(keyPreviewNodes) +
       (D > 0 || L > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('keyhole', readKeyholeForm());
         return originCross(H.x + off.x * scale, H.y - off.y * scale, 'key', scale);
@@ -7129,6 +7147,7 @@
       dim +
       // The cut starts at the first vertex (or its corner arc) and runs CCW.
       tabMarks('poly', polyTabSegs()) +
+      pickHints(polyPreviewNodes) +
       (diameter > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('polygon', readPolygonForm());
         var k = R / (diameter / 2);
@@ -7450,6 +7469,7 @@
       hatched +
       '<path class="qc-shape-fill" d="' + d + '"/>' +
       dim + marks +
+      pickHints(slotPreviewNodes) +
       originCross(X(off.x), Y(off.y), 'slt', k) +
       slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k, previewIsBig(svg), k);
   }
