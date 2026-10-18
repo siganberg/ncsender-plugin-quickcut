@@ -913,6 +913,20 @@
     cursor: grab;
     touch-action: none;
   }
+  /* Inset: a short dimension from X0 Y0 to the box around the cut. */
+  .qc-shape-preview-cell .qc-inset-mark {
+    stroke: var(--color-accent);
+    stroke-width: 1;
+    stroke-dasharray: 1.5 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .qc-shape-preview-cell .qc-inset-label {
+    fill: var(--color-accent);
+    font-size: 6px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .qc-preview-big .qc-inset-label { font-size: 2.5px; }
   .qc-shape-preview-cell .qc-shape-ideal {
     fill: none;
     stroke: currentColor;
@@ -4385,7 +4399,7 @@
     var sizeText = function(v) { return String(parseFloat(v.toFixed(dp))); };
     if (size) caption.push(sizeText(size.maxX - size.minX) + ' × ' + sizeText(size.maxY - size.minY) + ' ' + state.unitLabel);
     if (!outlines) caption.push('start points');
-    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length) +
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
@@ -4458,7 +4472,7 @@
     return { minX: b.minX - bitRadius, maxX: b.maxX + bitRadius, minY: b.minY - bitRadius, maxY: b.maxY + bitRadius };
   }
 
-  function drawPatternTrace(trace, bitRadius, captionLines) {
+  function drawPatternTrace(trace, bitRadius, captionLines, prefix) {
     // The drawing also keeps X0 Y0 in view.
     var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
@@ -4498,7 +4512,7 @@
     var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
     var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
       ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
-    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin;
+    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin + (prefix ? insetMarks(prefix, ox, oy, s) : '');
   }
 
   // At 0° the grid runs along the machine axes, so X/Y labels are
@@ -5608,12 +5622,44 @@
   // Origin crosshair for the shape previews, as on Drill: X0 Y0 at
   // (px, py) in the SVG's coordinates. With a pattern the origin can lie
   // outside the drawn copy; then there's nothing to mark, so no crosshair.
-  function originCross(px, py) {
+  // prefix and scale (SVG units per machine unit), when given, add the
+  // Inset marks (insetMarks) from the crosshair.
+  function originCross(px, py, prefix, scale) {
     if (!isFinite(px) || !isFinite(py) || Math.abs(px) > 50 || Math.abs(py) > 50) return '';
     var arm = 5;
     return '<path class="qc-origin-mark" d="M' + (px - arm).toFixed(2) + ',' + py.toFixed(2) +
            ' H' + (px + arm).toFixed(2) + ' M' + px.toFixed(2) + ',' + (py - arm).toFixed(2) +
-           ' V' + (py + arm).toFixed(2) + '"/>';
+           ' V' + (py + arm).toFixed(2) + '"/>' +
+           (prefix ? insetMarks(prefix, px, py, scale) : '');
+  }
+
+  // Inset, shown where it is: with a corner or edge origin the box around
+  // the cut sits Inset in from X0 Y0 on each side the origin is on, so a
+  // short dimension runs from the crosshair along X and/or Y, labelled
+  // with the value (pointing outward for a negative Inset). Nothing for a
+  // center origin, a picked point, or Inset 0. (px, py): the crosshair in
+  // SVG units; SVG y is down, so front (machine -Y side) is drawn upward.
+  function insetMarks(prefix, px, py, scale) {
+    var el = $('qc-' + prefix + '-inset'), o = $('qc-' + prefix + '-origin');
+    if (!el || !o || el.disabled || !(scale > 0)) return '';
+    var ins = num('qc-' + prefix + '-inset', 0);
+    if (!ins || !isFinite(ins)) return '';
+    var v = o.value;
+    var sx = /left/.test(v) ? 1 : /right/.test(v) ? -1 : 0;
+    var sy = /^front/.test(v) ? -1 : /^back/.test(v) ? 1 : 0;
+    var len = ins * scale, label = String(roundDisplay(ins)), out = '';
+    var f = function(n) { return n.toFixed(2); };
+    if (sx) {
+      var x2 = px + sx * len;
+      out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(x2) + '" y2="' + f(py) + '"/>' +
+             '<text class="qc-inset-label" x="' + f((px + x2) / 2) + '" y="' + f(py + (sy > 0 ? -2.5 : 2.5)) + '" text-anchor="middle" dominant-baseline="' + (sy > 0 ? 'auto' : 'hanging') + '">' + label + '</text>';
+    }
+    if (sy) {
+      var y2 = py + sy * len;
+      out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px) + '" y2="' + f(y2) + '"/>' +
+             '<text class="qc-inset-label" x="' + f(px + (sx < 0 ? -2.5 : 2.5)) + '" y="' + f((py + y2) / 2) + '" text-anchor="' + (sx < 0 ? 'end' : 'start') + '" dominant-baseline="middle">' + label + '</text>';
+    }
+    return out;
   }
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
@@ -5816,7 +5862,7 @@
       var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('rectangle', readRectangleForm());
       var lx = off.x * c + off.y * sn, ly = -off.x * sn + off.y * c;
       var q = T(lx * w / W, -ly * h / H);
-      return originCross(q.x, q.y);
+      return originCross(q.x, q.y, 'rect', fit);
     }
 
     // Edge lengths of the tool path (the part size grown or shrunk by
@@ -6300,7 +6346,7 @@
       (D > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
         var k = r / (D / 2);
-        return originCross(off.x * k, -off.y * k);
+        return originCross(off.x * k, -off.y * k, 'circ', k);
       })() : '');
   }
 
@@ -6458,7 +6504,7 @@
       // X0 Y0 relative to the plunge hole (H), to the same scale.
       (D > 0 || L > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('keyhole', readKeyholeForm());
-        return originCross(H.x + off.x * scale, H.y - off.y * scale);
+        return originCross(H.x + off.x * scale, H.y - off.y * scale, 'key', scale);
       })() : '');
   }
 
@@ -6655,7 +6701,7 @@
                  ' V' + (oy + arm).toFixed(2) + '"/>';
     var text = positions.length > 1 ? positions.length + ' × ⌀' + (dia > 0 ? dia : '?') : '⌀' + (dia > 0 ? dia : '?');
     svg.innerHTML =
-      shapePreviewDefs('qc-drl') + holes + origin +
+      shapePreviewDefs('qc-drl') + holes + origin + insetMarks('drl', ox, oy, scale) +
       '<text class="qc-shape-dim-label" x="0" y="47" text-anchor="middle">' + text + '</text>';
   }
 
@@ -6844,7 +6890,7 @@
       (diameter > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('polygon', readPolygonForm());
         var k = R / (diameter / 2);
-        return originCross(off.x * k, -off.y * k);
+        return originCross(off.x * k, -off.y * k, 'poly', k);
       })() : '');
 
     // The path the tabs are spaced along: in preview units, but with the
@@ -7096,7 +7142,7 @@
       hatched +
       '<path class="qc-shape-fill" d="' + d + '"/>' +
       dim + marks +
-      originCross(X(off.x), Y(off.y));
+      originCross(X(off.x), Y(off.y), 'slt', k);
   }
 
   function wireSlotForm() {
@@ -7178,7 +7224,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset. A negative Inset moves it out past the origin instead.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset. A negative Inset moves it out past the origin instead. The <strong>Inset</strong> beside it keeps the cut that far in from a corner or edge origin (negative: out past it); the preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';

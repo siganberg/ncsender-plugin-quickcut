@@ -108,6 +108,7 @@ Beside each Origin picker on Rectangle, Circle, Polygon, Slot, Keyhole and Drill
 - From an **edge** midpoint it moves across that edge only: front-center moves the cut +Y and keeps it centred side to side.
 - It doesn't apply to the **center**, a tapped corner or hole, or Keyhole's plunge hole, and is greyed out there.
 - A **negative** inset moves the cut that far *out* past the origin instead, e.g. to round a stock corner with a Slot (below).
+- The shape and pattern previews show it: a short dashed dimension from the X0 Y0 crosshair to the box around the cut, along X and/or Y, labelled with the inset.
 
 With a pattern it applies to the box around all the copies, so a grid of holes can start a set margin in from the edges of the stock instead of on them. The preview leaves room for it, with the crosshair at X0 Y0 out at the stock corner, and the program header notes it (`Origin: front-left, inset 10mm`).
 
