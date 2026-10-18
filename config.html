@@ -2130,7 +2130,7 @@
               <div class="qc-origin-stack">
                 <div class="qc-field qc-origin-col">
                   <label>Origin</label>
-                  <div id="qc-slt-origin-picker"></div>
+                  <div id="qc-slt-origin-picker" title="Where X0 Y0 is: a corner, edge or the center of the box around the slot. Or tap the preview: an end, the middle, a corner of a straight slot or the middle of its long side. On a Center line cut the box includes the bit, so an edge point puts that edge of the cut on the origin line."></div>
                 </div>
                 <div class="qc-field qc-inset-field">
                   <label for="qc-slt-inset">Inset</label>
@@ -7272,6 +7272,17 @@
     }
     slotPreviewNodes = [{ x: X(e0.x), y: Y(e0.y), value: 'corner:1' }, { x: X(e1.x), y: Y(e1.y), value: 'corner:2' },
                         { x: X(0), y: Y(0), value: 'shape-center' }];
+    // Straight: also where the long sides meet the ends and the middles of
+    // the long sides (corner:3-8, as the generator numbers them), so an
+    // edge of the cut can be X0 Y0 at any angle, like Rectangle's corners.
+    if (pc.type === 'line') {
+      var snx = -Math.sin(pc.t) * half, sny = Math.cos(pc.t) * half;
+      var smx = (pc.x0 + pc.x1) / 2, smy = (pc.y0 + pc.y1) / 2;
+      [[pc.x0 - snx, pc.y0 - sny], [pc.x1 - snx, pc.y1 - sny], [pc.x1 + snx, pc.y1 + sny],
+       [pc.x0 + snx, pc.y0 + sny], [smx - snx, smy - sny], [smx + snx, smy + sny]].forEach(function(q, i) {
+        slotPreviewNodes.push({ x: X(q[0]), y: Y(q[1]), value: 'corner:' + (i + 3) });
+      });
+    }
 
     // Holding tabs, spaced as the generator spaces them: along the tool
     // path (a bit radius in or out), drawn on the outline when it has
@@ -7402,7 +7413,7 @@
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
-      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
@@ -10046,9 +10057,19 @@
         bbox: function(pos) { return segmentsBbox(slotOutline(placeSlot(cl, 0, 0, pos.rotDeg), half)); },
         corners: function(rot) {
           var pc = placeSlot(cl, 0, 0, rot);
-          return pc.type === 'line'
-            ? [{ x: pc.x0, y: pc.y0 }, { x: pc.x1, y: pc.y1 }]
-            : [{ x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) }, { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) }];
+          if (pc.type !== 'line') {
+            return [{ x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) }, { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) }];
+          }
+          // Straight: the end centres (1, 2), then where the long sides meet the
+          // round ends (3 start-right, 4 end-right, 5 end-left, 6 start-left, seen
+          // along the Angle) and the middles of the long sides (7 right, 8 left),
+          // so an edge of the cut can be X0 Y0 at any angle.
+          var nx = -Math.sin(pc.t) * half, ny = Math.cos(pc.t) * half;
+          var mx = (pc.x0 + pc.x1) / 2, my = (pc.y0 + pc.y1) / 2;
+          return [{ x: pc.x0, y: pc.y0 }, { x: pc.x1, y: pc.y1 },
+                  { x: pc.x0 - nx, y: pc.y0 - ny }, { x: pc.x1 - nx, y: pc.y1 - ny },
+                  { x: pc.x1 + nx, y: pc.y1 + ny }, { x: pc.x0 + nx, y: pc.y0 + ny },
+                  { x: mx - nx, y: my - ny }, { x: mx + nx, y: my + ny }];
         }
       };
     }

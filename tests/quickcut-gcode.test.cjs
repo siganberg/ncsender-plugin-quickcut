@@ -2351,3 +2351,25 @@ test('polygon header notes the size as entered across flats or as an edge length
   assert.equal(g.generatePolygonProgram(Object.assign({}, base, { diameter: 40, sizeMode: 'corners', sizeValue: 40 })),
     g.generatePolygonProgram(Object.assign({}, base, { diameter: 40 })));
 });
+
+test('slot straight tap points: corners and long-side middles put an edge of the cut on X0 Y0', () => {
+  const gen = makeQuickCutGenerator(false).generateSlotProgram;
+  const tr = 3, a = 30 * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+  // Center line, 60 long at 30°: the bit's path runs 27 each side of the
+  // middle. corner:8 is the middle of the left long side, corner:7 the right.
+  for (const [origin, across, along] of [['corner:8', -tr, 0], ['corner:7', tr, 0], ['corner:3', tr, 27], ['corner:5', -tr, -27]]) {
+    const g = gen(slotBase({ cutType: 'center', angleDeg: 30, origin }));
+    assert.match(g, new RegExp('Origin: corner ' + origin.split(':')[1]));
+    const pts = slotSamples(g, -3);
+    assert.ok(pts.length > 10);
+    for (const pt of pts) {
+      const ac = -uy * pt.x + ux * pt.y, al = ux * pt.x + uy * pt.y;
+      assert.ok(Math.abs(ac - across) < 1e-3, `${origin}: ${ac} across`);
+      assert.ok(al >= along - 27 - 1e-3 && al <= along + 27 + 1e-3, `${origin}: ${al} along`);
+    }
+  }
+  // The end centres keep their numbers.
+  const end = slotSamples(gen(slotBase({ cutType: 'center', angleDeg: 30, origin: 'corner:1' })), -3);
+  assert.ok(end.some(pt => Math.hypot(pt.x, pt.y) < 1e-3));
+});
+
