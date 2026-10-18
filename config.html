@@ -666,16 +666,16 @@
      outside thickness mode), so a third empty column just squeezed the
      select until "Wasteboard Surfacing" was clipped. */
   .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
-  /* Rectangle / Polygon: Cut Type, Start Angle or Corner Radius, then the
-     origin picker at its own width. */
-  .qc-row-3.qc-rect-type-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
-  /* Shape row 2: Cut Type, then Start Angle and Stepover (clearing). */
+  /* A row led by a wide select (Cut Type, Arc By), or with Cut Type in
+     the middle (Circle, Slot). */
   .qc-row-3.qc-type-row { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); }
+  .qc-row-3.qc-type-mid-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
   /* Depth: Total Depth, Depth of Cut and, with Holding Tabs on (its
      switch is in the card header), Tabs / Tab Width / Tab Height. */
   .qc-row-5 { display: grid; gap: 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .qc-tabs-fields { display: contents; }
+  .qc-row-5 > .qc-side-hint { grid-column: 2 / -1; }
   @media (max-width: 760px) {
     .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
@@ -691,17 +691,9 @@
     align-items: center;
     gap: 6px;
   }
-  /* Origin picker and the Inset box as two columns, labels level. */
-  .qc-field.qc-origin-inset-field { flex-direction: row; align-items: flex-start; gap: 16px; }
-  .qc-origin-col, .qc-inset-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .qc-inset-field { width: 84px; flex: none; }
-  /* The corner dots overhang the picker's box by half their width; inset
-     the box so their outer edge lines up with the Origin label, the card
-     title and inputs above when it's first in a row, and stays clear of
-     the input beside it otherwise. */
-  .qc-origin-inset-field .qc-origin-grid { margin-left: 7px; }
   /* Origin above Inset, in their own column just left of the preview,
      each label centred over its control. */
+  .qc-inset-field { width: 84px; }
   .qc-shape-grid.qc-shape-grid--origin { grid-template-columns: minmax(0, 1fr) auto auto; }
   .qc-origin-stack { display: flex; flex-direction: column; gap: 12px; }
   .qc-origin-stack .qc-field { align-items: center; }
@@ -1660,9 +1652,9 @@
         <form id="qc-circ-form" onsubmit="return false">
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid">
+            <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
-                <div class="qc-row-2">
+                <div class="qc-row-3 qc-type-mid-row">
                   <div class="qc-field">
                     <label for="qc-circ-diameter">Diameter</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required title="Diameter of the circle. Cut Type sets which side of the line the bit runs on.">
@@ -1675,22 +1667,20 @@
                       <option value="outer" selected>Outer (part)</option>
                     </select>
                   </div>
-                </div>
-                <div class="qc-row-2">
-                  <div class="qc-field qc-origin-inset-field">
-                    <div class="qc-origin-col">
-                      <label>Origin</label>
-                      <div id="qc-circ-origin-picker"></div>
-                    </div>
-                    <div class="qc-inset-field">
-                      <label for="qc-circ-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    </div>
-                  </div>
                   <div class="qc-field qc-circ-clearing-only" style="display: none;">
-                    <label for="qc-circ-stepover">Stepover (% of bit)</label>
+                    <label for="qc-circ-stepover">Stepover (%)</label>
                     <input class="qc-input" type="number" id="qc-circ-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
+                </div>
+              </div>
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-circ-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <label for="qc-circ-inset">Inset</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -1700,8 +1690,17 @@
           </div>
 
           <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Depth</h3>
+              <label class="qc-switch-label" id="qc-circ-tabs-block" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-circ-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+            </div>
+            <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-circ-depth">Total Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
@@ -1710,15 +1709,7 @@
                 <label for="qc-circ-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
-            <div class="qc-tabs-block" id="qc-circ-tabs-block">
-              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
-                <span>Holding Tabs</span>
-                <span class="qc-switch">
-                  <input type="checkbox" id="qc-circ-tabs-enable">
-                  <span class="qc-switch-track"></span>
-                </span>
-              </label>
-              <div class="qc-row-3" id="qc-circ-tabs-fields" style="display: none;">
+              <div class="qc-tabs-fields" id="qc-circ-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-circ-tabs-count">Tabs</label>
                   <input class="qc-input" type="number" id="qc-circ-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
@@ -1732,7 +1723,6 @@
                   <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
                 </div>
               </div>
-            </div>
             </div>
           </div>
 
@@ -1839,7 +1829,7 @@
         <form id="qc-poly-form" onsubmit="return false">
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid">
+            <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
                 <div class="qc-row-3">
                   <div class="qc-field">
@@ -1859,7 +1849,7 @@
                     <input class="qc-input" type="number" id="qc-poly-start-angle" step="1" value="0" title="Turns the polygon about its center, CCW (negative = CW). 0 = a flat edge at the bottom. You can also twist the preview to turn it.">
                   </div>
                 </div>
-                <div class="qc-row-3 qc-rect-type-row qc-poly-origin-row">
+                <div class="qc-row-3 qc-type-row">
                   <div class="qc-field">
                     <label for="qc-poly-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-poly-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
@@ -1872,22 +1862,20 @@
                     <label for="qc-poly-corner">Corner Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get.">
                   </div>
-                  <div class="qc-field qc-origin-inset-field">
-                    <div class="qc-origin-col">
-                      <label>Origin</label>
-                      <div id="qc-poly-origin-picker"></div>
-                    </div>
-                    <div class="qc-inset-field">
-                      <label for="qc-poly-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    </div>
-                  </div>
-                </div>
-                <div class="qc-row-3">
                   <div class="qc-field qc-poly-clearing-only" style="display: none;">
-                    <label for="qc-poly-stepover">Stepover (% of bit)</label>
+                    <label for="qc-poly-stepover">Stepover (%)</label>
                     <input class="qc-input" type="number" id="qc-poly-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
+                </div>
+              </div>
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-poly-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <label for="qc-poly-inset">Inset</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -1897,8 +1885,17 @@
           </div>
 
           <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Depth</h3>
+              <label class="qc-switch-label" id="qc-poly-tabs-block" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-poly-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+            </div>
+            <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-poly-depth">Total Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
@@ -1907,15 +1904,7 @@
                 <label for="qc-poly-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
-            <div class="qc-tabs-block" id="qc-poly-tabs-block">
-              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
-                <span>Holding Tabs</span>
-                <span class="qc-switch">
-                  <input type="checkbox" id="qc-poly-tabs-enable">
-                  <span class="qc-switch-track"></span>
-                </span>
-              </label>
-              <div class="qc-row-3" id="qc-poly-tabs-fields" style="display: none;">
+              <div class="qc-tabs-fields" id="qc-poly-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-poly-tabs-count">Tabs</label>
                   <input class="qc-input" type="number" id="qc-poly-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
@@ -1929,7 +1918,6 @@
                   <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
                 </div>
               </div>
-            </div>
             </div>
           </div>
 
@@ -2042,9 +2030,9 @@
         <form id="qc-slt-form" onsubmit="return false">
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid">
+            <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
-                <div class="qc-row-3">
+                <div class="qc-row-3 qc-type-mid-row">
                   <div class="qc-field">
                     <label for="qc-slt-type">Slot Type</label>
                     <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc.">
@@ -2104,7 +2092,7 @@
                     <input class="qc-input" type="number" id="qc-slt-bulge" step="1" value="90" title="Direction the slot bulges toward, CCW from +X. 90 = toward the back. You can also twist the preview to turn it.">
                   </div>
                 </div>
-                <div class="qc-row-3 qc-rect-type-row qc-slt-origin-row">
+                <div class="qc-row-3 qc-type-row">
                   <div class="qc-field qc-slt-arc-only" style="display: none;">
                     <label for="qc-slt-arc-mode">Arc By</label>
                     <select class="qc-select" id="qc-slt-arc-mode" title="Radius: the arc's radius and where it starts and ends. Chord: the straight distance between the slot's end centres and how far the middle bulges out.">
@@ -2113,19 +2101,19 @@
                     </select>
                   </div>
                   <div class="qc-field qc-slt-clearing-only" style="display: none;">
-                    <label for="qc-slt-stepover">Stepover (% of bit)</label>
+                    <label for="qc-slt-stepover">Stepover (%)</label>
                     <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
-                  <div class="qc-field qc-origin-inset-field">
-                    <div class="qc-origin-col">
-                      <label>Origin</label>
-                      <div id="qc-slt-origin-picker"></div>
-                    </div>
-                    <div class="qc-inset-field">
-                      <label for="qc-slt-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    </div>
-                  </div>
+                </div>
+              </div>
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-slt-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <label for="qc-slt-inset">Inset</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -2135,8 +2123,17 @@
           </div>
 
           <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Depth</h3>
+              <label class="qc-switch-label" id="qc-slt-tabs-block" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-slt-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+            </div>
+            <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-slt-depth">Total Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
@@ -2145,15 +2142,7 @@
                 <label for="qc-slt-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
-            <div class="qc-tabs-block" id="qc-slt-tabs-block">
-              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
-                <span>Holding Tabs</span>
-                <span class="qc-switch">
-                  <input type="checkbox" id="qc-slt-tabs-enable">
-                  <span class="qc-switch-track"></span>
-                </span>
-              </label>
-              <div class="qc-row-3" id="qc-slt-tabs-fields" style="display: none;">
+              <div class="qc-tabs-fields" id="qc-slt-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-slt-tabs-count">Tabs</label>
                   <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
@@ -2167,7 +2156,6 @@
                   <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
                 </div>
               </div>
-            </div>
             </div>
           </div>
 
@@ -2281,7 +2269,7 @@
         <form id="qc-key-form" onsubmit="return false">
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Slot</h3>
-            <div class="qc-shape-grid">
+            <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
                 <div class="qc-row-2">
                   <div class="qc-field">
@@ -2293,22 +2281,20 @@
                     <input class="qc-input" type="number" id="qc-key-start-angle" step="1" value="90" title="Direction the slot runs from the plunge hole, CCW from +X. 90° = toward the back (+Y). You can also drag the preview to turn the slot.">
                   </div>
                 </div>
-                <div class="qc-row-2">
-                  <div class="qc-field qc-origin-inset-field">
-                    <div class="qc-origin-col">
-                      <label>Origin</label>
-                      <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
-                    </div>
-                    <div class="qc-inset-field">
-                      <label for="qc-key-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    </div>
-                  </div>
-                </div>
                 <p class="qc-mode-hint">
                   The ring in the Origin picker is the <strong>plunge hole</strong> (the first one, with a pattern); the dots are the corners, edges, and center of the whole cut. The slot runs Slot Length from the hole.
                   Set <strong>Bit Diameter</strong> to the keyhole bit&rsquo;s head diameter.
                 </p>
+              </div>
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-key-origin-picker" title="Ring: the plunge hole. Dots: the bounding box of the cut."></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <label for="qc-key-inset">Inset</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                </div>
               </div>
               <div class="qc-shape-preview-cell">
                 <svg id="qc-key-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
@@ -2318,7 +2304,7 @@
 
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
+            <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-key-depth">Total Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required title="Depth to the bottom of the keyhole head, cut in one pass.">
@@ -2435,7 +2421,7 @@
         <form id="qc-drl-form" onsubmit="return false">
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Hole</h3>
-            <div class="qc-shape-grid">
+            <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
                 <div class="qc-row-2">
                   <div class="qc-field">
@@ -2460,22 +2446,20 @@
                     <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0" title="Seconds to pause at the bottom of each hole to clean up its floor.">
                   </div>
                 </div>
-                <div class="qc-row-2">
-                  <div class="qc-field qc-origin-inset-field">
-                    <div class="qc-origin-col">
-                      <label>Origin</label>
-                      <div id="qc-drl-origin-picker"></div>
-                    </div>
-                    <div class="qc-inset-field">
-                      <label for="qc-drl-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    </div>
-                  </div>
-                </div>
                 <p class="qc-mode-hint">
                   Hole diameter is the <strong>Bit Diameter</strong>. With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview.
                   Every Z move uses the Plunge Rate.
                 </p>
+              </div>
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-drl-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <label for="qc-drl-inset">Inset</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                </div>
               </div>
               <div class="qc-shape-preview-cell">
                 <svg id="qc-drl-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
