@@ -3062,8 +3062,9 @@
     // Drilling only moves in Z, at the Plunge Rate.
     var feed = $('qc-feed');
     if (feed) {
+      if (feed.dataset.tip == null) feed.dataset.tip = feed.title;
       feed.disabled = view === 'drill';
-      feed.title = view === 'drill' ? 'Not used for drilling: every move is at the Plunge Rate.' : '';
+      feed.title = view === 'drill' ? 'Not used for drilling: every move is at the Plunge Rate.' : feed.dataset.tip;
     }
   }
 
