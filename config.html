@@ -1399,15 +1399,15 @@
             <div class="qc-row-3">
               <div class="qc-field">
                 <label for="qc-bit">Bit Diameter</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-bit" min="0.001" step="0.01" value="3.175" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-bit" min="0.001" step="0.01" value="3.175" required title="Diameter of the cutting bit. The toolpath is offset by half of it so the cut lands on size.">
               </div>
               <div class="qc-field">
                 <label for="qc-feed">Feed Rate</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required title="How fast the bit moves sideways while cutting.">
               </div>
               <div class="qc-field">
                 <label for="qc-plunge">Plunge Rate</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-plunge" min="1" step="1" value="1000" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-plunge" min="1" step="1" value="1000" required title="How fast the bit moves down into the material.">
               </div>
             </div>
           </div>
@@ -1452,11 +1452,11 @@
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-rect-width">Width</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-width" min="0.001" step="0.01" value="50" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-width" min="0.001" step="0.01" value="50" required title="Size of the rectangle along X. Cut Type sets which side of the line the bit runs on.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-height">Height</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required title="Size of the rectangle along Y. Cut Type sets which side of the line the bit runs on.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-corner">Corner Radius</label>
@@ -1505,11 +1505,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-rect-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
               </div>
               <div class="qc-field">
                 <label for="qc-rect-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
             <div class="qc-tabs-block" id="qc-rect-tabs-block">
               <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
@@ -1612,7 +1612,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-pattern-radius">Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-pattern-radius" min="0.1" step="0.1" value="40" required title="Radius of the circle the copies sit on, from its center.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-pattern-start-angle">Start Angle (°)</label>
@@ -1651,7 +1651,7 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-circ-diameter">Diameter</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required title="Diameter of the circle. Cut Type sets which side of the line the bit runs on.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
@@ -1690,11 +1690,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-circ-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
               </div>
               <div class="qc-field">
                 <label for="qc-circ-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
             <div class="qc-tabs-block" id="qc-circ-tabs-block">
               <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
@@ -1789,7 +1789,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-pattern-radius">Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-pattern-radius" min="0.1" step="0.1" value="40" required title="Radius of the circle the copies sit on, from its center.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-circ-pattern-start-angle">Start Angle (°)</label>
@@ -1838,7 +1838,7 @@
                       <option value="flats">Across Flats</option>
                       <option value="edge">Edge Length</option>
                     </select>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required aria-labelledby="qc-poly-size-mode">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required aria-labelledby="qc-poly-size-mode" title="Size of the polygon, measured the way the menu above picks: across corners, across flats or along one edge.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -1887,11 +1887,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-poly-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
               </div>
               <div class="qc-field">
                 <label for="qc-poly-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
             <div class="qc-tabs-block" id="qc-poly-tabs-block">
               <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
@@ -1994,7 +1994,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-pattern-radius">Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-pattern-radius" min="0.1" step="0.1" value="40" required title="Radius of the circle the copies sit on, from its center.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-pattern-start-angle">Start Angle (°)</label>
@@ -2049,7 +2049,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-slt-width">Width</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-width" min="0.001" step="0.01" value="10" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-width" min="0.001" step="0.01" value="10" required title="Width of the finished slot. A Center line cut is always the bit's width.">
                   </div>
                 </div>
                 <div class="qc-row-3 qc-slt-straight-only">
@@ -2125,11 +2125,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-slt-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
               </div>
               <div class="qc-field">
                 <label for="qc-slt-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
             <div class="qc-tabs-block" id="qc-slt-tabs-block">
               <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
@@ -2272,7 +2272,7 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-key-length">Slot Length</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-length" min="0.001" step="0.01" value="10" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-length" min="0.001" step="0.01" value="10" required title="How far the bit travels from the plunge hole along the Slot Angle.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-key-start-angle">Slot Angle (°)</label>
@@ -2307,7 +2307,7 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-key-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required title="Depth to the bottom of the keyhole head, cut in one pass.">
               </div>
               <p class="qc-mode-hint qc-side-hint">One plunge to full depth at the Plunge Rate. The slot is always a single pass &mdash; a shallower pass would cut the narrow neck slot out to the full head width. Depth is to the bottom of the head.</p>
             </div>
@@ -2388,7 +2388,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-key-pattern-radius">Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-radius" min="0.1" step="0.1" value="40" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-pattern-radius" min="0.1" step="0.1" value="40" required title="Radius of the circle the copies sit on, from its center.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-key-pattern-start-angle">Start Angle (°)</label>
@@ -2426,7 +2426,7 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-drl-depth">Total Depth</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-depth" min="0.001" step="0.01" value="10" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-depth" min="0.001" step="0.01" value="10" required title="How deep the hole goes below Z0.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-peck">Peck Depth</label>
@@ -2536,7 +2536,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-pattern-radius">Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-radius" min="0.1" step="0.1" value="32" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-pattern-radius" min="0.1" step="0.1" value="32" required title="Radius of the circle the copies sit on, from its center.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-pattern-start-angle">Start Angle (°)</label>
@@ -2581,22 +2581,22 @@
                   </div>
                   <div class="qc-field qc-plan-thickness-only" style="display: none;">
                     <label for="qc-plan-start-thickness">Starting Thickness</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20" title="Current height of the stock, measured from the wasteboard.">
                   </div>
                 </div>
                 <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-plan-width">Width (X)</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-width" min="0.001" step="0.01" value="100" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-width" min="0.001" step="0.01" value="100" required title="Size of the area to surface along X, before Overrun.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-plan-height">Height (Y)</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-height" min="0.001" step="0.01" value="80" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-height" min="0.001" step="0.01" value="80" required title="Size of the area to surface along Y, before Overrun.">
                   </div>
                   <div class="qc-field qc-plan-overrun-field">
                     <label for="qc-plan-overrun">Overrun</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-overrun" min="0" step="0.1" value="2">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-overrun" min="0" step="0.1" value="2" title="Extra distance the passes run past every edge, so the bit fully clears the stock.">
                   </div>
                 </div>
                 <div class="qc-row-3">
@@ -2629,11 +2629,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-plan-depth" id="qc-plan-depth-label">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-depth" min="0.001" step="0.01" value="2" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-depth" min="0.001" step="0.01" value="2" required title="How far below Z0 to surface. In Target Thickness mode, how much comes off the top.">
               </div>
               <div class="qc-field">
                 <label for="qc-plan-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-step" min="0.001" step="0.01" value="1" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
             </div>
           </div>
@@ -2661,11 +2661,11 @@
                 <div class="qc-row-4">
                   <div class="qc-field">
                     <label for="qc-join-length">Length</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-length" min="0.001" step="0.01" value="150" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-length" min="0.001" step="0.01" value="150" required title="Length of the edge being straightened.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-width">Trim Width</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-width" min="0.001" step="0.01" value="1" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-width" min="0.001" step="0.01" value="1" required title="How much each trim takes off the edge. Number of Trims sets how many.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-trims">Number of Trims</label>
@@ -2673,7 +2673,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-overrun">Overrun</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-overrun" min="0" step="0.1" value="2">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-overrun" min="0" step="0.1" value="2" title="Extra travel past both ends of the edge, so each cut starts and finishes clear of the stock.">
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -2708,11 +2708,11 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-join-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
               </div>
               <div class="qc-field">
                 <label for="qc-join-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-step" min="0.001" step="0.01" value="5" required>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-step" min="0.001" step="0.01" value="5" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
             </div>
           </div>
@@ -2740,21 +2740,21 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-cut-target">Target Size</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-target" min="0.001" step="0.01" value="100" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-target" min="0.001" step="0.01" value="100" required title="Size of the piece you keep, measured from the origin. The bit radius is added so the cut lands on size.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-cut-length">Cutting Length</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required title="How far the bit travels along the cut. Make it longer than the stock is wide.">
                   </div>
                 </div>
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-cut-depth">Total Depth</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes. Go slightly past the stock's thickness to part it off.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-cut-step">Depth of Cut</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-step" min="0.001" step="0.01" value="5" required>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-step" min="0.001" step="0.01" value="5" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
                   </div>
                 </div>
                 <div class="qc-field">
@@ -2805,9 +2805,9 @@
           <h3 class="qc-card-title">Second Point Coordinate</h3>
           <div class="qc-coord-row">
             <label for="qc-meas-px">X</label>
-            <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-px" placeholder="—">
+            <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-px" placeholder="—" title="Work X of a second point on the line, with X0 Y0 zeroed at the first point.">
             <label for="qc-meas-py">Y</label>
-            <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-py" placeholder="—">
+            <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-meas-py" placeholder="—" title="Work Y of a second point on the line, with X0 Y0 zeroed at the first point.">
             <button type="button" class="qc-primary-btn" id="qc-meas-capture">Grab Current</button>
           </div>
           <p class="qc-mode-hint" id="qc-meas-captured"></p>
@@ -2934,6 +2934,7 @@
     wireUnitFields();
     wireArrowKeySteps();
     wirePatternExtent();
+    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(updatePatternAngleLabels);
     wireTabs();
     wireValidation();
     wireFocusTips();
@@ -3770,14 +3771,6 @@
   }
 
   function wireUnitFields() {
-    var u = state.unitLabel;
-    var hint = state.isImperial ? 'Accepts 0.25, 1/4, 5/4", 6.35mm' : 'Accepts 6.35, .25in, 1/4", 5/4"';
-    var fields = document.querySelectorAll('[data-unit]');
-    for (var i = 0; i < fields.length; i++) {
-      if (!fields[i].title) {
-        fields[i].title = hint + ' — converted to ' + u + (fields[i].getAttribute('data-unit') === 'feed' ? '/min' : '');
-      }
-    }
     function onBlur(evt) {
       if (!rootAlive()) { document.removeEventListener('blur', onBlur, true); return; }
       var el = evt.target;
@@ -4597,7 +4590,8 @@
   // The short angled labels need a word of explanation; it goes in the
   // label's tooltip so the narrow columns don't wrap.
   var PATTERN_TITLES = {
-    axis:   { 'x-dist': '', 'y-dist': '', 'x-count': '', 'y-count': '' },
+    axis:   { 'x-dist': 'Center-to-center between copies along X', 'y-dist': 'Center-to-center between copies along Y',
+              'x-count': '', 'y-count': '' },
     angled: { 'x-dist': 'Center-to-center along the {a}° row', 'y-dist': 'Between rows, at right angles to the {a}° row',
               'x-count': 'Copies along each {a}° row', 'y-count': 'Number of rows' },
     grid: { 'x-dist': 'Center-to-center between columns', 'y-dist': 'Center-to-center between rows',
@@ -4651,6 +4645,7 @@
         var gap = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
         labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
       }
+      if (/-dist$/.test(key)) $(labels[i].getAttribute('for')).title = labels[i].title;
     }
     // The Rotate switch only means something for an angled grid (Grid's
     // lines always turn with it); the Angle field is hidden for Circular.
@@ -7388,8 +7383,7 @@
   }
 
   // The tooltips in one part of the page, grouped by card. Skips the
-  // generic "Accepts 1/4" ..." unit hints (covered by Typing units) and
-  // the pattern labels' angle-dependent tooltips.
+  // pattern labels' and spacing fields' angle-dependent tooltips.
   function collectHelpTips(root) {
     var groups = [];
     var cards = root.querySelectorAll('.qc-card, .qc-header-card');
@@ -7403,7 +7397,7 @@
       var seen = {}, tips = [];
       card.querySelectorAll('[title]').forEach(function(el) {
         var tip = el.getAttribute('title');
-        if (!tip || /^Accepts /.test(tip) || el.hasAttribute('data-pattern-label')) return;
+        if (!tip || el.hasAttribute('data-pattern-label') || /-pattern-[xy]-dist$/.test(el.id)) return;
         var name = helpTipName(el, title);
         if (seen[name + tip]) return;
         seen[name + tip] = true;
