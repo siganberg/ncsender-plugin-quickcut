@@ -1504,9 +1504,9 @@
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-rect-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
-                      <option value="inner">Inner (perimeter)</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
-                      <option value="outer" selected>Outer (part)</option>
+                      <option value="outer">Outer (part)</option>
                     </select>
                   </div>
                   <div class="qc-field">
@@ -1697,9 +1697,9 @@
                   <div class="qc-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-circ-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
-                      <option value="inner">Inner (perimeter)</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
-                      <option value="outer" selected>Outer (part)</option>
+                      <option value="outer">Outer (part)</option>
                     </select>
                   </div>
                   <div class="qc-field qc-circ-clearing-only" style="display: none;">
@@ -1894,9 +1894,9 @@
                   <div class="qc-field">
                     <label for="qc-poly-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-poly-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
-                      <option value="inner">Inner (perimeter)</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
                       <option value="clearing">Inner (clearing)</option>
-                      <option value="outer" selected>Outer (part)</option>
+                      <option value="outer">Outer (part)</option>
                     </select>
                   </div>
                   <div class="qc-field">
@@ -6112,8 +6112,10 @@
     // Hatched waste area.
     var hatchFill = 'fill="url(#qc-rect-hatch)"';
     var hatched;
-    if (cutType === 'inner' || cutType === 'clearing') {
+    if (cutType === 'clearing') {
       hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
+    } else if (cutType === 'inner') {
+      hatched = '';
     } else {
       var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
               ' L' + boxHalf + ',' + (-boxHalf) +
@@ -6613,8 +6615,10 @@
 
     var hatchFill = 'fill="url(#qc-circ-hatch)"';
     var hatched;
-    if (cutType === 'inner' || cutType === 'clearing') {
+    if (cutType === 'clearing') {
       hatched = '<circle class="qc-shape-hatch" ' + hatchFill + ' cx="0" cy="0" r="' + r + '"/>';
+    } else if (cutType === 'inner') {
+      hatched = '';
     } else {
       // Outer waste = viewBox rect minus interior circle (evenodd).
       // Approximate the circle with two arcs joined by a move.
@@ -7162,7 +7166,8 @@
     }
 
     // Hatched waste area — the region the cut leaves as scrap.
-    //   Inner (perimeter) cut → keep the outside, waste the polygon interior
+    //   Inner (clearing) cut → keep the outside, clear the polygon interior
+    //   Inner (perimeter) cut → only the outline, nothing hatched
     //   Outer (part) cut     → keep the polygon, waste the surrounding box
     // For "outer", use an even-odd path: outer container rect + inner
     // polygon subpath. The area between them (box minus polygon) gets
@@ -7176,8 +7181,10 @@
       .concat([{ x: 0, y: 0, value: 'shape-center' }]);
     var hatchFill = 'fill="url(#qc-poly-hatch)"';
     var hatchedPath;
-    if (cutType === 'inner' || cutType === 'clearing') {
+    if (cutType === 'clearing') {
       hatchedPath = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
+    } else if (cutType === 'inner') {
+      hatchedPath = '';
     } else {
       var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
               ' L' + boxHalf + ',' + (-boxHalf) +
@@ -7438,6 +7445,7 @@
     var d = path(outline) + ' Z';
     var hatched = cut === 'outer'
       ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="M-50,-50 L50,-50 L50,50 L-50,50 Z ' + d + '"/>'
+      : cut === 'inner' ? ''
       : '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" d="' + d + '"/>';
     var e0, e1, dim;
     if (pc.type === 'line') {
