@@ -6032,8 +6032,10 @@
                   { x: x, y: y + h }, { x: 0, y: y + h }].map(function(q) { return T(q.x, q.y); });
 
     // Corners in the generator's order (front-left, front-right,
-    // back-right, back-left, before turning), then the center.
-    rectPreviewNodes = [[x, y + h], [x + w, y + h], [x + w, y], [x, y]].map(function(q, i) {
+    // back-right, back-left, before turning), the middles of the front,
+    // right, back and left edges, then the center.
+    rectPreviewNodes = [[x, y + h], [x + w, y + h], [x + w, y], [x, y],
+                        [x + w / 2, y + h], [x + w, y + h / 2], [x + w / 2, y], [x, y + h / 2]].map(function(q, i) {
       var t = T(q[0], q[1]);
       return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
     }).concat([{ x: 0, y: 0, value: 'center' }]);
@@ -7633,7 +7635,7 @@
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
-      'Tap a <strong>corner</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
+      'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
@@ -8835,11 +8837,13 @@
     // A copy's corners about its own center, for a turn of rot degrees
     // (the pattern's turn; Rectangle's Start Angle is already in it).
     // Rectangle: front-left, front-right, back-right, back-left (CCW,
-    // before turning). Polygon: its vertices in cut order.
+    // before turning), then the middles of the front, right, back and left
+    // edges (corner:5-8). Polygon: its vertices in cut order.
     function rectangleCorners(params) {
       return function(rot) {
         var w = params.width / 2, h = params.height / 2;
-        return [[-w, -h], [w, -h], [w, h], [-w, h]].map(function(c) { return rotatePoint(0, 0, c[0], c[1], rot); });
+        return [[-w, -h], [w, -h], [w, h], [-w, h], [0, -h], [w, 0], [0, h], [-w, 0]]
+          .map(function(c) { return rotatePoint(0, 0, c[0], c[1], rot); });
       };
     }
     function polygonCorners(params) {

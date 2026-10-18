@@ -2373,3 +2373,17 @@ test('slot straight tap points: corners and long-side middles put an edge of the
   assert.ok(end.some(pt => Math.hypot(pt.x, pt.y) < 1e-3));
 });
 
+test('rectangle edge middles (corner:5-8) set the origin at any Start Angle', () => {
+  const gen = makeQuickCutGenerator(false);
+  const base = { width: 40, height: 20, cornerRadius: 0, cutType: 'outer', startAngleDeg: 30,
+    bitDiameter: 6, feedRate: 800, plungeFeedRate: 200, depth: 3, depthOfCut: 3, spindleRpm: 15000, spindleDelay: 1 };
+  const a = 30 * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  // corner:5 is the middle of the front edge, (0, -10) before turning.
+  for (const [origin, lx, ly] of [['corner:5', 0, -10], ['corner:6', 20, 0], ['corner:7', 0, 10], ['corner:8', -20, 0]]) {
+    const off = gen.shapeOriginOffset('rectangle', Object.assign({}, base, { origin }));
+    // X0 Y0 sits at that point of the rectangle, relative to its centre.
+    assert.ok(Math.abs(off.x - (lx * c - ly * s)) < 1e-9 && Math.abs(off.y - (lx * s + ly * c)) < 1e-9, `${origin}: ${off.x}, ${off.y}`);
+    assert.match(gen.generateRectangleProgram(Object.assign({}, base, { origin })), new RegExp('Origin: corner ' + origin.split(':')[1]));
+  }
+});
+
