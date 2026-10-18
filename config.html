@@ -2786,9 +2786,10 @@
                 </div>
                 <div class="qc-field">
                   <label for="qc-cut-direction">Cut Direction</label>
-                  <select class="qc-select" id="qc-cut-direction" title="For the kept piece's edge. Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. The arrow in the preview shows the way the bit travels; tap it to switch.">
+                  <select class="qc-select" id="qc-cut-direction" title="For the kept piece's edge. Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. Both Ways: depth passes alternate, saving the trip back. The arrow in the preview shows the way the bit travels; tap it to switch.">
                     <option value="conventional" selected>Conventional</option>
                     <option value="climb">Climb</option>
+                    <option value="both">Both Ways</option>
                   </select>
                 </div>
                 <!-- Picked by clicking an edge of the preview; the edge also
@@ -4058,6 +4059,8 @@
     var u = state.unitLabel;
     var dirText = (dir === 'climb')
       ? '<strong>Climb</strong> — cutter teeth engage <em>with</em> the feed direction. Cleaner finish, but needs a rigid machine.'
+      : dir === 'both'
+      ? '<strong>Both Ways</strong> — depth passes alternate direction, each starting where the last ended, so there’s no trip back; every other pass is a climb cut.'
       : '<strong>Conventional</strong> — cutter teeth engage <em>against</em> the feed direction. Safer and less chatter.';
     hint.innerHTML =
       'XY zero is on the <strong>' + origin + '</strong> edge — click an edge in the preview to change it. ' +
@@ -5581,8 +5584,9 @@
     $('qc-cut-preview').addEventListener('click', function(e) {
       if (!(e.target.closest && e.target.closest('.qc-feed-hit'))) return;
       markPreviewPick();
+      // Conventional -> Climb -> Both Ways -> Conventional.
       var dir = $('qc-cut-direction');
-      dir.value = dir.value === 'climb' ? 'conventional' : 'climb';
+      dir.value = { conventional: 'climb', climb: 'both', both: 'conventional' }[dir.value] || 'conventional';
       dir.dispatchEvent(new Event('change', { bubbles: true }));
     });
     syncSideToAxis('qc-cut-origin', $('qc-cut-axis').value);
@@ -6207,7 +6211,8 @@
     if (!svg) return;
     var side   = $('qc-cut-origin').value;
     var target = num('qc-cut-target', 0);
-    var climb  = $('qc-cut-direction').value === 'climb';
+    var direction = $('qc-cut-direction').value;
+    var climb  = direction === 'climb';
     var tl = (target > 0 ? target : '?') + ' ' + state.unitLabel;
 
     // u: 0 = left .. 1 = right, v: 0 = front .. 1 = back (top face).
@@ -6338,7 +6343,7 @@
     svg.innerHTML =
       shapePreviewDefs('qc-cut') +
       '<defs><marker id="qc-cut-feedarr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" ' +
-        'orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,5 L0,10" fill="none" ' +
+        'orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L8,5 L0,10" fill="none" ' +
         'style="stroke: var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>' +
         '<marker id="qc-wcs-x-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
           'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#e5534b"/></marker>' +
@@ -6356,14 +6361,16 @@
         '" x2="' + dimB[0].toFixed(2) + '" y2="' + dimB[1].toFixed(2) + '" ' +
         'marker-start="url(#qc-cut-arr)" marker-end="url(#qc-cut-arr)"/>' + label +
       '<line class="qc-cut-feed" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
-        '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '" marker-end="url(#qc-cut-feedarr)"/>' +
+        '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '" marker-end="url(#qc-cut-feedarr)"' +
+        // Both Ways: a head on each end.
+        (direction === 'both' ? ' marker-start="url(#qc-cut-feedarr)"' : '') + '/>' +
       lengthLabel +
       edgeLabels +
       sideEdgesSvg(side, edges) +
       // Click the cut arrow to flip Conventional / Climb.
       '<line class="qc-feed-hit" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
         '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '"><title>' +
-        (climb ? 'Climb' : 'Conventional') + ' \u2014 click to switch</title></line>' +
+        { conventional: 'Conventional', climb: 'Climb', both: 'Both Ways' }[direction] + ' \u2014 click to switch</title></line>' +
       // The front face is a big target for "front" too.
       '<polygon class="qc-side-hit-face" data-side="front" points="' + pts([fl, fr, down(fr), down(fl)]) + '"><title>Front</title></polygon>' +
       wcs;
@@ -7353,7 +7360,7 @@
     cutter: { name: 'Cutter', notes: [
       'A parting cut: one line <strong>Target Size</strong> in from the chosen edge, so what you keep is that size (the bit radius is allowed for). Tap an edge in the preview to choose it; X0 Y0 is on that edge.',
       'The tool feeds <strong>Cutting Length</strong> along <strong>Cut Axis</strong>. ' + HELP_DEPTH,
-      '<strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine.' ] },
+      '<strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine. <strong>Both Ways</strong> alternates the depth passes, each starting where the last ended, to save the trip back (every other one climbs). Tap the arrow in the preview to switch.' ] },
     measure: { name: 'Measure Pattern Angle', notes: [
       'Zero X and Y on a point on the line you want to follow. Then type the work coordinates of a second point on the same line, or jog there and press <strong>Grab Current</strong>.',
       'The angle only changes when you type or grab, so jogging afterwards won&rsquo;t change it. The point is remembered for next time.',
@@ -9371,15 +9378,19 @@
       var safeHeight = safeHopDelta.toFixed(3);
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
 
+      // Both Ways: every other pass runs back, from where the last ended.
+      var pass = 0;
       var currentDepth = 0;
       while (currentDepth < depth - 1e-6) {
         var nextDepth = Math.min(depth, currentDepth + depthOfCut);
         var z = -nextDepth;
+        var back = cutDirection === 'both' && pass++ % 2 === 1;
+        var a = back ? feedTo : feedFrom, b = back ? feedFrom : feedTo;
         var fromX, fromY, toX, toY;
         if (feedAxis === 'x') {
-          fromX = feedFrom; toX = feedTo; fromY = cutPos; toY = cutPos;
+          fromX = a; toX = b; fromY = cutPos; toY = cutPos;
         } else {
-          fromY = feedFrom; toY = feedTo; fromX = cutPos; toX = cutPos;
+          fromY = a; toY = b; fromX = cutPos; toX = cutPos;
         }
         lines.push('(Pass Z' + z.toFixed(3) + ')');
         lines.push('G0 X' + fromX.toFixed(xyDp) + ' Y' + fromY.toFixed(xyDp));

@@ -1038,6 +1038,16 @@ test('cutter cut direction matches the spindle rotation for the kept edge', () =
   }
 });
 
+test('cutter Both Ways alternates depth passes, conventional first', () => {
+  const gen = makeQuickCutGenerator(false).generateCutterProgram;
+  const moves = (g) => g.split('\n').map(l => l.trim()).filter(l => /^G[01] X/.test(l))
+    .map(l => Number(l.match(/X(-?[\d.]+)/)[1]));
+  // Front origin: conventional runs -X (X200 to X0). 3 depth passes.
+  const both = moves(gen(cutterBase({ origin: 'front', cutDirection: 'both', depth: 6, depthOfCut: 2 })));
+  assert.deepEqual(both, [200, 0, 0, 200, 200, 0]);
+  assert.match(gen(cutterBase({ cutDirection: 'both' })), /\(Cut Direction: both\)/);
+});
+
 // ---------- Degenerate case ----------
 test('shape smaller than tool diameter warns and produces no cut', () => {
   const gen = makeQuickCutGenerator(false).generateRectangleProgram;

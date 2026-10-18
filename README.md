@@ -20,7 +20,7 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
   - Target Thickness (measured from wasteboard up)
   - Wasteboard Surfacing (auto-uses machine travel from grblHAL `$130`/`$131`)
 - Jointer — make a straight reference edge. Trim Width × Number of Trims off the chosen side, single-direction cuts so climb/conventional stays consistent (or **Both Ways**, alternating trims to save the trip back)
-- Cutter — cold-saw-style parting cut. Single cut line at a target dimension (bit-radius compensated), multi-pass Z to reduce bit load
+- Cutter — cold-saw-style parting cut. Single cut line at a target dimension (bit-radius compensated), multi-pass Z to reduce bit load (**Both Ways** alternates the passes to save the trip back)
 
 **Common:**
 - Units — metric + imperial (honors ncSender's `unitsPreference`)
