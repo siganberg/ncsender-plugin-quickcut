@@ -905,6 +905,21 @@ test('jointer origin left vs right flips stepover direction (feed Y)', () => {
   assert.match(right, /G0 X-1\.000 Y0\.000/);
 });
 
+test('jointer Both Ways alternates strokes, conventional first, across depth passes', () => {
+  const gen = makeQuickCutGenerator(false).generateJointerProgram;
+  const strokes = (g) => g.split('\n').map(l => l.trim()).filter(l => /^G[01] X/.test(l))
+    .map(l => Number(l.match(/X(-?[\d.]+)/)[1]));
+  // Front edge: conventional runs +X. 3 trims × 2 depth passes = 6 strokes.
+  const both = strokes(gen(jointerBase({ origin: 'front', cutDirection: 'both', overrun: 2, depth: 4, depthOfCut: 2 })));
+  const conv = strokes(gen(jointerBase({ origin: 'front', cutDirection: 'conventional', overrun: 2, depth: 4, depthOfCut: 2 })));
+  assert.equal(both.length, 12);
+  for (let k = 0; k < 6; k++) {
+    assert.deepEqual([both[2 * k], both[2 * k + 1]], k % 2 === 0 ? [-2, 152] : [152, -2], `stroke ${k}`);
+    assert.deepEqual([conv[2 * k], conv[2 * k + 1]], [-2, 152]);
+  }
+  assert.match(gen(jointerBase({ cutDirection: 'both' })), /\(Cut Direction: both\)/);
+});
+
 test('jointer multi-depth × multi-trim: depth × numTrims plunges total', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
   const gcode = gen(jointerBase({
