@@ -2603,7 +2603,7 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20" title="Current height of the stock, measured from the wasteboard.">
                   </div>
                   <div class="qc-field qc-plan-keepout-field" style="display: none;">
-                    <label class="qc-switch-label" title="Leave out ncSender's keepout zone (Settings › Advanced), plus the bit radius, so the cutter never enters it">
+                    <label class="qc-switch-label" title="Leave out the keepout zones that are on (ncSender's in Settings › Advanced, and the ATCi tool rack's, $684-$687), plus the bit radius, so the cutter never enters them">
                       <span>Avoid Keepout Zone</span>
                       <span class="qc-switch">
                         <input type="checkbox" id="qc-plan-keepout" checked>
@@ -2939,7 +2939,10 @@
     // we swap the DOM inputs between shapes. Spindle & Coolant stay
     // common across shapes.
     currentTab: 'rectangle',
-    toolByShape: {}
+    toolByShape: {},
+    // Keepout zones Wasteboard Surfacing can avoid (machine mm):
+    // ncSender Pro's and the ATCi plugin's, when they're on.
+    keepoutZonesMm: []
   };
   var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
@@ -2955,9 +2958,10 @@
       // ncSender Pro's keepout zone, in machine coordinates (mm). Only
       // Wasteboard Surfacing uses it; Community has none.
       var kz = s.advanced && s.advanced.keepoutZone;
-      state.keepoutZoneMm = kz && kz.enabled && kz.min && kz.max
-        ? { minX: Number(kz.min.x), minY: Number(kz.min.y), maxX: Number(kz.max.x), maxY: Number(kz.max.y) }
-        : null;
+      if (kz && kz.enabled && kz.min && kz.max) {
+        state.keepoutZonesMm.push({ name: 'ncSender', minX: Number(kz.min.x), minY: Number(kz.min.y),
+                                    maxX: Number(kz.max.x), maxY: Number(kz.max.y) });
+      }
     } catch (err) {
       console.warn('[QuickCut] settings fetch failed, using defaults:', err);
     }
@@ -2971,6 +2975,8 @@
       if (fwSettings && fwSettings['131'] && fwSettings['131'].value) {
         state.machineLimitYmm = parseFloat(fwSettings['131'].value) || 0;
       }
+      var atci = atciKeepout(fwSettings);
+      if (atci) state.keepoutZonesMm.push(atci);
     } catch (err) {
       console.warn('[QuickCut] firmware fetch failed, wasteboard limits unknown:', err);
     }
@@ -3942,19 +3948,30 @@
       depth:        num('qc-plan-depth', 0),
       depthOfCut:   num('qc-plan-step', 0),
       avoidKeepout: $('qc-plan-keepout').checked,
-      keepout:      mode === 'wasteboard' ? planerKeepout() : null,
+      keepouts:     mode === 'wasteboard' ? planerKeepouts() : [],
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     });
   }
 
-  // The keepout zone in display units, when there is one and the switch
-  // is on.
-  function planerKeepout() {
-    var k = state.keepoutZoneMm;
-    if (!k || !$('qc-plan-keepout').checked) return null;
-    return { minX: roundDisplay(mmToDisplay(k.minX)), minY: roundDisplay(mmToDisplay(k.minY)),
-             maxX: roundDisplay(mmToDisplay(k.maxX)), maxY: roundDisplay(mmToDisplay(k.maxY)) };
+  // The grblHAL ATCi plugin's keepout ($683 bit 0 = Enable, $684-$687 =
+  // X min, Y min, X max, Y max in machine mm), when it's on. Checked by
+  // name so another firmware's $683-$687 aren't read as a zone.
+  function atciKeepout(fw) {
+    var on = fw && fw['683'], ids = ['684', '685', '686', '687'];
+    if (!on || !/ATCi/.test(on.name || '') || !(parseInt(on.value, 10) & 1)) return null;
+    var v = ids.map(function(id) { return fw[id] && /ATCi Keepout/.test(fw[id].name || '') ? parseFloat(fw[id].value) : NaN; });
+    if (!v.every(isFinite)) return null;
+    return { name: 'ATCi', minX: v[0], minY: v[1], maxX: v[2], maxY: v[3] };
+  }
+
+  // The keepout zones in display units, when the switch is on.
+  function planerKeepouts() {
+    if (!$('qc-plan-keepout').checked) return [];
+    return state.keepoutZonesMm.map(function(k) {
+      return { name: k.name, minX: roundDisplay(mmToDisplay(k.minX)), minY: roundDisplay(mmToDisplay(k.minY)),
+               maxX: roundDisplay(mmToDisplay(k.maxX)), maxY: roundDisplay(mmToDisplay(k.maxY)) };
+    });
   }
 
   function updatePlanerModeVisibility() {
@@ -3964,7 +3981,7 @@
     for (var i = 0; i < thickEls.length; i++) thickEls[i].style.display = (mode === 'thickness') ? '' : 'none';
     var overrunField = document.querySelector('.qc-plan-overrun-field');
     if (overrunField) overrunField.style.display = isWasteboard ? 'none' : '';
-    document.querySelector('.qc-plan-keepout-field').style.display = isWasteboard && state.keepoutZoneMm ? '' : 'none';
+    document.querySelector('.qc-plan-keepout-field').style.display = isWasteboard && state.keepoutZonesMm.length ? '' : 'none';
     // Wasteboard: auto-fill width/height from grblHAL $130/$131 and lock
     // the fields so the user can't drift off machine limits. Origin
     // selector also loses meaning here (start is always machine 0,0), so
@@ -4013,10 +4030,11 @@
            roundDisplay(mmToDisplay(state.machineLimitXmm)) + ' × ' +
            roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
         : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported), inset by bit radius so the cutter stays within machine limits.';
-      var k = planerKeepout();
-      var keepoutText = k
-        ? ' Leaves out the keepout zone (X ' + k.minX + '–' + k.maxX + ', Y ' + k.minY + '–' + k.maxY + ' ' + u +
-          ') plus the bit radius.'
+      var zones = planerKeepouts();
+      var keepoutText = zones.length
+        ? ' Leaves out the keepout zone' + (zones.length > 1 ? 's' : '') + ' (' + zones.map(function(k) {
+            return k.name + ': X ' + k.minX + '–' + k.maxX + ', Y ' + k.minY + '–' + k.maxY;
+          }).join('; ') + ' ' + u + ') plus the bit radius.'
         : '';
       return z0('the highest spot of the wasteboard') + '<br>' +
              '<strong>Wasteboard Surfacing.</strong> ' + limitsText + keepoutText +
@@ -7390,7 +7408,7 @@
       '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.',
-      'With ncSender Pro&rsquo;s keepout zone on, <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out the zone plus the bit radius, cutting what&rsquo;s left of the bed in up to four rectangles.' ] },
+      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius, cutting the rest of the bed around them.' ] },
     jointer: { name: 'Jointer', notes: [
       'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong>Number of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
       'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work. <strong>Both Ways</strong> alternates the trims, each starting where the last ended, to save the trip back (every other one climbs). The arrows in the preview show the way the bit travels; tap one to switch.',
@@ -9236,10 +9254,17 @@
       var stepoverDist = bitDiameter * (stepoverPct / 100);
       // Wasteboard: leave out ncSender Pro's keepout zone, widened by the
       // bit radius; what's left is up to four rectangles.
-      var keepout = isWasteboard ? params.keepout : null;
+      // Each zone (ncSender's, the ATCi's) is taken out of what's left of
+      // the last; keepoutsHit are those that removed something.
+      var keepouts = isWasteboard && params.keepouts ? params.keepouts : [];
       var areas = [{ x: startX, y: startY, w: cutW, h: cutH }];
-      if (keepout) areas = subtractKeepout(areas[0], keepout, bitDiameter / 2);
-      var keepoutHit = !!keepout && !(areas.length === 1 && areas[0].w === cutW && areas[0].h === cutH);
+      var keepoutsHit = [];
+      keepouts.forEach(function(k) {
+        var next = [];
+        areas.forEach(function(a) { next = next.concat(subtractKeepout(a, k, bitDiameter / 2)); });
+        if (next.length !== areas.length || next.some(function(a, i) { return a !== areas[i]; })) keepoutsHit.push(k);
+        areas = next;
+      });
 
       var modeLabels = { depth: 'Target Depth', thickness: 'Target Thickness', wasteboard: 'Wasteboard Surfacing' };
       var extras = [
@@ -9259,10 +9284,11 @@
       }
       extras.push('Stepover: ' + stepoverPct + '% (' + stepoverDist.toFixed(3) + unitsLabel + ')');
       extras.push('Pattern: ' + pattern);
-      if (keepoutHit) {
-        extras.push('Keepout zone left out: X ' + keepout.minX + '-' + keepout.maxX + ', Y ' + keepout.minY + '-' + keepout.maxY +
-                    unitsLabel + ' plus the bit radius, surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's'));
-      }
+      keepoutsHit.forEach(function(k) {
+        extras.push('Keepout zone left out: ' + (k.name ? k.name + ', ' : '') + 'X ' + k.minX + '-' + k.maxX +
+                    ', Y ' + k.minY + '-' + k.maxY + unitsLabel + ' plus the bit radius');
+      });
+      if (keepoutsHit.length) extras.push('Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
       extras.push('Origin: ' + (params.origin || 'front-left'));
 
       var lines = programHeader(params, {

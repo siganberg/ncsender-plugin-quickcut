@@ -858,9 +858,10 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
     depth: 0.5, depthOfCut: 0.5, bitDiameter: 6, feedRate: 2000, plungeFeedRate: 500,
     spindleRpm: 15000, spindleDelay: 1, mistM7: false, floodM8: false
   };
-  const zone = { minX: 690, minY: 700, maxX: 812, maxY: 1230 };
-  const g = gen(Object.assign({}, base, { keepout: zone }));
-  assert.match(g, /Keepout zone left out: X 690-812, Y 700-1230mm plus the bit radius, surfacing 2 areas/);
+  const zone = { name: 'ncSender', minX: 690, minY: 700, maxX: 812, maxY: 1230 };
+  const g = gen(Object.assign({}, base, { keepouts: [zone] }));
+  assert.match(g, /Keepout zone left out: ncSender, X 690-812, Y 700-1230mm plus the bit radius/);
+  assert.match(g, /Surfacing 2 areas around the keepout/);
   // Follow every cutting move: none may bring the bit's edge into the zone.
   let x = 0, y = 0, maxX = 0, maxY = 0;
   for (const line of g.split('\n')) {
@@ -883,8 +884,38 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
   assert.ok(maxX > 812 - 3 - 0.01 && maxY > 1230 - 3 - 0.01, `reaches ${maxX}, ${maxY}`);
   // No zone, or one off the bed, leaves the program as it was.
   const plain = gen(base);
-  assert.equal(gen(Object.assign({}, base, { keepout: { minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 } })), plain);
-  assert.equal(gen(Object.assign({}, base, { mode: 'depth', keepout: zone })), gen(Object.assign({}, base, { mode: 'depth' })));
+  assert.equal(gen(Object.assign({}, base, { keepouts: [{ minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 }] })), plain);
+  assert.equal(gen(Object.assign({}, base, { mode: 'depth', keepouts: [zone] })), gen(Object.assign({}, base, { mode: 'depth' })));
+});
+
+test('planer wasteboard leaves out every keepout zone given (ncSender and ATCi)', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const base = {
+    mode: 'wasteboard', width: 812, height: 1230, origin: 'front-left', pattern: 'zigzagX', stepoverPct: 40,
+    depth: 0.5, depthOfCut: 0.5, bitDiameter: 6, feedRate: 2000, plungeFeedRate: 500,
+    spindleRpm: 15000, spindleDelay: 1, mistM7: false, floodM8: false
+  };
+  const zones = [
+    { name: 'ncSender', minX: 690, minY: 700, maxX: 812, maxY: 1230 },
+    { name: 'ATCi', minX: 100, minY: 300, maxX: 250, maxY: 400 }
+  ];
+  const g = gen(Object.assign({}, base, { keepouts: zones }));
+  assert.match(g, /Keepout zone left out: ncSender/);
+  assert.match(g, /Keepout zone left out: ATCi, X 100-250, Y 300-400mm/);
+  // Every cutting stroke keeps the bit (radius 3) clear of both zones.
+  let x = 0, y = 0;
+  for (const line of g.split('\n')) {
+    const mx = line.match(/X(-?[\d.]+)/), my = line.match(/Y(-?[\d.]+)/);
+    const nx = mx ? +mx[1] : x, ny = my ? +my[1] : y;
+    if (/^G1/.test(line) && (mx || my)) {
+      for (const z of zones) {
+        const sx0 = Math.min(x, nx), sx1 = Math.max(x, nx), sy0 = Math.min(y, ny), sy1 = Math.max(y, ny);
+        const overlaps = sx1 > z.minX - 3 + 1e-6 && sx0 < z.maxX + 3 - 1e-6 && sy1 > z.minY - 3 + 1e-6 && sy0 < z.maxY + 3 - 1e-6;
+        assert.ok(!overlaps, `stroke ${x},${y} -> ${nx},${ny} enters ${z.name}`);
+      }
+    }
+    x = nx; y = ny;
+  }
 });
 
 // ---------- Jointer ----------

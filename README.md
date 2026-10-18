@@ -18,7 +18,7 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
 - Planer — surface a flat region with zigzag or spiral raster. Three modes:
   - Target Depth (flatten an uneven top)
   - Target Thickness (measured from wasteboard up)
-  - Wasteboard Surfacing (auto-uses machine travel from grblHAL `$130`/`$131`); with ncSender Pro's keepout zone on, **Avoid Keepout Zone** leaves out the zone plus the bit radius
+  - Wasteboard Surfacing (auto-uses machine travel from grblHAL `$130`/`$131`); with a keepout zone on (ncSender Pro's, or the ATCi tool rack's `$684`-`$687` with `$683` Enable), **Avoid Keepout Zone** leaves out each zone plus the bit radius
 - Jointer — make a straight reference edge. Trim Width × Number of Trims off the chosen side, single-direction cuts so climb/conventional stays consistent (or **Both Ways**, alternating trims to save the trip back)
 - Cutter — cold-saw-style parting cut. Single cut line at a target dimension (bit-radius compensated), multi-pass Z to reduce bit load (**Both Ways** alternates the passes to save the trip back)
 
