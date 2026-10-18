@@ -71,6 +71,7 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
+- **Bit Diameter** starts at a 3/8" keyhole bit (10 mm on a metric install) and **Slot Length** (hole centre to slot-end centre) at 1.5 times that; changing the bit on this tab sets Slot Length to 1.5 times the new diameter, which you can then type over. In the preview the solid outline is the keyhole at the surface (the plunge hole joined to the narrow slot the shank leaves, drawn at half the head's width, as there's no shank field) and the dashed outline is the head's path under it.
 - **Origin:** by default X0 Y0 is the plunge hole (the first one, when a pattern is on), picked on the preview. The Origin picker is the standard one: the corners, edge midpoints, and center of the whole cut (every keyhole's head swept along its slot), as on the other shapes. On the preview, tap the plunge hole or one of those box points to pick it.
 - Set **Bit Diameter** to the bit's head diameter.
 - There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.

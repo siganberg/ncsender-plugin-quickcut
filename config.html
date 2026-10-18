@@ -4963,7 +4963,8 @@
       if (loaded && !saved[shape]) return;
       var s = saved[shape] || {};
       state.toolByShape[shape] = s.tool || {
-        bitDiameter:    common.bitDiameter,
+        // A Keyhole's first bit is a common keyhole bit (keyholeFirstBitMm).
+        bitDiameter:    shape === 'keyhole' && !loaded ? keyholeFirstBitMm() : common.bitDiameter,
         feedRate:       common.feedRate,
         plungeFeedRate: common.plungeFeedRate
       };
@@ -5076,6 +5077,7 @@
 
     var key = saved.keyhole || {};
     if (key.slotLength != null)     $('qc-key-length').value      = roundDisplay(mmToDisplay(key.slotLength));
+    else if (!loaded)               $('qc-key-length').value      = roundDisplay(mmToDisplay(1.5 * keyholeFirstBitMm()));
     if (key.startAngleDeg != null)  $('qc-key-start-angle').value = key.startAngleDeg;
     if (key.origin)                 setOriginPickerValue('qc-key-origin', key.origin);
     hydrateInset('key', key.inset);
@@ -6665,6 +6667,11 @@
   // both scaled together to fit the box, then turned to the Slot Angle.
   // The undercut channel the head cuts below the surface is hatched
   // with a dashed outline; the plunge hole is the solid circle.
+  var KEYHOLE_SHANK_RATIO = 0.5;
+  // A Keyhole's first bit (no Keyhole tool saved yet): a 3/8" keyhole bit,
+  // or 10 mm on a metric install, the nearest whole millimetre.
+  function keyholeFirstBitMm() { return state.isImperial ? 3 / 8 * 25.4 : 10; }
+
   function updateKeyholePreview() {
     schedulePatternPreview();
     updateInsetState('key');
@@ -6705,10 +6712,25 @@
       ['front-left', bx0, by1], ['front-center', bxm, by1], ['front-right', bx1, by1]
     ].map(function(q) { return { value: q[0], x: q[1], y: q[2] }; });
 
-    var channel = 'M' + f(pt(H, r, n)) + ' L' + f(pt(E, r, n)) +
-                  ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 0 0 ' + f(pt(E, -r, n)) +
-                  ' L' + f(pt(H, -r, n)) +
-                  ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 0 0 ' + f(pt(H, r, n)) + ' Z';
+    function stadium(rr) {
+      return 'M' + f(pt(H, rr, n)) + ' L' + f(pt(E, rr, n)) +
+             ' A' + rr.toFixed(2) + ',' + rr.toFixed(2) + ' 0 0 0 ' + f(pt(E, -rr, n)) +
+             ' L' + f(pt(H, -rr, n)) +
+             ' A' + rr.toFixed(2) + ',' + rr.toFixed(2) + ' 0 0 0 ' + f(pt(H, rr, n)) + ' Z';
+    }
+    // Dashed: the head's path under the surface. Solid: the keyhole at the
+    // top surface, the plunge hole joined to the narrow slot the shank
+    // leaves. There's no field for the shank, so it's drawn at half the
+    // head's diameter, about what keyhole bits have.
+    var channel = stadium(r);
+    var rs = r * KEYHOLE_SHANK_RATIO, a = Math.sqrt(r * r - rs * rs);
+    var top = Ls > 0
+      ? 'M' + f(pt(pt(H, rs, n), a, u)) + ' L' + f(pt(E, rs, n)) +
+        ' A' + rs.toFixed(2) + ',' + rs.toFixed(2) + ' 0 0 0 ' + f(pt(E, -rs, n)) +
+        ' L' + f(pt(pt(H, -rs, n), a, u)) +
+        ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1 0 ' + f(pt(pt(H, rs, n), a, u)) + ' Z'
+      : 'M' + f(pt(H, r, n)) + ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1 0 ' + f(pt(H, -r, n)) +
+        ' A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1 0 ' + f(pt(H, r, n)) + ' Z';
 
     // Slot Length dimension: hole center to slot-end center, offset to
     // the +n side. Diameter label on the opposite side of the hole.
@@ -6744,7 +6766,7 @@
       shapePreviewDefs('qc-key') +
       '<path class="qc-shape-hatch" fill="url(#qc-key-hatch)" d="' + channel + '"/>' +
       '<path class="qc-shape-inscribed" d="' + channel + '"/>' +
-      '<circle class="qc-shape-fill" cx="' + H.x.toFixed(2) + '" cy="' + H.y.toFixed(2) + '" r="' + r.toFixed(2) + '"/>' +
+      '<path class="qc-shape-fill" d="' + top + '"/>' +
       dimLine +
       label(lenLabel, n, len > 0 ? len : '?') +
       label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?')) +
@@ -6853,6 +6875,14 @@
     }, null, snapMiterAngle);
     wirePickCursor($('qc-key-preview'), function(pt) { return !!nearestPreviewNode(keyPreviewNodes, pt); });
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
+    // On the Keyhole tab, a new Bit Diameter sets Slot Length (hole centre
+    // to slot-end centre) to 1.5 times it; type over it for another length.
+    $('qc-bit').addEventListener('input', function() {
+      var bit = num('qc-bit', 0);
+      if (state.currentTab !== 'keyhole' || !(bit > 0)) return;
+      $('qc-key-length').value = roundDisplay(1.5 * bit);
+      recheckField('qc-key-length');
+    });
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
     $('qc-key-pattern-style').addEventListener('change', function() { updatePatternVisibility('key'); });
@@ -7733,7 +7763,7 @@
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
-      'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head.',
+      'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head (it starts at a 3/8&quot; bit, 10 mm on a metric install); changing it sets <strong>Slot Length</strong> (hole centre to slot-end centre) to 1.5 times the new diameter, which you can then type over. In the preview the solid outline is the keyhole at the surface (the plunge hole and the narrow slot the shank leaves, drawn at half the head&rsquo;s width) and the dashed one the head&rsquo;s path under it.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'X0 Y0 starts at the <strong>plunge hole</strong>; tap it on the preview to go back to it. The Origin picker&rsquo;s dots are the box around the whole cut, which you can also tap on the preview: a corner, edge midpoint or its center.' ] },
