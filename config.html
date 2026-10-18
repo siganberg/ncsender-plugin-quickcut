@@ -670,6 +670,15 @@
      origin picker at its own width. */
   .qc-row-3.qc-rect-type-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
+  /* Shape row 2: Cut Type, then Start Angle and Stepover (clearing). */
+  .qc-row-3.qc-type-row { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); }
+  /* Depth: Total Depth, Depth of Cut and, with Holding Tabs on (its
+     switch is in the card header), Tabs / Tab Width / Tab Height. */
+  .qc-row-5 { display: grid; gap: 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .qc-tabs-fields { display: contents; }
+  @media (max-width: 760px) {
+    .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
 
   /* Graphical origin picker — 3x3 grid of dots on the workpiece
      bounding box. Corners + center are the primary anchors (large,
@@ -691,6 +700,11 @@
      title and inputs above when it's first in a row, and stays clear of
      the input beside it otherwise. */
   .qc-origin-inset-field .qc-origin-grid { margin-left: 7px; }
+  /* Origin above Inset, in their own column just left of the preview,
+     each label centred over its control. */
+  .qc-shape-grid.qc-shape-grid--origin { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .qc-origin-stack { display: flex; flex-direction: column; gap: 12px; }
+  .qc-origin-stack .qc-field { align-items: center; }
   .qc-origin-grid {
     position: relative;
     width: 64px;
@@ -1449,7 +1463,7 @@
         <form id="qc-rect-form" onsubmit="return false">
           <div class="qc-card qc-section-card">
             <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid">
+            <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
                 <div class="qc-row-3">
                   <div class="qc-field">
@@ -1465,7 +1479,7 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0" title="Rounds the corners (0 = square). On an Inner cut the corner can't be tighter than the bit's radius; the preview shows what you'll get.">
                   </div>
                 </div>
-                <div class="qc-row-3 qc-rect-type-row">
+                <div class="qc-row-3 qc-type-row">
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-rect-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
@@ -1478,22 +1492,20 @@
                     <label for="qc-rect-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-rect-start-angle" step="1" value="0" title="Turns the rectangle about its center, CCW from +X (negative = CW). 90° = Width runs along Y. You can also twist the preview to turn it.">
                   </div>
-                  <div class="qc-field qc-origin-inset-field">
-                    <div class="qc-origin-col">
-                      <label>Origin</label>
-                      <div id="qc-rect-origin-picker"></div>
-                    </div>
-                    <div class="qc-inset-field">
-                      <label for="qc-rect-inset">Inset</label>
-                      <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    </div>
-                  </div>
-                </div>
-                <div class="qc-row-3">
                   <div class="qc-field qc-rect-clearing-only" style="display: none;">
-                    <label for="qc-rect-stepover">Stepover (% of bit)</label>
+                    <label for="qc-rect-stepover">Stepover (%)</label>
                     <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
+                </div>
+              </div>
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-rect-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <label for="qc-rect-inset">Inset</label>
+                  <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
                 </div>
               </div>
               <div class="qc-shape-preview-cell">
@@ -1503,8 +1515,17 @@
           </div>
 
           <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Depth</h3>
+              <label class="qc-switch-label" id="qc-rect-tabs-block" title="Leave small bridges on the final passes so the part stays attached">
+                <span>Holding Tabs</span>
+                <span class="qc-switch">
+                  <input type="checkbox" id="qc-rect-tabs-enable">
+                  <span class="qc-switch-track"></span>
+                </span>
+              </label>
+            </div>
+            <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-rect-depth">Total Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
@@ -1513,15 +1534,7 @@
                 <label for="qc-rect-step">Depth of Cut</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
               </div>
-            <div class="qc-tabs-block" id="qc-rect-tabs-block">
-              <label class="qc-switch-label" title="Leave small bridges on the final passes so the part stays attached">
-                <span>Holding Tabs</span>
-                <span class="qc-switch">
-                  <input type="checkbox" id="qc-rect-tabs-enable">
-                  <span class="qc-switch-track"></span>
-                </span>
-              </label>
-              <div class="qc-row-3" id="qc-rect-tabs-fields" style="display: none;">
+              <div class="qc-tabs-fields" id="qc-rect-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-rect-tabs-count">Tabs</label>
                   <input class="qc-input" type="number" id="qc-rect-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
@@ -1535,7 +1548,6 @@
                   <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tabs-height" step="0.1" value="2" title="Material left standing above the bottom of the cut.">
                 </div>
               </div>
-            </div>
             </div>
           </div>
 
@@ -4172,8 +4184,9 @@
     var block = $('qc-' + prefix + '-tabs-block');
     if (!block) return;
     var cut = $('qc-' + prefix + '-cut-type').value;
-    block.style.display = cut === 'clearing' || cut === 'center' ? 'none' : '';
-    $('qc-' + prefix + '-tabs-fields').style.display = $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
+    var allowed = cut !== 'clearing' && cut !== 'center';
+    block.style.display = allowed ? '' : 'none';
+    $('qc-' + prefix + '-tabs-fields').style.display = allowed && $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
   }
 
   // Generator tab settings, or null when the switch is off.
