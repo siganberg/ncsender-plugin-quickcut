@@ -697,6 +697,8 @@
      each label centred over its control. */
   .qc-inset-field { width: 84px; }
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
+  /* Above the front dots' tap targets, which reach a few px into it. */
+  .qc-origin-stack .qc-inset-field { position: relative; z-index: 1; }
   /* Inset X / Y: two boxes in the one box's width. */
   .qc-inset-inputs { display: flex; gap: 4px; width: 100%; }
   .qc-inset-inputs .qc-input { flex: 1; min-width: 0; width: 100%; }
@@ -746,6 +748,18 @@
   }
   .qc-origin-point.qc-corner { width: 14px; height: 14px; }
   .qc-origin-point.qc-edge   { width: 9px;  height: 9px;  }
+  /* A larger, invisible tap target around each dot: they're 32 px apart,
+     so 28 px circles don't overlap, and the dots look the same. */
+  .qc-origin-point::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
   .qc-origin-point:hover {
     background: var(--color-accent);
   }
