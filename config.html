@@ -5647,18 +5647,16 @@
     var v = o.value;
     var sx = /left/.test(v) ? 1 : /right/.test(v) ? -1 : 0;
     var sy = /^front/.test(v) ? -1 : /^back/.test(v) ? 1 : 0;
-    var len = ins * scale, label = String(roundDisplay(ins)), out = '';
+    var len = ins * scale, out = '';
     var f = function(n) { return n.toFixed(2); };
-    if (sx) {
-      var x2 = px + sx * len;
-      out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(x2) + '" y2="' + f(py) + '"/>' +
-             '<text class="qc-inset-label" x="' + f((px + x2) / 2) + '" y="' + f(py + (sy > 0 ? -2.5 : 2.5)) + '" text-anchor="middle" dominant-baseline="' + (sy > 0 ? 'auto' : 'hanging') + '">' + label + '</text>';
-    }
-    if (sy) {
-      var y2 = py + sy * len;
-      out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px) + '" y2="' + f(y2) + '"/>' +
-             '<text class="qc-inset-label" x="' + f(px + (sx < 0 ? -2.5 : 2.5)) + '" y="' + f((py + y2) / 2) + '" text-anchor="' + (sx < 0 ? 'end' : 'start') + '" dominant-baseline="middle">' + label + '</text>';
-    }
+    if (sx) out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px + sx * len) + '" y2="' + f(py) + '"/>';
+    if (sy) out += '<line class="qc-inset-mark" x1="' + f(px) + '" y1="' + f(py) + '" x2="' + f(px) + '" y2="' + f(py + sy * len) + '"/>';
+    // One label (there's one Inset), just off the crosshair between the
+    // marks, or beside a single mark, on the side the marks run to.
+    var lx = sx || 1, ly = sy || -1, dir = ins < 0 ? -1 : 1;
+    out += '<text class="qc-inset-label" x="' + f(px + lx * dir * 3) + '" y="' + f(py + ly * dir * 3) + '" ' +
+           'text-anchor="' + (lx * dir > 0 ? 'start' : 'end') + '" dominant-baseline="' + (ly * dir > 0 ? 'hanging' : 'auto') + '">' +
+           roundDisplay(ins) + '</text>';
     return out;
   }
   // Inset only applies to a corner or edge origin (not center, a tapped
