@@ -4222,6 +4222,7 @@
   var PATTERN_PREVIEW_MAX_COPIES = 3000;
   var PATTERN_PREVIEW_MAX_OUTLINES = 500;
   var patternPreviewQueued = false;
+  var patternPreviewKey = null;
 
   function mountPatternPreviews() {
     Object.keys(PATTERN_PREVIEW_TABS).forEach(function(tab) {
@@ -4341,14 +4342,31 @@
     if (!svg || !$('qc-' + tab.prefix + '-pattern-enable').checked) return;
     var gen = makeQuickCutGenerator(state.isImperial);
     var params = tab.read();
+    // The drawing is one pass of the outline, so depths, feeds, spindle
+    // and coolant don't change it: they're fixed here, and an edit to
+    // them (e.g. typing 0.1 into Depth of Cut) costs nothing. Fixing the
+    // depth also keeps a half-typed Depth of Cut of 0 away from the
+    // generator, whose depth loops never end with a step of 0 (Generate
+    // can't reach that: validation needs more than 0).
+    params.tabs = null;
+    if (params.cutType === 'clearing') params.cutType = 'inner';
+    params.depth = params.depthOfCut = 1;
+    params.peckDepth = 0;
+    params.feedRate = params.plungeFeedRate = 1;
+    params.spindleRpm = params.spindleDelay = 0;
+    params.mistM7 = params.floodM8 = false;
+    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(params);
+    if (key === patternPreviewKey && svg.firstChild) return;
+    patternPreviewKey = key;
+    if (!(params.bitDiameter > 0)) {
+      svg.innerHTML = patternPreviewCaption(['Set a bit', 'diameter'], -3);
+      return;
+    }
     var copies = gen.computePatternPositions(params.pattern).length;
     if (copies > PATTERN_PREVIEW_MAX_COPIES) {
       svg.innerHTML = patternPreviewCaption([copies + ' copies:', 'too many', 'to preview'], -9);
       return;
     }
-    params.tabs = null;
-    if (params.cutType === 'clearing') params.cutType = 'inner';
-    if (params.depthOfCut > 0 && params.depth > params.depthOfCut) params.depth = params.depthOfCut;
     var trace;
     try {
       trace = traceProgram(gen[tab.gen](params));
