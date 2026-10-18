@@ -851,6 +851,42 @@ test('planer wasteboard mode disables overrun and insets by bit radius', () => {
   assert.ok(!/^\(Overrun:/m.test(gcode), 'wasteboard mode should not emit an Overrun header line');
 });
 
+test('planer wasteboard leaves out the keepout zone plus the bit radius', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const base = {
+    mode: 'wasteboard', width: 812, height: 1230, origin: 'front-left', pattern: 'zigzagY', stepoverPct: 40,
+    depth: 0.5, depthOfCut: 0.5, bitDiameter: 6, feedRate: 2000, plungeFeedRate: 500,
+    spindleRpm: 15000, spindleDelay: 1, mistM7: false, floodM8: false
+  };
+  const zone = { minX: 690, minY: 700, maxX: 812, maxY: 1230 };
+  const g = gen(Object.assign({}, base, { keepout: zone }));
+  assert.match(g, /Keepout zone left out: X 690-812, Y 700-1230mm plus the bit radius, surfacing 2 areas/);
+  // Follow every cutting move: none may bring the bit's edge into the zone.
+  let x = 0, y = 0, maxX = 0, maxY = 0;
+  for (const line of g.split('\n')) {
+    const mx = line.match(/X(-?[\d.]+)/), my = line.match(/Y(-?[\d.]+)/);
+    const nx = mx ? +mx[1] : x, ny = my ? +my[1] : y;
+    if (/^G1/.test(line) && (mx || my)) {
+      // A straight move along one axis: its farthest corner from the zone's
+      // corner is either end.
+      for (const [px, py] of [[x, y], [nx, ny]]) {
+        assert.ok(!(px > zone.minX - 3 + 1e-6 && py > zone.minY - 3 + 1e-6), `cut at ${px},${py} reaches the zone`);
+      }
+      if (x === nx) assert.ok(!(x > zone.minX - 3 + 1e-6 && Math.max(y, ny) > zone.minY - 3 + 1e-6), `stroke at X${x} crosses the zone`);
+      if (y === ny) assert.ok(!(y > zone.minY - 3 + 1e-6 && Math.max(x, nx) > zone.minX - 3 + 1e-6), `stroke at Y${y} crosses the zone`);
+      maxX = Math.max(maxX, nx); maxY = Math.max(maxY, ny);
+    }
+    x = nx; y = ny;
+  }
+  // The rest of the bed is still surfaced: right up to the machine limits
+  // in front of the zone, and to the back beside it.
+  assert.ok(maxX > 812 - 3 - 0.01 && maxY > 1230 - 3 - 0.01, `reaches ${maxX}, ${maxY}`);
+  // No zone, or one off the bed, leaves the program as it was.
+  const plain = gen(base);
+  assert.equal(gen(Object.assign({}, base, { keepout: { minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 } })), plain);
+  assert.equal(gen(Object.assign({}, base, { mode: 'depth', keepout: zone })), gen(Object.assign({}, base, { mode: 'depth' })));
+});
+
 // ---------- Jointer ----------
 function jointerBase(overrides) {
   return Object.assign({
