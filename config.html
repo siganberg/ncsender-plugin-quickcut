@@ -5534,6 +5534,13 @@
     $('qc-circ-pattern-style').addEventListener('change', function() { updatePatternVisibility('circ'); });
     $('qc-circ-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('circ'); });
     $('qc-circ-diameter').addEventListener('input', updateCirclePreview);
+    // Tap a box corner, a quadrant point or the center to make it the Origin.
+    var circSvg = $('qc-circ-preview');
+    circSvg.addEventListener('click', function(ev) {
+      var pt = svgPointOf(circSvg, ev);
+      if (pt) pickPreviewNode(circPreviewNodes, 'qc-circ-origin', pt, updateCirclePreview);
+    });
+    wirePickCursor(circSvg, function(pt) { return !!nearestPreviewNode(circPreviewNodes, pt); });
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
     updateCirclePreview();
@@ -5661,7 +5668,7 @@
     setOriginPickerValue(inputId, best.value);
     redraw();
   }
-  var rectPreviewNodes = null, polyPreviewNodes = null;
+  var rectPreviewNodes = null, polyPreviewNodes = null, circPreviewNodes = null;
 
   // With a mouse, the cursor turns to a pointer over a spot a click would
   // pick (an origin dot, an end, a Drill hole); elsewhere the preview's
@@ -6267,6 +6274,15 @@
               'A' + r + ',' + r + ' 0 1 0 ' + r + ',0 Z';
       hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
     }
+
+    // Tap targets for the 9-dot Origin picker: the circle's box corners,
+    // its four quadrant points (the box's edge midpoints) and the center.
+    // SVG y is down, so back is up.
+    circPreviewNodes = [
+      ['back-left', -r, -r], ['back-center', 0, -r], ['back-right', r, -r],
+      ['left-center', -r, 0], ['center', 0, 0], ['right-center', r, 0],
+      ['front-left', -r, r], ['front-center', 0, r], ['front-right', r, r]
+    ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; });
 
     var dLine = '<line class="qc-shape-dim-line" x1="' + (-r + arrowInset) + '" y1="0" ' +
                 'x2="' + (r - arrowInset) + '" y2="0" ' +
@@ -7159,7 +7175,8 @@
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
-      HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+      HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS,
+      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.' ] },
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',

@@ -6,7 +6,7 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 
 **Shapes** (inner/outer cut, corner radius where applicable, origin selection):
 - Rectangle — Inner (perimeter), Inner (clearing), Outer; **Start Angle** turns it about its center (CCW); twist the preview to turn it by dragging (half degrees, sticking at miter angles; see [Pattern preview](#pattern-preview)). The preview shows the corner radius and the angle as you type, and a tap on a corner (or the center) makes that point X0 Y0
-- Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass
+- Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass; tap a corner of the circle's box, a quadrant point or the center on the preview to make it X0 Y0 (the same points as the Origin picker)
 - Polygon — 3 to 12 sides, sized **Across Corners**, **Across Flats** or by **Edge Length** (pick it in the dropdown over the size; switching converts the number), Inner (perimeter), Inner (clearing), Outer; optional **Corner Radius** rounds every corner (up to fully round); twist the preview to change the Start Angle (in half degrees, sticking at miter angles such as 22.5° and 36°; see [Pattern preview](#pattern-preview)), or tap a corner (or the polygon's own center, which on an odd-sided polygon isn't the middle of the Origin box) to make it X0 Y0
 - Slot — straight or arc (curved) slot with round ends: Center line, Inner (perimeter), Inner (clearing), Outer; an arc is given by radius and sweep, or by chord and rise; see [Slot](#slot)
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
