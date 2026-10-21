@@ -2326,8 +2326,11 @@
               <div class="qc-shape-fields">
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-key-length">Slot Length</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-length" min="0.001" step="0.01" value="10" required title="How far the bit travels from the plunge hole along the Slot Angle.">
+                    <select class="qc-label-select" id="qc-key-length-mode" aria-label="Slot length set by" title="Slot Length: type the distance, and changing the bit leaves it alone. Slot Ratio: type a multiple of the Bit Diameter (1.5 to start), so the slot follows the bit. Changing it converts the number so the slot stays the same.">
+                      <option value="length" selected>Slot Length</option>
+                      <option value="ratio">Slot Ratio</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-length" min="0.001" step="0.01" value="10" required aria-labelledby="qc-key-length-mode" title="How far the bit travels from the plunge hole along the Slot Angle (hole centre to slot-end centre), or with Slot Ratio, that distance as a multiple of the Bit Diameter.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-key-start-angle">Slot Angle (°)</label>
@@ -3604,7 +3607,7 @@
   }
 
   function validateField(id, value) {
-    var rules = validationRules()[id];
+    var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE : validationRules()[id];
     if (!rules) return null;
     var unitKind = $(id) && $(id).getAttribute('data-unit');
     var n = unitKind ? parseUnitValue(value, state.isImperial, unitKind) : parseFloat(value);
@@ -5092,8 +5095,17 @@
     hydratePattern('slt', slt.pattern);
 
     var key = saved.keyhole || {};
-    if (key.slotLength != null)     $('qc-key-length').value      = roundDisplay(mmToDisplay(key.slotLength));
-    else if (!loaded)               $('qc-key-length').value      = roundDisplay(mmToDisplay(1.5 * keyholeFirstBitMm()));
+    if (key.slotLengthMode === 'ratio' && key.slotRatio > 0) {
+      setKeyLengthMode('ratio');
+      $('qc-key-length').value = key.slotRatio;
+    } else if (key.slotLength != null) {
+      setKeyLengthMode('length');
+      $('qc-key-length').value = roundDisplay(mmToDisplay(key.slotLength));
+    } else if (!loaded) {
+      setKeyLengthMode('length');
+      $('qc-key-length').value = roundDisplay(mmToDisplay(KEYHOLE_RATIO * keyholeFirstBitMm()));
+    }
+    $('qc-key-length-mode').setAttribute('data-was', $('qc-key-length-mode').value);
     if (key.startAngleDeg != null)  $('qc-key-start-angle').value = key.startAngleDeg;
     if (key.origin)                 setOriginPickerValue('qc-key-origin', key.origin);
     hydrateInset('key', key.inset);
@@ -5295,6 +5307,8 @@
       body.keyhole = {
         tool:          toolForShape,
         slotLength:    displayToMm(params.slotLength),
+        slotLengthMode: params.slotLengthMode,
+        slotRatio:     params.slotRatio,
         startAngleDeg: params.startAngleDeg,
         origin:        params.origin,
         inset:       insetToMm(params.inset),
@@ -6727,10 +6741,28 @@
   // orientation so 0° matches what the generator emits. The dimension
   // arrow across the middle labels the polygon's circumscribed
   // diameter (vertex-to-opposite-vertex distance).
+  // Slot Length is typed as a distance, or with Slot Ratio as a multiple
+  // of the Bit Diameter, so the slot follows the bit.
+  var KEYHOLE_RATIO = 1.5;
+  var KEYHOLE_RATIO_RULE = { min: 0.01, max: 100, label: 'Slot Ratio' };
+  function keyLengthIsRatio() { return $('qc-key-length-mode').value === 'ratio'; }
+  function keyholeSlotLength() {
+    return keyLengthIsRatio() ? num('qc-key-length', 0) * num('qc-bit', 0) : num('qc-key-length', 0);
+  }
+  // A ratio has no unit, so the field stops converting typed units.
+  function setKeyLengthMode(mode) {
+    $('qc-key-length-mode').value = mode;
+    if (mode === 'ratio') $('qc-key-length').removeAttribute('data-unit');
+    else $('qc-key-length').setAttribute('data-unit', 'length');
+  }
+  function roundRatio(v) { return Math.round(v * 1000) / 1000; }
+
   function readKeyholeForm() {
     var common = readCommonParams();
     return Object.assign({}, common, {
-      slotLength:    num('qc-key-length', 0),
+      slotLength:    keyholeSlotLength(),
+      slotLengthMode: $('qc-key-length-mode').value,
+      slotRatio:     keyLengthIsRatio() ? num('qc-key-length', 0) : null,
       startAngleDeg: num('qc-key-start-angle', 90),
       origin:        $('qc-key-origin').value,
       inset:       readInset('key'),
@@ -6756,7 +6788,7 @@
     updateInsetState('key');
     var svg = document.getElementById('qc-key-preview');
     if (!svg) return;
-    var len = num('qc-key-length', 0);
+    var len = keyholeSlotLength();
     var dia = num('qc-bit', 0);
     var angle = num('qc-key-start-angle', 90);
     var L = Math.max(0, len), D = Math.max(0, dia);
@@ -6847,7 +6879,7 @@
       '<path class="qc-shape-inscribed" d="' + channel + '"/>' +
       '<path class="qc-shape-fill" d="' + top + '"/>' +
       dimLine +
-      label(lenLabel, n, len > 0 ? len : '?') +
+      label(lenLabel, n, len > 0 ? roundDisplay(len) : '?') +
       label(diaLabel, { x: -n.x, y: -n.y }, '⌀' + (dia > 0 ? dia : '?')) +
       // X0 Y0 relative to the plunge hole (H), to the same scale.
       pickHints(keyPreviewNodes) +
@@ -6953,21 +6985,25 @@
       pickPreviewNode(keyPreviewNodes, 'qc-key-origin', pt, updateKeyholePreview);
     }, null, snapMiterAngle);
     wirePickCursor($('qc-key-preview'), function(pt) { return !!nearestPreviewNode(keyPreviewNodes, pt); });
-    // Bit Diameter lives in the shared Tool card; it sets the hole size.
-    // On the Keyhole tab, a new Bit Diameter carries Slot Length (hole
-    // centre to slot-end centre) along at 1.5 times it, but only while the
-    // length is still 1.5 times the bit before the edit: a length typed by
-    // hand stays, and tidying the field (e.g. 1/4 to its number) changes
-    // nothing.
-    var keyBitBefore = null;
-    $('qc-bit').addEventListener('focus', function() { keyBitBefore = num('qc-bit', 0); });
-    $('qc-bit').addEventListener('input', function() {
-      var bit = num('qc-bit', 0), before = keyBitBefore;
-      keyBitBefore = bit;
-      if (state.currentTab !== 'keyhole' || !(bit > 0) || before == null || bit === before) return;
-      if (Math.abs(num('qc-key-length', NaN) - roundDisplay(1.5 * before)) > 1e-9) return;
-      $('qc-key-length').value = roundDisplay(1.5 * bit);
+    // Bit Diameter lives in the shared Tool card; it sets the hole size,
+    // and with Slot Ratio the slot's length too (the preview follows it).
+    // Switching Slot Length / Slot Ratio converts the number, so the slot
+    // stays the same.
+    var keyMode = $('qc-key-length-mode');
+    keyMode.setAttribute('data-was', keyMode.value);
+    keyMode.addEventListener('change', function() {
+      var was = keyMode.getAttribute('data-was'), mode = keyMode.value;
+      setKeyLengthMode(was);
+      var v = num('qc-key-length', NaN), bit = num('qc-bit', 0);
+      setKeyLengthMode(mode);
+      if (mode !== was && isFinite(v) && v > 0 && bit > 0) {
+        $('qc-key-length').value = mode === 'ratio' ? roundRatio(v / bit) : roundDisplay(v * bit);
+      } else if (mode === 'ratio' && was !== 'ratio') {
+        $('qc-key-length').value = KEYHOLE_RATIO;
+      }
+      keyMode.setAttribute('data-was', mode);
       recheckField('qc-key-length');
+      updateKeyholePreview();
     });
     $('qc-bit').addEventListener('input', updateKeyholePreview);
     $('qc-key-pattern-enable').addEventListener('change', function() { updatePatternVisibility('key'); });
@@ -7854,7 +7890,7 @@
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     keyhole: { name: 'Keyhole', notes: [
-      'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head (it starts at a 3/8&quot; bit, 10 mm on a metric install); changing it sets <strong>Slot Length</strong> (hole centre to slot-end centre) to 1.5 times the new diameter, which you can then type over. In the preview the solid outline is the keyhole at the surface (the plunge hole and the narrow slot the shank leaves, drawn at half the head&rsquo;s width) and the dashed one the head&rsquo;s path under it.',
+      'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head (it starts at a 3/8&quot; bit, 10 mm on a metric install); it starts with <strong>Slot Length</strong> (hole centre to slot-end centre) at 1.5 times that. The menu on its label picks how the slot is set: <strong>Slot Length</strong> is a distance, which changing the bit leaves alone; <strong>Slot Ratio</strong> is a multiple of the Bit Diameter (1.5 to start), so the slot follows the bit. Switching converts the number, so the slot stays the same. In the preview the solid outline is the keyhole at the surface (the plunge hole and the narrow slot the shank leaves, drawn at half the head&rsquo;s width) and the dashed one the head&rsquo;s path under it.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'X0 Y0 starts at the <strong>plunge hole</strong>; tap it on the preview to go back to it. The Origin picker&rsquo;s dots are the box around the whole cut, which you can also tap on the preview: a corner, edge midpoint or its center.' ] },
