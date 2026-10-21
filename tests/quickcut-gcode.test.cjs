@@ -2459,3 +2459,30 @@ test('comments never nest brackets, which grblHAL can reject until a reset', () 
     assert.ok(!/\([^)]*\(/.test(code) && !/\)[^(]*\)/.test(code), `nested brackets: ${l}`);
   }));
 });
+
+test('planer wasteboard surfaces the travel where the machine has it, negative coordinates included', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const base = {
+    mode: 'wasteboard', width: 812, height: 1230, origin: 'front-left', pattern: 'zigzagY', stepoverPct: 40,
+    depth: 0.5, depthOfCut: 0.5, bitDiameter: 6, feedRate: 2000, plungeFeedRate: 500,
+    spindleRpm: 15000, spindleDelay: 1, mistM7: false, floodM8: false
+  };
+  // Travel at 0…812 (homing sets the origin at the front-left) cuts exactly as before.
+  assert.equal(gen(Object.assign({}, base, { travelMin: { x: 0, y: 0 } })), gen(base));
+  // A machine whose coordinates run negative: X -812…0, Y -1230…0.
+  const neg = gen(Object.assign({}, base, { travelMin: { x: -812, y: -1230 } }));
+  assert.match(neg, /^\(Machine travel: X -812 to 0, Y -1230 to 0 mm\)$/m);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  neg.split('\n').forEach(l => {
+    if (/^G53/.test(l) || /^\(/.test(l)) return;
+    const x = /X(-?[\d.]+)/.exec(l), y = /Y(-?[\d.]+)/.exec(l);
+    if (x) { minX = Math.min(minX, +x[1]); maxX = Math.max(maxX, +x[1]); }
+    if (y) { minY = Math.min(minY, +y[1]); maxY = Math.max(maxY, +y[1]); }
+  });
+  assert.deepEqual([minX, maxX, minY, maxY], [-809, -3, -1227, -3]);
+  // Its keepout zone, also negative, is now left out.
+  const zone = { name: 'ncSender', minX: -122, minY: -530, maxX: 0, maxY: 0 };
+  const withZone = gen(Object.assign({}, base, { travelMin: { x: -812, y: -1230 }, keepouts: [zone] }));
+  assert.match(withZone, /^\(Keepout zone left out: ncSender, X -122-0, Y -530-0mm plus the bit radius\)$/m);
+  assert.ok(!/not avoided/.test(withZone));
+});

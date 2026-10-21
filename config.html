@@ -2980,6 +2980,10 @@
     // /api/firmware — used by Planer wasteboard mode to auto-fill the
     // surfacing region with the machine's full travel area.
     machineLimitXmm: 0,
+    // Front-left corner of the machine's travel in machine coordinates
+    // (mm), from the homing settings; null when they don't tell.
+    machineMinXmm: null,
+    machineMinYmm: null,
     machineLimitYmm: 0,
     // Tool card (Bit Diameter, Feed Rate, Plunge Rate) is per-shape.
     // Each shape keeps its own values in mm / mm-per-min. On tab switch
@@ -3022,6 +3026,8 @@
       if (fwSettings && fwSettings['131'] && fwSettings['131'].value) {
         state.machineLimitYmm = parseFloat(fwSettings['131'].value) || 0;
       }
+      var travelMin = machineTravelMin(fwSettings, state.machineLimitXmm, state.machineLimitYmm);
+      if (travelMin) { state.machineMinXmm = travelMin.x; state.machineMinYmm = travelMin.y; }
       var atci = atciKeepout(fwSettings);
       if (atci) state.keepoutZonesMm.push(atci);
     } catch (err) {
@@ -4019,9 +4025,29 @@
       depthOfCut:   num('qc-plan-step', 0),
       avoidKeepout: $('qc-plan-keepout').checked,
       keepouts:     mode === 'wasteboard' ? planerKeepouts() : [],
+      travelMin:    mode === 'wasteboard' && state.machineMinXmm != null
+        ? { x: roundDisplay(mmToDisplay(state.machineMinXmm)), y: roundDisplay(mmToDisplay(state.machineMinYmm)) } : null,
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     });
+  }
+
+  // Where the machine's travel sits in machine coordinates, from grblHAL's
+  // homing settings. With $22 "Set machine origin to 0", homing sets the
+  // home corner to 0, so an axis homing to its minimum ($23 bit set:
+  // search in the negative direction) runs 0…travel and one homing to
+  // its maximum runs -travel…0. Without it, grbl's machine space is
+  // -travel…0 whichever way the axis homes. Unknown (no grblHAL $22
+  // names, or homing off, when machine zero is wherever it powered up):
+  // null, and Wasteboard Surfacing keeps 0…travel.
+  function machineTravelMin(fw, travelX, travelY) {
+    var cycle = fw && fw['22'], dir = fw && fw['23'];
+    if (!cycle || !dir || !(travelX > 0 && travelY > 0)) return null;
+    var bit = String(cycle.format || '').split(',').indexOf('Set machine origin to 0');
+    var flags = parseInt(cycle.value, 10), toMin = parseInt(dir.value, 10);
+    if (bit < 0 || !isFinite(flags) || !isFinite(toMin) || !(flags & 1)) return null;
+    var originAtHome = !!(flags & (1 << bit));
+    return { x: originAtHome && (toMin & 1) ? 0 : -travelX, y: originAtHome && (toMin & 2) ? 0 : -travelY };
   }
 
   // The grblHAL ATCi plugin's keepout ($683 bit 0 = Enable, $684-$687 =
@@ -4095,30 +4121,34 @@
     }
     if (mode === 'wasteboard') {
       var haveLimits = state.machineLimitXmm > 0 && state.machineLimitYmm > 0;
+      // The travel in machine coordinates: from the homing settings when
+      // they tell (machineTravelMin), else 0…$130 × 0…$131.
+      var minX = mmToDisplay(state.machineMinXmm || 0), minY = mmToDisplay(state.machineMinYmm || 0);
+      var areaX = mmToDisplay(state.machineLimitXmm), areaY = mmToDisplay(state.machineLimitYmm);
+      var rangeText = 'X ' + roundDisplay(minX) + ' to ' + roundDisplay(minX + areaX) + ', Y ' + roundDisplay(minY) + ' to ' + roundDisplay(minY + areaY);
       var limitsText = haveLimits
         ? ('Uses your machine’s full travel (<strong>$130 × $131 = ' +
-           roundDisplay(mmToDisplay(state.machineLimitXmm)) + ' × ' +
-           roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
+           roundDisplay(areaX) + ' × ' + roundDisplay(areaY) + ' ' + u + '</strong>, ' +
+           (state.machineMinXmm != null ? 'machine ' + rangeText + ' from its homing settings' : 'assumed to be machine ' + rangeText) +
+           '), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
         : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported), inset by bit radius so the cutter stays within machine limits.';
-      // Only a zone that reaches the surfacing area (machine 0…$130 ×
-      // 0…$131, less the bit radius) is left out; one beyond it, e.g. on a
-      // machine whose coordinates run negative, is named as not avoided.
+      // Only a zone that reaches the surfacing area (the travel less the
+      // bit radius) is left out; one beyond it is named as not avoided.
       var zoneText = function(list) {
         return list.map(function(k) {
           return k.name + ': X ' + k.minX + '–' + k.maxX + ', Y ' + k.minY + '–' + k.maxY;
         }).join('; ') + ' ' + u;
       };
       var r = Math.max(0, num('qc-bit', 0)) / 2;
-      var areaX = mmToDisplay(state.machineLimitXmm), areaY = mmToDisplay(state.machineLimitYmm);
       var zones = planerKeepouts(), inside = [], outside = [];
       zones.forEach(function(k) {
-        var hits = !haveLimits || (k.maxX + r > r && k.minX - r < areaX - r && k.maxY + r > r && k.minY - r < areaY - r);
+        var hits = !haveLimits || (k.maxX + r > minX + r && k.minX - r < minX + areaX - r && k.maxY + r > minY + r && k.minY - r < minY + areaY - r);
         (hits ? inside : outside).push(k);
       });
       var keepoutText =
         (inside.length ? ' Leaves out the keepout zone' + (inside.length > 1 ? 's' : '') + ' (' + zoneText(inside) + ') plus the bit radius.' : '') +
         (outside.length ? ' The keepout zone' + (outside.length > 1 ? 's' : '') + ' (' + zoneText(outside) + ') ' +
-          (outside.length > 1 ? 'are' : 'is') + ' outside the surfacing area, which runs from machine 0 in the positive direction, so ' +
+          (outside.length > 1 ? 'are' : 'is') + ' outside the machine’s travel, so ' +
           (outside.length > 1 ? 'they aren’t' : 'it isn’t') + ' avoided.' : '');
       return z0('the highest spot of the wasteboard') + '<br>' +
              '<strong>Wasteboard Surfacing.</strong> ' + limitsText + keepoutText +
@@ -7899,10 +7929,10 @@
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
       'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.' ] },
     planer: { name: 'Planer', notes: [
-      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it.',
+      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.',
-      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius, cutting the rest of the bed around them.' ] },
+      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius, cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided.' ] },
     jointer: { name: 'Jointer', notes: [
       'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong>Number of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
       'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work. <strong>Both Ways</strong> alternates the trims, each starting where the last ended, to save the trip back (every other one climbs). The arrows in the preview show the way the bit travels; tap one to switch.',
@@ -9770,7 +9800,13 @@
       var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
       var pattern = params.pattern || 'zigzagY';
 
-      var bl = regionBottomLeft(params.origin || 'front-left', width, height);
+      // Wasteboard: the front-left corner of the machine's travel. That's
+      // machine 0,0 when homing sets the origin there (travel runs 0…$130),
+      // or -$130,-$131 on machines whose coordinates run negative, which
+      // travelMin gives; without it, 0,0 as before.
+      var bl = isWasteboard && params.travelMin
+        ? { x: params.travelMin.x, y: params.travelMin.y }
+        : regionBottomLeft(params.origin || 'front-left', width, height);
       var startX = bl.x - overrun;
       var startY = bl.y - overrun;
       var cutW = width + overrun * 2;
@@ -9806,6 +9842,9 @@
       ];
       if (isWasteboard) {
         extras.push('Machine coordinates — set G54 X0/Y0 at machine zero (0,0); Z0 on the wasteboard surface');
+        if (bl.x || bl.y) {
+          extras.push('Machine travel: X ' + bl.x + ' to ' + +(bl.x + width).toFixed(4) + ', Y ' + bl.y + ' to ' + +(bl.y + height).toFixed(4) + ' ' + unitsLabel);
+        }
       }
       if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + cutW + ' x ' + cutH + ')');
       if (isThickness) {
