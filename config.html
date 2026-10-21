@@ -986,6 +986,12 @@
   /* Dimension line + arrow markers use the same neutral color as
      the other reference lines (text-secondary), and the line is
      dashed so it reads as a "measurement" rather than a cut path. */
+  /* Extension lines out from a measured edge to its dimension. */
+  .qc-shape-preview-cell .qc-shape-dim-ext {
+    stroke: currentColor;
+    stroke-width: 0.6;
+    fill: none;
+  }
   .qc-shape-preview-cell .qc-shape-dim-line {
     stroke: currentColor;
     stroke-width: 1;
@@ -7260,6 +7266,8 @@
     // Smaller when an inset needs room, so X0 Y0 stays in view.
     var pad = insetPad('poly') + bitEdgePad(cutType);
     var R = diameter > 0 && pad > 0 ? Math.min(40, 44 * (diameter / 2) / (diameter / 2 + pad)) : 40;
+    // Edge Length is dimensioned outside the shape, label and all.
+    if (sizeMode === 'edge') R *= 0.8;
     // Hatched-region boundary — extends to the full SVG viewBox so
     // the "outer" waste hatch fills all the way to the preview cell's
     // border, which serves as the visible container box (no need to
@@ -7335,17 +7343,20 @@
       }
       var ea = pts[e], eb = pts[(e + 1) % n];
       var emx = (ea.x + eb.x) / 2, emy = (ea.y + eb.y) / 2, ein = Math.hypot(emx, emy) || 1;
-      // 6 inside the edge, tips on the neighbouring edges: from each end
-      // of the edge, 6 / sin(interior angle) along the next edge in.
-      var ea0 = pts[(e + n - 1) % n], eb1 = pts[(e + 2) % n];
-      var inside = cutType === 'inner' && diameter > 0 ? Math.max(6, Math.max(0, num('qc-bit', 0)) * R / (diameter / 2) + 4) : 6;
-      var along = inside / Math.sin(Math.PI - 2 * Math.PI / n);
-      var toward = function(a, b) { var l = Math.hypot(b.x - a.x, b.y - a.y) || 1; return { x: a.x + (b.x - a.x) * along / l, y: a.y + (b.y - a.y) * along / l }; };
-      var ta = toward(ea, ea0), tb = toward(eb, eb1);
-      var ex = function(q) { return q.x.toFixed(2); }, ey = function(q) { return q.y.toFixed(2); };
-      dim = '<line class="qc-shape-dim-line" x1="' + ex(ta) + '" y1="' + ey(ta) + '" x2="' + ex(tb) + '" y2="' + ey(tb) + '" ' +
+      // Measured outside the edge, as on a drawing: extension lines out
+      // from its two corners and the arrows between them, past an Outer
+      // cut's dashed edge, and the label beyond them.
+      var nX = emx / ein, nY = emy / ein;
+      var bitOut = cutType === 'outer' && diameter > 0 ? Math.max(0, num('qc-bit', 0)) * R / (diameter / 2) : 0;
+      var off = bitOut + 5;
+      var at = function(q, d) { return (q.x + nX * d).toFixed(2) + '" y1="' + (q.y + nY * d).toFixed(2); };
+      var ext = function(q) {
+        return '<line class="qc-shape-dim-ext" x1="' + at(q, 1.5) + '" x2="' + (q.x + nX * (off + 2)).toFixed(2) + '" y2="' + (q.y + nY * (off + 2)).toFixed(2) + '"/>';
+      };
+      dim = ext(ea) + ext(eb) +
+            '<line class="qc-shape-dim-line" x1="' + at(ea, off) + '" x2="' + (eb.x + nX * off).toFixed(2) + '" y2="' + (eb.y + nY * off).toFixed(2) + '" ' +
               'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-            '<text class="qc-shape-dim-label" x="' + (emx - emx * (inside + 8) / ein).toFixed(2) + '" y="' + (emy - emy * (inside + 8) / ein).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
+            '<text class="qc-shape-dim-label" x="' + (emx + nX * (off + 6)).toFixed(2) + '" y="' + (emy + nY * (off + 6)).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
     } else {
       var dimR = sizeMode === 'flats' ? apothem : R;
       var armX = dimR;
