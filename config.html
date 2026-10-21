@@ -964,6 +964,16 @@
     font-family: 'JetBrains Mono', monospace;
   }
   .qc-preview-big .qc-inset-label { font-size: 2.5px; }
+  /* The far edge of the cut, a bit diameter inside (Inner perimeter) or
+     outside (Outer) the solid outline: fainter than the other dashed
+     lines, so the band between it and the outline is what the bit takes. */
+  .qc-shape-preview-cell .qc-bit-edge {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 0.8;
+    stroke-dasharray: 1.5 1.5;
+    opacity: 0.5;
+  }
   .qc-shape-preview-cell .qc-shape-ideal {
     fill: none;
     stroke: currentColor;
@@ -6163,6 +6173,20 @@
   // When the bit, not the typed Corner Radius, sets an inside corner, the
   // previews also draw the shape as typed, dashed, so a small shape whose
   // corners the bit rounds a lot doesn't look like a mistake.
+  // The far edge of an Inner (perimeter) or Outer cut: the solid outline
+  // is the size typed, this is where the bit's other side runs, so the
+  // band between them shows which side of the line the cut is on.
+  function bitEdge(d, cutType) {
+    return d ? '<path class="qc-bit-edge" d="' + d + '"><title>The other edge of the cut, a bit diameter ' +
+      (cutType === 'outer' ? 'outside' : 'inside') + ' the shape</title></path>' : '';
+  }
+  // Which way the far edge lies from the outline: 1 out, -1 in, 0 none
+  // (clearing and Slot's center line show the whole cut already).
+  function bitEdgeDir(cutType) { return cutType === 'outer' ? 1 : cutType === 'inner' ? -1 : 0; }
+  // An Outer cut's band reaches a bit diameter past the shape; keep it in
+  // view like an inset.
+  function bitEdgePad(cutType) { return cutType === 'outer' ? Math.max(0, num('qc-bit', 0)) : 0; }
+
   function idealOutline(d) {
     return '<path class="qc-shape-ideal" d="' + d + '"><title>Your shape as typed; the bit rounds the inside corners to its radius</title></path>';
   }
@@ -6192,7 +6216,7 @@
     // whole drawing (CCW, like the machine). Dim labels show the real
     // values.
     // An inset adds that much room on every side, so X0 Y0 stays in view.
-    var pad = insetPad('rect');
+    var pad = insetPad('rect') + bitEdgePad(cutType);
     var Wp = W > 0 && H > 0 ? W + 2 * pad : 76, Hp = W > 0 && H > 0 ? H + 2 * pad : 46;
     var fit = Math.min(76 / Wp, 60 / Hp);
     if (turn % 180) fit = Math.min(fit, 80 / Math.hypot(Wp, Hp));
@@ -6207,6 +6231,15 @@
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
     var outline = roundedRectPath(x, y, w, h, cr, T);
+    // Each axis to its own scale (a thin side is drawn at least 14).
+    var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType), edgeD = '';
+    if (edgeDir && bitD > 0 && W > 0 && H > 0) {
+      var bx = bitD * w / W, by = bitD * h / H, bc = shortSide > 0 ? bitD * Math.min(w, h) / shortSide : 0;
+      var ew = w + 2 * edgeDir * bx, eh = h + 2 * edgeDir * by;
+      if (ew > 0.5 && eh > 0.5) {
+        edgeD = roundedRectPath(x - edgeDir * bx, y - edgeDir * by, ew, eh, Math.min(Math.max(0, cr + edgeDir * bc), Math.min(ew, eh) / 2), T);
+      }
+    }
     var typedCR = Math.max(0, num('qc-rect-corner', 0));
     var ideal = CR > typedCR + 1e-9 && shortSide > 0
       ? idealOutline(roundedRectPath(x, y, w, h, Math.min(typedCR / shortSide * Math.min(w, h), Math.min(w, h) / 2), T)) : '';
@@ -6276,6 +6309,7 @@
     svg.innerHTML =
       shapePreviewDefs('qc-rect') +
       hatched +
+      bitEdge(edgeD, cutType) +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       ideal +
       wLine + hLine + wLabel + hLabel +
@@ -6711,7 +6745,9 @@
     var cutType = $('qc-circ-cut-type').value;
     // Smaller when an inset needs room, so X0 Y0 stays in view.
     var pad = insetPad('circ');
+    pad += bitEdgePad(cutType);
     var r = D > 0 && pad > 0 ? Math.min(40, 44 * (D / 2) / (D / 2 + pad)) : 40;
+    var edgeR = D > 0 ? r + bitEdgeDir(cutType) * Math.max(0, num('qc-bit', 0)) * r / (D / 2) : 0;
     var boxHalf = 50;
     var arrowInset = 4;
 
@@ -6751,6 +6787,9 @@
     svg.innerHTML =
       shapePreviewDefs('qc-circ') +
       hatched +
+      bitEdge(bitEdgeDir(cutType) && edgeR > 0.5 && edgeR !== r
+        ? 'M' + edgeR.toFixed(2) + ',0 A' + edgeR.toFixed(2) + ',' + edgeR.toFixed(2) + ' 0 1 0 ' + (-edgeR).toFixed(2) + ',0 A' +
+          edgeR.toFixed(2) + ',' + edgeR.toFixed(2) + ' 0 1 0 ' + edgeR.toFixed(2) + ',0 Z' : '', cutType) +
       '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
       dLine + dLabel +
       // The cut starts at the rightmost point and runs CCW.
@@ -7217,7 +7256,7 @@
     var sizeMode = $('qc-poly-size-mode').value;
     var cutType = $('qc-poly-cut-type').value;
     // Smaller when an inset needs room, so X0 Y0 stays in view.
-    var pad = insetPad('poly');
+    var pad = insetPad('poly') + bitEdgePad(cutType);
     var R = diameter > 0 && pad > 0 ? Math.min(40, 44 * (diameter / 2) / (diameter / 2 + pad)) : 40;
     // Hatched-region boundary — extends to the full SVG viewBox so
     // the "outer" waste hatch fills all the way to the preview cell's
@@ -7242,10 +7281,19 @@
     var CR = previewCornerRadius(num('qc-poly-corner', 0), cutType);
     var toPx = function(r) { return diameter > 0 && r > 0 ? Math.min(r * R / (diameter / 2), apothem) : 0; };
     var crP = toPx(CR);
-    var outlineFor = function(crP) {
+    // apo (optional): the outline at another apothem, the same polygon
+    // grown or shrunk (the bit's far edge).
+    var outlineFor = function(crP, apo) {
     var outline;
+    if (apo != null && !(crP > 0)) {
+      var vr = apo / Math.cos(half);
+      return 'M' + pts.map(function(q, i) {
+        var t = start + i * 2 * half;
+        return (vr * Math.cos(t)).toFixed(2) + ',' + (-vr * Math.sin(t)).toFixed(2);
+      }).join(' L') + ' Z';
+    }
     if (crP > 0) {
-      var coreR = (apothem - crP) / Math.cos(half);
+      var coreR = ((apo != null ? apo : apothem) - crP) / Math.cos(half);
       var arcPt = function(i, a) {
         var t = start + i * 2 * half;
         return { x: coreR * Math.cos(t) + crP * Math.cos(a), y: -(coreR * Math.sin(t) + crP * Math.sin(a)) };
@@ -7264,6 +7312,11 @@
     return outline;
     };
     var outline = outlineFor(crP);
+    var edgeDir = bitEdgeDir(cutType), edgeD = '';
+    if (edgeDir && diameter > 0) {
+      var bitP = Math.max(0, num('qc-bit', 0)) * R / (diameter / 2), edgeA = apothem + edgeDir * bitP;
+      if (bitP > 0 && edgeA > 0.5) edgeD = outlineFor(Math.min(Math.max(0, crP + edgeDir * bitP), edgeA), edgeA);
+    }
     originZoomFrames.poly = null;
     var typedCR = Math.max(0, num('qc-poly-corner', 0));
     var ideal = CR > typedCR + 1e-9 ? idealOutline(outlineFor(toPx(typedCR))) : '';
@@ -7327,6 +7380,7 @@
     svg.innerHTML =
       shapePreviewDefs('qc-poly') +
       hatchedPath +
+      bitEdge(edgeD, cutType) +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       ideal +
       dim +
@@ -7549,7 +7603,7 @@
     var pc = gen.placeSlot(cl, 0, 0, 0);
     var outline = gen.slotOutline(pc, half);
     var b = gen.segmentsBbox(outline);
-    var pad = insetPad('slt');
+    var pad = insetPad('slt') + bitEdgePad(cut);
     var fit = function(bb) { return 80 / Math.max(bb.maxX - bb.minX + 2 * pad, bb.maxY - bb.minY + 2 * pad, 1e-9); };
     var k = fit(b);
     if (pc.type === 'arc') {
@@ -7574,6 +7628,11 @@
       }).join('');
     };
     var d = path(outline) + ' Z';
+    // The bit's far edge: the slot a bit diameter wider (Outer) or
+    // narrower (Inner perimeter), when that's still a slot.
+    var bitD = Math.max(0, params.bitDiameter || 0), edgeHalf = half + bitEdgeDir(cut) * bitD;
+    var edgeD = bitEdgeDir(cut) && bitD > 0 && edgeHalf > 1e-6 && !(pc.type === 'arc' && edgeHalf >= pc.r)
+      ? path(gen.slotOutline(pc, edgeHalf)) + ' Z' : '';
     var hatched = cut === 'outer'
       ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="M-50,-50 L50,-50 L50,50 L-50,50 Z ' + d + '"/>'
       : cut === 'inner' ? ''
@@ -7653,6 +7712,7 @@
     svg.innerHTML =
       shapePreviewDefs('qc-slt') +
       hatched +
+      bitEdge(edgeD, cut) +
       '<path class="qc-shape-fill" d="' + d + '"/>' +
       dim + marks +
       pickHints(slotPreviewNodes) +
@@ -7892,7 +7952,7 @@
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
-  var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size.';
+  var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
