@@ -884,7 +884,11 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
   assert.ok(maxX > 812 - 3 - 0.01 && maxY > 1230 - 3 - 0.01, `reaches ${maxX}, ${maxY}`);
   // No zone, or one off the bed, leaves the program as it was.
   const plain = gen(base);
-  assert.equal(gen(Object.assign({}, base, { keepouts: [{ minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 }] })), plain);
+  // A zone that's on but off the bed (as on a machine whose coordinates run
+  // negative) cuts the same, and the header says it isn't avoided.
+  const offBed = gen(Object.assign({}, base, { keepouts: [{ name: 'ncSender', minX: -812, minY: -1230, maxX: -690, maxY: -700 }] }));
+  assert.match(offBed, /^\(Keepout zone outside the surfacing area, not avoided: ncSender, X -812--690, Y -1230--700mm\)$/m);
+  assert.equal(offBed.split('\n').filter(l => !/^\(Keepout zone outside/.test(l)).join('\n'), plain);
   assert.equal(gen(Object.assign({}, base, { mode: 'depth', keepouts: [zone] })), gen(Object.assign({}, base, { mode: 'depth' })));
 });
 
@@ -2406,3 +2410,52 @@ test('inset X and Y apart: X from a left / right origin, Y from front / back', (
                strip(gen.generateCircleProgram(Object.assign({}, base, { diameter: 30, origin: 'back-right', inset: 5 }))));
 });
 
+test('planer wasteboard lifts to machine safe Z before crossing to another area around a keepout', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const base = {
+    mode: 'wasteboard', width: 800, height: 800, origin: 'front-left', pattern: 'zigzagY', stepoverPct: 40,
+    depth: 1, depthOfCut: 0.5, bitDiameter: 6, feedRate: 2000, plungeFeedRate: 500,
+    spindleRpm: 15000, spindleDelay: 1, mistM7: false, floodM8: false, safeZHeightMm: -5
+  };
+  const lines = gen(Object.assign({}, base, { keepouts: [{ name: 'ncSender', minX: 300, minY: 700, maxX: 500, maxY: 800 }] })).split('\n');
+  const approaches = lines.map((l, i) => i).filter(i => /^G0 X/.test(lines[i]));
+  assert.ok(approaches.length >= 6, `${approaches.length} area approaches`);
+  // Every XY move to an area comes right after a machine-coordinate lift:
+  // the startup's for the first, a G53 retract for the rest.
+  approaches.forEach(i => {
+    let j = i - 1;
+    while (j > 0 && !/^G\S*.* Z/.test(lines[j])) j--;
+    assert.match(lines[j], /^G53 G0 Z-5\.000/, `last Z move before line ${i} (${lines[i]}): ${lines[j]}`);
+  });
+  // Without a zone nothing changes: one area, no extra retracts.
+  const plain = gen(base);
+  assert.equal((plain.match(/^G53 G0 Z/gm) || []).length, 2);
+});
+
+test('slot: an outer arc cut whose path reaches the centre is refused, not emitted', () => {
+  const g = makeQuickCutGenerator(false);
+  const params = slotBase({ slotType: 'arc', radius: 9, startAngleDeg: 0, sweepDeg: 90, width: 10, bitDiameter: 10, cutType: 'outer' });
+  const problem = g.slotProblem(params, g.slotCenterline(params), params.width / 2);
+  assert.match(problem, /Outer cut.*as wide as its radius/);
+  const gcode = g.generateSlotProgram(params);
+  assert.match(gcode, /nothing to cut/);
+  assert.ok(!/^G[23] /m.test(gcode), 'no arcs emitted');
+  // The same slot inner, or outer with a small enough bit, is fine.
+  assert.equal(g.slotProblem(Object.assign({}, params, { cutType: 'inner' }), g.slotCenterline(params), 5), null);
+  assert.equal(g.slotProblem(Object.assign({}, params, { bitDiameter: 6 }), g.slotCenterline(params), 5), null);
+});
+
+test('comments never nest brackets, which grblHAL can reject until a reset', () => {
+  const g = makeQuickCutGenerator(false);
+  const programs = [
+    g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 10, startAngleDeg: 0, sweepDeg: 350, width: 8 })),
+    g.generateSlotProgram(slotBase({ slotType: 'arc', radius: 9, startAngleDeg: 0, sweepDeg: 90, width: 10, bitDiameter: 10, cutType: 'outer' })),
+    g.generateRectangleProgram({ width: 50, height: 30, cornerRadius: 0, cutType: 'outer', origin: 'corner:9', bitDiameter: 6, depth: 3, depthOfCut: 1,
+      feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1,
+      pattern: { enabled: true, style: 'circular-follow', count: 3, radius: 40, startAngle: 0 } })
+  ];
+  programs.forEach(p => p.split('\n').forEach(l => {
+    const code = l.replace(/;.*$/, '');
+    assert.ok(!/\([^)]*\(/.test(code) && !/\)[^(]*\)/.test(code), `nested brackets: ${l}`);
+  }));
+});

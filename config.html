@@ -4097,12 +4097,26 @@
            roundDisplay(mmToDisplay(state.machineLimitXmm)) + ' × ' +
            roundDisplay(mmToDisplay(state.machineLimitYmm)) + ' ' + u + '</strong>), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
         : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported), inset by bit radius so the cutter stays within machine limits.';
-      var zones = planerKeepouts();
-      var keepoutText = zones.length
-        ? ' Leaves out the keepout zone' + (zones.length > 1 ? 's' : '') + ' (' + zones.map(function(k) {
-            return k.name + ': X ' + k.minX + '–' + k.maxX + ', Y ' + k.minY + '–' + k.maxY;
-          }).join('; ') + ' ' + u + ') plus the bit radius.'
-        : '';
+      // Only a zone that reaches the surfacing area (machine 0…$130 ×
+      // 0…$131, less the bit radius) is left out; one beyond it, e.g. on a
+      // machine whose coordinates run negative, is named as not avoided.
+      var zoneText = function(list) {
+        return list.map(function(k) {
+          return k.name + ': X ' + k.minX + '–' + k.maxX + ', Y ' + k.minY + '–' + k.maxY;
+        }).join('; ') + ' ' + u;
+      };
+      var r = Math.max(0, num('qc-bit', 0)) / 2;
+      var areaX = mmToDisplay(state.machineLimitXmm), areaY = mmToDisplay(state.machineLimitYmm);
+      var zones = planerKeepouts(), inside = [], outside = [];
+      zones.forEach(function(k) {
+        var hits = !haveLimits || (k.maxX + r > r && k.minX - r < areaX - r && k.maxY + r > r && k.minY - r < areaY - r);
+        (hits ? inside : outside).push(k);
+      });
+      var keepoutText =
+        (inside.length ? ' Leaves out the keepout zone' + (inside.length > 1 ? 's' : '') + ' (' + zoneText(inside) + ') plus the bit radius.' : '') +
+        (outside.length ? ' The keepout zone' + (outside.length > 1 ? 's' : '') + ' (' + zoneText(outside) + ') ' +
+          (outside.length > 1 ? 'are' : 'is') + ' outside the surfacing area, which runs from machine 0 in the positive direction, so ' +
+          (outside.length > 1 ? 'they aren’t' : 'it isn’t') + ' avoided.' : '');
       return z0('the highest spot of the wasteboard') + '<br>' +
              '<strong>Wasteboard Surfacing.</strong> ' + limitsText + keepoutText +
              ' Set G54 X0/Y0 at machine zero — the g-code treats WCS X/Y as machine coords — ' +
@@ -5410,7 +5424,24 @@
       }
       var loaded = { common: data.common || {} };
       loaded[data.shape] = data.settings;
-      hydrateSavedSettings(loaded);
+      // Keep the current tab's Tool card edits: hydrating writes the
+      // current tab's stored tool back into the card before the switch
+      // would save it.
+      state.toolByShape[state.currentTab] = readToolFromInputs();
+      // A damaged block mustn't leave the form half filled: apply it, and
+      // put everything back if that fails or leaves a field unreadable.
+      var before = snapshotForm();
+      try {
+        hydrateSavedSettings(loaded);
+        var bad = Array.prototype.some.call(ROOT.querySelectorAll('input, select'), function(el) {
+          return /^(NaN|undefined|null)$/.test(el.value);
+        });
+        if (bad) throw new Error('bad values');
+      } catch (e) {
+        restoreForm(before);
+        status.textContent = file.name + '’s QuickCut settings are damaged, so nothing was loaded.';
+        return;
+      }
       ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
       closeLoadPanel();
       switchTab(data.shape);
@@ -5418,6 +5449,33 @@
     } catch (err) {
       status.textContent = 'Could not read ' + file.name + ': ' + err.message;
     }
+  }
+  // Every field's value (and switch's state) plus the per-tab Tool cards,
+  // to undo a Load that went wrong.
+  function snapshotForm() {
+    return {
+      fields: Array.prototype.map.call(ROOT.querySelectorAll('input, select'), function(el) {
+        return { el: el, value: el.value, checked: el.checked };
+      }),
+      tools: JSON.parse(JSON.stringify(state.toolByShape))
+    };
+  }
+  function restoreForm(snap) {
+    var changed = [];
+    snap.fields.forEach(function(f) {
+      if (f.el.value === f.value && f.el.checked === f.checked) return;
+      f.el.value = f.value; f.el.checked = f.checked;
+      changed.push(f.el);
+    });
+    state.toolByShape = snap.tools;
+    ROOT.querySelectorAll('.qc-origin-grid').forEach(function(grid) {
+      var id = grid.getAttribute('data-picker-for');
+      setOriginPickerValue(id, $(id).value);
+    });
+    // Let each tab redraw and show or hide its fields as before.
+    changed.forEach(function(el) {
+      if (el.type !== 'hidden') el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   }
   function wireLoad() {
     $('qc-load-link').addEventListener('click', function(evt) {
@@ -6896,11 +6954,18 @@
     }, null, snapMiterAngle);
     wirePickCursor($('qc-key-preview'), function(pt) { return !!nearestPreviewNode(keyPreviewNodes, pt); });
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
-    // On the Keyhole tab, a new Bit Diameter sets Slot Length (hole centre
-    // to slot-end centre) to 1.5 times it; type over it for another length.
+    // On the Keyhole tab, a new Bit Diameter carries Slot Length (hole
+    // centre to slot-end centre) along at 1.5 times it, but only while the
+    // length is still 1.5 times the bit before the edit: a length typed by
+    // hand stays, and tidying the field (e.g. 1/4 to its number) changes
+    // nothing.
+    var keyBitBefore = null;
+    $('qc-bit').addEventListener('focus', function() { keyBitBefore = num('qc-bit', 0); });
     $('qc-bit').addEventListener('input', function() {
-      var bit = num('qc-bit', 0);
-      if (state.currentTab !== 'keyhole' || !(bit > 0)) return;
+      var bit = num('qc-bit', 0), before = keyBitBefore;
+      keyBitBefore = bit;
+      if (state.currentTab !== 'keyhole' || !(bit > 0) || before == null || bit === before) return;
+      if (Math.abs(num('qc-key-length', NaN) - roundDisplay(1.5 * before)) > 1e-9) return;
       $('qc-key-length').value = roundDisplay(1.5 * bit);
       recheckField('qc-key-length');
     });
@@ -8250,6 +8315,10 @@
       else lines.push('G53 G0 Z0 ; Move to machine Z0');
       lines.push('');
       return lines;
+    }
+
+    function machineSafeZLine(params) {
+      return coreSafeZLine(params.safeZHeightMm) || 'G53 G0 Z0';
     }
 
     function programFooter(params) {
@@ -9717,6 +9786,14 @@
                     ', Y ' + k.minY + '-' + k.maxY + unitsLabel + ' plus the bit radius');
       });
       if (keepoutsHit.length) extras.push('Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
+      // A zone that's on but outside the surfacing area, e.g. on a machine
+      // whose coordinates run negative, removes nothing; say so rather than
+      // let it look avoided.
+      keepouts.forEach(function(k) {
+        if (keepoutsHit.indexOf(k) >= 0) return;
+        extras.push('Keepout zone outside the surfacing area, not avoided: ' + (k.name ? k.name + ', ' : '') + 'X ' + k.minX + '-' + k.maxX +
+                    ', Y ' + k.minY + '-' + k.maxY + unitsLabel);
+      });
       extras.push('Origin: ' + (params.origin || 'front-left'));
 
       var lines = programHeader(params, {
@@ -9745,6 +9822,11 @@
         lines.push('(Pass Z' + z.toFixed(3) + ')');
         for (var ai = 0; ai < areas.length; ai++) {
           var a = areas[ai];
+          // Around a keepout, the move to the next area would cross the zone
+          // at the surface hop height, low enough to hit a tool rack there,
+          // so lift to machine safe Z first (the startup block already did
+          // for the first area).
+          if (keepoutsHit.length && (ai > 0 || currentDepth > 0)) lines.push(machineSafeZLine(params));
           lines.push('G0 X' + a.x.toFixed(xyDp) + ' Y' + a.y.toFixed(xyDp));
           lines.push('G0 Z' + safeHopWork);
           var approachZ = isThickness
@@ -10448,7 +10530,13 @@
       if (cl.type === 'arc') {
         if (half >= cl.r) return 'the slot is as wide as its radius or wider, so its inner edge would cross the centre';
         var gap = 2 * Math.PI - (cl.a1 - cl.a0);
-        if (gap <= 0 || 2 * cl.r * Math.sin(gap / 2) < 2 * half) return 'the slot\'s ends would overlap (the sweep is too close to a full circle for this width)';
+        if (gap <= 0 || 2 * cl.r * Math.sin(gap / 2) < 2 * half) return 'the slot\'s ends would overlap: the sweep is too close to a full circle for this width';
+        // An outer cut runs a bit radius outside the slot, so its inner arc
+        // is that much tighter; at or past the centre the ends don't join and
+        // the controller rejects the arcs.
+        if (params.cutType === 'outer' && half + (params.bitDiameter || 0) / 2 >= cl.r) {
+          return 'with the Outer cut the bit\'s path is as wide as its radius or wider, so its inner edge would cross the centre: make the radius bigger, or the slot or bit narrower';
+        }
       }
       return null;
     }
@@ -10531,7 +10619,7 @@
         problem = 'the slot is no wider than the bit; use the Centre line cut type';
       }
       if (problem) {
-        lines.push('(WARNING: ' + problem + '; nothing to cut)');
+        lines.push(comment('WARNING: ' + problem + '; nothing to cut'));
         lines.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }

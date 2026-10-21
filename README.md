@@ -18,7 +18,7 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
 - Planer — surface a flat region with zigzag or spiral raster. Three modes:
   - Target Depth (flatten an uneven top)
   - Target Thickness (measured from wasteboard up)
-  - Wasteboard Surfacing (auto-uses machine travel from grblHAL `$130`/`$131`); with a keepout zone on (ncSender Pro's, or the ATCi tool rack's `$684`-`$687` with `$683` Enable), **Avoid Keepout Zone** leaves out each zone plus the bit radius
+  - Wasteboard Surfacing (auto-uses machine travel from grblHAL `$130`/`$131`); with a keepout zone on (ncSender Pro's, or the ATCi tool rack's `$684`-`$687` with `$683` Enable), **Avoid Keepout Zone** leaves out each zone plus the bit radius, lifting to machine safe Z between the areas around it. Surfacing runs from machine 0 in the positive direction, so a zone on a machine whose coordinates run negative lies outside it; the hint and the program header then say it isn't avoided
 - Jointer — make a straight reference edge. Trim Width × Number of Trims off the chosen side, single-direction cuts so climb/conventional stays consistent (or **Both Ways**, alternating trims to save the trip back)
 - Cutter — cold-saw-style parting cut. Single cut line at a target dimension (bit-radius compensated), multi-pass Z to reduce bit load (**Both Ways** alternates the passes to save the trip back)
 
@@ -60,7 +60,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
 
   **Before cutting stock, air carve it:** zero Z above the work (or raise it), run the program, and check that the first lines and the grid's extent start where you expect.
 - **Rounding a stock corner:** zero X/Y on the corner, then Arc, **Radius** = corner radius + bit radius, **Start Angle** facing the corner (front-left 180, front-right 270, back-right 0, back-left 90), **Sweep** 90, **Center line**, that corner as the Origin, and **Inset** = minus the bit diameter. The bit's centre runs a bit radius outside the finished edge, starting and ending a bit radius outside the two stock edges, level with the tangent points, so the round blends into them. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset −6. (The Origin box includes the bit's own width on a Center line cut, which is why the inset is a whole bit diameter.)
-- A slot that can't be cut is caught before Generate, at the field to change: an arc as wide as its radius, ends that would overlap (Chord shorter than the Width, or a Sweep too close to a full circle), or an inner cut no wider than the bit.
+- A slot that can't be cut is caught before Generate, at the field to change: an arc as wide as its radius, ends that would overlap (Chord shorter than the Width, or a Sweep too close to a full circle), an inner cut no wider than the bit, or an Outer arc cut where half the width plus the bit radius reaches the radius, whose ends wouldn't join.
 
 ## Keyhole
 
@@ -71,7 +71,7 @@ Cuts a hanging slot with a keyhole (T-slot) bit, the kind used to hang a sign or
 3. Retrace exactly back to the plunge hole.
 4. Retract.
 
-- **Bit Diameter** starts at a 3/8" keyhole bit (10 mm on a metric install) and **Slot Length** (hole centre to slot-end centre) at 1.5 times that; changing the bit on this tab sets Slot Length to 1.5 times the new diameter, which you can then type over. In the preview the solid outline is the keyhole at the surface (the plunge hole joined to the narrow slot the shank leaves, drawn at half the head's width, as there's no shank field) and the dashed outline is the head's path under it.
+- **Bit Diameter** starts at a 3/8" keyhole bit (10 mm on a metric install) and **Slot Length** (hole centre to slot-end centre) at 1.5 times that; changing the bit on this tab carries Slot Length along at 1.5 times the new diameter, until you type your own length, which then stays. In the preview the solid outline is the keyhole at the surface (the plunge hole joined to the narrow slot the shank leaves, drawn at half the head's width, as there's no shank field) and the dashed outline is the head's path under it.
 - **Origin:** by default X0 Y0 is the plunge hole (the first one, when a pattern is on), picked on the preview. The Origin picker is the standard one: the corners, edge midpoints, and center of the whole cut (every keyhole's head swept along its slot), as on the other shapes. On the preview, tap the plunge hole or one of those box points to pick it.
 - Set **Bit Diameter** to the bit's head diameter.
 - There's no Depth of Cut: the slot is always one pass at full depth, because a shallower pass would cut the narrow neck slot out to the full head width. Total Depth is to the bottom of the head.
