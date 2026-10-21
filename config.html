@@ -986,16 +986,19 @@
   /* Dimension line + arrow markers use the same neutral color as
      the other reference lines (text-secondary), and the line is
      dashed so it reads as a "measurement" rather than a cut path. */
-  /* Extension lines out from a measured edge to its dimension. */
+  /* Measurements look like the Inset's: accent, fine dashes. Extension
+     lines out from a measured edge are solid. */
   .qc-shape-preview-cell .qc-shape-dim-ext {
-    stroke: currentColor;
-    stroke-width: 0.6;
+    stroke: var(--color-accent);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
     fill: none;
   }
   .qc-shape-preview-cell .qc-shape-dim-line {
-    stroke: currentColor;
+    stroke: var(--color-accent);
     stroke-width: 1;
-    stroke-dasharray: 2 2;
+    stroke-dasharray: 1.5 1.5;
+    vector-effect: non-scaling-stroke;
     fill: none;
   }
   .qc-shape-preview-cell .qc-shape-dim-label {
@@ -5942,7 +5945,7 @@
       '<defs>' +
         '<marker id="' + idPrefix + '-arr" viewBox="0 0 10 10" refX="8" refY="5" ' +
                 'markerWidth="4" markerHeight="4" orient="auto-start-reverse" markerUnits="strokeWidth">' +
-          '<path d="M0,0 L8,5 L0,10" fill="none" stroke="currentColor" stroke-width="2" ' +
+          '<path d="M0,0 L8,5 L0,10" fill="none" style="stroke: var(--color-accent)" stroke-width="2" ' +
                 'stroke-linecap="round" stroke-linejoin="round"/>' +
         '</marker>' +
         '<pattern id="' + idPrefix + '-hatch" patternUnits="userSpaceOnUse" ' +
