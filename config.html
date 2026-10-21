@@ -964,16 +964,6 @@
     font-family: 'JetBrains Mono', monospace;
   }
   .qc-preview-big .qc-inset-label { font-size: 2.5px; }
-  /* The far edge of the cut, a bit diameter inside (Inner perimeter) or
-     outside (Outer) the solid outline: fainter than the other dashed
-     lines, so the band between it and the outline is what the bit takes. */
-  .qc-shape-preview-cell .qc-bit-edge {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 0.8;
-    stroke-dasharray: 1.5 1.5;
-    opacity: 0.5;
-  }
   .qc-shape-preview-cell .qc-shape-ideal {
     fill: none;
     stroke: currentColor;
@@ -6177,7 +6167,7 @@
   // is the size typed, this is where the bit's other side runs, so the
   // band between them shows which side of the line the cut is on.
   function bitEdge(d, cutType) {
-    return d ? '<path class="qc-bit-edge" d="' + d + '"><title>The other edge of the cut, a bit diameter ' +
+    return d ? '<path class="qc-shape-inscribed qc-bit-edge" d="' + d + '"><title>The other edge of the cut, a bit diameter ' +
       (cutType === 'outer' ? 'outside' : 'inside') + ' the shape</title></path>' : '';
   }
   // Which way the far edge lies from the outline: 1 out, -1 in, 0 none
@@ -6281,8 +6271,20 @@
       return '<text class="qc-shape-dim-label" x="' + q.x.toFixed(2) + '" y="' + q.y.toFixed(2) +
              '" text-anchor="' + anchor + '" dominant-baseline="' + baseline + '">' + value + '</text>';
     }
-    var wLine = line(x + arrowInset, wY, x + w - arrowInset, wY);
-    var hLine = line(hX, y + arrowInset, hX, y + h - arrowInset);
+    // The arrows run just inside the outline with their tips on it (where
+    // a rounded corner has curved in), so they measure the outline, not
+    // the far edge of an inner cut.
+    function cornerIn(dist) {
+      return dist >= cr ? 0 : cr - Math.sqrt(Math.max(0, cr * cr - (cr - dist) * (cr - dist)));
+    }
+    // On an inner cut they sit inside its dashed far edge, not on it.
+    var inBand = edgeDir < 0 && edgeD ? 4 : 0;
+    var wGap = Math.min(h / 2, Math.max(arrowInset, inBand && bitD * h / H + inBand));
+    var hGap = Math.min(w / 2, Math.max(arrowInset, inBand && bitD * w / W + inBand));
+    var wIn = y + h - wGap;
+    hX = x + w - hGap;
+    var wLine = line(x + cornerIn(wGap), wIn, x + w - cornerIn(wGap), wIn);
+    var hLine = line(hX, y + cornerIn(hGap), hX, y + h - cornerIn(hGap));
     // Square to the axes: the original anchoring (label below the width
     // arrow, left of the height arrow). Turned: centered on a point a
     // little further out, since the text no longer lines up with them.
@@ -6778,8 +6780,8 @@
       ['front-left', -r, r], ['front-center', 0, r], ['front-right', r, r]
     ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; }), 'shape-center');
 
-    var dLine = '<line class="qc-shape-dim-line" x1="' + (-r + arrowInset) + '" y1="0" ' +
-                'x2="' + (r - arrowInset) + '" y2="0" ' +
+    var dLine = '<line class="qc-shape-dim-line" x1="' + (-r) + '" y1="0" ' +
+                'x2="' + r + '" y2="0" ' +
                 'marker-start="url(#qc-circ-arr)" marker-end="url(#qc-circ-arr)"/>';
     var dLabel = '<text class="qc-shape-dim-label" x="0" y="-3" text-anchor="middle">' +
                  (D > 0 ? D : '?') + '</text>';
@@ -7333,15 +7335,20 @@
       }
       var ea = pts[e], eb = pts[(e + 1) % n];
       var emx = (ea.x + eb.x) / 2, emy = (ea.y + eb.y) / 2, ein = Math.hypot(emx, emy) || 1;
-      var eo = 6 / ein, ek = 0.88;
-      var ex = function(q) { return (emx + (q.x - emx) * ek - emx * eo).toFixed(2); };
-      var ey = function(q) { return (emy + (q.y - emy) * ek - emy * eo).toFixed(2); };
-      dim = '<line class="qc-shape-dim-line" x1="' + ex(ea) + '" y1="' + ey(ea) + '" x2="' + ex(eb) + '" y2="' + ey(eb) + '" ' +
+      // 6 inside the edge, tips on the neighbouring edges: from each end
+      // of the edge, 6 / sin(interior angle) along the next edge in.
+      var ea0 = pts[(e + n - 1) % n], eb1 = pts[(e + 2) % n];
+      var inside = cutType === 'inner' && diameter > 0 ? Math.max(6, Math.max(0, num('qc-bit', 0)) * R / (diameter / 2) + 4) : 6;
+      var along = inside / Math.sin(Math.PI - 2 * Math.PI / n);
+      var toward = function(a, b) { var l = Math.hypot(b.x - a.x, b.y - a.y) || 1; return { x: a.x + (b.x - a.x) * along / l, y: a.y + (b.y - a.y) * along / l }; };
+      var ta = toward(ea, ea0), tb = toward(eb, eb1);
+      var ex = function(q) { return q.x.toFixed(2); }, ey = function(q) { return q.y.toFixed(2); };
+      dim = '<line class="qc-shape-dim-line" x1="' + ex(ta) + '" y1="' + ey(ta) + '" x2="' + ex(tb) + '" y2="' + ey(tb) + '" ' +
               'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-            '<text class="qc-shape-dim-label" x="' + (emx - emx * 14 / ein).toFixed(2) + '" y="' + (emy - emy * 14 / ein).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
+            '<text class="qc-shape-dim-label" x="' + (emx - emx * (inside + 8) / ein).toFixed(2) + '" y="' + (emy - emy * (inside + 8) / ein).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
     } else {
       var dimR = sizeMode === 'flats' ? apothem : R;
-      var armX = dimR * 0.92;
+      var armX = dimR;
       dim = '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + dimR.toFixed(2) + '"/>' +
             '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
               'x2="' + armX.toFixed(2) + '" y2="0" ' +
@@ -7631,7 +7638,7 @@
     // The bit's far edge: the slot a bit diameter wider (Outer) or
     // narrower (Inner perimeter), when that's still a slot.
     var bitD = Math.max(0, params.bitDiameter || 0), edgeHalf = half + bitEdgeDir(cut) * bitD;
-    var edgeD = bitEdgeDir(cut) && bitD > 0 && edgeHalf > 1e-6 && !(pc.type === 'arc' && edgeHalf >= pc.r)
+    var edgeD = bitEdgeDir(cut) && bitD > 0 && edgeHalf * k > 2.5 && !(pc.type === 'arc' && edgeHalf >= pc.r)
       ? path(gen.slotOutline(pc, edgeHalf)) + ' Z' : '';
     var hatched = cut === 'outer'
       ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="M-50,-50 L50,-50 L50,50 L-50,50 Z ' + d + '"/>'
@@ -7644,7 +7651,10 @@
       // The length label sits beside the slot, off its upper long side.
       var nx = -Math.sin(pc.t), ny = -Math.cos(pc.t), off = half * k + 9;
       if (ny > 0) { nx = -nx; ny = -ny; }
-      dim = '<line class="qc-shape-dim-line" x1="' + f(X(pc.x0)) + '" y1="' + f(Y(pc.y0)) + '" x2="' + f(X(pc.x1)) + '" y2="' + f(Y(pc.y1)) + '"/>' +
+      // End to end along the centre line, tips on the rounded ends.
+      var ux = Math.cos(pc.t) * half, uy = Math.sin(pc.t) * half;
+      dim = '<line class="qc-shape-dim-line" x1="' + f(X(pc.x0 - ux)) + '" y1="' + f(Y(pc.y0 - uy)) + '" x2="' + f(X(pc.x1 + ux)) + '" y2="' + f(Y(pc.y1 + uy)) + '" ' +
+              'marker-start="url(#qc-slt-arr)" marker-end="url(#qc-slt-arr)"/>' +
             '<text class="qc-shape-dim-label" x="' + f(clamp(nx * off)) + '" y="' + f(clamp(ny * off) + 3) + '" text-anchor="middle">' + lenLabel + '</text>';
     } else {
       e0 = { x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) };
