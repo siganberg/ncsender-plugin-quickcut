@@ -7363,7 +7363,8 @@
     } else {
       var dimR = sizeMode === 'flats' ? apothem : R;
       var armX = dimR;
-      dim = '<circle class="qc-shape-inscribed" cx="0" cy="0" r="' + dimR.toFixed(2) + '"/>' +
+      // The measuring circle is part of the dimension, so it's drawn like one.
+      dim = '<circle class="qc-shape-dim-line" cx="0" cy="0" r="' + dimR.toFixed(2) + '"/>' +
             '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
               'x2="' + armX.toFixed(2) + '" y2="0" ' +
               'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
