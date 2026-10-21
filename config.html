@@ -6337,7 +6337,7 @@
       var pts = [[x, y], [x + w / 2, y], [x + w, y], [x + w, y + h / 2], [x + w, y + h], [x + w / 2, y + h], [x, y + h], [x, y + h / 2]]
         .map(function(p) { var t = T(p[0], p[1]); return [t.x, t.y]; });
       return originCross(q.x, q.y, 'rect', fit) +
-        (z ? originZoom('rect', q.x, q.y, '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, pts, z, 'rect', fit) : '');
+        (z ? originZoom('rect', q.x, q.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, pts, z, 'rect', fit) : '');
     }
 
     // Edge lengths of the tool path (the part size grown or shrunk by
@@ -7393,7 +7393,7 @@
         // magnified (detailZoom).
         var z = previewIsBig(svg) ? detailZoom('poly', k, crP) : 0;
         return originCross(off.x * k, -off.y * k, 'poly', k) +
-          (z ? originZoom('poly', off.x * k, -off.y * k, '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal,
+          (z ? originZoom('poly', off.x * k, -off.y * k, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal,
                           pts.map(function(q) { return [q.x, q.y]; }), z, 'poly', k) : '');
       })() : '');
 
@@ -7741,7 +7741,7 @@
       dim + marks +
       pickHints(slotPreviewNodes) +
       originCross(X(off.x), Y(off.y), 'slt', k) +
-      slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k, previewIsBig(svg), k);
+      slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k, previewIsBig(svg), k, bitEdge(edgeD, cut));
   }
 
   // A magnified view of a preview's drawing around X0 Y0, in a box a third
@@ -7861,10 +7861,10 @@
   // small one for a picked corner or long-side point of a straight slot
   // (corner:3-8), which on a thin slot is only a bit radius from the
   // middle. The slot's width fills about a third of the box.
-  function slotOriginZoom(ox, oy, d, centre, pts, h, big, k) {
+  function slotOriginZoom(ox, oy, d, centre, pts, h, big, k, edge) {
     if (!(big || /^corner:[3-8]$/.test($('qc-slt-origin').value))) { originZoomFrames.slt = null; return ''; }
     var z = Math.max(2, ORIGIN_ZOOM_SIZE / 3 / Math.max(2 * h, 1e-6));
-    return originZoom('slt', ox, oy, '<path class="qc-shape-fill" d="' + d + '"/>' + centre, pts, z, 'slt', k);
+    return originZoom('slt', ox, oy, (edge || '') + '<path class="qc-shape-fill" d="' + d + '"/>' + centre, pts, z, 'slt', k);
   }
 
   // How far a Rectangle or Polygon preview's magnified view zooms: only
