@@ -7654,9 +7654,31 @@
       var am = (pc.a0 + pc.a1) / 2;
       var mid = { x: pc.r * Math.cos(am), y: pc.r * Math.sin(am) };
       var rLabel = 'R' + roundDisplay(cl.r);
+      // Beside the radius line, in the clear stretch between the centre
+      // and the innermost line drawn (the slot's inner edge, or an Outer
+      // cut's dashed edge), on the side away from the line; past the
+      // centre when that stretch is too short to hold it.
+      var radiusLabel = function(text) {
+        var cx = X(0), cy = Y(0), mx = X(mid.x), my = Y(mid.y);
+        var len = Math.hypot(mx - cx, my - cy) || 1, ux = (mx - cx) / len, uy = (my - cy) / len;
+        var clear = (pc.r - Math.max(half, cut === 'outer' ? edgeHalf : half)) * k;
+        var x, y, anchor;
+        // The label runs about 22 units across, so its far end has to stay
+        // within the clear radius as well; nearer the centre it does.
+        if (clear > 26) {
+          var px = -uy, py = ux;
+          if (px < 0) { px = -px; py = -py; }
+          var along = Math.min(clear / 2, Math.sqrt(clear * clear - 24 * 24));
+          x = cx + ux * along + px * 3; y = cy + uy * along + py * 3;
+          anchor = 'start';
+        } else {
+          x = cx - ux * 9; y = cy - uy * 9; anchor = 'middle';
+        }
+        return '<text class="qc-shape-dim-label" x="' + f(clamp(x)) + '" y="' + f(clamp(y)) + '" text-anchor="' + anchor + '" dominant-baseline="middle">' + text + '</text>';
+      };
       dim = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1 }) + '"/>' +
             '<line class="qc-shape-dim-line" x1="' + f(X(0)) + '" y1="' + f(Y(0)) + '" x2="' + f(X(mid.x)) + '" y2="' + f(Y(mid.y)) + '" marker-end="url(#qc-slt-arr)"/>' +
-            '<text class="qc-shape-dim-label" x="' + f(clamp(X(mid.x / 2))) + '" y="' + f(clamp(Y(mid.y / 2) - 2)) + '" text-anchor="middle">' + rLabel + '</text>';
+            radiusLabel(rLabel);
     }
     slotPreviewNodes = [{ x: X(e0.x), y: Y(e0.y), value: 'corner:1' }, { x: X(e1.x), y: Y(e1.y), value: 'corner:2' },
                         { x: X(0), y: Y(0), value: 'shape-center' }];
