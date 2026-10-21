@@ -12,7 +12,7 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
 - Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
 
-On the Rectangle, Circle, Polygon and Slot previews the solid outline is the size you typed. For **Inner (perimeter)** and **Outer** a fainter dashed line a bit diameter inside or outside it marks the cut's other edge, so the band between them is what the bit takes: an Outer cut takes that band, not the whole hatched area around the part.
+On the Rectangle, Circle, Polygon and Slot previews the solid outline is the size you typed. For **Inner (perimeter)** and **Outer** a fainter dashed line a bit diameter inside or outside it marks the cut's other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).
 
 Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept a set distance in from its origin with an [inset](#origin-inset), and repeated with a [pattern](#patterns). Rectangle, Circle, Polygon, and Slot profile cuts can leave [holding tabs](#holding-tabs).
 

@@ -6225,7 +6225,6 @@
     var centerY = 0;
     var x = -w / 2;
     var y = centerY - h / 2;
-    var boxHalf = 50;
     // SVG y points down, so a CCW machine turn is this on screen.
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
@@ -6251,11 +6250,8 @@
     } else if (cutType === 'inner') {
       hatched = '';
     } else {
-      var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
-              ' L' + boxHalf + ',' + (-boxHalf) +
-              ' L' + boxHalf + ',' + boxHalf +
-              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' + outline;
-      hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
+      // Outer: only the band the bit takes, out to its far edge.
+      hatched = edgeD ? '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>' : '';
     }
 
     // Dimension arrows placed asymmetrically to keep them from crossing:
@@ -6759,7 +6755,6 @@
     pad += bitEdgePad(cutType);
     var r = D > 0 && pad > 0 ? Math.min(40, 44 * (D / 2) / (D / 2 + pad)) : 40;
     var edgeR = D > 0 ? r + bitEdgeDir(cutType) * Math.max(0, num('qc-bit', 0)) * r / (D / 2) : 0;
-    var boxHalf = 50;
     var arrowInset = 4;
 
     var hatchFill = 'fill="url(#qc-circ-hatch)"';
@@ -6769,15 +6764,12 @@
     } else if (cutType === 'inner') {
       hatched = '';
     } else {
-      // Outer waste = viewBox rect minus interior circle (evenodd).
-      // Approximate the circle with two arcs joined by a move.
-      var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
-              ' L' + boxHalf + ',' + (-boxHalf) +
-              ' L' + boxHalf + ',' + boxHalf +
-              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' +
-              'M' + r + ',0 A' + r + ',' + r + ' 0 1 0 ' + (-r) + ',0 ' +
-              'A' + r + ',' + r + ' 0 1 0 ' + r + ',0 Z';
-      hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
+      // Outer: only the band the bit takes, out to its far edge.
+      var ring = function(rr) {
+        return 'M' + rr.toFixed(2) + ',0 A' + rr.toFixed(2) + ',' + rr.toFixed(2) + ' 0 1 0 ' + (-rr).toFixed(2) + ',0 ' +
+               'A' + rr.toFixed(2) + ',' + rr.toFixed(2) + ' 0 1 0 ' + rr.toFixed(2) + ',0 Z';
+      };
+      hatched = edgeR > r ? '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + ring(edgeR) + ' ' + ring(r) + '"/>' : '';
     }
 
     // Tap targets for the 9-dot Origin picker: the circle's box corners,
@@ -7271,11 +7263,6 @@
     var R = diameter > 0 && pad > 0 ? Math.min(40, 44 * (diameter / 2) / (diameter / 2 + pad)) : 40;
     // Edge Length is dimensioned outside the shape, label and all.
     if (sizeMode === 'edge') R *= 0.8;
-    // Hatched-region boundary — extends to the full SVG viewBox so
-    // the "outer" waste hatch fills all the way to the preview cell's
-    // border, which serves as the visible container box (no need to
-    // draw a second one). ViewBox is -50…+50 in each axis.
-    var boxHalf = 50;
     var start = Math.PI / n - Math.PI / 2 + startDeg * Math.PI / 180;
     var pts = [];
     for (var i = 0; i < n; i++) {
@@ -7371,17 +7358,10 @@
             '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>';
     }
 
-    // Hatched waste area — the region the cut leaves as scrap.
-    //   Inner (clearing) cut → keep the outside, clear the polygon interior
-    //   Inner (perimeter) cut → only the outline, nothing hatched
-    //   Outer (part) cut     → keep the polygon, waste the surrounding box
-    // For "outer", use an even-odd path: outer container rect + inner
-    // polygon subpath. The area between them (box minus polygon) gets
-    // the hatch fill; the polygon interior stays clear.
-    // "Inner" cuts leave the polygon interior as waste; "outer"
-    // (and clearing implicitly, but clearing goes to the perimeter
-    // branch UI-wise) leaves the surrounding box as waste. Even-odd
-    // rule paints the box minus the polygon for the outer case.
+    // Hatched: what the bit removes.
+    //   Inner (clearing)  → the whole interior
+    //   Inner (perimeter) → nothing; the outline and its dashed far edge
+    //   Outer (part)      → the band out to the dashed far edge (even-odd)
     // Vertices in the generator's order, then the polygon's own center.
     polyPreviewNodes = pts.map(function(q, i) { return { x: q.x, y: q.y, value: 'corner:' + (i + 1) }; })
       .concat([{ x: 0, y: 0, value: 'shape-center' }]);
@@ -7392,11 +7372,8 @@
     } else if (cutType === 'inner') {
       hatchedPath = '';
     } else {
-      var d = 'M' + (-boxHalf) + ',' + (-boxHalf) +
-              ' L' + boxHalf + ',' + (-boxHalf) +
-              ' L' + boxHalf + ',' + boxHalf +
-              ' L' + (-boxHalf) + ',' + boxHalf + ' Z ' + outline;
-      hatchedPath = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + d + '"/>';
+      // Outer: only the band the bit takes, out to its far edge.
+      hatchedPath = edgeD ? '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>' : '';
     }
 
     svg.innerHTML =
@@ -7656,7 +7633,7 @@
     var edgeD = bitEdgeDir(cut) && bitD > 0 && edgeHalf * k > 2.5 && !(pc.type === 'arc' && edgeHalf >= pc.r)
       ? path(gen.slotOutline(pc, edgeHalf)) + ' Z' : '';
     var hatched = cut === 'outer'
-      ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="M-50,-50 L50,-50 L50,50 L-50,50 Z ' + d + '"/>'
+      ? (edgeD ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="' + edgeD + ' ' + d + '"/>' : '')
       : cut === 'inner' ? ''
       : '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" d="' + d + '"/>';
     var e0, e1, dim;
@@ -7977,7 +7954,7 @@
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
-  var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes.';
+  var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
