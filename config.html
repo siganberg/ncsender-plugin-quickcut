@@ -10688,14 +10688,18 @@
       if (!(half > 0)) return 'the slot width must be more than 0';
       if (cl.type === 'arc') {
         if (half >= cl.r) return 'the slot is as wide as its radius or wider, so its inner edge would cross the centre';
-        var gap = 2 * Math.PI - (cl.a1 - cl.a0);
-        if (gap <= 0 || 2 * cl.r * Math.sin(gap / 2) < 2 * half) return 'the slot\'s ends would overlap: the sweep is too close to a full circle for this width';
         // An outer cut runs a bit radius outside the slot, so its inner arc
         // is that much tighter; at or past the centre the ends don't join and
         // the controller rejects the arcs.
         if (params.cutType === 'outer' && half + (params.bitDiameter || 0) / 2 >= cl.r) {
           return 'with the Outer cut the bit\'s path is as wide as its radius or wider, so its inner edge would cross the centre: make the radius bigger, or the slot or bit narrower';
         }
+        var gap = 2 * Math.PI - (cl.a1 - cl.a0);
+        // An outer cut's ends run a bit radius outside the slot's, so when
+        // they face each other across a gap under 180° they meet sooner and
+        // the bit would cut into the part's ends.
+        var endReach = half + (params.cutType === 'outer' && gap < Math.PI ? (params.bitDiameter || 0) / 2 : 0);
+        if (gap <= 0 || 2 * cl.r * Math.sin(gap / 2) < 2 * endReach) return 'the slot\'s ends would overlap: the sweep is too close to a full circle for this width' + (endReach > half ? ' and bit' : '');
       }
       return null;
     }

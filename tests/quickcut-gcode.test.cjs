@@ -2486,3 +2486,16 @@ test('planer wasteboard surfaces the travel where the machine has it, negative c
   assert.match(withZone, /^\(Keepout zone left out: ncSender, X -122-0, Y -530-0mm plus the bit radius\)$/m);
   assert.ok(!/not avoided/.test(withZone));
 });
+
+test('slot: an outer arc cut whose ends would meet around the gap is refused', () => {
+  const g = makeQuickCutGenerator(false);
+  // Radius 30, width 10, 10 mm bit: the slot's ends are 15 mm apart at 331°,
+  // the outer path's ends need 20 mm.
+  const params = slotBase({ slotType: 'arc', radius: 30, startAngleDeg: 0, sweepDeg: 331, width: 10, bitDiameter: 10, cutType: 'outer' });
+  assert.match(g.slotProblem(params, g.slotCenterline(params), 5), /ends would overlap.*and bit/);
+  assert.ok(!/^G[23] /m.test(g.generateSlotProgram(params)), 'no arcs emitted');
+  // Inner, or a shorter sweep, is fine.
+  assert.equal(g.slotProblem(Object.assign({}, params, { cutType: 'inner' }), g.slotCenterline(params), 5), null);
+  const short = Object.assign({}, params, { sweepDeg: 300 });
+  assert.equal(g.slotProblem(short, g.slotCenterline(short), 5), null);
+});
