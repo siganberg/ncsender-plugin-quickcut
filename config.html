@@ -9300,6 +9300,13 @@
       return levels;
     }
 
+    // Clearing rings further apart than r * (1 + cos(pi/n)) leave an island
+    // between them in each corner (a triangle past 75% stepover, a square
+    // past about 85%).
+    function clearingRingStep(step, toolRadius, sides) {
+      return Math.min(step, toolRadius * (1 + Math.cos(Math.PI / sides)));
+    }
+
     function pushLine(segs, a, b) {
       var len = Math.hypot(b.x - a.x, b.y - a.y);
       if (len > 1e-9) segs.push({ type: 'line', x0: a.x, y0: a.y, x1: b.x, y1: b.y, len: len });
@@ -9916,6 +9923,7 @@
 
       var levels = [];
       var offset = 0;
+      var ringStep = clearingRingStep(step, base.toolRadius, 4);
       while (true) {
         var hW = base.halfW - offset;
         var hH = base.halfH - offset;
@@ -9927,7 +9935,9 @@
           rotationDeg: base.rotationDeg
         });
         if (hW <= base.toolRadius && hH <= base.toolRadius) break;
-        offset += step;
+        // A last level that would close up leaves the middle a bit radius in.
+        var shortHalf = Math.min(hW, hH);
+        offset += shortHalf - ringStep <= 1e-9 && shortHalf - base.toolRadius > 1e-9 ? shortHalf - base.toolRadius : ringStep;
       }
       levels.reverse();
       for (var li = 0; li < levels.length - 1; li++) {
@@ -10919,7 +10929,7 @@
       // Each pass shrinks the apothem by `step`; corresponding path
       // radius = apothem / cos(π/n).
       var cosHalfAngle = Math.cos(Math.PI / geom.sides);
-      var apoStep = step;
+      var apoStep = clearingRingStep(step, geom.toolRadius, geom.sides);
       var apoOuter = geom.pathRadius * cosHalfAngle;
       var apoMin = geom.toolRadius;
       var radii = [];
@@ -10927,7 +10937,10 @@
       while (apo > 0) {
         radii.push(apo / cosHalfAngle);
         if (apo <= apoMin) break;
-        apo -= apoStep;
+        if (apo - apoStep > 1e-9) apo -= apoStep;
+        // A last ring that would close up stops a bit radius from the middle.
+        else if (apo - apoMin > 1e-9) apo = apoMin;
+        else break;
       }
       radii.reverse();
 
@@ -10989,10 +11002,13 @@
 
       var apos = [];
       var apo = geom.pathRadius * Math.cos(half);
+      var ringStep = clearingRingStep(step, geom.toolRadius, geom.sides);
       while (apo > 0) {
         apos.push(apo);
         if (apo <= geom.toolRadius) break;
-        apo -= step;
+        if (apo - ringStep > 1e-9) apo -= ringStep;
+        else if (apo - geom.toolRadius > 1e-9) apo = geom.toolRadius;
+        else break;
       }
       apos.reverse();
       var rings = apos.map(function(a) {

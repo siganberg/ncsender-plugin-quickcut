@@ -1288,6 +1288,73 @@ test('polygon: clearing emits concentric shrinking polygons', () => {
   assert.ok(g1Count >= 30 && g1Count <= 40, `expected ~34 G1 XY moves, got ${g1Count}`);
 });
 
+// Points (of `pts`) that no straight cutting move below Z0 brings within
+// the bit's radius: material a clearing leaves behind.
+function uncutPoints(gcode, toolRadius, pts) {
+  const segs = []; let x = 0, y = 0, z = 0;
+  for (const line of gcode.split('\n')) {
+    const m = line.match(/^G([0-3])\b/); if (!m) continue;
+    const get = (c, v) => { const w = line.match(new RegExp(c + '(-?[\\d.]+)')); return w ? +w[1] : v; };
+    const nx = get('X', x), ny = get('Y', y), nz = get('Z', z);
+    if (m[1] === '1' && Math.max(z, nz) < 0) segs.push([x, y, nx, ny]);
+    x = nx; y = ny; z = nz;
+  }
+  const dist = (p, s) => {
+    const dx = s[2] - s[0], dy = s[3] - s[1], L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((p[0] - s[0]) * dx + (p[1] - s[1]) * dy) / L)) : 0;
+    return Math.hypot(p[0] - s[0] - t * dx, p[1] - s[1] - t * dy);
+  };
+  return pts.filter(p => segs.every(s => dist(p, s) > toolRadius + 1e-3));
+}
+
+test('polygon clearing: a high stepover still clears the middle', () => {
+  // Square, 6mm bit, 85% stepover: the rings used to stop 4.85mm from the
+  // middle (more than the 3mm bit radius), leaving a post there. The last
+  // ring now sits a bit radius from the middle.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 4, radius: 40, cutType: 'clearing', bitDiameter: 6, stepoverPct: 85, depth: 1, depthOfCut: 1 }));
+  const grid = [];
+  for (let px = -5; px <= 5; px += 0.5) for (let py = -5; py <= 5; py += 0.5) grid.push([px, py]);
+  assert.deepEqual(uncutPoints(gcode, 3, grid), []);
+});
+
+test('polygon clearing: rings close enough together to clear a triangle\'s corners', () => {
+  // Past r * (1 + cos(π/3)) = 1.5r apart (75% stepover), neighbouring rings
+  // leave an island between them in each corner, on the corner's bisector.
+  // Sample each corner's bisector, from the triangle's centre out to the
+  // outer ring's corner. (Origin 'center' is the middle of the bounding
+  // box, so the triangle's own centre isn't at X0 Y0.)
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  for (const stepoverPct of [80, 90]) {
+    const gcode = gen(polygonBase({ sides: 3, radius: 40, cutType: 'clearing', bitDiameter: 6, stepoverPct, depth: 1, depthOfCut: 1 }));
+    const corners = gcode.split('\n').filter(l => /^G1 X/.test(l)).slice(-3).map(l => [+l.match(/X(-?[\d.]+)/)[1], +l.match(/Y(-?[\d.]+)/)[1]]);
+    const cx = (corners[0][0] + corners[1][0] + corners[2][0]) / 3, cy = (corners[0][1] + corners[1][1] + corners[2][1]) / 3;
+    const pts = [];
+    for (const [qx, qy] of corners) for (let t = 0; t <= 1; t += 0.01) pts.push([cx + (qx - cx) * t, cy + (qy - cy) * t]);
+    assert.deepEqual(uncutPoints(gcode, 3, pts), [], 'stepover ' + stepoverPct);
+  }
+});
+
+test('polygon clearing: rounded corners near the bit radius still generate', () => {
+  // The rings used to land a hair over the bit radius and add an empty
+  // ring after it, which threw before anything was emitted.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 3, radius: 30, cornerRadius: 2, startAngleDeg: 13, cutType: 'clearing', bitDiameter: 6, stepoverPct: 50, depth: 2, depthOfCut: 1 }));
+  assert.match(gcode.trim(), /M30/);
+  assert.ok(!/NaN/.test(gcode));
+});
+
+test('rectangle clearing: a high stepover still clears the centre line', () => {
+  // 80 × 50, 6mm bit, 75% stepover: the levels used to stop 4mm either side
+  // of the centre line, leaving a 2mm strip along it.
+  const gcode = makeQuickCutGenerator(false).generateRectangleProgram(baseParams({
+    width: 80, height: 50, cutType: 'clearing', bitDiameter: 6, stepoverPct: 75, depth: 1, depthOfCut: 1
+  }));
+  const line = [];
+  for (let px = -30; px <= 30; px += 0.5) line.push([px, 0]);
+  assert.deepEqual(uncutPoints(gcode, 3, line), []);
+});
+
 test('polygon: closes back to first vertex (last G1 equals first G0)', () => {
   const gen = makeQuickCutGenerator(false).generatePolygonProgram;
   const gcode = gen(polygonBase({ sides: 5, radius: 15, cutType: 'outer', bitDiameter: 0 }));
