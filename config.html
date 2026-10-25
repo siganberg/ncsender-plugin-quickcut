@@ -4487,7 +4487,8 @@
   // The center-to-center step along a row, whatever its mode says.
   function patternRowStep(pat) {
     var d = Math.abs(pat.xDist || 0), n = Math.max(1, Math.floor(pat.xCount || 1));
-    return patternAxisExtentOf(pat, 'x') && n > 1 ? d / (n - 1) : d;
+    if (patternAxisExtentOf(pat, 'x')) return n > 1 ? d / (n - 1) : 0;
+    return d;
   }
   function patternAxisExtentOf(pat, axis) { return pat.spacing === 'extent' || !!pat[axis + 'Extent']; }
   // One copy's toolpath in the rows' frame (u along a row, v across): its
@@ -4496,12 +4497,21 @@
   // the bit radius; null if the shape can't be generated yet. The last one
   // is kept: every keystroke reads the form more than once.
   var patternGeomCache = { key: null, geom: null };
-  function patternCopyGeom(prefix, params) {
+  // The single copy that's measured, and a key for it.
+  function patternGeomParams(params) {
     var pat = params.pattern || {};
     var p = Object.assign({}, params, { tabs: null, depth: 1, depthOfCut: 1, peckDepth: 0 });
     if (p.cutType === 'clearing') p.cutType = 'inner';
     p.pattern = { enabled: true, style: 'linear', xCount: 1, yCount: 1, xDist: 0, yDist: 0, angle: pat.angle || 0, rotateShapes: !!pat.rotateShapes };
-    var key = prefix + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(p);
+    return p;
+  }
+  function patternGeomKey(prefix, params) {
+    return prefix + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(patternGeomParams(params));
+  }
+  function patternCopyGeom(prefix, params) {
+    var pat = params.pattern || {};
+    var p = patternGeomParams(params);
+    var key = patternGeomKey(prefix, params);
     if (patternGeomCache.key === key) return patternGeomCache.geom;
     var geom = null;
     try {
@@ -4633,13 +4643,23 @@
     return Math.min(pointSegmentDistance(ax, ay, cx, cy, dx, dy), pointSegmentDistance(bx, by, cx, cy, dx, dy),
                     pointSegmentDistance(cx, cy, ax, ay, bx, by), pointSegmentDistance(dx, dy, ax, ay, bx, by));
   }
-  // The gap at a spacing s, for an axis of a style. On Honeycomb, Y's
-  // nearest neighbours are the next row's (half a step along, a row
-  // across) or the copy two rows away; sx is the step along a row.
+  // The gap at a spacing s, for an axis of a style. Along a row it's the
+  // next copy. Across, it's the nearest of every copy in the next row
+  // (sx apart along it, half a step over on Honeycomb's shifted rows), and
+  // on Honeycomb the row after that too: a long or turned shape can come
+  // nearest to a copy diagonally. Copies further along than the cut is
+  // wide can't be nearer, so the search stops there.
   function patternGapAt(geom, honeycomb, axis, s, sx) {
     if (axis === 'x') return patternCopyGap(geom, s, 0);
-    if (!honeycomb) return patternCopyGap(geom, 0, s);
-    return Math.min(patternCopyGap(geom, sx / 2, s), patternCopyGap(geom, -sx / 2, s), patternCopyGap(geom, 0, 2 * s));
+    var reach = geom.box.u1 - geom.box.u0 + 2 * geom.r, step = Math.abs(sx), best = Infinity;
+    var row = function(off, dv) {
+      if (!(step > 1e-9)) { best = Math.min(best, patternCopyGap(geom, off, dv)); return; }
+      var k0 = Math.floor((-reach - off) / step), k1 = Math.ceil((reach - off) / step);
+      for (var k = Math.max(k0, -200); k <= Math.min(k1, 200); k++) best = Math.min(best, patternCopyGap(geom, k * step + off, dv));
+    };
+    row(honeycomb ? step / 2 : 0, s);
+    if (honeycomb) row(0, 2 * s);
+    return best;
   }
   // The smallest spacing whose gap is `gap` (the gap only grows as copies
   // move apart), by halving the range.
@@ -4658,8 +4678,10 @@
     var geom = patternCopyGeom(prefix, params);
     if (!geom) return params;
     var honeycomb = pat.style === 'honeycomb';
-    if (pat.xGap != null) pat.xDist = pat.xSign * patternSpacingFor(geom, honeycomb, 'x', pat.xGap);
-    if (pat.yGap != null) pat.yDist = pat.ySign * patternSpacingFor(geom, honeycomb, 'y', pat.yGap, patternRowStep(pat));
+    // Rounded up to 4 decimals: a readable header, and never less gap.
+    var up = function(v) { return Math.ceil(v * 1e4 - 1e-6) / 1e4; };
+    if (pat.xGap != null) pat.xDist = pat.xSign * up(patternSpacingFor(geom, honeycomb, 'x', pat.xGap));
+    if (pat.yGap != null) pat.yDist = pat.ySign * up(patternSpacingFor(geom, honeycomb, 'y', pat.yGap, patternRowStep(pat)));
     return params;
   }
   // Switches an axis's mode, converting the number through the spacing it
@@ -4676,24 +4698,26 @@
     var v = Math.abs(num(input.id, NaN));
     if (!isFinite(v)) return;
     var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
-    var geom = null, honeycomb = false, sx = 0;
+    var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read();
+    var geom = null, honeycomb = params.pattern.style === 'honeycomb', sx = patternRowStep(params.pattern);
     if (was === 'gap' || mode === 'gap') {
-      var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read();
       geom = patternCopyGeom(prefix, params);
       if (!geom) return;
-      honeycomb = params.pattern.style === 'honeycomb';
-      sx = patternRowStep(params.pattern);
     }
+    // What the kept exact spacing depends on: the count, the shape and bit,
+    // and the step along a row.
+    var ctx = count + '|' + sx + '|' + patternGeomKey(prefix, params);
     var spacing = was === 'extent' ? (count > 1 ? v / (count - 1) : v)
                 : was === 'gap' ? patternSpacingFor(geom, honeycomb, axis, v, sx) : v;
     // Untouched since the last switch: start from the exact spacing, not
     // the rounded number shown, so switching back and forth doesn't drift.
-    if (input.value === sel.getAttribute('data-shown') && isFinite(Number(sel.getAttribute('data-spacing')))) spacing = Number(sel.getAttribute('data-spacing'));
+    if (input.value === sel.getAttribute('data-shown') && sel.getAttribute('data-ctx') === ctx && isFinite(Number(sel.getAttribute('data-spacing')))) spacing = Number(sel.getAttribute('data-spacing'));
     var out = mode === 'extent' ? (count > 1 ? spacing * (count - 1) : spacing)
             : mode === 'gap' ? Math.max(0, patternGapAt(geom, honeycomb, axis, spacing, sx)) : spacing;
     input.value = roundDisplay(sign * out);
     sel.setAttribute('data-spacing', String(spacing));
     sel.setAttribute('data-shown', input.value);
+    sel.setAttribute('data-ctx', ctx);
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
   function wirePatternAxisModes() {
@@ -5737,7 +5761,8 @@
     // counted and spaced only the unshifted rows.
     var oldHoney = p.style === 'honeycomb' && !p.rowByRow;
     if (p.yCount != null)   $(pre + 'y-count').value = oldHoney ? 2 * p.yCount - 1 : p.yCount;
-    if (p.yDist != null && oldHoney && p.spacing !== 'extent') $(pre + 'y-dist').value = roundDisplay(mmToDisplay(p.yDist) / 2);
+    // Halved in full, not rounded: a rounded half would drift row by row.
+    if (p.yDist != null && oldHoney && p.spacing !== 'extent') $(pre + 'y-dist').value = parseFloat((Number(roundDisplay(mmToDisplay(p.yDist))) / 2).toFixed(6));
     if (p.count != null)    $(pre + 'count').value = p.count;
     if (p.radius != null)   $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radius));
     if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
@@ -5754,6 +5779,9 @@
       sel.value = mode;
       sel.setAttribute('data-was', mode);
       sel.setAttribute('data-sign', p[axis + 'Sign'] === -1 ? '-1' : '1');
+      sel.removeAttribute('data-spacing');
+      sel.removeAttribute('data-shown');
+      sel.removeAttribute('data-ctx');
       if (gap != null) $(pre + axis + '-dist').value = roundDisplay((p[axis + 'Sign'] === -1 ? -1 : 1) * mmToDisplay(gap));
     });
   }
@@ -10093,8 +10121,10 @@
             '; dX=' + (xe ? parseFloat(patternStep(p.xDist || 0, xc).toFixed(4)) : (p.xDist || 0)) +
             ', dY=' + (ye ? parseFloat(patternStep(p.yDist || 0, yc).toFixed(4)) : (p.yDist || 0))
           : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
+        // Gap mode: the stock asked for between copies, which the spacings give.
+        var gaps = [p.xGap != null ? 'X=' + p.xGap : '', p.yGap != null ? 'Y=' + p.yGap : ''].filter(Boolean).join(', ');
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
-               ' (' + dims + ')' +
+               ' (' + dims + (gaps ? '; gap ' + gaps : '') + ')' +
                (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
       }
       if (p.style === 'grid') {

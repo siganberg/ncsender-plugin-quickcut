@@ -1812,6 +1812,11 @@ test('extent pattern header gives the extent and the spacing it works out to', (
     pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 2, xDist: 100, yDist: 25, xExtent: true }
   }));
   assert.match(xOnly, /\(Pattern: Linear 4x2 \[extent X=100; dX=33\.3333, dY=25\]\)/);
+  // Gap mode: the header also gives the gap asked for.
+  const gapped = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
+    pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 2, xDist: 13, yDist: 25, xGap: 8 }
+  }));
+  assert.match(gapped, /\(Pattern: Linear 2x2 \[dX=13, dY=25; gap X=8\]\)/);
   assert.equal((gcode.match(/^\(Hole \d+\/8 /mg) || []).length, 8);
 });
 
