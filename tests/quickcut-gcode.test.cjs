@@ -2607,3 +2607,23 @@ test('polygon T-bones pinwheel: every edge runs on past its end in the cut direc
     assert.equal(bones, sides, `${sides} sides`);
   }
 });
+
+test('corner relief leaves holding tabs centred on each edge', () => {
+  const g = makeQuickCutGenerator(false);
+  const tabMids = (relief, extra, fn) => {
+    const p = Object.assign({ cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+      feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: relief, tabs: { count: 3, width: 6, height: 2 } }, extra);
+    let x = 0, y = 0, a = null; const mids = [];
+    g[fn](p).split('\n').forEach(l => {
+      const mx = /X(-?[\d.]+)/.exec(l), my = /Y(-?[\d.]+)/.exec(l);
+      if (/; Tab/.test(l)) { a = [x, y]; return; }
+      if (a && /^G1 Z/.test(l)) { mids.push([(a[0] + x) / 2, (a[1] + y) / 2]); a = null; }
+      if (mx) x = +mx[1]; if (my) y = +my[1];
+    });
+    return mids.map(m => m.map(v => v.toFixed(3)).join(',')).join(' ');
+  };
+  for (const relief of ['dogbone', 'tbone']) {
+    assert.equal(tabMids(relief, { sides: 3, diameter: 80 }, 'generatePolygonProgram'), tabMids('none', { sides: 3, diameter: 80 }, 'generatePolygonProgram'), relief);
+    assert.equal(tabMids(relief, { sides: 6, diameter: 80 }, 'generatePolygonProgram'), tabMids('none', { sides: 6, diameter: 80 }, 'generatePolygonProgram'), relief);
+  }
+});

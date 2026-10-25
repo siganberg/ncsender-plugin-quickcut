@@ -5058,7 +5058,7 @@
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
-    if (rect.cornerRelief)          $('qc-rect-corner-relief').value = rect.cornerRelief;
+    if (saved.rectangle)            $('qc-rect-corner-relief').value = rect.cornerRelief || 'none';
     if (rect.origin)                setOriginPickerValue('qc-rect-origin', migrateOrigin(rect.origin));
     hydrateInset('rect', rect.inset);
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
@@ -5132,7 +5132,7 @@
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
     if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
-    if (poly.cornerRelief)          $('qc-poly-corner-relief').value = poly.cornerRelief;
+    if (saved.polygon)              $('qc-poly-corner-relief').value = poly.cornerRelief || 'none';
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
     hydrateInset('poly', poly.inset);
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
@@ -6233,79 +6233,89 @@
     return (style === 'dogbone' || style === 'tbone') && (cutType === 'inner' || cutType === 'clearing') &&
       Math.max(0, num('qc-' + prefix + '-corner', 0)) < Math.max(0, num('qc-bit', 0)) / 2 ? style : null;
   }
-  // The outline a relieved cut leaves, in preview units: the shape's
-  // edges, and at each corner the arc of the bit where it stops, round
-  // the side past the corner. Dog-bone: the bit's centre on the corner's
-  // bisector, its edge reaching the corner (or the corner radius, rcP).
-  // T-bone: the centre a bit radius in from the longer edge (the more
-  // horizontal one when equal), as far along as the corner, notching only
-  // the other wall; with pinwheel, always the edge coming into the corner,
-  // verts being in the cut's (CCW) order.
+  // The outline a relieved cut leaves, in preview units. At each corner
+  // the bit sweeps a stadium from P, its centre at the corner of its
+  // usual path, out to C, where it stops: Dog-bone along the bisector,
+  // its edge reaching the corner (or the corner radius, rcP); T-bone a
+  // bit radius in from one edge, as far along as the corner (the longer
+  // edge, the more horizontal one when equal; with pinwheel, always the
+  // edge coming in, verts being in the cut's CCW order). The outline
+  // follows that stadium wherever it isn't already inside the cut: past
+  // the walls, and round the corner the bit leaves uncut.
   function reliefOutline(verts, rP, rcP, style, pinwheel) {
     var n = verts.length, d = '';
     var f = function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
     var len = function(i) { var q = verts[(i + 1) % n]; return Math.hypot(q.x - verts[i].x, q.y - verts[i].y); };
-    // Where a circle about c of radius rP crosses the line from v along e,
-    // the far crossing.
-    var cross = function(v, e, c) {
-      var wx = v.x - c.x, wy = v.y - c.y, bq = wx * e.x + wy * e.y, cq = wx * wx + wy * wy - rP * rP;
-      var disc = bq * bq - cq;
-      return disc >= 0 ? -bq + Math.sqrt(disc) : null;
-    };
+    var dot = function(a, b) { return a.x * b.x + a.y * b.y; };
+    var sub = function(a, b) { return { x: a.x - b.x, y: a.y - b.y }; };
+    var add = function(a, b, k) { return { x: a.x + b.x * k, y: a.y + b.y * k }; };
+    var inward = function(e, b) { var m = { x: -e.y, y: e.x }; return dot(m, b) < 0 ? { x: -m.x, y: -m.y } : m; };
     for (var i = 0; i < n; i++) {
       var v = verts[i], p = verts[(i + n - 1) % n], q = verts[(i + 1) % n];
       var l1 = Math.hypot(p.x - v.x, p.y - v.y) || 1, l2 = Math.hypot(q.x - v.x, q.y - v.y) || 1;
       var e1 = { x: (p.x - v.x) / l1, y: (p.y - v.y) / l1 }, e2 = { x: (q.x - v.x) / l2, y: (q.y - v.y) / l2 };
       var bl = Math.hypot(e1.x + e2.x, e1.y + e2.y) || 1, b = { x: (e1.x + e2.x) / bl, y: (e1.y + e2.y) / bl };
-      var cosA = e1.x * b.x + e1.y * b.y, sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
-      var c = null, s0 = null, s1 = null, apex;
-      if (rP > 0 && sinA > 1e-9) {
-        if (style === 'tbone') {
-          // Along the longer edge: e1's (into v) or e2's (out of v).
-          var la = len((i + n - 1) % n), lb = len(i);
-          // As the generator picks: the longer edge, then the more
-          // horizontal, then the one sloping up to the right (on screen,
-          // where y runs down, x·y < 0).
-          var alongIn = pinwheel ? true : Math.abs(la - lb) > 1e-6 ? la > lb
-            : Math.abs(Math.abs(e1.x) - Math.abs(e2.x)) > 1e-6 ? Math.abs(e1.x) > Math.abs(e2.x)
-            : e1.x * e1.y < 0;
-          var ea = alongIn ? e1 : e2, eb = alongIn ? e2 : e1;
-          // Inward normal of the long edge, toward the shape.
-          var nx = -ea.y, ny = ea.x;
-          if (nx * b.x + ny * b.y < 0) { nx = -nx; ny = -ny; }
-          var t = Math.max(0, rcP) * cosA / sinA;
-          c = { x: v.x + ea.x * t + nx * rP, y: v.y + ea.y * t + ny * rP };
-          var sb = cross(v, eb, c);
-          if (sb != null && sb > 1e-9) {
-            var onA = { x: v.x + ea.x * t, y: v.y + ea.y * t }, onB = { x: v.x + eb.x * sb, y: v.y + eb.y * sb };
-            s0 = alongIn ? onA : onB; s1 = alongIn ? onB : onA;
-            // The notch is where the bit pokes through the other wall:
-            // straight out through it from the bit's centre.
-            var ox = -eb.y, oy = eb.x;
-            if (ox * b.x + oy * b.y > 0) { ox = -ox; oy = -oy; }
-            apex = { x: c.x + ox * rP, y: c.y + oy * rP };
-          }
-        } else {
-          var D = rP + Math.max(0, rcP) * (1 / sinA - 1), disc = rP * rP - D * D * sinA * sinA;
-          if (disc > 0) {
-            var sd = D * cosA + Math.sqrt(disc);
-            c = { x: v.x + b.x * D, y: v.y + b.y * D };
-            s0 = { x: v.x + e1.x * sd, y: v.y + e1.y * sd }; s1 = { x: v.x + e2.x * sd, y: v.y + e2.y * sd };
-            apex = v;
-          }
+      var cosA = dot(e1, b), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
+      if (!(rP > 0) || sinA < 1e-9) { d += (i ? ' L' : 'M') + f(v); continue; }
+      var n1 = inward(e1, b), n2 = inward(e2, b);
+      var P = add(v, b, rP / sinA), C;
+      if (style === 'tbone') {
+        var la = len((i + n - 1) % n), lb = len(i);
+        var alongIn = pinwheel ? true : Math.abs(la - lb) > 1e-6 ? la > lb
+          : Math.abs(Math.abs(e1.x) - Math.abs(e2.x)) > 1e-6 ? Math.abs(e1.x) > Math.abs(e2.x)
+          : e1.x * e1.y < 0;
+        var ea = alongIn ? e1 : e2;
+        C = add(add(v, ea, Math.max(0, rcP) * cosA / sinA), inward(ea, b), rP);
+      } else {
+        C = add(v, b, rP + Math.max(0, rcP) * (1 / sinA - 1));
+      }
+      var ul = Math.hypot(C.x - P.x, C.y - P.y);
+      if (ul < 1e-6) { d += (i ? ' L' : 'M') + f(v); continue; }
+      // Inside the cut already: within both walls, and not in the corner
+      // the usual path leaves (between the walls and the bit's circle at P).
+      var tA = add(v, e1, rP * cosA / sinA), tB = add(v, e2, rP * cosA / sinA);
+      var inQuad = function(pt) {
+        var poly = [v, tA, P, tB], sign = 0;
+        for (var k = 0; k < 4; k++) {
+          var a = poly[k], c2 = poly[(k + 1) % 4];
+          var cr = (c2.x - a.x) * (pt.y - a.y) - (c2.y - a.y) * (pt.x - a.x);
+          if (Math.abs(cr) < 1e-12) continue;
+          if (sign && Math.sign(cr) !== sign) return false;
+          sign = Math.sign(cr);
         }
-      }
-      if (!s0) { d += (i ? ' L' : 'M') + f(v); continue; }
-      var a0 = Math.atan2(s0.y - c.y, s0.x - c.x), a1 = Math.atan2(s1.y - c.y, s1.x - c.x);
-      var ap = Math.atan2(apex.y - c.y, apex.x - c.x);
-      // Round the side that passes the corner.
-      var span = ((a1 - a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-      var toApex = ((ap - a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-      if (toApex > span) span -= 2 * Math.PI;
-      for (var k = 0; k <= 12; k++) {
-        var ang = a0 + span * k / 12;
-        d += (i || k ? ' L' : 'M') + f({ x: c.x + rP * Math.cos(ang), y: c.y + rP * Math.sin(ang) });
-      }
+        return true;
+      };
+      var inCut = function(pt) {
+        var r = sub(pt, v);
+        if (dot(r, n1) <= 1e-9 || dot(r, n2) <= 1e-9) return false;
+        return !(inQuad(pt) && Math.hypot(pt.x - P.x, pt.y - P.y) > rP + 1e-9);
+      };
+      // The stadium's edge, sampled round: C's far half, a side, P's far
+      // half, the other side.
+      var u = { x: (C.x - P.x) / ul, y: (C.y - P.y) / ul }, w = { x: -u.y, y: u.x };
+      var ring = [], aw = Math.atan2(w.y, w.x), K = 32, k2;
+      for (k2 = 0; k2 <= K; k2++) { var t1 = aw - Math.PI * k2 / K; ring.push({ x: C.x + rP * Math.cos(t1), y: C.y + rP * Math.sin(t1) }); }
+      for (k2 = 1; k2 < 16; k2++) ring.push(add(add(C, w, -rP), u, -ul * k2 / 16));
+      for (k2 = 0; k2 <= K; k2++) { var t2 = aw + Math.PI - Math.PI * k2 / K; ring.push({ x: P.x + rP * Math.cos(t2), y: P.y + rP * Math.sin(t2) }); }
+      for (k2 = 1; k2 < 16; k2++) ring.push(add(add(P, w, rP), u, ul * k2 / 16));
+      var m = ring.length, flags = ring.map(function(pt) { return !inCut(pt); });
+      var s0 = -1;
+      for (k2 = 0; k2 < m; k2++) if (!flags[k2] && flags[(k2 + 1) % m]) { s0 = (k2 + 1) % m; break; }
+      if (s0 < 0) { d += (i ? ' L' : 'M') + f(v); continue; }
+      var run = [];
+      for (k2 = 0; k2 < m && flags[(s0 + k2) % m]; k2++) run.push(ring[(s0 + k2) % m]);
+      // Where the run meets the cut, found by halving the step.
+      var edge = function(a, c2) {
+        for (var h = 0; h < 30; h++) { var mid = { x: (a.x + c2.x) / 2, y: (a.y + c2.y) / 2 }; if (inCut(mid)) a = mid; else c2 = mid; }
+        return c2;
+      };
+      var first = edge(ring[(s0 + m - 1) % m], ring[s0]);
+      var last = edge(ring[(s0 + run.length) % m], ring[(s0 + run.length - 1) % m]);
+      var path = [first].concat(run, [last]);
+      // From the wall coming in (along e1) to the wall going out.
+      var nearA = function(pt) { return Math.abs(dot(sub(pt, v), n1)); }, nearB = function(pt) { return Math.abs(dot(sub(pt, v), n2)); };
+      if (nearB(path[0]) + nearA(path[path.length - 1]) < nearA(path[0]) + nearB(path[path.length - 1])) path.reverse();
+      for (k2 = 0; k2 < path.length; k2++) d += (i || k2 ? ' L' : 'M') + f(path[k2]);
     }
     return d + ' Z';
   }
@@ -9101,9 +9111,12 @@
     // on a rectangle give one in the middle of each side. A circle has
     // no straight edges and keeps the even spacing, as does any shape
     // whose edges are too short for their tabs.
+    // A corner relief move counts as no length for tabs, so relief never
+    // moves them (it isn't part of an edge, and adds no distance round).
+    function tabLen(seg) { return seg.relief ? 0 : seg.len; }
     function tabIntervals(segs, tabs, bitDiameter) {
       var total = 0;
-      for (var i = 0; i < segs.length; i++) total += segs[i].len;
+      for (var i = 0; i < segs.length; i++) total += tabLen(segs[i]);
       var lift = tabs.width + bitDiameter;
       var n = tabs.count;
       while (n > 0 && lift >= total / n) n--;
@@ -9134,7 +9147,7 @@
       }
       for (var i = 0; i < segs.length; i++) {
         var s = segs[i];
-        if (s.type === 'line') {
+        if (s.type === 'line' && !s.relief) {
           var last = edges[edges.length - 1];
           if (last && Math.abs(last.end - d) < 1e-9 && collinear(last.dir, dir(s))) {
             last.end += s.len;
@@ -9142,7 +9155,7 @@
             edges.push({ start: d, end: d + s.len, dir: dir(s) });
           }
         }
-        d += s.len;
+        d += tabLen(s);
       }
       if (edges.length > 1) {
         var first = edges[0], tail = edges[edges.length - 1];
@@ -9267,8 +9280,12 @@
         }
         if (!(d > 1e-6)) continue;
         var corner = { x: a.x1, y: a.y1 }, tip = { x: a.x1 + m.x * d, y: a.y1 + m.y * d };
+        // Marked, so tabs aren't placed by them: a T-bone runs on in line
+        // with its edge and would otherwise count as part of it.
         pushLine(out, corner, tip);
+        out[out.length - 1].relief = true;
         pushLine(out, tip, corner);
+        out[out.length - 1].relief = true;
       }
       return out;
     }
@@ -9299,7 +9316,7 @@
       for (var i = 0; i < segs.length; i++) {
         var seg = segs[i];
         var cuts = [0, seg.len];
-        for (var j = 0; j < intervals.length; j++) {
+        for (var j = 0; j < intervals.length && !seg.relief; j++) {
           var edges = [intervals[j].start - dist, intervals[j].end - dist];
           for (var k = 0; k < 2; k++) {
             if (edges[k] > 1e-9 && edges[k] < seg.len - 1e-9) cuts.push(edges[k]);
@@ -9309,7 +9326,7 @@
         for (var c = 0; c < cuts.length - 1; c++) {
           var s = cuts[c], e = cuts[c + 1];
           if (e - s < 1e-9) continue;
-          var mid = dist + (s + e) / 2;
+          var mid = dist + tabLen(seg) * (s + e) / 2 / seg.len;
           var tab = false;
           for (var t = 0; t < intervals.length; t++) {
             if (mid > intervals[t].start && mid < intervals[t].end) tab = true;
@@ -9322,7 +9339,7 @@
           emitSegmentPiece(lines, seg, s, e, needFeed ? ' F' + feedRate : '');
           needFeed = false;
         }
-        dist += seg.len;
+        dist += tabLen(seg);
       }
     }
 
