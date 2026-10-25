@@ -6226,8 +6226,9 @@
   // bisector, its edge reaching the corner (or the corner radius, rcP).
   // T-bone: the centre a bit radius in from the longer edge (the more
   // horizontal one when equal), as far along as the corner, notching only
-  // the other wall.
-  function reliefOutline(verts, rP, rcP, style) {
+  // the other wall; with pinwheel, always the edge coming into the corner,
+  // verts being in the cut's (CCW) order.
+  function reliefOutline(verts, rP, rcP, style, pinwheel) {
     var n = verts.length, d = '';
     var f = function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
     var len = function(i) { var q = verts[(i + 1) % n]; return Math.hypot(q.x - verts[i].x, q.y - verts[i].y); };
@@ -6252,7 +6253,7 @@
           // As the generator picks: the longer edge, then the more
           // horizontal, then the one sloping up to the right (on screen,
           // where y runs down, x·y < 0).
-          var alongIn = Math.abs(la - lb) > 1e-6 ? la > lb
+          var alongIn = pinwheel ? true : Math.abs(la - lb) > 1e-6 ? la > lb
             : Math.abs(Math.abs(e1.x) - Math.abs(e2.x)) > 1e-6 ? Math.abs(e1.x) > Math.abs(e2.x)
             : e1.x * e1.y < 0;
           var ea = alongIn ? e1 : e2, eb = alongIn ? e2 : e1;
@@ -7423,7 +7424,7 @@
     return outline;
     };
     var outline = relief && diameter > 0
-      ? reliefOutline(pts, Math.max(0, num('qc-bit', 0)) / 2 * R / (diameter / 2), crP, relief)
+      ? reliefOutline(pts, Math.max(0, num('qc-bit', 0)) / 2 * R / (diameter / 2), crP, relief, true)
       : outlineFor(crP);
     var edgeDir = bitEdgeDir(cutType), edgeD = '';
     if (edgeDir && diameter > 0) {
@@ -8090,7 +8091,7 @@
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
-  var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along the longer edge, so only the end wall gets the notch, which hides better on a visible joint. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
+  var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
@@ -9194,15 +9195,17 @@
     // typed Corner Radius when that's smaller than the bit's radius.
     //   dogbone  out along the corner's bisector
     //   tbone    straight on along one edge, so only the other wall is
-    //            notched: the longer edge (the more horizontal one when
-    //            they're equal)
+    //            notched: the longer edge (the more horizontal one, then the
+    //            one sloping up to the right, when they're equal). With
+    //            pinwheel (Polygon), every edge runs on past its end in the
+    //            cut's direction instead, all the way round.
     // Corners are the lap's left turns (laps run CCW).
     function cornerRelief(params) {
       var cut = params.cutType || 'inner', style = params.cornerRelief;
       return (style === 'dogbone' || style === 'tbone') && (cut === 'inner' || cut === 'clearing') &&
         Math.max(0, params.cornerRadius || 0) < (params.bitDiameter || 0) / 2 ? style : null;
     }
-    function cornerReliefSegments(segs, style, toolRadius, cornerRadius) {
+    function cornerReliefSegments(segs, style, toolRadius, cornerRadius, pinwheel) {
       var reach = toolRadius - Math.max(0, cornerRadius || 0);
       var n = segs.length, out = [];
       function dir(s) { return { x: (s.x1 - s.x0) / s.len, y: (s.y1 - s.y0) / s.len }; }
@@ -9232,7 +9235,7 @@
           var la = edgeLen(i), lb = edgeLen((i + 1) % n);
           // Longer edge; then the more horizontal; then the one sloping up to
           // the right, so the choice doesn't depend on the lap's direction.
-          var alongIn = Math.abs(la - lb) > 1e-9 ? la > lb
+          var alongIn = pinwheel ? true : Math.abs(la - lb) > 1e-9 ? la > lb
             : Math.abs(Math.abs(u.x) - Math.abs(v.x)) > 1e-9 ? Math.abs(u.x) > Math.abs(v.x)
             : u.x * u.y > 0;
           d = reach * cosHalf / sinHalf;
@@ -10525,7 +10528,7 @@
       lines.push('G0 Z' + slowPlungeStart);
 
       var tabs = tabSettings(params);
-      var bones = !rounded && cornerRelief(params) ? cornerReliefSegments(polygonSegments(geom), cornerRelief(params), geom.toolRadius, params.cornerRadius) : null;
+      var bones = !rounded && cornerRelief(params) ? cornerReliefSegments(polygonSegments(geom), cornerRelief(params), geom.toolRadius, params.cornerRadius, true) : null;
       var segs = tabs ? (roundSegs || bones || polygonSegments(geom)) : null;
       var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
       var tabTop = intervals.length ? depth - tabs.height : null;
@@ -10667,7 +10670,7 @@
           if (r === radii.length - 1 && cornerRelief(params)) {
             var ring = [];
             for (var vi = 0; vi < verts.length; vi++) pushLine(ring, verts[vi], verts[(vi + 1) % verts.length]);
-            emitSegmentLap(lines, cornerReliefSegments(ring, cornerRelief(params), geom.toolRadius, params.cornerRadius), feedRate);
+            emitSegmentLap(lines, cornerReliefSegments(ring, cornerRelief(params), geom.toolRadius, params.cornerRadius, true), feedRate);
             continue;
           }
           for (var i = 1; i <= verts.length; i++) {
@@ -10716,7 +10719,7 @@
         return segs;
       });
       if (cornerRelief(params) && rings.length) {
-        rings[rings.length - 1] = cornerReliefSegments(rings[rings.length - 1], cornerRelief(params), geom.toolRadius, params.cornerRadius);
+        rings[rings.length - 1] = cornerReliefSegments(rings[rings.length - 1], cornerRelief(params), geom.toolRadius, params.cornerRadius, true);
       }
 
       var safeHeight = safeHopDelta.toFixed(3);

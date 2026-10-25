@@ -2588,3 +2588,22 @@ test('T-bone corners: the bit runs on along the longer edge until it reaches the
     g.polygonCorners(p)(0).forEach(v => assert.ok(Math.abs(nearestTo(pp, v) - 3) < 1e-3, `${sides} ${cutType}`));
   }
 });
+
+test('polygon T-bones pinwheel: every edge runs on past its end in the cut direction', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const [sides, start] of [[3, 0], [4, 45], [6, 0], [8, 10]]) {
+    const p = { diameter: 50, sides, startAngleDeg: start, cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6,
+      depth: 3, depthOfCut: 3, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'tbone' };
+    const L = g.generatePolygonProgram(p).split('\n').filter(l => /^G[01] X/.test(l)).map(l => { const m = /X(-?[\d.]+) Y(-?[\d.]+)/.exec(l); return [+m[1], +m[2]]; });
+    let bones = 0;
+    for (let i = 2; i + 1 < L.length; i++) {
+      // An out-and-back move: it returns to the corner it left.
+      if (Math.hypot(L[i - 1][0] - L[i + 1][0], L[i - 1][1] - L[i + 1][1]) > 1e-4) continue;
+      const out = [L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1]], edge = [L[i - 1][0] - L[i - 2][0], L[i - 1][1] - L[i - 2][1]];
+      const cos = (out[0] * edge[0] + out[1] * edge[1]) / Math.hypot(...out) / Math.hypot(...edge);
+      assert.ok(cos > 0.9999, `${sides} sides: corner ${i} goes off the incoming edge`);
+      bones++;
+    }
+    assert.equal(bones, sides, `${sides} sides`);
+  }
+});
