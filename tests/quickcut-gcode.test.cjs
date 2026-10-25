@@ -2499,3 +2499,66 @@ test('slot: an outer arc cut whose ends would meet around the gap is refused', (
   const short = Object.assign({}, params, { sweepDeg: 300 });
   assert.equal(g.slotProblem(short, g.slotCenterline(short), 5), null);
 });
+
+// The bit centres a program visits at full depth, from its G1 moves.
+function fullDepthPoints(gcode, depth) {
+  const pts = []; let x = 0, y = 0, z = 0;
+  gcode.split('\n').forEach(l => {
+    if (/^G53/.test(l) || !/^G[0-3]\b/.test(l)) return;
+    const mx = /X(-?[\d.]+)/.exec(l), my = /Y(-?[\d.]+)/.exec(l), mz = /Z(-?[\d.]+)/.exec(l);
+    if (mx) x = +mx[1]; if (my) y = +my[1]; if (mz) z = +mz[1];
+    if (/^G1\b/.test(l) && Math.abs(z + depth) < 1e-6) pts.push({ x, y });
+  });
+  return pts;
+}
+function nearestTo(pts, p) { return Math.min(...pts.map(q => Math.hypot(q.x - p.x, q.y - p.y))); }
+
+test('dog-bone corners: the bit reaches each inside corner of a rectangle', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
+  const off = g.generateRectangleProgram(base);
+  const on = g.generateRectangleProgram(Object.assign({}, base, { dogBones: true }));
+  assert.match(on, /^\(Corner Radius: 0mm, dog-bone corners\)$/m);
+  const corners = [[-30, -20], [30, -20], [30, 20], [-30, 20]].map(([x, y]) => ({ x, y }));
+  // Without them the bit stops r·√2 from a corner; with them, exactly r.
+  corners.forEach(c => {
+    assert.ok(Math.abs(nearestTo(fullDepthPoints(off, 6), c) - 3 * Math.SQRT2) < 1e-3);
+    assert.ok(Math.abs(nearestTo(fullDepthPoints(on, 6), c) - 3) < 1e-3, JSON.stringify(c));
+  });
+  // Turned, with holding tabs: still every corner.
+  const turned = Object.assign({}, base, { dogBones: true, startAngleDeg: 30, tabs: { count: 4, width: 6, height: 2 } });
+  const t = (x, y) => { const a = Math.PI / 6; return { x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) }; };
+  const tp = fullDepthPoints(g.generateRectangleProgram(turned), 6);
+  [[-30, -20], [30, -20], [30, 20], [-30, 20]].forEach(([x, y]) => assert.ok(Math.abs(nearestTo(tp, t(x, y)) - 3) < 1e-3));
+  // A clearing's last lap gets them too.
+  const cp = fullDepthPoints(g.generateRectangleProgram(Object.assign({}, base, { dogBones: true, cutType: 'clearing' })), 6);
+  corners.forEach(c => assert.ok(Math.abs(nearestTo(cp, c) - 3) < 1e-3));
+});
+
+test('dog-bone corners on polygons, and to a typed corner radius smaller than the bit', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { diameter: 50, cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, dogBones: true };
+  for (const sides of [3, 6]) for (const cutType of ['inner', 'clearing']) {
+    const pts = fullDepthPoints(g.generatePolygonProgram(Object.assign({}, base, { sides, cutType })), 6);
+    g.polygonCorners(Object.assign({}, base, { sides }))(0).forEach(v => assert.ok(Math.abs(nearestTo(pts, v) - 3) < 1e-3, `${sides} ${cutType}`));
+  }
+  // Corner Radius 1 with a 3 mm bit radius: the bit's edge stops on the
+  // 1 mm fillet, (r - rc)(1/sin(half) - 1) short of the sharp corner's reach.
+  const rect = { width: 60, height: 40, cornerRadius: 1, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, dogBones: true };
+  const d = nearestTo(fullDepthPoints(g.generateRectangleProgram(rect), 6), { x: 30, y: 20 });
+  assert.ok(Math.abs(d - (3 + 1 * (Math.SQRT2 - 1))) < 1e-3, String(d));
+});
+
+test('dog-bone corners change nothing on outer cuts, when off, or when the corner radius covers the bit', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'outer', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
+  assert.equal(g.generateRectangleProgram(Object.assign({}, base, { dogBones: true })), g.generateRectangleProgram(base));
+  const inner = Object.assign({}, base, { cutType: 'inner' });
+  assert.equal(g.generateRectangleProgram(Object.assign({}, inner, { dogBones: false })), g.generateRectangleProgram(inner));
+  const round = Object.assign({}, inner, { cornerRadius: 3 });
+  assert.equal(g.generateRectangleProgram(Object.assign({}, round, { dogBones: true })), g.generateRectangleProgram(round));
+});
