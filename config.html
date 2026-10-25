@@ -1433,6 +1433,12 @@
     box-shadow: none;
   }
   /* "Measure" link beside each pattern Angle label. */
+  /* Bit Diameter's label reads the loaded tool's diameter when clicked. */
+  .qc-bit-label {
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
   .qc-measure-link {
     margin-left: 6px;
     color: var(--color-accent);
@@ -1541,7 +1547,7 @@
             <h4 class="qc-header-card-title">Tool</h4>
             <div class="qc-row-3">
               <div class="qc-field">
-                <label for="qc-bit">Bit Diameter</label>
+                <label for="qc-bit" class="qc-bit-label" title="Click to use the loaded tool's diameter from ncSender's tool table">Bit Diameter</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-bit" min="0.001" step="0.01" value="3.175" required title="Diameter of the cutting bit. The toolpath is offset by half of it so the cut lands on size.">
               </div>
               <div class="qc-field">
@@ -3138,6 +3144,10 @@
     wireValidation();
     wireFocusTips();
     wireInsetModes();
+    $('qc-bit').parentNode.querySelector('.qc-bit-label').addEventListener('click', function(evt) {
+      evt.preventDefault();
+      useLoadedToolDiameter();
+    });
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -7428,6 +7438,32 @@
     else x.value = roundDisplay(nx != null ? ix : iy);
     sel._insetBack = { origin: o, was: was, values: /^xy/.test(was) ? [keep.x, keep.y] : [keep.x, keep.x], shown: pair(insetSplit(prefix)) };
   }
+  // Bit Diameter's label: the loaded tool's diameter from ncSender's tool
+  // table. The loaded tool is T<n>, which names a magazine slot or a Tool ID
+  // depending on Settings -> Tool Changer -> Tool Numbering; /api/tools/active
+  // lists the tools that numbering gives.
+  async function useLoadedToolDiameter() {
+    var bit = $('qc-bit');
+    try {
+      var st = await (await fetch(BASE_URL + '/api/server-state')).json();
+      var n = Number(st && st.machineState && st.machineState.tool);
+      if (!(n > 0)) { showTooltip(bit, 'No tool is loaded, so there\u2019s no diameter to read.', null, true); return; }
+      var settings = await (await fetch(BASE_URL + '/api/settings')).json();
+      var byId = settings && settings.tool && settings.tool.numbering === 'toolId';
+      var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
+      var tool = (tools || []).filter(function(t) { return (byId ? t.toolId : t.toolNumber) === n; })[0];
+      if (!tool || !(tool.diameter > 0)) {
+        showTooltip(bit, 'T' + n + ' has no diameter in ncSender\u2019s tool table.', null, true);
+        return;
+      }
+      bit.value = roundDisplay(mmToDisplay(tool.diameter));
+      bit.dispatchEvent(new Event('input', { bubbles: true }));
+      var name = (tool.name || '').length > 40 ? tool.name.slice(0, 39) + '\u2026' : tool.name || '';
+      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + ')', TOOLTIP_OK, true);
+    } catch (e) {
+      showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
+    }
+  }
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
   // from each preview update, which every way of changing the origin hits.
@@ -9662,6 +9698,7 @@
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
+      'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID).',
       '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.',
       '<strong>Load</strong> fills a tab from a QuickCut program in File Manager: every program records the settings it was made with in a few comment lines after M30. Pick one, check the values, then Generate. Share a program file and someone else can Load its settings too.' ] },
     units: { title: 'Typing units', notes: [
