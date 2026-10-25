@@ -3368,6 +3368,7 @@
     clearTimeout(_tooltipTimer);
     _tooltipTimer = setTimeout(hideTooltip, 5000);
     watchTooltipRoot();
+    armTooltipAway();
     // Focus first: it scrolls the field into view, and the bubble must be
     // placed from the field's position AFTER that scroll, or it lands
     // off-screen or over an unrelated field.
@@ -3389,7 +3390,33 @@
     _tooltip.style.opacity = '1';
     el.style.borderColor = color;
   }
+  // A press anywhere else (mouse, pen or touch) or focus moving elsewhere
+  // takes the bubble down at once. Armed a moment after it shows, so the
+  // press or focus change that showed it (leaving a field, say) doesn't.
+  var _awayTimer = null, _awayArmed = false;
+  function onAwayFromTooltip(evt) {
+    if (!rootAlive()) { disarmTooltipAway(); return; }
+    if (_tooltipEl && evt.target && evt.target.nodeType === 1 && _tooltipEl.contains(evt.target)) return;
+    hideTooltip();
+  }
+  function armTooltipAway() {
+    clearTimeout(_awayTimer);
+    _awayTimer = setTimeout(function() {
+      if (_awayArmed) return;
+      _awayArmed = true;
+      document.addEventListener('pointerdown', onAwayFromTooltip, true);
+      document.addEventListener('focusin', onAwayFromTooltip, true);
+    }, 0);
+  }
+  function disarmTooltipAway() {
+    clearTimeout(_awayTimer);
+    if (!_awayArmed) return;
+    _awayArmed = false;
+    document.removeEventListener('pointerdown', onAwayFromTooltip, true);
+    document.removeEventListener('focusin', onAwayFromTooltip, true);
+  }
   function hideTooltip() {
+    disarmTooltipAway();
     clearTimeout(_tooltipTimer);
     if (_tooltipEl) { _tooltipEl.style.borderColor = ''; _tooltipEl = null; }
     if (!_tooltip) return;
