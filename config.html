@@ -351,6 +351,8 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   }
   .qc-load-panel p { margin: 0; font-size: 0.85rem; color: var(--color-text-secondary); }
+  /* Their display: flex would otherwise beat the hidden attribute. */
+  .qc-load-panel [hidden] { display: none !important; }
   /* The list, search and rows follow ncSender's File Manager (its own
      styles are scoped to it, so they're matched here from the same
      theme variables). */
@@ -6361,7 +6363,7 @@
   // follows that stadium wherever it isn't already inside the cut: past
   // the walls, and round the corner the bit leaves uncut.
   function reliefOutline(verts, rP, rcP, style, pinwheel) {
-    var n = verts.length, d = '';
+    var n = verts.length, paths = [], toolPath = [];
     var f = function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
     var len = function(i) { var q = verts[(i + 1) % n]; return Math.hypot(q.x - verts[i].x, q.y - verts[i].y); };
     var dot = function(a, b) { return a.x * b.x + a.y * b.y; };
@@ -6374,7 +6376,7 @@
       var e1 = { x: (p.x - v.x) / l1, y: (p.y - v.y) / l1 }, e2 = { x: (q.x - v.x) / l2, y: (q.y - v.y) / l2 };
       var bl = Math.hypot(e1.x + e2.x, e1.y + e2.y) || 1, b = { x: (e1.x + e2.x) / bl, y: (e1.y + e2.y) / bl };
       var cosA = dot(e1, b), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
-      if (!(rP > 0) || sinA < 1e-9) { d += (i ? ' L' : 'M') + f(v); continue; }
+      if (!(rP > 0) || sinA < 1e-9) { paths.push([v]); toolPath = null; continue; }
       var n1 = inward(e1, b), n2 = inward(e2, b);
       var P = add(v, b, rP / sinA), C;
       if (style === 'tbone') {
@@ -6388,7 +6390,8 @@
         C = add(v, b, rP + Math.max(0, rcP) * (1 / sinA - 1));
       }
       var ul = Math.hypot(C.x - P.x, C.y - P.y);
-      if (ul < 1e-6) { d += (i ? ' L' : 'M') + f(v); continue; }
+      if (toolPath) toolPath.push({ P: P, C: C });
+      if (ul < 1e-6) { paths.push([v]); continue; }
       // Inside the cut already: within both walls, and not in the corner
       // the usual path leaves (between the walls and the bit's circle at P).
       var tA = add(v, e1, rP * cosA / sinA), tB = add(v, e2, rP * cosA / sinA);
@@ -6419,7 +6422,7 @@
       var m = ring.length, flags = ring.map(function(pt) { return !inCut(pt); });
       var s0 = -1;
       for (k2 = 0; k2 < m; k2++) if (!flags[k2] && flags[(k2 + 1) % m]) { s0 = (k2 + 1) % m; break; }
-      if (s0 < 0) { d += (i ? ' L' : 'M') + f(v); continue; }
+      if (s0 < 0) { paths.push([v]); continue; }
       var run = [];
       for (k2 = 0; k2 < m && flags[(s0 + k2) % m]; k2++) run.push(ring[(s0 + k2) % m]);
       // Where the run meets the cut, found by halving the step.
@@ -6433,9 +6436,139 @@
       // From the wall coming in (along e1) to the wall going out.
       var nearA = function(pt) { return Math.abs(dot(sub(pt, v), n1)); }, nearB = function(pt) { return Math.abs(dot(sub(pt, v), n2)); };
       if (nearB(path[0]) + nearA(path[path.length - 1]) < nearA(path[0]) + nearB(path[path.length - 1])) path.reverse();
-      for (k2 = 0; k2 < path.length; k2++) d += (i || k2 ? ' L' : 'M') + f(path[k2]);
+      paths.push(path);
     }
+    // In a small shape with a big bit, neighbouring notches overlap along
+    // the edge between them and their outlines cross: trim both where the
+    // end of one first meets the start of the next.
+    var cross2 = function(a, b, c, e) {
+      var rx = b.x - a.x, ry = b.y - a.y, sx = e.x - c.x, sy = e.y - c.y, den = rx * sy - ry * sx;
+      if (Math.abs(den) < 1e-12) return null;
+      var t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / den, u2 = ((c.x - a.x) * ry - (c.y - a.y) * rx) / den;
+      return t >= 0 && t <= 1 && u2 >= 0 && u2 <= 1 ? { t: t, u: u2, x: a.x + rx * t, y: a.y + ry * t } : null;
+    };
+    for (var pi = 0; pi < n; pi++) {
+      var A = paths[pi], B = paths[(pi + 1) % n];
+      if (A.length < 2 || B.length < 2 || A === B) continue;
+      var hit = null;
+      // The latest crossing on A that is the earliest on B: scan A from its end.
+      for (var ai = A.length - 2; ai >= 0 && !hit; ai--) {
+        for (var bi = 0; bi < B.length - 1; bi++) {
+          var x = cross2(A[ai], A[ai + 1], B[bi], B[bi + 1]);
+          if (x) { hit = { ai: ai, bi: bi, pt: { x: x.x, y: x.y } }; break; }
+        }
+      }
+      if (!hit) continue;
+      paths[pi] = A.slice(0, hit.ai + 1).concat([hit.pt]);
+      paths[(pi + 1) % n] = [hit.pt].concat(B.slice(hit.bi + 1));
+    }
+    var all = [];
+    paths.forEach(function(path) { all = all.concat(path); });
+    // A big bit in a small shape can make notches reach past their
+    // neighbours; then trace the cut itself instead.
+    if (toolPath && toolPath.length === n && selfCrosses(all)) {
+      var traced = tracedCutOutline(toolPath, rP);
+      if (traced) all = traced;
+    }
+    var d = '';
+    all.forEach(function(pt, m) { d += (m ? ' L' : 'M') + f(pt); });
     return d + ' Z';
+  }
+  function selfCrosses(P) {
+    var n = P.length;
+    var side = function(a, b, c) { return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); };
+    for (var i = 0; i < n; i++) {
+      var a = P[i], b = P[(i + 1) % n];
+      for (var j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) continue;
+        var c = P[j], e = P[(j + 1) % n];
+        var s1 = side(c, e, a), s2 = side(c, e, b), s3 = side(a, b, c), s4 = side(a, b, e);
+        if (s1 * s2 < -1e-9 && s3 * s4 < -1e-9) return true;
+        // Running back over a stretch already drawn (the same wall twice).
+        var lab = Math.hypot(b.x - a.x, b.y - a.y);
+        if (lab > 1e-9 && Math.abs(s3) / lab < 1e-6 && Math.abs(s4) / lab < 1e-6) {
+          var ux = (b.x - a.x) / lab, uy = (b.y - a.y) / lab;
+          var tc = (c.x - a.x) * ux + (c.y - a.y) * uy, te = (e.x - a.x) * ux + (e.y - a.y) * uy;
+          if (Math.min(Math.max(tc, te), lab) - Math.max(Math.min(tc, te), 0) > 1e-6) return true;
+        }
+      }
+    }
+    return false;
+  }
+  // The outer edge of everything within rP of the bit's path: the lap
+  // through each corner's P, with the relief out to C and back. Marching
+  // squares on the signed distance (negative inside the lap), so straight
+  // walls come out straight; the longest loop is the outline.
+  function tracedCutOutline(corners, rP) {
+    var segs = [], lap = corners.map(function(k) { return k.P; });
+    corners.forEach(function(k, i) {
+      segs.push([k.P, corners[(i + 1) % corners.length].P]);
+      segs.push([k.P, k.C]);
+    });
+    var distSeg = function(p, a, b) {
+      var dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+      var t = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+      return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t);
+    };
+    var inside = function(p) {
+      var c = false;
+      for (var i = 0, j = lap.length - 1; i < lap.length; j = i++) {
+        if ((lap[i].y > p.y) !== (lap[j].y > p.y) && p.x < (lap[j].x - lap[i].x) * (p.y - lap[i].y) / (lap[j].y - lap[i].y) + lap[i].x) c = !c;
+      }
+      return c;
+    };
+    var F = function(p) {
+      var m = Infinity;
+      for (var i = 0; i < segs.length; i++) m = Math.min(m, distSeg(p, segs[i][0], segs[i][1]));
+      return (inside(p) ? -m : m) - rP;
+    };
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    segs.forEach(function(sg) { sg.forEach(function(q) { minX = Math.min(minX, q.x); maxX = Math.max(maxX, q.x); minY = Math.min(minY, q.y); maxY = Math.max(maxY, q.y); }); });
+    var h = 0.4, x0 = minX - rP - 2 * h, y0 = minY - rP - 2 * h;
+    var nx = Math.ceil((maxX - minX + 2 * rP + 4 * h) / h), ny = Math.ceil((maxY - minY + 2 * rP + 4 * h) / h);
+    if (nx * ny > 250000) return null;
+    var g = [];
+    for (var yi = 0; yi <= ny; yi++) { var row = []; for (var xi = 0; xi <= nx; xi++) row.push(F({ x: x0 + xi * h, y: y0 + yi * h })); g.push(row); }
+    // Crossing points on cell edges, keyed so neighbouring cells share them.
+    var pts = {}, links = {};
+    var edgePt = function(xa, ya, xb, yb) {
+      var key = xa + ',' + ya + '|' + xb + ',' + yb;
+      if (!pts[key]) {
+        var va = g[ya][xa], vb = g[yb][xb], t = va / (va - vb);
+        pts[key] = { x: x0 + (xa + (xb - xa) * t) * h, y: y0 + (ya + (yb - ya) * t) * h, key: key };
+      }
+      return pts[key];
+    };
+    var link = function(a, b) { (links[a.key] = links[a.key] || []).push(b); (links[b.key] = links[b.key] || []).push(a); };
+    for (yi = 0; yi < ny; yi++) for (xi = 0; xi < nx; xi++) {
+      var c = [g[yi][xi] < 0, g[yi][xi + 1] < 0, g[yi + 1][xi + 1] < 0, g[yi + 1][xi] < 0];
+      var e = [];
+      if (c[0] !== c[1]) e.push(edgePt(xi, yi, xi + 1, yi));
+      if (c[1] !== c[2]) e.push(edgePt(xi + 1, yi, xi + 1, yi + 1));
+      if (c[3] !== c[2]) e.push(edgePt(xi, yi + 1, xi + 1, yi + 1));
+      if (c[0] !== c[3]) e.push(edgePt(xi, yi, xi, yi + 1));
+      if (e.length === 2) link(e[0], e[1]);
+      else if (e.length === 4) {
+        // A saddle (opposite corners alike): the centre decides whether
+        // the inside joins across it, cutting off the other two corners.
+        var mid = (g[yi][xi] + g[yi][xi + 1] + g[yi + 1][xi + 1] + g[yi + 1][xi]) / 4 < 0;
+        if (mid === c[0]) { link(e[0], e[1]); link(e[2], e[3]); }
+        else { link(e[0], e[3]); link(e[1], e[2]); }
+      }
+    }
+    // Walk each loop; keep the longest.
+    var seen = {}, best = null;
+    Object.keys(links).forEach(function(k) {
+      if (seen[k]) return;
+      var loop = [], cur = pts[k], prev = null;
+      while (cur && !seen[cur.key]) {
+        seen[cur.key] = true; loop.push(cur);
+        var next = (links[cur.key] || []).filter(function(q) { return q !== prev && !seen[q.key]; })[0];
+        prev = cur; cur = next;
+      }
+      if (!best || loop.length > best.length) best = loop;
+    });
+    return best && best.length > 8 ? best.map(function(q) { return { x: q.x, y: q.y }; }) : null;
   }
 
   function idealOutline(d) {
