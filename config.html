@@ -3739,6 +3739,10 @@
       var jTot = num('qc-join-depth', NaN);
       if (isFinite(jTot) && n > jTot) return 'Depth of Cut must not exceed Total Depth (' + jTot + ')';
     }
+    if (id === 'qc-poly-step') {
+      var pgTot = num('qc-poly-depth', NaN);
+      if (isFinite(pgTot) && n > pgTot) return 'Depth of Cut must not exceed Total Depth (' + pgTot + ')';
+    }
     // A Total Angle of 0 would stack every circular copy on one spot.
     if (/-pattern-total-angle$/.test(id) && n === 0) return 'Total Angle must not be 0';
     // A polygon's corner radius can't be more than half its across-flats size.
@@ -3888,6 +3892,8 @@
     // the operator sees the DOC error without having to visit it.
     wireDepthCrossCheck('rect');
     wireDepthCrossCheck('circ');
+    wireDepthCrossCheck('poly');
+    wireDepthCrossCheck('slt');
     wireDepthCrossCheck('plan');
     wireDepthCrossCheck('join');
     wireDepthCrossCheck('cut');
