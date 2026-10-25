@@ -50,7 +50,7 @@ A slot with half-round ends, e.g. an adjustment slot for a bolt, a slot for a tr
 - **Grid** pattern (straight slots): a grid of grooves, e.g. a decorative grid or a waffle board.
   1. Choose **Straight** as the Slot Type and **Center line** as the Cut Type (one bit-wide groove per line).
   2. Turn on **Pattern** and choose **Grid**.
-  3. Set **Columns** and **Column Spacing** (the lines running front to back, spaced along X) and **Rows** and **Row Spacing** (the lines running left to right, spaced along Y). With **Extent** on, the spacing fields become the grid's overall Width and Height instead.
+  3. Set **Columns** and **Column Spacing** (the lines running front to back, spaced along X) and **Rows** and **Row Spacing** (the lines running left to right, spaced along Y). Pick **Width** / **Height** in a spacing label's menu to give the grid's overall size that way instead.
   4. Optionally set a pattern **Angle** to turn the whole grid.
 
   How it's cut:
@@ -128,11 +128,11 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 | --- | --- |
 | Linear | A grid of rows and columns. |
 | Grid | Slot only, straight slots: lines instead of copies. **Rows** lines run along X and **Columns** lines run along Y, spaced by Row Spacing and Column Spacing, and each line spans the grid, so the outer lines meet at the corners. The Slot's Length and Angle are greyed out; the pattern Angle turns the whole grid. Use the **Center line** cut type for a grid of grooves. |
-| Honeycomb | Like Linear, but every other row is shifted half a step along it, and rows are half the Y Spacing apart (Y Spacing is between the unshifted rows). **Y Count** is every row, shifted ones included, starting with an unshifted row; an even count ends on a shifted row. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. Settings saved before Y Count meant every row (when it counted only the unshifted ones) load as the same layout. |
+| Honeycomb | Like Linear, but every other row is shifted half a step along it. **Y Count** and **Y Spacing** are row by row, shifted rows included, starting with an unshifted row; an even count ends on a shifted row. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. Programs made before Y Count and Y Spacing were row by row (when they counted and spaced only the unshifted rows) load as the same layout. |
 | Circular (Identical) | *Count* copies on a circle of *Radius*, starting at *Start Angle* and spread over *Total Angle* (see below). Every copy keeps the same orientation. |
 | Circular (Path Direction) | Same as above, but each copy turns with the circle: the first copy (at the Start Angle) looks like the shape preview, and each later copy is turned by how far round the circle it is from the first. |
 
-On a **Linear** or **Honeycomb** pattern the X / Y Spacing labels are menus, like Polygon's size: **X Gap** / **Y Gap** (on an angled pattern **Gap** / **Row Gap**; on Honeycomb **X Gap** / **Row Gap**) gives the stock left between neighbouring copies' cuts at their closest, edge to edge, instead of center-to-center spacing. It's measured on the cuts themselves (the toolpath plus the bit radius, so an Outer cut's band counts and a turned shape is measured as turned), and QuickCut finds the spacing that leaves that gap. X is the next copy along the row; Y the next row (on Honeycomb, the nearest copy in the shifted row, so equal X Gap and Row Gap give an even web, e.g. hexagons nesting with a constant wall). The spacing follows the shape and bit, so resizing keeps the gap; switching converts the number so the copies stay put. As with Spacing, a negative number runs the copies the other way from the origin. Gap isn't offered with Extent or Circular, and Load restores it.
+On a **Linear** or **Honeycomb** pattern the X / Y Spacing labels are menus, like Polygon's size: **X Gap** / **Y Gap** (on an angled pattern **Gap** / **Row Gap**; on Honeycomb **X Gap** / **Row Gap**) gives the stock left between neighbouring copies' cuts at their closest, edge to edge, instead of center-to-center spacing. It's measured on the cuts themselves (the toolpath plus the bit radius, so an Outer cut's band counts and a turned shape is measured as turned), and QuickCut finds the spacing that leaves that gap. X is the next copy along the row; Y the next row (on Honeycomb, the nearest copy in the next row, so equal X Gap and Row Gap give an even web, e.g. hexagons nesting with a constant wall). The spacing follows the shape and bit, so resizing keeps the gap; switching converts the number so the copies stay put. As with Spacing, a negative number runs the copies the other way from the origin. Gap is offered on Linear and Honeycomb, and Load restores it.
 
 ### Pattern preview
 
@@ -152,12 +152,12 @@ The G-code header adds `total=90°` when it isn't 360.
 
 ### Spacing or extent
 
-Linear and Honeycomb normally take a **Spacing**: the center-to-center distance between neighbouring copies. Turn on **Extent** to give the distance from the first copy's center to the last instead, and QuickCut spreads the copies evenly over it, like the Extent option in a CAD linear pattern. For example, X Count 5 with X Extent 400 puts the copies 100 apart; change the count and they re-space to fit the same 400. Hover the Extent label to see the spacing it works out to.
+Linear and Honeycomb normally take a **Spacing**: the center-to-center distance between neighbouring copies. Pick **Extent** in the X or Y Spacing label's menu to give the distance from the first copy's center to the last instead, and QuickCut spreads the copies evenly over it, like the Extent option in a CAD linear pattern. Each direction has its own menu, so X can be an extent while Y is a spacing (or a gap). For example, X Count 5 with X Extent 400 puts the copies 100 apart; change the count and they re-space to fit the same 400. Hover the Extent label to see the spacing it works out to.
 
-- Flipping the switch converts the numbers so the pattern stays where it is (X Spacing 25 with X Count 5 becomes X Extent 100).
+- Switching converts the number so the pattern stays where it is (X Spacing 25 with X Count 5 becomes X Extent 100).
 - At an angle it works the same way, along and across the angled row (**Extent** / **Row Extent**).
 - On Honeycomb the Y extent runs from the first row to the last; the shifted rows overhang by half a step along the row unless **Symmetric Ends** is on.
-- The G-code header gives both, e.g. `Pattern: Linear 5x1 [extent X=400, Y=0; dX=100, dY=0]`.
+- The G-code header gives both, e.g. `Pattern: Linear 5x1 [extent X=400, Y=0; dX=100, dY=0]` (with only X as an extent: `[extent X=400; dX=100, dY=40]`).
 
 ### Linear and Honeycomb at an angle
 

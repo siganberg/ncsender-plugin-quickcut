@@ -399,7 +399,7 @@ test('clearing preserves cornerRadius only on outermost level', () => {
 // single program. Header/spindle/coolant run once; each instance emits
 // its own approach, plunge, cut, and safe-Z lift.
 test('honeycomb: yCount is every row; rows alternate primary and shifted', () => {
-  // 3 across, 5 rows, primary rows 40mm apart:
+  // 3 across, 5 rows 20mm apart (primary rows 40mm apart):
   //   Row 0 primary (y=0):    x = 0, 40, 80          → 3 items
   //   Shifted    (y=20):      x = 20, 60, 100        → 3 items
   //   Row 1 primary (y=40):   x = 0, 40, 80          → 3 items
@@ -409,7 +409,7 @@ test('honeycomb: yCount is every row; rows alternate primary and shifted', () =>
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, cutType: 'inner', bitDiameter: 3,
-    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 5 }
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 3, yCount: 5 }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 15\)/m);
   assert.match(gcode, /^\(Pattern: Honeycomb 3x5/m);
@@ -426,7 +426,7 @@ test('honeycomb: yCount is every row; rows alternate primary and shifted', () =>
 
 test('honeycomb: an even row count ends on a shifted row', () => {
   const g = makeQuickCutGenerator(false);
-  const pts = g.computePatternPositions({ enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 4 });
+  const pts = g.computePatternPositions({ enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 3, yCount: 4 });
   assert.equal(pts.length, 12);
   assert.deepEqual([...new Set(pts.map(q => q.y))], [0, 20, 40, 60]);
   assert.deepEqual(pts.filter(q => q.y === 60).map(q => q.x), [20, 60, 100]);
@@ -447,7 +447,7 @@ test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are alwa
     diameter: 5, cutType: 'inner', bitDiameter: 3,
     pattern: {
       enabled: true, style: 'honeycomb', hexTrim: true,
-      xDist: 40, yDist: 40, xCount: 3, yCount: 5
+      xDist: 40, yDist: 20, xCount: 3, yCount: 5
     }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 13\)/m);
@@ -616,7 +616,7 @@ test('honeycomb at an angle rotates the shifted rows too', () => {
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, bitDiameter: 3,
-    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 2, yCount: 3, angle: 90 }
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 2, yCount: 3, angle: 90 }
   }));
   // Local (0,0),(40,0) | shifted (20,20),(60,20) | (0,40),(40,40),
   // rotated 90° → x = -v, y = u. Shifted item 3 sits 20 left of row 0.
@@ -1793,7 +1793,12 @@ test('extent spacing spreads copies evenly from first to last center', () => {
   // a spacing unless Symmetric Ends trims them.
   assert.equal(Math.max(...pts.filter(q => q.y % 30 === 0).map(q => q.x)), 80);
   assert.equal(Math.max(...pts.map(q => q.y)), 60);
-  assert.deepEqual(pts, g.computePatternPositions(Object.assign({}, honey, { xDist: 40, yDist: 30, spacing: 'spacing' })));
+  assert.deepEqual(pts, g.computePatternPositions(Object.assign({}, honey, { xDist: 40, yDist: 15, spacing: 'spacing' })));
+  // Extent can be set for one axis alone.
+  const mixed = { enabled: true, style: 'linear', xCount: 5, yCount: 3, xDist: 400, yDist: 30, xExtent: true };
+  assert.deepEqual(g.computePatternPositions(mixed), g.computePatternPositions(Object.assign({}, mixed, { xDist: 100, xExtent: false })));
+  const mixedY = Object.assign({}, mixed, { xDist: 100, yDist: 60, xExtent: false, yExtent: true });
+  assert.deepEqual(g.computePatternPositions(mixedY), g.computePatternPositions(Object.assign({}, mixed, { xDist: 100, xExtent: false })));
   assert.ok(pts.some(q => q.x === 20 && q.y === 15), 'shifted row at half the worked-out spacing');
 });
 
@@ -1802,6 +1807,11 @@ test('extent pattern header gives the extent and the spacing it works out to', (
     pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 2, xDist: 100, yDist: 25, spacing: 'extent' }
   }));
   assert.match(gcode, /\(Pattern: Linear 4x2 \[extent X=100, Y=25; dX=33\.3333, dY=25\]\)/);
+  // One axis in extent: the other gives its spacing.
+  const xOnly = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
+    pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 2, xDist: 100, yDist: 25, xExtent: true }
+  }));
+  assert.match(xOnly, /\(Pattern: Linear 4x2 \[extent X=100; dX=33\.3333, dY=25\]\)/);
   assert.equal((gcode.match(/^\(Hole \d+\/8 /mg) || []).length, 8);
 });
 

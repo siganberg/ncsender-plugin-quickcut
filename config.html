@@ -1716,13 +1716,6 @@
                   <input class="qc-input" type="number" id="qc-rect-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
-                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
-                    <span>Extent</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-rect-pattern-extent">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -1904,13 +1897,6 @@
                   <input class="qc-input" type="number" id="qc-circ-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
-                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
-                    <span>Extent</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-circ-pattern-extent">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -2114,13 +2100,6 @@
                   <input class="qc-input" type="number" id="qc-poly-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
-                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
-                    <span>Extent</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-poly-pattern-extent">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -2359,13 +2338,6 @@
                   <input class="qc-input" type="number" id="qc-slt-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
-                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
-                    <span>Extent</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-slt-pattern-extent">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -2521,13 +2493,6 @@
                   <input class="qc-input" type="number" id="qc-key-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
-                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
-                    <span>Extent</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-key-pattern-extent">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -2680,13 +2645,6 @@
                   <input class="qc-input" type="number" id="qc-drl-pattern-angle" step="0.1" value="0" title="Direction of the rows, CCW from +X. Use Measure to take it from the machine.">
                 </div>
                 <div class="qc-pattern-toggle-cell">
-                  <label class="qc-switch-label" title="Off: Spacing is center-to-center between neighbours. On: Extent is the distance from the first copy's center to the last, and the copies are spread evenly over it.">
-                    <span>Extent</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-drl-pattern-extent">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
                   <label class="qc-switch-label qc-pattern-honeycomb-only" style="display: none;" title="Trim one item from shifted rows so both ends of the honeycomb align">
                     <span>Symmetric Ends</span>
                     <span class="qc-switch">
@@ -3161,8 +3119,7 @@
     updateUnitBadges();
     wireUnitFields();
     wireArrowKeySteps();
-    wirePatternExtent();
-    wirePatternGaps();
+    wirePatternAxisModes();
     ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(updatePatternAngleLabels);
     wireTabs();
     wireValidation();
@@ -4456,18 +4413,20 @@
     var pre = 'qc-' + prefix + '-pattern-';
     var hexTrimEl = $(pre + 'hex-trim');
     var rotateEl = $(pre + 'rotate-shapes');
-    var extentEl = $(pre + 'extent');
+    var xMode = patternAxisMode(prefix, 'x'), yMode = patternAxisMode(prefix, 'y');
     return {
       enabled: $(pre + 'enable').checked,
       style:   $(pre + 'style').value,
-      // 'extent': xDist / yDist are first-to-last center, not spacing.
-      spacing: extentEl && extentEl.checked ? 'extent' : 'spacing',
+      // Each axis's label menu: Spacing, Extent (xDist / yDist are first-
+      // to-last center) or Gap (Linear, Honeycomb: the stock left between
+      // neighbours' cuts, which withPatternGaps turns into xDist / yDist).
+      spacing: xMode === 'extent' && yMode === 'extent' ? 'extent' : 'spacing',
+      xExtent: xMode === 'extent',
+      yExtent: yMode === 'extent',
       xDist:   num(pre + 'x-dist', 0),
       yDist:   num(pre + 'y-dist', 0),
-      // Gap mode (Linear, Honeycomb): the box shows the stock left between
-      // neighbours' cuts; withPatternGaps turns it into xDist / yDist.
-      xGap:    patternGapMode(prefix, 'x') ? Math.abs(num(pre + 'x-dist', 0)) : null,
-      yGap:    patternGapMode(prefix, 'y') ? Math.abs(num(pre + 'y-dist', 0)) : null,
+      xGap:    xMode === 'gap' ? Math.abs(num(pre + 'x-dist', 0)) : null,
+      yGap:    yMode === 'gap' ? Math.abs(num(pre + 'y-dist', 0)) : null,
       xSign:   patternGapSign(prefix, 'x'),
       ySign:   patternGapSign(prefix, 'y'),
       xCount:  Math.max(1, Math.floor(num(pre + 'x-count', 1))),
@@ -4486,8 +4445,10 @@
     };
   }
 
-  // Pattern Gap (Linear and Honeycomb): the X / Y Spacing labels are menus
-  // (wirePatternGaps) that switch the box to the stock left between
+  // Pattern spacing menus: each axis's X / Y Spacing label is a menu
+  // (wirePatternAxisModes) of Spacing, Extent and, on Linear and
+  // Honeycomb, Gap. Switching converts the number so the copies stay put.
+  // Gap switches the box to the stock left between
   // neighbouring copies' cuts, edge to edge, measured on the cuts
   // themselves: the closest distance between two copies' toolpaths, less
   // the bit diameter. X is the next copy along the row; Y the next row
@@ -4499,10 +4460,14 @@
   var PATTERN_GAP_TABS = { rect: 'generateRectangleProgram', circ: 'generateCircleProgram', poly: 'generatePolygonProgram',
                            slt: 'generateSlotProgram', key: 'generateKeyholeProgram', drl: 'generateDrillProgram' };
   function patternGapSelect(prefix, axis) { return $('qc-' + prefix + '-pattern-' + axis + '-mode'); }
-  function patternGapMode(prefix, axis) {
-    var sel = patternGapSelect(prefix, axis);
-    return !!sel && sel.value === 'gap' && patternGapAllowed(prefix);
+  // The axis's mode, as far as the style offers it: Circular has none,
+  // and Grid no Gap.
+  function patternAxisMode(prefix, axis) {
+    var sel = patternGapSelect(prefix, axis), style = $('qc-' + prefix + '-pattern-style').value;
+    if (!sel || /^circular/.test(style) || (sel.value === 'gap' && !patternGapAllowed(prefix))) return 'spacing';
+    return sel.value;
   }
+  function patternGapMode(prefix, axis) { return patternAxisMode(prefix, axis) === 'gap'; }
   function patternGapSign(prefix, axis) {
     var v = num('qc-' + prefix + '-pattern-' + axis + '-dist', 0);
     if (v) return v < 0 ? -1 : 1;
@@ -4510,9 +4475,15 @@
     return sel && sel.getAttribute('data-sign') === '-1' ? -1 : 1;
   }
   function patternGapAllowed(prefix) {
-    var ext = $('qc-' + prefix + '-pattern-extent'), style = $('qc-' + prefix + '-pattern-style').value;
-    return (style === 'linear' || style === 'honeycomb') && !(ext && ext.checked);
+    var style = $('qc-' + prefix + '-pattern-style').value;
+    return style === 'linear' || style === 'honeycomb';
   }
+  // The center-to-center step along a row, whatever its mode says.
+  function patternRowStep(pat) {
+    var d = Math.abs(pat.xDist || 0), n = Math.max(1, Math.floor(pat.xCount || 1));
+    return patternAxisExtentOf(pat, 'x') && n > 1 ? d / (n - 1) : d;
+  }
+  function patternAxisExtentOf(pat, axis) { return pat.spacing === 'extent' || !!pat[axis + 'Extent']; }
   // One copy's toolpath in the rows' frame (u along a row, v across): its
   // lines, and its arcs exactly (center, radius, start angle and the sweep
   // counter-clockwise), with a box round each for skipping far pairs, and
@@ -4657,12 +4628,12 @@
                     pointSegmentDistance(cx, cy, ax, ay, bx, by), pointSegmentDistance(dx, dy, ax, ay, bx, by));
   }
   // The gap at a spacing s, for an axis of a style. On Honeycomb, Y's
-  // nearest neighbours are the shifted row's (half a step along, half a row
-  // across) or the copy a whole row away; sx is the row's spacing.
+  // nearest neighbours are the next row's (half a step along, a row
+  // across) or the copy two rows away; sx is the step along a row.
   function patternGapAt(geom, honeycomb, axis, s, sx) {
     if (axis === 'x') return patternCopyGap(geom, s, 0);
     if (!honeycomb) return patternCopyGap(geom, 0, s);
-    return Math.min(patternCopyGap(geom, sx / 2, s / 2), patternCopyGap(geom, -sx / 2, s / 2), patternCopyGap(geom, 0, s));
+    return Math.min(patternCopyGap(geom, sx / 2, s), patternCopyGap(geom, -sx / 2, s), patternCopyGap(geom, 0, 2 * s));
   }
   // The smallest spacing whose gap is `gap` (the gap only grows as copies
   // move apart), by halving the range.
@@ -4682,13 +4653,13 @@
     if (!geom) return params;
     var honeycomb = pat.style === 'honeycomb';
     if (pat.xGap != null) pat.xDist = pat.xSign * patternSpacingFor(geom, honeycomb, 'x', pat.xGap);
-    if (pat.yGap != null) pat.yDist = pat.ySign * patternSpacingFor(geom, honeycomb, 'y', pat.yGap, Math.abs(pat.xDist));
+    if (pat.yGap != null) pat.yDist = pat.ySign * patternSpacingFor(geom, honeycomb, 'y', pat.yGap, patternRowStep(pat));
     return params;
   }
-  // Switches a box between Spacing and Gap, converting the number so the
-  // pattern stays where it is. Copies that overlap have no gap to show;
-  // they go to a gap of 0.
-  function setPatternGapMode(prefix, axis, mode) {
+  // Switches an axis's mode, converting the number through the spacing it
+  // stands for so the copies stay put. Copies that overlap have no gap to
+  // show; they go to a gap of 0. The sign (direction) carries over.
+  function setPatternAxisMode(prefix, axis, mode) {
     var sel = patternGapSelect(prefix, axis), input = $('qc-' + prefix + '-pattern-' + axis + '-dist');
     var was = sel.getAttribute('data-was') || 'spacing';
     var sign = patternGapSign(prefix, axis);
@@ -4697,28 +4668,47 @@
     sel.setAttribute('data-was', mode);
     if (was === mode) return;
     var v = Math.abs(num(input.id, NaN));
-    var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read();
-    var geom = patternCopyGeom(prefix, params);
-    if (!isFinite(v) || !geom) return;
-    var honeycomb = params.pattern.style === 'honeycomb', sx = Math.abs(params.pattern.xDist);
-    input.value = roundDisplay(sign * (mode === 'gap' ? Math.max(0, patternGapAt(geom, honeycomb, axis, v, sx))
-                                                      : patternSpacingFor(geom, honeycomb, axis, v, sx)));
+    if (!isFinite(v)) return;
+    var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
+    var geom = null, honeycomb = false, sx = 0;
+    if (was === 'gap' || mode === 'gap') {
+      var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read();
+      geom = patternCopyGeom(prefix, params);
+      if (!geom) return;
+      honeycomb = params.pattern.style === 'honeycomb';
+      sx = patternRowStep(params.pattern);
+    }
+    var spacing = was === 'extent' ? (count > 1 ? v / (count - 1) : v)
+                : was === 'gap' ? patternSpacingFor(geom, honeycomb, axis, v, sx) : v;
+    // Untouched since the last switch: start from the exact spacing, not
+    // the rounded number shown, so switching back and forth doesn't drift.
+    if (input.value === sel.getAttribute('data-shown') && isFinite(Number(sel.getAttribute('data-spacing')))) spacing = Number(sel.getAttribute('data-spacing'));
+    var out = mode === 'extent' ? (count > 1 ? spacing * (count - 1) : spacing)
+            : mode === 'gap' ? Math.max(0, patternGapAt(geom, honeycomb, axis, spacing, sx)) : spacing;
+    input.value = roundDisplay(sign * out);
+    sel.setAttribute('data-spacing', String(spacing));
+    sel.setAttribute('data-shown', input.value);
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  function wirePatternGaps() {
+  function wirePatternAxisModes() {
     Object.keys(PATTERN_GAP_TABS).forEach(function(prefix) {
+      // An Extent's tooltip gives the spacing it works out to.
+      $('qc-' + prefix + '-pattern-body').addEventListener('input', function(evt) {
+        if (/-(count|dist)$/.test(evt.target.id || '') &&
+            (patternAxisMode(prefix, 'x') === 'extent' || patternAxisMode(prefix, 'y') === 'extent')) updatePatternAngleLabels(prefix);
+      });
       ['x', 'y'].forEach(function(axis) {
         var label = $('qc-' + prefix + '-pattern-body').querySelector('[data-pattern-label="' + axis + '-dist"]');
         var sel = document.createElement('select');
         sel.className = 'qc-label-select';
         sel.id = 'qc-' + prefix + '-pattern-' + axis + '-mode';
-        sel.innerHTML = '<option value="spacing">Spacing</option><option value="gap">Gap</option>';
+        sel.innerHTML = '<option value="spacing">Spacing</option><option value="extent">Extent</option><option value="gap">Gap</option>';
         sel.style.display = 'none';
         label.parentNode.insertBefore(sel, label.nextSibling);
         sel.addEventListener('change', function() {
           var mode = sel.value;
           sel.value = sel.getAttribute('data-was') || 'spacing';
-          setPatternGapMode(prefix, axis, mode);
+          setPatternAxisMode(prefix, axis, mode);
           updatePatternAngleLabels(prefix);
         });
       });
@@ -5331,7 +5321,7 @@
   // accurate. At any other angle the distances are measured along and
   // across the angled row, so the labels say that instead.
   var PATTERN_GAP_LABELS = { axis: { x: 'X Gap', y: 'Y Gap' }, angled: { x: 'Gap', y: 'Row Gap' }, honeycomb: { x: 'X Gap', y: 'Row Gap' } };
-  var PATTERN_GAP_TITLE = 'Spacing: center to center between copies. Gap: the stock left between neighbouring copies\u2019 cuts at their closest, edge to edge (on an Outer cut, outside the bit\u2019s path), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. As with Spacing, a negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
+  var PATTERN_MODE_TITLE = 'Spacing: center to center between neighbouring copies. Extent: first copy\u2019s center to the last; the copies spread evenly over it. Gap (Linear, Honeycomb): the stock left between neighbouring copies\u2019 cuts at their closest, edge to edge (on an Outer cut, outside the bit\u2019s path), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. A negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
   var PATTERN_LABELS = {
     axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
@@ -5357,28 +5347,6 @@
   // labels and previews follow. A count of 1 has no spacing to convert,
   // so its field is left alone. Any edit to a count or distance keeps
   // the extent tooltip's worked-out spacing current.
-  function wirePatternExtent() {
-    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
-      var pre = 'qc-' + prefix + '-pattern-';
-      var sw = $(pre + 'extent');
-      if (!sw) return;
-      sw.addEventListener('change', function() {
-        ['x', 'y'].forEach(function(axis) {
-          if (sw.checked && patternGapSelect(prefix, axis).value === 'gap') setPatternGapMode(prefix, axis, 'spacing');
-          var count = Math.max(1, Math.floor(num(pre + axis + '-count', 1)));
-          var d = num(pre + axis + '-dist', NaN);
-          if (count < 2 || !isFinite(d)) return;
-          $(pre + axis + '-dist').value = roundDisplay(sw.checked ? d * (count - 1) : d / (count - 1));
-        });
-        updatePatternAngleLabels(prefix);
-        $(pre + 'x-dist').dispatchEvent(new Event('input', { bubbles: true }));
-      });
-      $(pre + 'body').addEventListener('input', function(evt) {
-        if (/-(count|dist)$/.test(evt.target.id || '') && sw.checked) updatePatternAngleLabels(prefix);
-      });
-    });
-  }
-
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
     var angle = num('qc-' + prefix + '-pattern-angle', 0);
@@ -5386,46 +5354,48 @@
     var isLineGrid = style === 'grid';
     var set = isLineGrid ? PATTERN_LABELS.grid : angle ? PATTERN_LABELS.angled : PATTERN_LABELS.axis;
     var titles = isLineGrid ? PATTERN_TITLES.grid : angle ? PATTERN_TITLES.angled : PATTERN_TITLES.axis;
-    var extentEl = $('qc-' + prefix + '-pattern-extent');
-    var extent = extentEl && extentEl.checked;
     var extSet = isLineGrid ? PATTERN_LABELS.gridExtent : angle ? PATTERN_LABELS.angledExtent : PATTERN_LABELS.axisExtent;
+    var gapSet = style === 'honeycomb' && !angle ? PATTERN_GAP_LABELS.honeycomb : angle ? PATTERN_GAP_LABELS.angled : PATTERN_GAP_LABELS.axis;
+    var gapOk = patternGapAllowed(prefix), menus = !/^circular/.test(style);
+    ['x', 'y'].forEach(function(axis) {
+      var sel = patternGapSelect(prefix, axis);
+      // A Gap the style doesn't offer goes back to Spacing.
+      if (sel && sel.value === 'gap' && !gapOk) setPatternAxisMode(prefix, axis, 'spacing');
+    });
     var labels = body.querySelectorAll('[data-pattern-label]');
     for (var i = 0; i < labels.length; i++) {
       var key = labels[i].getAttribute('data-pattern-label');
-      labels[i].textContent = ((extent && extSet[key]) || set[key]).replace('{a}', angle);
+      var axis = key.charAt(0), isDist = /-dist$/.test(key);
+      var mode = isDist ? patternAxisMode(prefix, axis) : 'spacing';
+      labels[i].textContent = ((mode === 'extent' && extSet[key]) || set[key]).replace('{a}', angle);
       labels[i].title = titles[key].replace('{a}', angle);
-      // In extent mode the tooltip gives the spacing it works out to.
-      if (extent && extSet[key]) {
-        var axis = key.charAt(0);
+      // An Extent's tooltip gives the spacing it works out to.
+      if (mode === 'extent') {
         var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
-        var gap = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
-        labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + gap + ' ' + state.unitLabel + ' apart' : '');
+        var step = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
+        labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + step + ' ' + state.unitLabel + ' apart' : '');
       }
-      $(labels[i].getAttribute('for')).title = labels[i].title;
+      if (mode === 'gap') labels[i].title = PATTERN_MODE_TITLE;
+      var input = $(labels[i].getAttribute('for'));
+      input.title = labels[i].title;
+      var sel = isDist && patternGapSelect(prefix, axis);
+      if (!sel) continue;
+      sel.options[0].textContent = set[key].replace('{a}', angle);
+      sel.options[1].textContent = extSet[key];
+      sel.options[2].textContent = gapSet[axis];
+      sel.options[2].hidden = sel.options[2].disabled = !gapOk;
+      sel.title = PATTERN_MODE_TITLE;
+      labels[i].style.display = menus ? 'none' : '';
+      sel.style.display = menus ? '' : 'none';
+      if (menus) input.setAttribute('aria-labelledby', sel.id); else input.removeAttribute('aria-labelledby');
     }
-    var gapOk = patternGapAllowed(prefix);
-    ['x', 'y'].forEach(function(axis) {
-      var sel = patternGapSelect(prefix, axis);
-      if (!sel) return;
-      // Leaving Linear / Honeycomb goes back to Spacing (Extent does it itself, first).
-      if (!gapOk && sel.value === 'gap') setPatternGapMode(prefix, axis, 'spacing');
-      var label = body.querySelector('[data-pattern-label="' + axis + '-dist"]');
-      var input = $(label.getAttribute('for'));
-      sel.options[0].textContent = label.textContent;
-      sel.options[1].textContent = (style === 'honeycomb' && !angle ? PATTERN_GAP_LABELS.honeycomb : angle ? PATTERN_GAP_LABELS.angled : PATTERN_GAP_LABELS.axis)[axis];
-      sel.title = PATTERN_GAP_TITLE;
-      if (sel.value === 'gap') input.title = PATTERN_GAP_TITLE;
-      label.style.display = gapOk ? 'none' : '';
-      sel.style.display = gapOk ? '' : 'none';
-      if (gapOk) input.setAttribute('aria-labelledby', sel.id); else input.removeAttribute('aria-labelledby');
-    });
     // The Rotate switch only means something for an angled grid (Grid's
     // lines always turn with it); the Angle field is hidden for Circular.
     var isGrid = style === 'linear' || style === 'honeycomb' || isLineGrid;
     var rotate = body.querySelector('.qc-pattern-angled-only');
     if (rotate) rotate.style.display = angle && isGrid && !isLineGrid ? '' : 'none';
-    // The switch cell (Extent, Symmetric Ends, Rotate shapes) is for the
-    // grid styles only; Circular hides it with the Angle field.
+    // The switch cell (Symmetric Ends, Rotate shapes) is for the grid
+    // styles only; Circular hides it with the Angle field.
     var toggles = body.querySelector('.qc-pattern-toggle-cell');
     if (toggles) toggles.style.display = isGrid ? '' : 'none';
   }
@@ -5752,7 +5722,11 @@
     if (p.xDist != null)    $(pre + 'x-dist').value = roundDisplay(mmToDisplay(p.xDist));
     if (p.yDist != null)    $(pre + 'y-dist').value = roundDisplay(mmToDisplay(p.yDist));
     if (p.xCount != null)   $(pre + 'x-count').value = p.xCount;
-    if (p.yCount != null)   $(pre + 'y-count').value = p.style === 'honeycomb' && !p.yAllRows ? 2 * p.yCount - 1 : p.yCount;
+    // Honeycomb's Y Count and Y Spacing are row by row; older settings
+    // counted and spaced only the unshifted rows.
+    var oldHoney = p.style === 'honeycomb' && !p.rowByRow;
+    if (p.yCount != null)   $(pre + 'y-count').value = oldHoney ? 2 * p.yCount - 1 : p.yCount;
+    if (p.yDist != null && oldHoney && p.spacing !== 'extent') $(pre + 'y-dist').value = roundDisplay(mmToDisplay(p.yDist) / 2);
     if (p.count != null)    $(pre + 'count').value = p.count;
     if (p.radius != null)   $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radius));
     if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
@@ -5762,12 +5736,10 @@
     if (p.angle != null)    $(pre + 'angle').value = p.angle;
     var rotateEl = $(pre + 'rotate-shapes');
     if (rotateEl && p.rotateShapes != null) rotateEl.checked = !!p.rotateShapes;
-    var extentEl = $(pre + 'extent');
-    if (extentEl && p.spacing != null) extentEl.checked = p.spacing === 'extent';
     ['x', 'y'].forEach(function(axis) {
       var sel = patternGapSelect(prefix, axis), gap = p[axis + 'Gap'];
       if (!sel) return;
-      var mode = gap != null ? 'gap' : 'spacing';
+      var mode = gap != null ? 'gap' : p.spacing === 'extent' || p[axis + 'Extent'] ? 'extent' : 'spacing';
       sel.value = mode;
       sel.setAttribute('data-was', mode);
       sel.setAttribute('data-sign', p[axis + 'Sign'] === -1 ? '-1' : '1');
@@ -6202,14 +6174,16 @@
       angle:        p.angle || 0,
       rotateShapes: !!p.rotateShapes,
       spacing:      p.spacing === 'extent' ? 'extent' : 'spacing',
+      xExtent:      !!p.xExtent,
+      yExtent:      !!p.yExtent,
       // Gap mode: xDist / yDist above are the spacings it works out to.
       xGap:       p.xGap != null ? displayToMm(p.xGap) : null,
       yGap:       p.yGap != null ? displayToMm(p.yGap) : null,
       xSign:      p.xSign === -1 ? -1 : 1,
       ySign:      p.ySign === -1 ? -1 : 1,
-      // Honeycomb's Y Count is every row; older settings counted only the
-      // unshifted ones (hydratePattern converts them).
-      yAllRows:   true
+      // Honeycomb's Y Count and Y Spacing are row by row; older settings
+      // counted and spaced the unshifted rows (hydratePattern converts them).
+      rowByRow:   true
     };
   }
 
@@ -8899,8 +8873,8 @@
   };
   var HELP_SHARED = {
     pattern: { title: 'Patterns', notes: [
-      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> shifts every other row half a step, with rows half the Y Spacing apart, and its <strong>Y Count</strong> is every row, shifted ones included (<strong>Symmetric Ends</strong> trims the shifted rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
-      '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
+      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> shifts every other row half a step; its <strong>Y Count</strong> and <strong>Y Spacing</strong> are row by row, shifted rows included (<strong>Symmetric Ends</strong> trims the shifted rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
+      '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus: pick <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it. Each direction has its own.',
       'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts at their closest instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
@@ -9462,6 +9436,13 @@
       });
     }
 
+    // Extent on an axis: xDist / yDist are first-to-last center, and the
+    // copies spread evenly over it. Per axis (xExtent / yExtent), or both
+    // axes with spacing: 'extent'.
+    function patternAxisExtent(pattern, axis) {
+      return pattern.spacing === 'extent' || !!pattern[axis + 'Extent'];
+    }
+
     function computePatternPositions(pattern) {
       if (!pattern || !pattern.enabled) return [{ x: 0, y: 0, rotDeg: 0 }];
       var positions = [];
@@ -9472,23 +9453,19 @@
         var yDist = pattern.yDist || 0;
         // Extent mode (CAD's "Extent" linear pattern): the distances are
         // first-to-last center, and the copies are spread evenly over it.
-        if (pattern.spacing === 'extent') {
-          xDist = patternStep(xDist, xCount);
-          yDist = patternStep(yDist, yCount);
-        }
+        if (patternAxisExtent(pattern, 'x')) xDist = patternStep(xDist, xCount);
+        if (patternAxisExtent(pattern, 'y')) yDist = patternStep(yDist, yCount);
         // Honeycomb: yCount is every row, the shifted ones included: rows
         // alternate primary and shifted (X moved by xDist/2), starting
-        // with a primary row. yDist stays the pitch between primary rows,
-        // so rows are yDist/2 apart; with Extent, yDist is first row to last.
+        // with a primary row. yDist is row to row (Extent: first row to last).
         var isHoney = pattern.style === 'honeycomb';
         if (isHoney) {
           var hexTrim = !!pattern.hexTrim;
-          var rowPitch = pattern.spacing === 'extent' ? yDist : yDist / 2;
           for (var j = 0; j < yCount; j++) {
             var shifted = j % 2 === 1;
             var rowCount = shifted && hexTrim ? Math.max(0, xCount - 1) : xCount;
             for (var i = 0; i < rowCount; i++) {
-              positions.push({ x: i * xDist + (shifted ? xDist / 2 : 0), y: j * rowPitch, rotDeg: 0 });
+              positions.push({ x: i * xDist + (shifted ? xDist / 2 : 0), y: j * yDist, rotDeg: 0 });
             }
           }
           return applyGridAngle(positions, pattern);
@@ -9509,10 +9486,8 @@
         var gyCount = Math.max(1, Math.floor(pattern.yCount || 1));
         var gxDist = pattern.xDist || 0;
         var gyDist = pattern.yDist || 0;
-        if (pattern.spacing === 'extent') {
-          gxDist = patternStep(gxDist, gxCount);
-          gyDist = patternStep(gyDist, gyCount);
-        }
+        if (patternAxisExtent(pattern, 'x')) gxDist = patternStep(gxDist, gxCount);
+        if (patternAxisExtent(pattern, 'y')) gyDist = patternStep(gyDist, gyCount);
         var spanX = (gxCount - 1) * gxDist, spanY = (gyCount - 1) * gyDist;
         if (gxCount > 1) {
           for (var gr = 0; gr < gyCount; gr++) positions.push({ x: spanX / 2, y: gr * gyDist, rotDeg: 0, span: Math.abs(spanX) });
@@ -10092,11 +10067,11 @@
         var label = p.style === 'honeycomb' ? 'Honeycomb' : 'Linear';
         var angle = Number(p.angle) || 0;
         var xc = Math.max(1, Math.floor(p.xCount || 1)), yc = Math.max(1, Math.floor(p.yCount || 1));
-        var dims = p.spacing === 'extent'
-          ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0) +
-            '; dX=' + parseFloat(patternStep(p.xDist || 0, xc).toFixed(4)) +
-            // Honeycomb's dY is between unshifted rows, as with Spacing.
-            ', dY=' + parseFloat((patternStep(p.yDist || 0, yc) * (p.style === 'honeycomb' ? 2 : 1)).toFixed(4))
+        var xe = patternAxisExtent(p, 'x'), ye = patternAxisExtent(p, 'y');
+        var dims = xe || ye
+          ? 'extent ' + (xe ? 'X=' + (p.xDist || 0) : '') + (xe && ye ? ', ' : '') + (ye ? 'Y=' + (p.yDist || 0) : '') +
+            '; dX=' + (xe ? parseFloat(patternStep(p.xDist || 0, xc).toFixed(4)) : (p.xDist || 0)) +
+            ', dY=' + (ye ? parseFloat(patternStep(p.yDist || 0, yc).toFixed(4)) : (p.yDist || 0))
           : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
                ' (' + dims + ')' +
@@ -10104,9 +10079,8 @@
       }
       if (p.style === 'grid') {
         var gAngle = Number(p.angle) || 0;
-        var gDims = p.spacing === 'extent'
-          ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0)
-          : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
+        var gxe = patternAxisExtent(p, 'x'), gye = patternAxisExtent(p, 'y');
+        var gDims = (gxe ? 'extent X=' : 'dX=') + (p.xDist || 0) + ', ' + (gye ? (gxe ? 'Y=' : 'extent Y=') : 'dY=') + (p.yDist || 0);
         return 'Grid ' + (p.xCount || 1) + 'x' + (p.yCount || 1) + ' lines (' + gDims + ')' + (gAngle ? ' angle=' + gAngle + '°' : '');
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
