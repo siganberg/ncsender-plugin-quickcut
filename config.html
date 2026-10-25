@@ -7378,10 +7378,12 @@
     var nx = /left/.test(o) ? now.x - bare.x : /right/.test(o) ? bare.x - now.x : null;
     var ny = /^front/.test(o) ? now.y - bare.y : /^back/.test(o) ? bare.y - now.y : null;
     // Untouched since the last switch, which came from this kind of inset:
-    // back to the exact numbers typed then, not the rounded ones shown.
+    // back to the exact numbers typed then, not the rounded ones shown, as
+    // long as they still work out (a new bit or size changes them).
+    var step = 2 * (state.isImperial ? 1e-4 : 1e-3) + 1e-9;
     if (back && back.origin === o && /center$/.test(back.was) === /center$/.test(mode) && back.shown[0] === shown[0] && back.shown[1] === shown[1]) {
-      if (nx != null) nx = Number(back.values[0]);
-      if (ny != null) ny = Number(back.values[1]);
+      if (nx != null && Math.abs(nx - Number(back.values[0])) <= step) nx = Number(back.values[0]);
+      if (ny != null && Math.abs(ny - Number(back.values[1])) <= step) ny = Number(back.values[1]);
     }
     var ix = nx == null ? num(x.id, 0) : nx, iy = ny == null ? (insetSplit(prefix) ? num(y.id, 0) : num(x.id, 0)) : ny;
     if (!insetSplit(prefix) && nx != null && ny != null && Math.abs(nx - ny) > 1e-6) {
