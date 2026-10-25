@@ -2760,3 +2760,18 @@ test('linear pattern header names an Overall size it was set by', () => {
   }));
   assert.match(gcode, /Pattern: Linear 3x2 \[dX=22, dY=10; overall X=50\]/);
 });
+
+test('a Center Inset puts the first copy\'s center that far from a corner origin', () => {
+  const gen = makeQuickCutGenerator(false).generateDrillProgram;
+  const gcode = gen(baseParams({
+    bitDiameter: 6, depth: 3, peckDepth: 0, origin: 'front-left',
+    inset: { x: 10, y: 10, to: 'center', both: true },
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 10, yDist: 10 }
+  }));
+  assert.match(gcode, /front-left, inset 10mm to centers/);
+  assert.match(gcode, /\(Hole 1\/3 at X10\.000 Y10\.000\)/);
+  assert.match(gcode, /\(Hole 3\/3 at X30\.000 Y10\.000\)/);
+  // An Edge Inset of 10 puts the hole's edge there: its center a bit radius further in.
+  assert.match(gen(baseParams({ bitDiameter: 6, depth: 3, peckDepth: 0, origin: 'front-left', inset: 10,
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 10, yDist: 10 } })), /\(Hole 1\/3 at X13\.000 Y13\.000\)/);
+});

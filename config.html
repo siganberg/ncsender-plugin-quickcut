@@ -1639,9 +1639,11 @@
                   <div id="qc-rect-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-rect-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
-                    <option value="both" selected>Inset</option>
-                    <option value="xy">Inset X / Y</option>
+                  <select class="qc-label-select" id="qc-rect-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset X / Y</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset X / Y</option>
                   </select>
                   <div class="qc-inset-inputs">
                     <input aria-labelledby="qc-rect-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
@@ -1821,9 +1823,11 @@
                   <div id="qc-circ-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-circ-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
-                    <option value="both" selected>Inset</option>
-                    <option value="xy">Inset X / Y</option>
+                  <select class="qc-label-select" id="qc-circ-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset X / Y</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset X / Y</option>
                   </select>
                   <div class="qc-inset-inputs">
                     <input aria-labelledby="qc-circ-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
@@ -2023,9 +2027,11 @@
                   <div id="qc-poly-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-poly-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
-                    <option value="both" selected>Inset</option>
-                    <option value="xy">Inset X / Y</option>
+                  <select class="qc-label-select" id="qc-poly-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset X / Y</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset X / Y</option>
                   </select>
                   <div class="qc-inset-inputs">
                     <input aria-labelledby="qc-poly-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
@@ -2260,9 +2266,11 @@
                   <div id="qc-slt-origin-picker" title="Where X0 Y0 is: a corner, edge or the center of the box around the slot. Or tap the preview: an end, the middle, a corner of a straight slot or the middle of its long side. On a Center line cut the box includes the bit, so an edge point puts that edge of the cut on the origin line."></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-slt-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
-                    <option value="both" selected>Inset</option>
-                    <option value="xy">Inset X / Y</option>
+                  <select class="qc-label-select" id="qc-slt-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset X / Y</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset X / Y</option>
                   </select>
                   <div class="qc-inset-inputs">
                     <input aria-labelledby="qc-slt-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
@@ -2442,9 +2450,11 @@
                   <div id="qc-key-origin-picker" title="The corners, edges and center of the box around the whole cut. The plunge hole, the default, is picked on the preview."></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-key-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
-                    <option value="both" selected>Inset</option>
-                    <option value="xy">Inset X / Y</option>
+                  <select class="qc-label-select" id="qc-key-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset X / Y</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset X / Y</option>
                   </select>
                   <div class="qc-inset-inputs">
                     <input aria-labelledby="qc-key-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
@@ -2606,9 +2616,11 @@
                   <div id="qc-drl-origin-picker"></div>
                 </div>
                 <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-drl-inset-mode" aria-label="Inset" title="One Inset for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one).">
-                    <option value="both" selected>Inset</option>
-                    <option value="xy">Inset X / Y</option>
+                  <select class="qc-label-select" id="qc-drl-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both">Edge Inset</option>
+                    <option value="xy">Edge Inset X / Y</option>
+                    <option value="center" selected>Center Inset</option>
+                    <option value="xy-center">Center Inset X / Y</option>
                   </select>
                   <div class="qc-inset-inputs">
                     <input aria-labelledby="qc-drl-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
@@ -7267,24 +7279,32 @@
   }
 
   // Inset: one value for both axes, or X and Y apart (the label's menu,
-  // qc-<p>-inset-mode, with qc-<p>-inset-y beside qc-<p>-inset). The
-  // generator takes a number or { x, y }, and settings keep it that way.
-  function insetSplit(prefix) { return $('qc-' + prefix + '-inset-mode').value === 'xy'; }
+  // qc-<p>-inset-mode, with qc-<p>-inset-y beside qc-<p>-inset), to the
+  // edge of the cut or to the copies' centers. The generator takes a
+  // number or { x, y } (edge), or { x, y, to: 'center', both } (center),
+  // and settings keep it that way; older settings are all edge.
+  function insetSplit(prefix) { return /^xy/.test($('qc-' + prefix + '-inset-mode').value); }
+  function insetToCenter(prefix) { return /center$/.test($('qc-' + prefix + '-inset-mode').value); }
   function readInset(prefix) {
-    var x = num('qc-' + prefix + '-inset', 0);
-    return insetSplit(prefix) ? { x: x, y: num('qc-' + prefix + '-inset-y', 0) } : x;
+    var x = num('qc-' + prefix + '-inset', 0), y = insetSplit(prefix) ? num('qc-' + prefix + '-inset-y', 0) : x;
+    if (insetToCenter(prefix)) return { x: x, y: y, to: 'center', both: !insetSplit(prefix) };
+    return insetSplit(prefix) ? { x: x, y: y } : x;
   }
   function insetXY(prefix) {
     var v = readInset(prefix);
     return typeof v === 'object' ? v : { x: v, y: v };
   }
   function insetToMm(v) {
-    return v && typeof v === 'object' ? { x: displayToMm(v.x), y: displayToMm(v.y) } : displayToMm(v);
+    if (!v || typeof v !== 'object') return displayToMm(v);
+    var out = { x: displayToMm(v.x), y: displayToMm(v.y) };
+    if (v.to === 'center') { out.to = 'center'; out.both = !!v.both; }
+    return out;
   }
   function hydrateInset(prefix, v) {
     if (v == null) return;
-    var split = typeof v === 'object';
-    $('qc-' + prefix + '-inset-mode').value = split ? 'xy' : 'both';
+    var split = typeof v === 'object' && !v.both, center = typeof v === 'object' && v.to === 'center';
+    $('qc-' + prefix + '-inset-mode').value = center ? (split ? 'xy-center' : 'center') : (split ? 'xy' : 'both');
+    $('qc-' + prefix + '-inset-mode').setAttribute('data-was', $('qc-' + prefix + '-inset-mode').value);
     $('qc-' + prefix + '-inset').value = roundDisplay(mmToDisplay(split ? v.x : v));
     if (split) $('qc-' + prefix + '-inset-y').value = roundDisplay(mmToDisplay(v.y));
     updateInsetMode(prefix);
@@ -7300,14 +7320,62 @@
   }
   function wireInsetModes() {
     ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
-      $('qc-' + prefix + '-inset-mode').addEventListener('change', function() {
-        updateInsetMode(prefix, true);
+      var sel = $('qc-' + prefix + '-inset-mode');
+      sel.setAttribute('data-was', sel.value);
+      sel.addEventListener('change', function() {
+        var mode = sel.value, was = sel.getAttribute('data-was') || 'both';
+        sel.setAttribute('data-was', mode);
+        // Splitting starts Y at the shared value; X / Y to X / Y keeps both.
+        updateInsetMode(prefix, !/^xy/.test(was));
+        if (/center$/.test(was) !== /center$/.test(mode)) convertInsetTo(prefix, was, mode);
         $('qc-' + prefix + '-inset').dispatchEvent(new Event('input', { bubbles: true }));
       });
       $('qc-' + prefix + '-inset-y').addEventListener('input', function() {
         $('qc-' + prefix + '-inset').dispatchEvent(new Event('input', { bubbles: true }));
       });
     });
+  }
+  // Edge to Center Inset or back: the numbers that keep X0 Y0 where it
+  // is. X0 Y0 is found from the first copy's center (shapeOriginOffset;
+  // Drill: its first hole) under the old menu choice, and under the new
+  // one with no inset; the difference on each side the origin is on is
+  // the new inset. Unequal X and Y split the box.
+  function convertInsetTo(prefix, was, mode) {
+    var o = $('qc-' + prefix + '-origin').value;
+    if (!/^(front|back|left|right)-/.test(o)) return;
+    var sel = $('qc-' + prefix + '-inset-mode'), x = $('qc-' + prefix + '-inset'), y = $('qc-' + prefix + '-inset-y');
+    var read = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]], gen = makeQuickCutGenerator(state.isImperial);
+    var firstCopy = function(params) {
+      if (PATTERN_RADIUS_SHAPES[prefix]) {
+        var off = gen.shapeOriginOffset(PATTERN_RADIUS_SHAPES[prefix], params);
+        return { x: -off.x, y: -off.y };
+      }
+      var trace = traceProgram(gen[read.gen](Object.assign({}, params, { tabs: null, depth: 1, depthOfCut: 1, peckDepth: 0 })));
+      return trace.plunges[0] || null;
+    };
+    var keep = { x: x.value, y: y.value };
+    var now, bare;
+    try {
+      sel.value = was;
+      now = firstCopy(read.read());
+      sel.value = mode;
+      x.value = y.value = '0';
+      bare = firstCopy(read.read());
+    } catch (e) { now = bare = null; }
+    x.value = keep.x; y.value = keep.y; sel.value = mode;
+    if (!now || !bare) return;
+    // X0 Y0 relative to the first copy is minus its center, so on a left /
+    // front side the inset grows by how far the center moved in.
+    var nx = /left/.test(o) ? now.x - bare.x : /right/.test(o) ? bare.x - now.x : null;
+    var ny = /^front/.test(o) ? now.y - bare.y : /^back/.test(o) ? bare.y - now.y : null;
+    var ix = nx == null ? num(x.id, 0) : nx, iy = ny == null ? (insetSplit(prefix) ? num(y.id, 0) : num(x.id, 0)) : ny;
+    if (!insetSplit(prefix) && nx != null && ny != null && Math.abs(nx - ny) > 1e-6) {
+      sel.value = /center$/.test(mode) ? 'xy-center' : 'xy';
+      sel.setAttribute('data-was', sel.value);
+      updateInsetMode(prefix);
+    }
+    if (insetSplit(prefix)) { x.value = roundDisplay(ix); y.value = roundDisplay(iy); }
+    else x.value = roundDisplay(nx != null ? ix : iy);
   }
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
@@ -7317,9 +7385,10 @@
     if (!el || !o) return;
     var on = /^(front|back|left|right)-/.test(o.value);
     el.disabled = $('qc-' + prefix + '-inset-y').disabled = $('qc-' + prefix + '-inset-mode').disabled = !on;
+    var what = insetToCenter(prefix) ? 'the copies\u2019 centers' : 'the cut';
     el.title = !on ? 'Only for a corner or edge origin.'
-      : insetSplit(prefix) ? 'Inset along X: from a left or right origin point. Negative moves the cut out past it.'
-      : 'Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin.';
+      : insetSplit(prefix) ? 'Inset along X: from a left or right origin point to ' + what + '. Negative moves ' + (insetToCenter(prefix) ? 'them' : 'it') + ' out past it.'
+      : 'Keeps ' + what + ' this far in from the origin point; negative moves ' + (insetToCenter(prefix) ? 'them' : 'it') + ' out past the origin.';
   }
 
   // The inset a preview leaves room for (0 when it doesn't apply), in the
@@ -9474,7 +9543,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu. <strong>Edge Inset</strong> is to the edge of the cut; <strong>Center Inset</strong> is to the copies&rsquo; centers instead, e.g. the first of a row of holes 10&nbsp;mm in from the corner, whatever the bit (Drill starts there). The <strong>X / Y</strong> choices split it into two boxes, X from a left or right origin point and Y from a front or back one. Changing it converts the numbers so nothing moves.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
@@ -10263,11 +10332,13 @@
     function computePatternAnchorShift(origin, positions, shapeBbox, inset) {
       var minX = Infinity, maxX = -Infinity;
       var minY = Infinity, maxY = -Infinity;
+      var toCenter = !!(inset && inset.to === 'center');
       for (var i = 0; i < positions.length; i++) {
         var p = positions[i];
         // shapeBbox can be a function of the position, for a shape whose
         // footprint isn't symmetric about its own origin (Keyhole).
-        var b = typeof shapeBbox === 'function' ? shapeBbox(p) : rotatedBbox(shapeBbox, p.rotDeg);
+        var b = toCenter ? { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+              : typeof shapeBbox === 'function' ? shapeBbox(p) : rotatedBbox(shapeBbox, p.rotDeg);
         if (p.x + b.minX < minX) minX = p.x + b.minX;
         if (p.x + b.maxX > maxX) maxX = p.x + b.maxX;
         if (p.y + b.minY < minY) minY = p.y + b.minY;
@@ -10309,13 +10380,14 @@
     // ", inset 10mm" (or ", inset X 10mm, Y 5mm") for the header's Origin
     // line, when it applies.
     function insetNote(origin, inset) {
-      if (!insetApplies(origin, inset)) return '';
-      var u = isImperial ? 'inch' : 'mm';
-      if (!inset || typeof inset !== 'object') return ', inset ' + inset + u;
+      var toCenter = !!(inset && inset.to === 'center') && /^(front|back|left|right)-/.test(origin || '');
+      if (!insetApplies(origin, inset)) return toCenter ? ', to the copies\' centers' : '';
+      var u = isImperial ? 'inch' : 'mm', end = toCenter ? ' to centers' : '';
+      if (!inset || typeof inset !== 'object' || inset.both) return ', inset ' + insetXY(inset).x + u + end;
       var i = insetXY(inset), parts = [];
       if (/left|right/.test(origin)) parts.push('X ' + i.x + u);
       if (/^(front|back)/.test(origin)) parts.push('Y ' + i.y + u);
-      return ', inset ' + parts.join(', ');
+      return ', inset ' + parts.join(', ') + end;
     }
 
     function rectangleShapeBbox(params) {
