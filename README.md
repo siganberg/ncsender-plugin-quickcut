@@ -22,7 +22,7 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
   - Target Depth (flatten an uneven top)
   - Target Thickness (measured from wasteboard up)
   - Wasteboard Surfacing (auto-uses machine travel from grblHAL `$130`/`$131`); with a keepout zone on (ncSender Pro's, or the ATCi tool rack's `$684`-`$687` with `$683` Enable), **Avoid Keepout Zone** leaves out each zone plus the bit radius, lifting to machine safe Z between the areas around it. The surfacing area is placed where the machine's travel really is, from the homing settings: 0 to the travel on an axis that homes to its minimum with `$22` "Set machine origin to 0", otherwise minus the travel to 0 (the usual grbl machine space), so machines whose coordinates run negative are surfaced, and their keepout zones avoided, too. Without grblHAL's `$22` names, or with homing off, it assumes 0 to the travel as before. A zone outside the travel is named as not avoided in the hint and the program header
-- Jointer — make a straight reference edge. Trim Width × Number of Trims off the chosen side, single-direction cuts so climb/conventional stays consistent (or **Both Ways**, alternating trims to save the trip back)
+- Jointer — make a straight reference edge. Trim Width × # of Trims off the chosen side, single-direction cuts so climb/conventional stays consistent (or **Both Ways**, alternating trims to save the trip back)
 - Cutter — cold-saw-style parting cut. Single cut line at a target dimension (bit-radius compensated), multi-pass Z to reduce bit load (**Both Ways** alternates the passes to save the trip back)
 
 **Common:**

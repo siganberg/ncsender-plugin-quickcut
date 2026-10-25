@@ -2842,8 +2842,8 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-width" min="0.001" step="0.01" value="1" required title="How much each trim takes off the edge. Number of Trims sets how many.">
                   </div>
                   <div class="qc-field">
-                    <label for="qc-join-trims">Number of Trims</label>
-                    <input class="qc-input" type="number" id="qc-join-trims" min="1" max="50" step="1" value="3" required title="How many trims to take. Each removes Trim Width.">
+                    <label for="qc-join-trims"># of Trims</label>
+                    <input class="qc-input" type="number" id="qc-join-trims" aria-label="Number of Trims" min="1" max="50" step="1" value="3" required title="How many trims to take. Each removes Trim Width.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-join-overrun">Overrun</label>
@@ -3464,7 +3464,7 @@
         // Jointer
         'qc-join-length':   { min: 0.004, max: 200, label: 'Length' },
         'qc-join-width':    { min: 0.004, max: 20,  label: 'Trim Width' },
-        'qc-join-trims':    { min: 1,     max: 50,  label: 'Number of Trims', integer: true },
+        'qc-join-trims':    { min: 1,     max: 50,  label: '# of Trims', integer: true },
         'qc-join-overrun':  { min: 0,     max: 20,  label: 'Overrun' },
         'qc-join-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-join-step':     { min: 0.001, max: 20,  label: 'Depth of Cut' },
@@ -3613,7 +3613,7 @@
       // Jointer
       'qc-join-length':   { min: 0.1,  max: 5000, label: 'Length' },
       'qc-join-width':    { min: 0.1,  max: 500,  label: 'Trim Width' },
-      'qc-join-trims':    { min: 1,    max: 50,   label: 'Number of Trims', integer: true },
+      'qc-join-trims':    { min: 1,    max: 50,   label: '# of Trims', integer: true },
       'qc-join-overrun':  { min: 0,    max: 500,  label: 'Overrun' },
       'qc-join-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-join-step':     { min: 0.01, max: 500,  label: 'Depth of Cut' },
@@ -8281,7 +8281,7 @@
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.',
       'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius, cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided.' ] },
     jointer: { name: 'Jointer', notes: [
-      'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong>Number of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
+      'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong># of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
       'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work. <strong>Both Ways</strong> alternates the trims, each starting where the last ended, to save the trip back (every other one climbs). The arrows in the preview show the way the bit travels; tap one to switch.',
       HELP_DEPTH ] },
     cutter: { name: 'Cutter', notes: [
