@@ -967,6 +967,9 @@
     stroke-linejoin: round;
   }
   .qc-shape-preview-cell .qc-pattern-outline { fill: currentColor; }
+  /* Where copies overlap, in the warning colour ncSender uses. */
+  .qc-shape-preview-cell .qc-pattern-overlap { opacity: 0.35; }
+  .qc-shape-preview-cell .qc-pattern-overlap-color { flood-color: var(--color-warning, #fbbf24); }
   .qc-shape-preview-cell .qc-pattern-band { stroke: var(--qc-pattern-bg); }
   .qc-shape-preview-cell .qc-pattern-band.qc-pattern-tint { stroke: color-mix(in srgb, var(--color-accent) 8%, var(--qc-pattern-bg)); }
   .qc-shape-preview-cell .qc-pattern-hatch {
@@ -5062,7 +5065,9 @@
   // On Inner and Outer cuts, as on the shape preview, the shape's edge is
   // solid and the bit's other edge dashed: the edge outside the toolpath
   // is kept by masking out its inside, the one inside by clipping to it,
-  // and the dashes are a dashed stroke along the toolpath.
+  // and the dashes are drawn along the edge itself (offsetMoves), so they
+  // keep their spacing round a corner. Where copies overlap, the warning
+  // colour shows through (see the filter below).
   function patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, edge) {
     var width = 2 * bitRadius * s;
     var dot = function(p) { return 'M' + X(p.x) + ',' + Y(p.y) + 'h0'; };
@@ -5082,8 +5087,26 @@
     out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
     // Hundreds of masks get slow to draw; past that many copies the edges
     // are drawn for all of them at once, and overlaps merge.
-    var copies = patternCopies(trace);
+    var each = patternCopies(trace), copies = each;
     if (copies.length > PATTERN_PREVIEW_MAX_EDGES) copies = [{ moves: trace.moves, plunges: trace.plunges }];
+    // Overlaps: each copy's footprint at half opacity, so where two meet
+    // it is 0.75; the filter keeps only that and paints it in the warning
+    // colour. A hole's footprint is its cut and inside. An Outer part's is
+    // the inside of its toolpath: two parts' cuts can share stock harmlessly,
+    // and only once the toolpaths cross does one cut into the other part.
+    var filled = cutType === 'inner' || cutType === 'outer' || clearing;
+    var outerOnly = cutType === 'outer';
+    if (each.length > 1) {
+      var fid = 'qc-' + prefix + '-pat-overlap';
+      out += '<filter id="' + fid + '" filterUnits="userSpaceOnUse" x="-60" y="-60" width="120" height="120" color-interpolation-filters="sRGB">' +
+          '<feComponentTransfer in="SourceGraphic" result="both"><feFuncA type="discrete" tableValues="0 0 1"/></feComponentTransfer>' +
+          '<feFlood class="qc-pattern-overlap-color"/><feComposite in2="both" operator="in"/>' +
+        '</filter><g class="qc-pattern-overlap" filter="url(#' + fid + ')">' +
+        each.map(function(copy) {
+          return '<g opacity="0.5"><path class="qc-pattern-cut" style="stroke: ' + (outerOnly ? 'none' : '#000') + (filled ? '; fill: #000' : '') +
+            '" stroke-width="' + width.toFixed(2) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
+        }).join('') + '</g>';
+    }
     copies.forEach(function(copy, i) {
       var b = traceBounds(copy, bitRadius);
       if (!b) return;
@@ -5104,13 +5127,56 @@
         return;
       }
       var solid = ring('#fff', width + 2 * edge);
-      var dashed = ring('#fff', width + 2 * thin, '; stroke-linecap: butt; stroke-dasharray: ' + dash + ' ' + dash);
+      var dashed = '<path class="qc-pattern-cut" style="stroke: #fff; stroke-linecap: butt; stroke-dasharray: ' + dash + ' ' + dash +
+        '" stroke-width="' + thin.toFixed(2) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
       var inner = cutType === 'inner';
       out += '<clipPath id="' + id + 'c"><path d="' + pathD(copy.moves) + '"/></clipPath>' +
         outline('o', inner ? solid : dashed, '<path style="fill: #000" d="' + pathD(copy.moves) + '"/>') +
         outline('i', inner ? dashed : solid, '', true);
     });
     return out;
+  }
+
+  // Both edges of a toolpath, dist either side of it: lines moved sideways,
+  // arcs grown or shrunk, and a round join about each corner, the short
+  // way (a U-turn, such as a Corner Relief tip, goes round the far side).
+  // The masks in patternCuts trim the parts that fall inside the cut.
+  function offsetMoves(moves, dist) {
+    var out = [];
+    [1, -1].forEach(function(side) {
+      var prev = null;
+      moves.forEach(function(m) {
+        var o = offsetMove(m, side * dist);
+        if (o && prev && prev.m.x1 === m.x0 && prev.m.y1 === m.y0 && Math.hypot(prev.o.x1 - o.x0, prev.o.y1 - o.y0) > 1e-9) {
+          var a0 = Math.atan2(prev.o.y1 - m.y0, prev.o.x1 - m.x0), a1 = Math.atan2(o.y0 - m.y0, o.x0 - m.x0);
+          var turn = ((a1 - a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI), ccw = turn < Math.PI;
+          if (Math.abs(turn - Math.PI) < 1e-6) {
+            var tx = prev.m.x1 - prev.m.x0, ty = prev.m.y1 - prev.m.y0;
+            if (prev.m.cx !== undefined) { tx = (prev.m.cw ? 1 : -1) * (prev.m.y1 - prev.m.cy); ty = (prev.m.cw ? -1 : 1) * (prev.m.x1 - prev.m.cx); }
+            ccw = Math.cos(a0) * ty - Math.sin(a0) * tx > 0;
+          }
+          out.push({ x0: prev.o.x1, y0: prev.o.y1, x1: o.x0, y1: o.y0, cx: m.x0, cy: m.y0, cw: !ccw });
+        }
+        if (o) out.push(o);
+        prev = o ? { m: m, o: o } : null;
+      });
+    });
+    return out;
+  }
+  // One move, off to its left (negative: to its right).
+  function offsetMove(m, off) {
+    if (m.cx === undefined) {
+      var dx = m.x1 - m.x0, dy = m.y1 - m.y0, len = Math.hypot(dx, dy);
+      if (!(len > 0)) return null;
+      var nx = -dy / len * off, ny = dx / len * off;
+      return { x0: m.x0 + nx, y0: m.y0 + ny, x1: m.x1 + nx, y1: m.y1 + ny };
+    }
+    // A counter-clockwise arc's center is on its left.
+    var r0 = Math.hypot(m.x0 - m.cx, m.y0 - m.cy), r = r0 + (m.cw ? off : -off);
+    if (!(r > 1e-9) || !(r0 > 0)) return null;
+    var k = r / r0;
+    return { x0: m.cx + (m.x0 - m.cx) * k, y0: m.cy + (m.y0 - m.cy) * k, x1: m.cx + (m.x1 - m.cx) * k, y1: m.cy + (m.y1 - m.cy) * k,
+             cx: m.cx, cy: m.cy, cw: m.cw };
   }
 
   // The trace split into its pattern's copies. Drill has no copy markers;
