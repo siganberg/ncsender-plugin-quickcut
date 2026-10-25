@@ -5612,7 +5612,7 @@
       var count = Math.floor((axis === 'x' ? pat.xCount : pat.yCount) || 1);
       if (count < 2) return;
       var mode = patternAxisMode(prefix, axis), step = pat[axis + 'Dist'] || 0;
-      var next = axis === 'x' ? nearest(c0.u + step, c0.v) : nearest(c0.u + (pat.style === 'honeycomb' ? Math.abs(pat.xDist || 0) / 2 : 0), c0.v + step);
+      var next = axis === 'x' ? nearest(c0.u + step, c0.v) : nearest(c0.u + (pat.style === 'honeycomb' ? (pat.xDist || 0) / 2 : 0), c0.v + step);
       if (mode === 'gap') {
         var gap = next && closest(next);
         if (gap) axes.push({ gap: gap, text: label(pat[axis + 'Gap']) });
@@ -6330,7 +6330,8 @@
     if (drl.peckMode)          $('qc-drl-peck-mode').value = drl.peckMode;
     if (drl.dwell != null)     $('qc-drl-dwell').value     = drl.dwell;
     if (drl.origin)            setOriginPickerValue('qc-drl-origin', drl.origin);
-    hydrateInset('drl', drl.inset);
+    // Saved before Center Inset (or before Inset): Edge Inset, as made.
+    hydrateInset('drl', drl.inset != null ? drl.inset : drl.origin ? 0 : null);
     hydratePattern('drl', drl.pattern);
 
     updateClearingVisibility('rect');
@@ -7336,17 +7337,20 @@
     });
   }
   // Edge to Center Inset or back: the numbers that keep X0 Y0 where it
-  // is. X0 Y0 is found from the first copy's center (shapeOriginOffset;
-  // Drill: its first hole) under the old menu choice, and under the new
-  // one with no inset; the difference on each side the origin is on is
-  // the new inset. Unequal X and Y split the box.
+  // is. A point that moves with the whole pattern (the first copy's center,
+  // or the first plunge) is found under the old menu choice, and under the
+  // new one with no inset; the difference on each side the origin is on is
+  // the new inset.
+  // Unequal X and Y split the box.
   function convertInsetTo(prefix, was, mode) {
     var o = $('qc-' + prefix + '-origin').value;
     if (!/^(front|back|left|right)-/.test(o)) return;
     var sel = $('qc-' + prefix + '-inset-mode'), x = $('qc-' + prefix + '-inset'), y = $('qc-' + prefix + '-inset-y');
     var read = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]], gen = makeQuickCutGenerator(state.isImperial);
+    // Exact from shapeOriginOffset; Drill and a Slot Grid (whose box it
+    // doesn't know) from the program's first plunge.
     var firstCopy = function(params) {
-      if (PATTERN_RADIUS_SHAPES[prefix]) {
+      if (PATTERN_RADIUS_SHAPES[prefix] && !(params.pattern && params.pattern.enabled && params.pattern.style === 'grid')) {
         var off = gen.shapeOriginOffset(PATTERN_RADIUS_SHAPES[prefix], params);
         return { x: -off.x, y: -off.y };
       }
@@ -7354,6 +7358,11 @@
       return trace.plunges[0] || null;
     };
     var keep = { x: x.value, y: y.value };
+    // The numbers as they stood, one or two boxes, for the way back.
+    var pair = function(split) { return split ? [x.value, y.value] : [x.value, x.value]; };
+    var shown = pair(/^xy/.test(was));
+    var back = sel._insetBack;
+    sel._insetBack = null;
     var now, bare;
     try {
       sel.value = was;
@@ -7364,10 +7373,16 @@
     } catch (e) { now = bare = null; }
     x.value = keep.x; y.value = keep.y; sel.value = mode;
     if (!now || !bare) return;
-    // X0 Y0 relative to the first copy is minus its center, so on a left /
-    // front side the inset grows by how far the center moved in.
+    // That point sits that far further in on a left / front side when the
+    // inset is that much more.
     var nx = /left/.test(o) ? now.x - bare.x : /right/.test(o) ? bare.x - now.x : null;
     var ny = /^front/.test(o) ? now.y - bare.y : /^back/.test(o) ? bare.y - now.y : null;
+    // Untouched since the last switch, which came from this kind of inset:
+    // back to the exact numbers typed then, not the rounded ones shown.
+    if (back && back.origin === o && /center$/.test(back.was) === /center$/.test(mode) && back.shown[0] === shown[0] && back.shown[1] === shown[1]) {
+      if (nx != null) nx = Number(back.values[0]);
+      if (ny != null) ny = Number(back.values[1]);
+    }
     var ix = nx == null ? num(x.id, 0) : nx, iy = ny == null ? (insetSplit(prefix) ? num(y.id, 0) : num(x.id, 0)) : ny;
     if (!insetSplit(prefix) && nx != null && ny != null && Math.abs(nx - ny) > 1e-6) {
       sel.value = /center$/.test(mode) ? 'xy-center' : 'xy';
@@ -7376,6 +7391,7 @@
     }
     if (insetSplit(prefix)) { x.value = roundDisplay(ix); y.value = roundDisplay(iy); }
     else x.value = roundDisplay(nx != null ? ix : iy);
+    sel._insetBack = { origin: o, was: was, values: /^xy/.test(was) ? [keep.x, keep.y] : [keep.x, keep.x], shown: pair(insetSplit(prefix)) };
   }
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
@@ -9543,7 +9559,7 @@
   // see those tooltips otherwise. Shared topics follow.
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
-  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu. <strong>Edge Inset</strong> is to the edge of the cut; <strong>Center Inset</strong> is to the copies&rsquo; centers instead, e.g. the first of a row of holes 10&nbsp;mm in from the corner, whatever the bit (Drill starts there). The <strong>XY</strong> choices split it into two boxes, X from a left or right origin point and Y from a front or back one. Changing it converts the numbers so nothing moves.';
+  var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu. <strong>Edge Inset</strong> is to the edge of the cut; <strong>Center Inset</strong> is to the copies&rsquo; centers instead, e.g. the first of a row of holes 10&nbsp;mm in from the corner, whatever the bit (Drill starts there). An arc slot&rsquo;s center is its arc&rsquo;s center, so Center Inset suits holes and shapes centered on themselves best. The <strong>XY</strong> choices split it into two boxes, X from a left or right origin point and Y from a front or back one. Changing it converts the numbers so nothing moves.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
@@ -10332,13 +10348,18 @@
     function computePatternAnchorShift(origin, positions, shapeBbox, inset) {
       var minX = Infinity, maxX = -Infinity;
       var minY = Infinity, maxY = -Infinity;
+      // To the centers only on the axis the inset is on (left / right: X;
+      // front / back: Y); the other axis, and a center origin, keep the box
+      // round the cut, so a shape that isn't symmetric about its center
+      // doesn't move there.
       var toCenter = !!(inset && inset.to === 'center');
+      var centerX = toCenter && /left|right/.test(origin || ''), centerY = toCenter && /^(front|back)/.test(origin || '');
       for (var i = 0; i < positions.length; i++) {
         var p = positions[i];
         // shapeBbox can be a function of the position, for a shape whose
         // footprint isn't symmetric about its own origin (Keyhole).
-        var b = toCenter ? { minX: 0, maxX: 0, minY: 0, maxY: 0 }
-              : typeof shapeBbox === 'function' ? shapeBbox(p) : rotatedBbox(shapeBbox, p.rotDeg);
+        var b = typeof shapeBbox === 'function' ? shapeBbox(p) : rotatedBbox(shapeBbox, p.rotDeg);
+        if (centerX || centerY) b = { minX: centerX ? 0 : b.minX, maxX: centerX ? 0 : b.maxX, minY: centerY ? 0 : b.minY, maxY: centerY ? 0 : b.maxY };
         if (p.x + b.minX < minX) minX = p.x + b.minX;
         if (p.x + b.maxX > maxX) maxX = p.x + b.maxX;
         if (p.y + b.minY < minY) minY = p.y + b.minY;

@@ -2775,3 +2775,17 @@ test('a Center Inset puts the first copy\'s center that far from a corner origin
   assert.match(gen(baseParams({ bitDiameter: 6, depth: 3, peckDepth: 0, origin: 'front-left', inset: 10,
     pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 10, yDist: 10 } })), /\(Hole 1\/3 at X13\.000 Y13\.000\)/);
 });
+
+test('a Center Inset changes only the axis it is on: a triangle keeps its Y on a left-center origin', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const params = (inset) => baseParams({ sides: 3, diameter: 40, cornerRadius: 0, cutType: 'inner', bitDiameter: 6, depth: 1, depthOfCut: 1,
+    origin: 'left-center', inset: inset, pattern: { enabled: false } });
+  const firstMove = (g) => g.match(/G0 X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number);
+  const edge = firstMove(gen(params(0))), center = firstMove(gen(params({ x: 0, y: 0, to: 'center', both: true })));
+  assert.equal(center[1], edge[1], 'Y unchanged');
+  assert.notEqual(center[0], edge[0], 'X measured to the center');
+  // A center origin is never moved by Center Inset.
+  const c = (inset) => firstMove(makeQuickCutGenerator(false).generatePolygonProgram(baseParams({ sides: 3, diameter: 40, cornerRadius: 0, cutType: 'inner',
+    bitDiameter: 6, depth: 1, depthOfCut: 1, origin: 'center', inset: inset, pattern: { enabled: false } })));
+  assert.deepEqual(c({ x: 5, y: 5, to: 'center', both: true }), c(0));
+});
