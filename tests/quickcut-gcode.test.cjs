@@ -2518,7 +2518,7 @@ test('dog-bone corners: the bit reaches each inside corner of a rectangle', () =
   const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
     feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
   const off = g.generateRectangleProgram(base);
-  const on = g.generateRectangleProgram(Object.assign({}, base, { dogBones: true }));
+  const on = g.generateRectangleProgram(Object.assign({}, base, { cornerRelief: 'dogbone' }));
   assert.match(on, /^\(Corner Radius: 0mm, dog-bone corners\)$/m);
   const corners = [[-30, -20], [30, -20], [30, 20], [-30, 20]].map(([x, y]) => ({ x, y }));
   // Without them the bit stops r·√2 from a corner; with them, exactly r.
@@ -2527,19 +2527,19 @@ test('dog-bone corners: the bit reaches each inside corner of a rectangle', () =
     assert.ok(Math.abs(nearestTo(fullDepthPoints(on, 6), c) - 3) < 1e-3, JSON.stringify(c));
   });
   // Turned, with holding tabs: still every corner.
-  const turned = Object.assign({}, base, { dogBones: true, startAngleDeg: 30, tabs: { count: 4, width: 6, height: 2 } });
+  const turned = Object.assign({}, base, { cornerRelief: 'dogbone', startAngleDeg: 30, tabs: { count: 4, width: 6, height: 2 } });
   const t = (x, y) => { const a = Math.PI / 6; return { x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) }; };
   const tp = fullDepthPoints(g.generateRectangleProgram(turned), 6);
   [[-30, -20], [30, -20], [30, 20], [-30, 20]].forEach(([x, y]) => assert.ok(Math.abs(nearestTo(tp, t(x, y)) - 3) < 1e-3));
   // A clearing's last lap gets them too.
-  const cp = fullDepthPoints(g.generateRectangleProgram(Object.assign({}, base, { dogBones: true, cutType: 'clearing' })), 6);
+  const cp = fullDepthPoints(g.generateRectangleProgram(Object.assign({}, base, { cornerRelief: 'dogbone', cutType: 'clearing' })), 6);
   corners.forEach(c => assert.ok(Math.abs(nearestTo(cp, c) - 3) < 1e-3));
 });
 
 test('dog-bone corners on polygons, and to a typed corner radius smaller than the bit', () => {
   const g = makeQuickCutGenerator(false);
   const base = { diameter: 50, cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
-    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, dogBones: true };
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'dogbone' };
   for (const sides of [3, 6]) for (const cutType of ['inner', 'clearing']) {
     const pts = fullDepthPoints(g.generatePolygonProgram(Object.assign({}, base, { sides, cutType })), 6);
     g.polygonCorners(Object.assign({}, base, { sides }))(0).forEach(v => assert.ok(Math.abs(nearestTo(pts, v) - 3) < 1e-3, `${sides} ${cutType}`));
@@ -2547,18 +2547,44 @@ test('dog-bone corners on polygons, and to a typed corner radius smaller than th
   // Corner Radius 1 with a 3 mm bit radius: the bit's edge stops on the
   // 1 mm fillet, (r - rc)(1/sin(half) - 1) short of the sharp corner's reach.
   const rect = { width: 60, height: 40, cornerRadius: 1, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
-    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, dogBones: true };
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'dogbone' };
   const d = nearestTo(fullDepthPoints(g.generateRectangleProgram(rect), 6), { x: 30, y: 20 });
   assert.ok(Math.abs(d - (3 + 1 * (Math.SQRT2 - 1))) < 1e-3, String(d));
 });
 
-test('dog-bone corners change nothing on outer cuts, when off, or when the corner radius covers the bit', () => {
+test('corner relief changes nothing on outer cuts, when off, or when the corner radius covers the bit', () => {
   const g = makeQuickCutGenerator(false);
   const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'outer', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
     feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
-  assert.equal(g.generateRectangleProgram(Object.assign({}, base, { dogBones: true })), g.generateRectangleProgram(base));
+  assert.equal(g.generateRectangleProgram(Object.assign({}, base, { cornerRelief: 'dogbone' })), g.generateRectangleProgram(base));
   const inner = Object.assign({}, base, { cutType: 'inner' });
-  assert.equal(g.generateRectangleProgram(Object.assign({}, inner, { dogBones: false })), g.generateRectangleProgram(inner));
+  assert.equal(g.generateRectangleProgram(Object.assign({}, inner, { cornerRelief: 'none' })), g.generateRectangleProgram(inner));
   const round = Object.assign({}, inner, { cornerRadius: 3 });
-  assert.equal(g.generateRectangleProgram(Object.assign({}, round, { dogBones: true })), g.generateRectangleProgram(round));
+  assert.equal(g.generateRectangleProgram(Object.assign({}, round, { cornerRelief: 'dogbone' })), g.generateRectangleProgram(round));
+});
+
+test('T-bone corners: the bit runs on along the longer edge until it reaches the corner', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'tbone' };
+  const prog = g.generateRectangleProgram(base);
+  assert.match(prog, /^\(Corner Radius: 0mm, T-bone corners\)$/m);
+  const pts = fullDepthPoints(prog, 6);
+  // Wider than tall: each tip is a bit radius in from the long (top or
+  // bottom) edge, straight in line with the corner, so only the short end
+  // walls are notched.
+  [[30, 20, 30, 17], [-30, 20, -30, 17], [-30, -20, -30, -17], [30, -20, 30, -17]].forEach(([cx, cy, tx, ty]) => {
+    assert.ok(Math.abs(nearestTo(pts, { x: cx, y: cy }) - 3) < 1e-3, `${cx},${cy}`);
+    assert.ok(nearestTo(pts, { x: tx, y: ty }) < 1e-3, `tip ${tx},${ty}`);
+  });
+  // Taller than wide: along the Y edges instead.
+  const tall = fullDepthPoints(g.generateRectangleProgram(Object.assign({}, base, { width: 40, height: 60 })), 6);
+  assert.ok(nearestTo(tall, { x: 17, y: 30 }) < 1e-3);
+  // Polygons and clearings reach every corner too.
+  for (const sides of [3, 6]) for (const cutType of ['inner', 'clearing']) {
+    const p = { diameter: 50, sides, cornerRadius: 0, cutType, origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+      feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'tbone' };
+    const pp = fullDepthPoints(g.generatePolygonProgram(p), 6);
+    g.polygonCorners(p)(0).forEach(v => assert.ok(Math.abs(nearestTo(pp, v) - 3) < 1e-3, `${sides} ${cutType}`));
+  }
 });

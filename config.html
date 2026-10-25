@@ -665,8 +665,8 @@
      outside thickness mode), so a third empty column just squeezed the
      select until "Wasteboard Surfacing" was clipped. */
   .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
-  /* Dog-bone Corners: a switch on its own line under Cut Type. */
-  .qc-dogbone-field { align-items: flex-start; }
+  /* Corner Relief: a menu on its own line under Cut Type. */
+  .qc-relief-field { max-width: 160px; }
   /* The keepout switch sits level with the Mode select. */
   .qc-plan-keepout-field { justify-content: flex-end; padding-bottom: 9px; }
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
@@ -1529,14 +1529,13 @@
                     <input class="qc-input" type="number" id="qc-rect-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                 </div>
-                <div class="qc-field qc-dogbone-field qc-rect-inner-only" style="display: none;">
-                  <label class="qc-switch-label" title="Inner cuts only. A round bit leaves its radius in every sharp inside corner, so a square-cornered part won't fit. This runs the bit a little way into each corner and back, so its edge reaches the corner (or the Corner Radius, when that's smaller than the bit). The corners get small round notches.">
-                    <span>Dog-bone Corners</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-rect-dogbones">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
+                <div class="qc-field qc-relief-field qc-rect-inner-only" style="display: none;">
+                  <label for="qc-rect-corner-relief">Corner Relief</label>
+                  <select class="qc-select" id="qc-rect-corner-relief" title="Inner cuts only. A round bit leaves its radius in every sharp inside corner, so a square-cornered part won't fit. Dog-bone runs the bit diagonally into each corner and back; T-bone runs it straight on along the longer edge, so only the end wall is notched. Either way its edge reaches the corner (or the Corner Radius, when that's smaller than the bit).">
+                    <option value="none" selected>None</option>
+                    <option value="dogbone">Dog-bone</option>
+                    <option value="tbone">T-bone</option>
+                  </select>
                 </div>
               </div>
               <div class="qc-origin-stack">
@@ -1928,14 +1927,13 @@
                     <input class="qc-input" type="number" id="qc-poly-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                 </div>
-                <div class="qc-field qc-dogbone-field qc-poly-inner-only" style="display: none;">
-                  <label class="qc-switch-label" title="Inner cuts only. A round bit leaves its radius in every sharp inside corner, so a square-cornered part won't fit. This runs the bit a little way into each corner and back, so its edge reaches the corner (or the Corner Radius, when that's smaller than the bit). The corners get small round notches.">
-                    <span>Dog-bone Corners</span>
-                    <span class="qc-switch">
-                      <input type="checkbox" id="qc-poly-dogbones">
-                      <span class="qc-switch-track"></span>
-                    </span>
-                  </label>
+                <div class="qc-field qc-relief-field qc-poly-inner-only" style="display: none;">
+                  <label for="qc-poly-corner-relief">Corner Relief</label>
+                  <select class="qc-select" id="qc-poly-corner-relief" title="Inner cuts only. A round bit leaves its radius in every sharp inside corner, so a square-cornered part won't fit. Dog-bone runs the bit diagonally into each corner and back; T-bone runs it straight on along the longer edge, so only the end wall is notched. Either way its edge reaches the corner (or the Corner Radius, when that's smaller than the bit).">
+                    <option value="none" selected>None</option>
+                    <option value="dogbone">Dog-bone</option>
+                    <option value="tbone">T-bone</option>
+                  </select>
                 </div>
               </div>
               <div class="qc-origin-stack">
@@ -4005,7 +4003,7 @@
       cornerRadius: num('qc-rect-corner', 0),
       startAngleDeg: num('qc-rect-start-angle', 0),
       cutType:      $('qc-rect-cut-type').value,
-      dogBones:     $('qc-rect-dogbones').checked,
+      cornerRelief: $('qc-rect-corner-relief').value,
       tabs:         readTabsForm('rect'),
       origin:       $('qc-rect-origin').value,
       inset:      readInset('rect'),
@@ -4311,7 +4309,7 @@
       startAngleDeg: num('qc-poly-start-angle', 0),
       cornerRadius:  num('qc-poly-corner', 0),
       cutType:       $('qc-poly-cut-type').value,
-      dogBones:      $('qc-poly-dogbones').checked,
+      cornerRelief:  $('qc-poly-corner-relief').value,
       tabs:          readTabsForm('poly'),
       origin:        $('qc-poly-origin').value,
       inset:       readInset('poly'),
@@ -5058,7 +5056,7 @@
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
-    if (rect.dogBones != null)      $('qc-rect-dogbones').checked = !!rect.dogBones;
+    if (rect.cornerRelief)          $('qc-rect-corner-relief').value = rect.cornerRelief;
     if (rect.origin)                setOriginPickerValue('qc-rect-origin', migrateOrigin(rect.origin));
     hydrateInset('rect', rect.inset);
     if (rect.depth != null)         $('qc-rect-depth').value  = roundDisplay(mmToDisplay(rect.depth));
@@ -5132,7 +5130,7 @@
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
     if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
-    if (poly.dogBones != null)      $('qc-poly-dogbones').checked = !!poly.dogBones;
+    if (poly.cornerRelief)          $('qc-poly-corner-relief').value = poly.cornerRelief;
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
     hydrateInset('poly', poly.inset);
     if (poly.depth != null)         $('qc-poly-depth').value    = roundDisplay(mmToDisplay(poly.depth));
@@ -5267,7 +5265,7 @@
         cornerRadius: displayToMm(params.cornerRadius),
         startAngleDeg: params.startAngleDeg,
         cutType:      params.cutType,
-        dogBones:     params.dogBones,
+        cornerRelief: params.cornerRelief,
         origin:       params.origin,
         inset:      insetToMm(params.inset),
         depth:        displayToMm(params.depth),
@@ -5338,7 +5336,7 @@
         startAngleDeg: params.startAngleDeg,
         cornerRadius:  displayToMm(params.cornerRadius),
         cutType:       params.cutType,
-        dogBones:      params.dogBones,
+        cornerRelief:  params.cornerRelief,
         origin:        params.origin,
         inset:       insetToMm(params.inset),
         depth:         displayToMm(params.depth),
@@ -5783,7 +5781,7 @@
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
-    $('qc-rect-dogbones').addEventListener('change', updateRectanglePreview);
+    $('qc-rect-corner-relief').addEventListener('change', updateRectanglePreview);
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
     updateRectanglePreview();
@@ -6215,38 +6213,80 @@
   // view like an inset.
   function bitEdgePad(cutType) { return cutType === 'outer' ? Math.max(0, num('qc-bit', 0)) : 0; }
 
-  // Dog-bone Corners on: an Inner cut whose corners are tighter than the
-  // bit gets a round notch at each one instead of the bit's radius.
-  function dogBonesOn(prefix, cutType) {
-    return (cutType === 'inner' || cutType === 'clearing') && $('qc-' + prefix + '-dogbones').checked &&
-      Math.max(0, num('qc-' + prefix + '-corner', 0)) < Math.max(0, num('qc-bit', 0)) / 2;
+  // Corner Relief on an Inner cut whose corners are tighter than the bit:
+  // 'dogbone' or 'tbone', else null.
+  function reliefStyle(prefix, cutType) {
+    var style = $('qc-' + prefix + '-corner-relief').value;
+    return (style === 'dogbone' || style === 'tbone') && (cutType === 'inner' || cutType === 'clearing') &&
+      Math.max(0, num('qc-' + prefix + '-corner', 0)) < Math.max(0, num('qc-bit', 0)) / 2 ? style : null;
   }
-  // The outline a dog-boned cut leaves, in preview units: the shape's
-  // edges, and at each corner the arc of the bit where it stops, a bit
-  // radius from where it reaches the corner (or the corner radius, rcP).
-  function dogBoneOutline(verts, rP, rcP) {
+  // The outline a relieved cut leaves, in preview units: the shape's
+  // edges, and at each corner the arc of the bit where it stops, round
+  // the side past the corner. Dog-bone: the bit's centre on the corner's
+  // bisector, its edge reaching the corner (or the corner radius, rcP).
+  // T-bone: the centre a bit radius in from the longer edge (the more
+  // horizontal one when equal), as far along as the corner, notching only
+  // the other wall.
+  function reliefOutline(verts, rP, rcP, style) {
     var n = verts.length, d = '';
     var f = function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
+    var len = function(i) { var q = verts[(i + 1) % n]; return Math.hypot(q.x - verts[i].x, q.y - verts[i].y); };
+    // Where a circle about c of radius rP crosses the line from v along e,
+    // the far crossing.
+    var cross = function(v, e, c) {
+      var wx = v.x - c.x, wy = v.y - c.y, bq = wx * e.x + wy * e.y, cq = wx * wx + wy * wy - rP * rP;
+      var disc = bq * bq - cq;
+      return disc >= 0 ? -bq + Math.sqrt(disc) : null;
+    };
     for (var i = 0; i < n; i++) {
       var v = verts[i], p = verts[(i + n - 1) % n], q = verts[(i + 1) % n];
       var l1 = Math.hypot(p.x - v.x, p.y - v.y) || 1, l2 = Math.hypot(q.x - v.x, q.y - v.y) || 1;
       var e1 = { x: (p.x - v.x) / l1, y: (p.y - v.y) / l1 }, e2 = { x: (q.x - v.x) / l2, y: (q.y - v.y) / l2 };
       var bl = Math.hypot(e1.x + e2.x, e1.y + e2.y) || 1, b = { x: (e1.x + e2.x) / bl, y: (e1.y + e2.y) / bl };
       var cosA = e1.x * b.x + e1.y * b.y, sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
-      var D = rP + Math.max(0, rcP) * (1 / sinA - 1), disc = rP * rP - D * D * sinA * sinA;
-      if (!(rP > 0) || disc <= 0) { d += (i ? ' L' : 'M') + f(v); continue; }
-      var s = D * cosA + Math.sqrt(disc);
-      var c = { x: v.x + b.x * D, y: v.y + b.y * D };
-      var a0 = Math.atan2(v.y + e1.y * s - c.y, v.x + e1.x * s - c.x);
-      var a1 = Math.atan2(v.y + e2.y * s - c.y, v.x + e2.x * s - c.x);
-      var ap = Math.atan2(v.y - c.y, v.x - c.x);
+      var c = null, s0 = null, s1 = null, apex;
+      if (rP > 0 && sinA > 1e-9) {
+        if (style === 'tbone') {
+          // Along the longer edge: e1's (into v) or e2's (out of v).
+          var la = len((i + n - 1) % n), lb = len(i);
+          // As the generator picks: the longer edge, then the more
+          // horizontal, then the one sloping up to the right (on screen,
+          // where y runs down, x·y < 0).
+          var alongIn = Math.abs(la - lb) > 1e-6 ? la > lb
+            : Math.abs(Math.abs(e1.x) - Math.abs(e2.x)) > 1e-6 ? Math.abs(e1.x) > Math.abs(e2.x)
+            : e1.x * e1.y < 0;
+          var ea = alongIn ? e1 : e2, eb = alongIn ? e2 : e1;
+          // Inward normal of the long edge, toward the shape.
+          var nx = -ea.y, ny = ea.x;
+          if (nx * b.x + ny * b.y < 0) { nx = -nx; ny = -ny; }
+          var t = Math.max(0, rcP) * cosA / sinA;
+          c = { x: v.x + ea.x * t + nx * rP, y: v.y + ea.y * t + ny * rP };
+          var sb = cross(v, eb, c);
+          if (sb != null && sb > 1e-9) {
+            var onA = { x: v.x + ea.x * t, y: v.y + ea.y * t }, onB = { x: v.x + eb.x * sb, y: v.y + eb.y * sb };
+            s0 = alongIn ? onA : onB; s1 = alongIn ? onB : onA;
+            apex = { x: c.x - ea.x * rP, y: c.y - ea.y * rP };
+          }
+        } else {
+          var D = rP + Math.max(0, rcP) * (1 / sinA - 1), disc = rP * rP - D * D * sinA * sinA;
+          if (disc > 0) {
+            var sd = D * cosA + Math.sqrt(disc);
+            c = { x: v.x + b.x * D, y: v.y + b.y * D };
+            s0 = { x: v.x + e1.x * sd, y: v.y + e1.y * sd }; s1 = { x: v.x + e2.x * sd, y: v.y + e2.y * sd };
+            apex = v;
+          }
+        }
+      }
+      if (!s0) { d += (i ? ' L' : 'M') + f(v); continue; }
+      var a0 = Math.atan2(s0.y - c.y, s0.x - c.x), a1 = Math.atan2(s1.y - c.y, s1.x - c.x);
+      var ap = Math.atan2(apex.y - c.y, apex.x - c.x);
       // Round the side that passes the corner.
       var span = ((a1 - a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
       var toApex = ((ap - a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
       if (toApex > span) span -= 2 * Math.PI;
       for (var k = 0; k <= 12; k++) {
-        var t = a0 + span * k / 12;
-        d += (i || k ? ' L' : 'M') + f({ x: c.x + rP * Math.cos(t), y: c.y + rP * Math.sin(t) });
+        var ang = a0 + span * k / 12;
+        d += (i || k ? ' L' : 'M') + f({ x: c.x + rP * Math.cos(ang), y: c.y + rP * Math.sin(ang) });
       }
     }
     return d + ' Z';
@@ -6271,8 +6311,8 @@
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
     // The corner you'll get: an inner cut can't be tighter than the bit.
-    var bonesOn = dogBonesOn('rect', cutType);
-    var CR = bonesOn ? Math.max(0, num('qc-rect-corner', 0)) : previewCornerRadius(num('qc-rect-corner', 0), cutType);
+    var relief = reliefStyle('rect', cutType);
+    var CR = relief ? Math.max(0, num('qc-rect-corner', 0)) : previewCornerRadius(num('qc-rect-corner', 0), cutType);
 
     // Drawn to the shape's proportions, fitted into the box with room for
     // the dimension arrows (at most 76 wide by 60 tall, or an 80 diagonal
@@ -6295,9 +6335,9 @@
     // SVG y points down, so a CCW machine turn is this on screen.
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
-    var outline = bonesOn && shortSide > 0
-      ? dogBoneOutline([T(x, y), T(x + w, y), T(x + w, y + h), T(x, y + h)],
-          Math.max(0, num('qc-bit', 0)) / 2 * Math.min(w, h) / shortSide, cr)
+    var outline = relief && shortSide > 0
+      ? reliefOutline([T(x, y), T(x + w, y), T(x + w, y + h), T(x, y + h)],
+          Math.max(0, num('qc-bit', 0)) / 2 * Math.min(w, h) / shortSide, cr, relief)
       : roundedRectPath(x, y, w, h, cr, T);
     // Each axis to its own scale (a thin side is drawn at least 14).
     var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType), edgeD = '';
@@ -7348,8 +7388,8 @@
     // is an arc about a vertex of the smaller "core" polygon, as in the
     // generator. Machine CCW stays CCW on screen (sweep-flag 0).
     var half = Math.PI / n;
-    var bonesOn = dogBonesOn('poly', cutType);
-    var CR = bonesOn ? Math.max(0, num('qc-poly-corner', 0)) : previewCornerRadius(num('qc-poly-corner', 0), cutType);
+    var relief = reliefStyle('poly', cutType);
+    var CR = relief ? Math.max(0, num('qc-poly-corner', 0)) : previewCornerRadius(num('qc-poly-corner', 0), cutType);
     var toPx = function(r) { return diameter > 0 && r > 0 ? Math.min(r * R / (diameter / 2), apothem) : 0; };
     var crP = toPx(CR);
     // apo (optional): the outline at another apothem, the same polygon
@@ -7382,8 +7422,8 @@
     }
     return outline;
     };
-    var outline = bonesOn && diameter > 0
-      ? dogBoneOutline(pts, Math.max(0, num('qc-bit', 0)) / 2 * R / (diameter / 2), crP)
+    var outline = relief && diameter > 0
+      ? reliefOutline(pts, Math.max(0, num('qc-bit', 0)) / 2 * R / (diameter / 2), crP, relief)
       : outlineFor(crP);
     var edgeDir = bitEdgeDir(cutType), edgeD = '';
     if (edgeDir && diameter > 0) {
@@ -7522,7 +7562,7 @@
       updatePolygonPreview();
     });
     $('qc-poly-corner').addEventListener('input', updatePolygonPreview);
-    $('qc-poly-dogbones').addEventListener('change', updatePolygonPreview);
+    $('qc-poly-corner-relief').addEventListener('change', updatePolygonPreview);
     $('qc-poly-cut-type').addEventListener('change', function() {
       updateClearingVisibility('poly');
       updatePolygonPreview();
@@ -8050,7 +8090,7 @@
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu: <strong>Inset X / Y</strong> splits it into two boxes, X from a left or right origin point and Y from a front or back one.';
   var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
-  var HELP_DOGBONES = '<strong>Dog-bone Corners</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. With it on, the bit runs a little way into each corner and back, until its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit). The corners get small round notches, which the preview shows. Other names for it: dogbone fillets, corner relief, or overcut corners. Off by default.';
+  var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along the longer edge, so only the end wall gets the notch, which hides better on a visible joint. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
@@ -8059,7 +8099,7 @@
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
-      HELP_DOGBONES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+      HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS,
@@ -8067,7 +8107,7 @@
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
-      HELP_CUT_TYPES, HELP_DOGBONES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+      HELP_CUT_TYPES, HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
@@ -9147,34 +9187,64 @@
     }
 
     // Emit the part of `seg` from distance s to e along it.
-    // Dog-bone corners (params.dogBones, Inner cuts on Rectangle and
+    // Corner relief (params.cornerRelief, Inner cuts on Rectangle and
     // Polygon): a round bit can't reach into a sharp inside corner, so at
-    // each corner of a closed lap of straight lines the bit runs out along
-    // the corner's bisector and back, far enough for its edge to reach the
-    // shape's corner, or the typed Corner Radius when that's smaller than
-    // the bit's radius. Corners are the lap's left turns (laps run CCW).
-    function dogBones(params) {
-      var cut = params.cutType || 'inner';
-      return !!params.dogBones && (cut === 'inner' || cut === 'clearing') &&
-        Math.max(0, params.cornerRadius || 0) < (params.bitDiameter || 0) / 2;
+    // each corner of a closed lap of straight lines the bit runs out and
+    // back far enough for its edge to reach the shape's corner, or the
+    // typed Corner Radius when that's smaller than the bit's radius.
+    //   dogbone  out along the corner's bisector
+    //   tbone    straight on along one edge, so only the other wall is
+    //            notched: the longer edge (the more horizontal one when
+    //            they're equal)
+    // Corners are the lap's left turns (laps run CCW).
+    function cornerRelief(params) {
+      var cut = params.cutType || 'inner', style = params.cornerRelief;
+      return (style === 'dogbone' || style === 'tbone') && (cut === 'inner' || cut === 'clearing') &&
+        Math.max(0, params.cornerRadius || 0) < (params.bitDiameter || 0) / 2 ? style : null;
     }
-    function dogBoneSegments(segs, toolRadius, cornerRadius) {
+    function cornerReliefSegments(segs, style, toolRadius, cornerRadius) {
       var reach = toolRadius - Math.max(0, cornerRadius || 0);
-      var out = [];
-      for (var i = 0; i < segs.length; i++) {
-        var a = segs[i], b = segs[(i + 1) % segs.length];
+      var n = segs.length, out = [];
+      function dir(s) { return { x: (s.x1 - s.x0) / s.len, y: (s.y1 - s.y0) / s.len }; }
+      function straightOn(s, t) {
+        if (s.type !== 'line' || t.type !== 'line') return false;
+        var p = dir(s), q = dir(t);
+        return Math.abs(p.x * q.y - p.y * q.x) < 1e-9 && p.x * q.x + p.y * q.y > 0;
+      }
+      // A whole edge's length, across the lap's start where one is split.
+      function edgeLen(k) {
+        var len = segs[k].len;
+        for (var f = 1; f < n && straightOn(segs[(k + f - 1) % n], segs[(k + f) % n]); f++) len += segs[(k + f) % n].len;
+        for (var b = 1; b < n && straightOn(segs[(k - b + n) % n], segs[(k - b + 1 + n) % n]); b++) len += segs[(k - b + n) % n].len;
+        return len;
+      }
+      for (var i = 0; i < n; i++) {
+        var a = segs[i], b2 = segs[(i + 1) % n];
         out.push(a);
-        if (a.type !== 'line' || b.type !== 'line' || !(reach > 0)) continue;
-        var ux = (a.x1 - a.x0) / a.len, uy = (a.y1 - a.y0) / a.len;
-        var vx = (b.x1 - b.x0) / b.len, vy = (b.y1 - b.y0) / b.len;
-        if (ux * vy - uy * vx < 1e-9) continue;
-        // Half the corner's inside angle, from the turn; the bit's centre
-        // is reach / sin(half) - reach short of where its edge would touch.
-        var sinHalf = Math.sqrt((1 + ux * vx + uy * vy) / 2);
-        var d = reach * (1 / sinHalf - 1);
-        var bx = ux - vx, by = uy - vy, bl = Math.hypot(bx, by);
-        if (!(d > 1e-6) || !(bl > 1e-9)) continue;
-        var tip = { x: a.x1 + bx / bl * d, y: a.y1 + by / bl * d }, corner = { x: a.x1, y: a.y1 };
+        if (a.type !== 'line' || b2.type !== 'line' || !(reach > 0)) continue;
+        var u = dir(a), v = dir(b2);
+        if (u.x * v.y - u.y * v.x < 1e-9) continue;
+        // Half the corner's inside angle, from the turn.
+        var sinHalf = Math.sqrt((1 + u.x * v.x + u.y * v.y) / 2);
+        var cosHalf = Math.sqrt((1 - u.x * v.x - u.y * v.y) / 2);
+        var d, m;
+        if (style === 'tbone') {
+          var la = edgeLen(i), lb = edgeLen((i + 1) % n);
+          // Longer edge; then the more horizontal; then the one sloping up to
+          // the right, so the choice doesn't depend on the lap's direction.
+          var alongIn = Math.abs(la - lb) > 1e-9 ? la > lb
+            : Math.abs(Math.abs(u.x) - Math.abs(v.x)) > 1e-9 ? Math.abs(u.x) > Math.abs(v.x)
+            : u.x * u.y > 0;
+          d = reach * cosHalf / sinHalf;
+          m = alongIn ? u : { x: -v.x, y: -v.y };
+        } else {
+          d = reach * (1 / sinHalf - 1);
+          var bx = u.x - v.x, by = u.y - v.y, bl = Math.hypot(bx, by);
+          if (!(bl > 1e-9)) continue;
+          m = { x: bx / bl, y: by / bl };
+        }
+        if (!(d > 1e-6)) continue;
+        var corner = { x: a.x1, y: a.y1 }, tip = { x: a.x1 + m.x * d, y: a.y1 + m.y * d };
         pushLine(out, corner, tip);
         pushLine(out, tip, corner);
       }
@@ -9384,7 +9454,8 @@
       var cut = params.cutType || 'inner';
       var bitR = (params.bitDiameter || 0) / 2;
       if ((cut !== 'inner' && cut !== 'clearing') || !(bitR > (params.cornerRadius || 0))) return '';
-      if (params.dogBones) return ', dog-bone corners';
+      var relief = cornerRelief(params);
+      if (relief) return relief === 'tbone' ? ', T-bone corners' : ', dog-bone corners';
       return ' (the bit leaves ' + parseFloat(bitR.toFixed(4)) + unitsLabel + ')';
     }
 
@@ -9468,8 +9539,8 @@
       lines.push('G0 Z' + slowPlungeStart);
 
       var tabs = tabSettings(params);
-      var bones = dogBones(params) && geom.cornerR <= 0
-        ? dogBoneSegments(rectangleSegments(geom), geom.toolRadius, params.cornerRadius) : null;
+      var bones = cornerRelief(params) && geom.cornerR <= 0
+        ? cornerReliefSegments(rectangleSegments(geom), cornerRelief(params), geom.toolRadius, params.cornerRadius) : null;
       var segs = tabs ? (bones || rectangleSegments(geom)) : null;
       var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
       var tabTop = intervals.length ? depth - tabs.height : null;
@@ -9624,8 +9695,8 @@
 
           for (var i = 0; i < levels.length; i++) {
             var lvl = levels[i];
-            if (i === levels.length - 1 && dogBones(params) && lvl.cornerR <= 0) {
-              emitSegmentLap(lines, dogBoneSegments(rectangleSegments(lvl), base.toolRadius, params.cornerRadius), feedRate);
+            if (i === levels.length - 1 && cornerRelief(params) && lvl.cornerR <= 0) {
+              emitSegmentLap(lines, cornerReliefSegments(rectangleSegments(lvl), cornerRelief(params), base.toolRadius, params.cornerRadius), feedRate);
             } else {
               emitRectanglePath(lines, lvl, feedRate);
             }
@@ -10454,7 +10525,7 @@
       lines.push('G0 Z' + slowPlungeStart);
 
       var tabs = tabSettings(params);
-      var bones = !rounded && dogBones(params) ? dogBoneSegments(polygonSegments(geom), geom.toolRadius, params.cornerRadius) : null;
+      var bones = !rounded && cornerRelief(params) ? cornerReliefSegments(polygonSegments(geom), cornerRelief(params), geom.toolRadius, params.cornerRadius) : null;
       var segs = tabs ? (roundSegs || bones || polygonSegments(geom)) : null;
       var intervals = tabs ? tabIntervals(segs, tabs, params.bitDiameter) : [];
       var tabTop = intervals.length ? depth - tabs.height : null;
@@ -10593,10 +10664,10 @@
             lines.push('G1 X' + verts[0].x.toFixed(xyDp) + ' Y' + verts[0].y.toFixed(xyDp) +
                        ' F' + plungeFeedRate);
           }
-          if (r === radii.length - 1 && dogBones(params)) {
+          if (r === radii.length - 1 && cornerRelief(params)) {
             var ring = [];
             for (var vi = 0; vi < verts.length; vi++) pushLine(ring, verts[vi], verts[(vi + 1) % verts.length]);
-            emitSegmentLap(lines, dogBoneSegments(ring, geom.toolRadius, params.cornerRadius), feedRate);
+            emitSegmentLap(lines, cornerReliefSegments(ring, cornerRelief(params), geom.toolRadius, params.cornerRadius), feedRate);
             continue;
           }
           for (var i = 1; i <= verts.length; i++) {
@@ -10644,8 +10715,8 @@
         for (var i = 0; i < v.length; i++) pushLine(segs, v[i], v[(i + 1) % v.length]);
         return segs;
       });
-      if (dogBones(params) && rings.length) {
-        rings[rings.length - 1] = dogBoneSegments(rings[rings.length - 1], geom.toolRadius, params.cornerRadius);
+      if (cornerRelief(params) && rings.length) {
+        rings[rings.length - 1] = cornerReliefSegments(rings[rings.length - 1], cornerRelief(params), geom.toolRadius, params.cornerRadius);
       }
 
       var safeHeight = safeHopDelta.toFixed(3);
