@@ -3704,6 +3704,12 @@
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min;
     if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max;
 
+    // A Slot shape that can't be cut shows on the field to change.
+    if (/^qc-slt-(width|length|radius|sweep|chord|rise)$/.test(id)) {
+      var slotProblem = slotShapeProblem();
+      if (slotProblem && slotProblem.field === id) return slotProblem.message;
+    }
+
     // Cross-field: Depth of Cut can't be deeper than Total Depth — a
     // single pass to that depth would overshoot the requested total.
     if (id === 'qc-rect-step') {
@@ -5029,6 +5035,11 @@
     try {
       trace = traceProgram(gen[tab.gen](params));
     } catch (err) {
+      svg.innerHTML = patternPreviewCaption(['Fix the shape', 'to preview'], -3);
+      return;
+    }
+    // A shape the generator can't cut comes back as a warning and no moves.
+    if (!trace.moves.length && !trace.plunges.length) {
       svg.innerHTML = patternPreviewCaption(['Fix the shape', 'to preview'], -3);
       return;
     }
@@ -8730,6 +8741,28 @@
     return !!cell && cell.classList.contains('qc-preview-big');
   }
 
+  // A Slot that can't be cut, as { field, message } with the field to
+  // change, or null. Generate and the fields' own checks share it, so the
+  // problem shows when that field is left, not as a warning in an empty
+  // program.
+  function slotShapeProblem() {
+    var params = readSlotForm();
+    var gen = makeQuickCutGenerator(state.isImperial);
+    var half = slotWidthNow() / 2, problem, field = null;
+    try { problem = gen.slotProblem(params, gen.slotCenterline(params), half); } catch (e) { return null; }
+    if (problem) {
+      var arc = params.slotType === 'arc', chord = arc && params.arcMode === 'chord';
+      field = /width must/.test(problem) ? 'qc-slt-width'
+        : /as wide as its radius/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-radius')
+        : /overlap/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-sweep')
+        : (arc ? (chord ? 'qc-slt-chord' : 'qc-slt-radius') : 'qc-slt-length');
+    } else if ((params.cutType === 'inner' || params.cutType === 'clearing') && half - params.bitDiameter / 2 <= 1e-9) {
+      problem = 'the slot is no wider than the bit; use the Center line cut type';
+      field = 'qc-slt-width';
+    }
+    return problem ? { field: field, message: problem.charAt(0).toUpperCase() + problem.slice(1) } : null;
+  }
+
   function wireSlotForm() {
     ['qc-slt-width', 'qc-slt-length', 'qc-slt-angle', 'qc-slt-radius', 'qc-slt-start', 'qc-slt-sweep',
      'qc-slt-chord', 'qc-slt-rise', 'qc-slt-bulge'].forEach(function(id) {
@@ -8763,22 +8796,9 @@
       var params = readSlotForm();
       params.shape = 'slot';
       var gen = makeQuickCutGenerator(state.isImperial);
-      // Shapes that can't be cut are caught here, at the field to change,
-      // rather than as a warning in an empty program.
-      var half = slotWidthNow() / 2;
-      var problem = gen.slotProblem(params, gen.slotCenterline(params), half), field = null;
+      var problem = slotShapeProblem();
       if (problem) {
-        var arc = params.slotType === 'arc', chord = arc && params.arcMode === 'chord';
-        field = /width must/.test(problem) ? 'qc-slt-width'
-          : /as wide as its radius/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-radius')
-          : /overlap/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-sweep')
-          : (arc ? (chord ? 'qc-slt-chord' : 'qc-slt-radius') : 'qc-slt-length');
-      } else if ((params.cutType === 'inner' || params.cutType === 'clearing') && half - params.bitDiameter / 2 <= 1e-9) {
-        problem = 'the slot is no wider than the bit; use the Center line cut type';
-        field = 'qc-slt-width';
-      }
-      if (problem) {
-        showTooltip($(field), problem.charAt(0).toUpperCase() + problem.slice(1));
+        setFieldError($(problem.field), problem.message);
         return;
       }
       var gcode = gen.generateSlotProgram(params);
