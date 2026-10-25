@@ -1224,6 +1224,27 @@ test('polygon: startAngleDeg=90 rotates the polygon by +90°', () => {
   assert.match(gcode, /G0 X17\.32[01] Y10\.000/);
 });
 
+test('polygon clearing: steps down from the cleared floor without lifting between passes', () => {
+  // Like rectangle clearing: after each pass the bit moves back to the
+  // innermost ring along the floor and plunges one Depth of Cut, rather
+  // than lifting to safe Z and plunging from 2mm above the stock.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  for (const cornerRadius of [0, 5]) {
+    const lines = gen(polygonBase({
+      sides: 6, radius: 20, cutType: 'clearing', bitDiameter: 6, stepoverPct: 40,
+      depth: 6, depthOfCut: 2, cornerRadius
+    })).split('\n');
+    const plunges = lines.filter(l => /^G1 Z-/.test(l));
+    assert.deepEqual(plunges.map(l => l.split(' ')[1]), ['Z-2.000', 'Z-4.000', 'Z-6.000'], 'cornerRadius ' + cornerRadius);
+    for (let i = 1; i < plunges.length; i++) {
+      const k = lines.indexOf(plunges[i]);
+      assert.match(lines[k - 1], /^G0 X\S+ Y\S+$/, 'cornerRadius ' + cornerRadius + ': hop along the floor');
+      assert.match(lines[k - 2], /^G[123] X/, 'cornerRadius ' + cornerRadius + ': no lift after the pass');
+    }
+    assert.equal(lines.filter(l => /^G0 Z/.test(l) && !/G53/.test(l)).length, 3, 'cornerRadius ' + cornerRadius + ': lifts only before and after the pocket');
+  }
+});
+
 test('polygon clearing: pattern (linear 2x2) emits 4 instances', () => {
   const gen = makeQuickCutGenerator(false).generatePolygonProgram;
   const gcode = gen(polygonBase({

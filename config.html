@@ -10968,10 +10968,8 @@
 
         currentDepth = nextDepth;
         if (currentDepth < depth - 1e-6) {
-          // Retract to safe Z, hop back to innermost vertex for the next pass.
-          lines.push('G0 Z' + safeHeight);
+          // Back to the innermost vertex along the cleared floor for the next pass.
           lines.push('G0 X' + innerVerts[0].x.toFixed(xyDp) + ' Y' + innerVerts[0].y.toFixed(xyDp));
-          lines.push('G0 Z' + slowPlungeStart);
         }
       }
 
@@ -11028,9 +11026,7 @@
         }
         currentDepth = nextDepth;
         if (currentDepth < depth - 1e-6) {
-          lines.push('G0 Z' + safeHeight);
           moveTo('G0', first);
-          lines.push('G0 Z' + slowPlungeStart);
         }
       }
 
