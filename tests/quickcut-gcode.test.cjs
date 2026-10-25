@@ -2751,3 +2751,12 @@ test('circular pattern header names an Inside / Outside Radius it was set by', (
   assert.match(gen(params({ radiusTo: 'outside', radiusEdge: 43 })), /r=40 \[outside 43\] start=/);
   assert.match(gen(params({ radiusTo: 'center', radiusEdge: null })), /r=40 start=/);
 });
+
+test('linear pattern header names an edge-to-edge Extent it was set by', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 6, height: 6, cornerRadius: 0, cutType: 'inner', bitDiameter: 2, depth: 1, depthOfCut: 1, origin: 'center',
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 2, xDist: 22, yDist: 10, xExtentEdge: 50 }
+  }));
+  assert.match(gcode, /Pattern: Linear 3x2 \[dX=22, dY=10; extent X=50\]/);
+});

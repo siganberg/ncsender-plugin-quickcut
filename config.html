@@ -3738,6 +3738,15 @@
       var pgTot = num('qc-poly-depth', NaN);
       if (isFinite(pgTot) && n > pgTot) return 'Depth of Cut must not exceed Total Depth (' + pgTot + ')';
     }
+    // An edge-to-edge Extent holds at least one copy.
+    var extentOf = /^qc-(\w+)-pattern-([xy])-dist$/.exec(id);
+    if (extentOf && patternAxisMode(extentOf[1], extentOf[2]) === 'extent' && patternGapAllowed(extentOf[1])) {
+      var extParams = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[extentOf[1]]].read(), extGeom = patternCopyGeom(extentOf[1], extParams);
+      if (extGeom && patternExtentSteps(extParams.pattern, extentOf[2]) > 0) {
+        var least = patternCopySize(extGeom, extentOf[2]);
+        if (Math.abs(n) < least - 1e-9) return 'Extent must be at least one copy\u2019s size (' + roundDisplay(Math.ceil(least * 1e4) / 1e4) + '), edge to edge';
+      }
+    }
     // An Outer cut's Gap is between the parts: the bit has to fit.
     var gapOf = /^qc-(\w+)-pattern-([xy])-dist$/.exec(id);
     if (gapOf && patternGapMode(gapOf[1], gapOf[2]) && num('qc-' + gapOf[1] + '-pattern-' + gapOf[2] + '-count', 1) > 1 &&
@@ -4449,6 +4458,10 @@
       yExtent: yMode === 'extent',
       xDist:   num(pre + 'x-dist', 0),
       yDist:   num(pre + 'y-dist', 0),
+      // Linear and Honeycomb Extents run edge to edge (withPatternGaps
+      // turns them into spacings); Grid's stay center to center.
+      xExtentEdge: xMode === 'extent' && patternGapAllowed(prefix) ? num(pre + 'x-dist', 0) : null,
+      yExtentEdge: yMode === 'extent' && patternGapAllowed(prefix) ? num(pre + 'y-dist', 0) : null,
       xGap:    xMode === 'gap' ? Math.abs(num(pre + 'x-dist', 0)) : null,
       yGap:    yMode === 'gap' ? Math.abs(num(pre + 'y-dist', 0)) : null,
       xSign:   patternGapSign(prefix, 'x'),
@@ -4719,15 +4732,49 @@
     var cut = $('qc-' + prefix + '-cut-type');
     return cut && cut.value === 'outer' ? Math.max(0, num('qc-bit', 0)) : 0;
   }
+  // Extent (Linear, Honeycomb): from the outer edge of the first copy to
+  // the outer edge of the last, the solid lines on the preview, so every
+  // copy fits inside it. It is the steps between the copies plus one
+  // copy's size: along a Honeycomb row, the shifted rows' half step too,
+  // unless Symmetric Ends trims them.
+  function patternCopySize(geom, axis) {
+    return (axis === 'x' ? geom.box.u1 - geom.box.u0 : geom.box.v1 - geom.box.v0) + 2 * geom.r;
+  }
+  function patternExtentSteps(pat, axis) {
+    var n = Math.max(1, Math.floor((axis === 'x' ? pat.xCount : pat.yCount) || 1));
+    var shifted = pat.style === 'honeycomb' && axis === 'x' && Math.floor(pat.yCount || 1) > 1 && !pat.hexTrim;
+    return n - 1 + (shifted ? 0.5 : 0);
+  }
+  function patternExtentSpacing(geom, pat, axis, extent) {
+    var k = patternExtentSteps(pat, axis);
+    return k > 0 ? (extent - patternCopySize(geom, axis)) / k : 0;
+  }
+  function patternExtentOf(geom, pat, axis, spacing) {
+    return spacing * patternExtentSteps(pat, axis) + patternCopySize(geom, axis);
+  }
+  function withPatternExtents(prefix, params) {
+    var pat = params.pattern, geom = patternCopyGeom(prefix, params);
+    if (!geom) return;
+    ['x', 'y'].forEach(function(axis) {
+      var extent = pat[axis + 'ExtentEdge'];
+      if (extent == null) return;
+      // Rounded down to 4 decimals: never past the extent.
+      var spacing = Math.max(0, Math.floor(patternExtentSpacing(geom, pat, axis, Math.abs(extent)) * 1e4 + 1e-3) / 1e4);
+      pat[axis + 'Dist'] = (extent < 0 ? -1 : 1) * spacing;
+      pat[axis + 'Extent'] = false;
+    });
+    pat.spacing = 'spacing';
+  }
   function withPatternGaps(prefix, params) {
     var pat = params.pattern;
     if (pat && pat.enabled && /^circular/.test(pat.style) && pat.radiusEdge != null) withPatternRadius(prefix, params);
+    if (pat && pat.enabled && (pat.xExtentEdge != null || pat.yExtentEdge != null)) withPatternExtents(prefix, params);
     if (!pat || !pat.enabled || (pat.xGap == null && pat.yGap == null)) return params;
     var geom = patternCopyGeom(prefix, params);
     if (!geom) return params;
     var honeycomb = pat.style === 'honeycomb';
     // Rounded up to 4 decimals: a readable header, and never less gap.
-    var up = function(v) { return Math.ceil(v * 1e4 - 1e-6) / 1e4; };
+    var up = function(v) { return Math.ceil(v * 1e4 - 1e-3) / 1e4; };
     if (pat.xGap != null) pat.xDist = pat.xSign * up(patternSpacingFor(geom, honeycomb, 'x', pat.xGap));
     if (pat.yGap != null) pat.yDist = pat.ySign * up(patternSpacingFor(geom, honeycomb, 'y', pat.yGap, patternRowStep(pat)));
     return params;
@@ -4748,20 +4795,21 @@
     if (!isFinite(v)) return;
     var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
     var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read();
-    var geom = null, honeycomb = params.pattern.style === 'honeycomb', sx = patternRowStep(params.pattern);
-    if (was === 'gap' || mode === 'gap') {
+    var pat = params.pattern, geom = null, honeycomb = pat.style === 'honeycomb', sx = patternRowStep(pat);
+    var edgeExtent = patternGapAllowed(prefix) && (was === 'extent' || mode === 'extent');
+    if (was === 'gap' || mode === 'gap' || edgeExtent) {
       geom = patternCopyGeom(prefix, params);
       if (!geom) return;
     }
-    // What the kept exact spacing depends on: the count, the shape and bit,
+    // What the kept exact spacing depends on: the counts, the shape and bit,
     // and the step along a row.
-    var ctx = count + '|' + sx + '|' + patternGeomKey(prefix, params);
-    var spacing = was === 'extent' ? (count > 1 ? v / (count - 1) : v)
+    var ctx = count + '|' + pat.xCount + '|' + pat.yCount + '|' + pat.hexTrim + '|' + sx + '|' + patternGeomKey(prefix, params);
+    var spacing = was === 'extent' ? (edgeExtent ? Math.max(0, patternExtentSpacing(geom, pat, axis, v)) : count > 1 ? v / (count - 1) : v)
                 : was === 'gap' ? patternSpacingFor(geom, honeycomb, axis, v, sx) : v;
     // Untouched since the last switch: start from the exact spacing, not
     // the rounded number shown, so switching back and forth doesn't drift.
     if (input.value === sel.getAttribute('data-shown') && sel.getAttribute('data-ctx') === ctx && isFinite(Number(sel.getAttribute('data-spacing')))) spacing = Number(sel.getAttribute('data-spacing'));
-    var out = mode === 'extent' ? (count > 1 ? spacing * (count - 1) : spacing)
+    var out = mode === 'extent' ? (edgeExtent ? patternExtentOf(geom, pat, axis, spacing) : count > 1 ? spacing * (count - 1) : spacing)
             : mode === 'gap' ? Math.max(patternGapLeast(prefix), patternGapAt(geom, honeycomb, axis, spacing, sx)) : spacing;
     input.value = roundDisplay(sign * out);
     sel.setAttribute('data-spacing', String(spacing));
@@ -4907,7 +4955,7 @@
       });
       var side = area > 0 ? 1 : -1;
       var keep = function(pt) {
-        return patternRadiusNear(geom.parts, pt.u, pt.v) >= r - 1e-7 && patternRadiusInLoop(geom.loops[li], pt.u, pt.v);
+        return patternRadiusNear(geom.parts, pt.u, pt.v) >= r - 1e-9 && patternRadiusInLoop(geom.loops[li], pt.u, pt.v);
       };
       moves.forEach(function(m) {
         var o = offsetMove(m, side * r);
@@ -5070,7 +5118,7 @@
     if (R != null) patternRadiusSelect(prefix).setAttribute('data-ref', String(R));
     // Rounded to 4 decimals, up for Inside and down for Outside: a
     // readable header, never less clearance and never past the circle.
-    if (R != null) pat.radius = pat.radiusTo === 'inside' ? Math.ceil(R * 1e4 - 1e-6) / 1e4 : Math.floor(R * 1e4 + 1e-6) / 1e4;
+    if (R != null) pat.radius = pat.radiusTo === 'inside' ? Math.ceil(R * 1e4 - 1e-3) / 1e4 : Math.floor(R * 1e4 + 1e-3) / 1e4;
     else if (pat.radiusTo === 'outside') pat.radius = 0;
   }
   // An Outside Radius smaller than the copies can have.
@@ -5750,7 +5798,7 @@
   // accurate. At any other angle the distances are measured along and
   // across the angled row, so the labels say that instead.
   var PATTERN_GAP_LABELS = { axis: { x: 'X Gap', y: 'Y Gap' }, angled: { x: 'Gap', y: 'Row Gap' }, honeycomb: { x: 'X Gap', y: 'Row Gap' } };
-  var PATTERN_MODE_TITLE = 'Spacing: center to center between neighbouring copies. Extent: first copy\u2019s center to the last; the copies spread evenly over it. Gap (Linear, Honeycomb): between neighbouring copies\u2019 edges at their closest, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts (at least a bit diameter, for the bit to pass), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. A negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
+  var PATTERN_MODE_TITLE = 'Spacing: center to center between neighbouring copies. Extent: from the outer edge of the first copy to the outer edge of the last (the solid lines on the preview), so every copy fits inside it; the copies spread evenly over it (Grid: first line\u2019s center to the last). Gap (Linear, Honeycomb): between neighbouring copies\u2019 edges at their closest, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts (at least a bit diameter, for the bit to pass), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. A negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
   var PATTERN_LABELS = {
     axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
@@ -5801,8 +5849,10 @@
       // An Extent's tooltip gives the spacing it works out to.
       if (mode === 'extent') {
         var count = Math.max(1, Math.floor(num('qc-' + prefix + '-pattern-' + axis + '-count', 1)));
-        var step = count > 1 ? roundDisplay(num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)) : 0;
-        labels[i].title = 'First to last center' + (count > 1 ? '; copies ' + step + ' ' + state.unitLabel + ' apart' : '');
+        var step = count > 1 ? roundDisplay(isLineGrid ? num('qc-' + prefix + '-pattern-' + axis + '-dist', 0) / (count - 1)
+                                                       : Math.abs(PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read().pattern[axis + 'Dist'] || 0)) : 0;
+        labels[i].title = (isLineGrid ? 'First to last center' : 'Outer edge of the first copy to the last, so every copy fits inside') +
+          (count > 1 ? '; copies ' + step + ' ' + state.unitLabel + ' apart' : '');
       }
       if (mode === 'gap') labels[i].title = PATTERN_MODE_TITLE;
       var input = $(labels[i].getAttribute('for'));
@@ -6189,6 +6239,9 @@
       sel.removeAttribute('data-shown');
       sel.removeAttribute('data-ctx');
       if (gap != null) $(pre + axis + '-dist').value = roundDisplay((p[axis + 'Sign'] === -1 ? -1 : 1) * mmToDisplay(gap));
+      // An edge-to-edge Extent; older settings' center-to-center one is
+      // read as edge to edge.
+      if (mode === 'extent' && p[axis + 'ExtentEdge'] != null) $(pre + axis + '-dist').value = roundDisplay(mmToDisplay(p[axis + 'ExtentEdge']));
     });
   }
 
@@ -6622,8 +6675,12 @@
       angle:        p.angle || 0,
       rotateShapes: !!p.rotateShapes,
       spacing:      p.spacing === 'extent' ? 'extent' : 'spacing',
-      xExtent:      !!p.xExtent,
-      yExtent:      !!p.yExtent,
+      xExtent:      !!p.xExtent || p.xExtentEdge != null,
+      yExtent:      !!p.yExtent || p.yExtentEdge != null,
+      // Linear / Honeycomb Extent, edge to edge: xDist / yDist are the
+      // spacings it works out to.
+      xExtentEdge:  p.xExtentEdge != null ? displayToMm(p.xExtentEdge) : null,
+      yExtentEdge:  p.yExtentEdge != null ? displayToMm(p.yExtentEdge) : null,
       // Gap mode: xDist / yDist above are the spacings it works out to.
       xGap:       p.xGap != null ? displayToMm(p.xGap) : null,
       yGap:       p.yGap != null ? displayToMm(p.yGap) : null,
@@ -9331,7 +9388,7 @@
   var HELP_SHARED = {
     pattern: { title: 'Patterns', notes: [
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> shifts every other row half a step; its <strong>Y Count</strong> and <strong>Y Spacing</strong> are row by row, shifted rows included (<strong>Symmetric Ends</strong> trims the shifted rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
-      '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus: pick <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it. Each direction has its own.',
+      '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus: pick <strong>Extent</strong> to give the overall size instead, from the outer edge of the first copy to the outer edge of the last (the solid lines on the preview), and the copies spread evenly inside it (Grid: first line&rsquo;s center to the last). Each direction has its own.',
       'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
@@ -10532,8 +10589,10 @@
           : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
         // Gap mode: the stock asked for between copies, which the spacings give.
         var gaps = [p.xGap != null ? 'X=' + p.xGap : '', p.yGap != null ? 'Y=' + p.yGap : ''].filter(Boolean).join(', ');
+        // Edge-to-edge Extent: the overall size asked for, which the spacings give.
+        var extents = [p.xExtentEdge != null ? 'X=' + p.xExtentEdge : '', p.yExtentEdge != null ? 'Y=' + p.yExtentEdge : ''].filter(Boolean).join(', ');
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
-               ' (' + dims + (gaps ? '; gap ' + gaps : '') + ')' +
+               ' (' + dims + (extents ? '; extent ' + extents : '') + (gaps ? '; gap ' + gaps : '') + ')' +
                (angle ? ' angle=' + angle + '°' + (p.rotateShapes ? ' rotated' : '') : '');
       }
       if (p.style === 'grid') {
