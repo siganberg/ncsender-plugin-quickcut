@@ -5752,7 +5752,7 @@
     if (p.xDist != null)    $(pre + 'x-dist').value = roundDisplay(mmToDisplay(p.xDist));
     if (p.yDist != null)    $(pre + 'y-dist').value = roundDisplay(mmToDisplay(p.yDist));
     if (p.xCount != null)   $(pre + 'x-count').value = p.xCount;
-    if (p.yCount != null)   $(pre + 'y-count').value = p.yCount;
+    if (p.yCount != null)   $(pre + 'y-count').value = p.style === 'honeycomb' && !p.yAllRows ? 2 * p.yCount - 1 : p.yCount;
     if (p.count != null)    $(pre + 'count').value = p.count;
     if (p.radius != null)   $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radius));
     if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
@@ -6206,7 +6206,10 @@
       xGap:       p.xGap != null ? displayToMm(p.xGap) : null,
       yGap:       p.yGap != null ? displayToMm(p.yGap) : null,
       xSign:      p.xSign === -1 ? -1 : 1,
-      ySign:      p.ySign === -1 ? -1 : 1
+      ySign:      p.ySign === -1 ? -1 : 1,
+      // Honeycomb's Y Count is every row; older settings counted only the
+      // unshifted ones (hydratePattern converts them).
+      yAllRows:   true
     };
   }
 
@@ -8896,7 +8899,7 @@
   };
   var HELP_SHARED = {
     pattern: { title: 'Patterns', notes: [
-      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
+      '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> shifts every other row half a step, with rows half the Y Spacing apart, and its <strong>Y Count</strong> is every row, shifted ones included (<strong>Symmetric Ends</strong> trims the shifted rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
       'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts at their closest instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
@@ -9473,27 +9476,19 @@
           xDist = patternStep(xDist, xCount);
           yDist = patternStep(yDist, yCount);
         }
-        // Honeycomb: xCount × yCount = PRIMARY (un-shifted) items.
-        // Shifted rows auto-insert between primary rows at Y = yDist/2
-        // with X shifted by xDist/2. yCount stays the primary-row
-        // count so 10×10 renders as 10 primary rows visible (with
-        // alternates filling in between).
+        // Honeycomb: yCount is every row, the shifted ones included: rows
+        // alternate primary and shifted (X moved by xDist/2), starting
+        // with a primary row. yDist stays the pitch between primary rows,
+        // so rows are yDist/2 apart; with Extent, yDist is first row to last.
         var isHoney = pattern.style === 'honeycomb';
         if (isHoney) {
           var hexTrim = !!pattern.hexTrim;
+          var rowPitch = pattern.spacing === 'extent' ? yDist : yDist / 2;
           for (var j = 0; j < yCount; j++) {
-            for (var i = 0; i < xCount; i++) {
-              positions.push({ x: i * xDist, y: j * yDist, rotDeg: 0 });
-            }
-            if (j < yCount - 1) {
-              var shiftedCount = hexTrim ? Math.max(0, xCount - 1) : xCount;
-              for (var k = 0; k < shiftedCount; k++) {
-                positions.push({
-                  x: k * xDist + xDist / 2,
-                  y: j * yDist + yDist / 2,
-                  rotDeg: 0
-                });
-              }
+            var shifted = j % 2 === 1;
+            var rowCount = shifted && hexTrim ? Math.max(0, xCount - 1) : xCount;
+            for (var i = 0; i < rowCount; i++) {
+              positions.push({ x: i * xDist + (shifted ? xDist / 2 : 0), y: j * rowPitch, rotDeg: 0 });
             }
           }
           return applyGridAngle(positions, pattern);
@@ -9568,11 +9563,8 @@
         var isHoney = pattern.style === 'honeycomb';
         var shiftedCount = isHoney && pattern.hexTrim ? Math.max(0, xCount - 1) : xCount;
         for (var j = 0; j < yCount; j++) {
-          var row = isHoney ? 2 * j + 1 : j + 1;
-          for (var i = 0; i < xCount; i++) keys.push((i + 1) + ',' + row);
-          if (isHoney && j < yCount - 1) {
-            for (var k = 0; k < shiftedCount; k++) keys.push((k + 1) + ',' + (row + 1));
-          }
+          var rowCount = isHoney && j % 2 === 1 ? shiftedCount : xCount;
+          for (var i = 0; i < rowCount; i++) keys.push((i + 1) + ',' + (j + 1));
         }
         return keys;
       }
@@ -10103,7 +10095,8 @@
         var dims = p.spacing === 'extent'
           ? 'extent X=' + (p.xDist || 0) + ', Y=' + (p.yDist || 0) +
             '; dX=' + parseFloat(patternStep(p.xDist || 0, xc).toFixed(4)) +
-            ', dY=' + parseFloat(patternStep(p.yDist || 0, yc).toFixed(4))
+            // Honeycomb's dY is between unshifted rows, as with Spacing.
+            ', dY=' + parseFloat((patternStep(p.yDist || 0, yc) * (p.style === 'honeycomb' ? 2 : 1)).toFixed(4))
           : 'dX=' + (p.xDist || 0) + ', dY=' + (p.yDist || 0);
         return label + ' ' + (p.xCount || 1) + 'x' + (p.yCount || 1) +
                ' (' + dims + ')' +

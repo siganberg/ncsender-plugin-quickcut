@@ -398,8 +398,8 @@ test('clearing preserves cornerRadius only on outermost level', () => {
 // Pattern replicates the same shape at multiple positions inside a
 // single program. Header/spindle/coolant run once; each instance emits
 // its own approach, plunge, cut, and safe-Z lift.
-test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert between', () => {
-  // 3×3 primary grid with 40mm pitch:
+test('honeycomb: yCount is every row; rows alternate primary and shifted', () => {
+  // 3 across, 5 rows, primary rows 40mm apart:
   //   Row 0 primary (y=0):    x = 0, 40, 80          → 3 items
   //   Shifted    (y=20):      x = 20, 60, 100        → 3 items
   //   Row 1 primary (y=40):   x = 0, 40, 80          → 3 items
@@ -409,10 +409,10 @@ test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert betwe
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, cutType: 'inner', bitDiameter: 3,
-    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 3 }
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 5 }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 15\)/m);
-  assert.match(gcode, /^\(Pattern: Honeycomb 3x3/m);
+  assert.match(gcode, /^\(Pattern: Honeycomb 3x5/m);
   // Origin=center anchors the WHOLE pattern's aggregate bbox center at
   // (0,0), so instance coordinates are shifted by (-50, -40) — the
   // negative of the aggregate bbox center for this 100×80 spread.
@@ -424,8 +424,18 @@ test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert betwe
   assert.match(gcode, /\(Instance 13\/15 at X-50\.000 Y40\.000\)/);
 });
 
+test('honeycomb: an even row count ends on a shifted row', () => {
+  const g = makeQuickCutGenerator(false);
+  const pts = g.computePatternPositions({ enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 4 });
+  assert.equal(pts.length, 12);
+  assert.deepEqual([...new Set(pts.map(q => q.y))], [0, 20, 40, 60]);
+  assert.deepEqual(pts.filter(q => q.y === 60).map(q => q.x), [20, 60, 100]);
+  // One row is just the primary one.
+  assert.deepEqual(g.computePatternPositions({ enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 1 }).map(q => q.y), [0, 0, 0]);
+});
+
 test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are always primary', () => {
-  // 3×3 primary grid with hexTrim:
+  // 3 across, 5 rows, with hexTrim:
   //   Primary row 0 (y=0):  3 items
   //   Shifted    (y=20):    2 items (trim)
   //   Primary row 1 (y=40): 3 items
@@ -437,7 +447,7 @@ test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are alwa
     diameter: 5, cutType: 'inner', bitDiameter: 3,
     pattern: {
       enabled: true, style: 'honeycomb', hexTrim: true,
-      xDist: 40, yDist: 40, xCount: 3, yCount: 3
+      xDist: 40, yDist: 40, xCount: 3, yCount: 5
     }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 13\)/m);
@@ -606,7 +616,7 @@ test('honeycomb at an angle rotates the shifted rows too', () => {
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, bitDiameter: 3,
-    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 2, yCount: 2, angle: 90 }
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 2, yCount: 3, angle: 90 }
   }));
   // Local (0,0),(40,0) | shifted (20,20),(60,20) | (0,40),(40,40),
   // rotated 90° → x = -v, y = u. Shifted item 3 sits 20 left of row 0.
@@ -1776,8 +1786,8 @@ test('extent spacing spreads copies evenly from first to last center', () => {
   assert.ok(Math.abs(last.x - -40) < 1e-9 && Math.abs(last.y - 60) < 1e-9, JSON.stringify(last));
   // A count of 1 has no spacing.
   assert.deepEqual(xs(Object.assign({}, ext, { xCount: 1 })), [0]);
-  // Honeycomb: the extent covers the primary rows.
-  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 3, xDist: 80, yDist: 60, spacing: 'extent' };
+  // Honeycomb: the extent runs from the first row to the last.
+  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 5, xDist: 80, yDist: 60, spacing: 'extent' };
   const pts = g.computePatternPositions(honey);
   // Main (unshifted) rows run 0..80; the shifted rows overhang by half
   // a spacing unless Symmetric Ends trims them.
@@ -2008,7 +2018,7 @@ test('origin inset on Circle, Polygon, Drill and Keyhole', () => {
 
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
-  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
+  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 3, xDist: 10, yDist: 10, hexTrim: true };
   assert.deepEqual(g.patternPositionKeys(honey), ['1,1', '2,1', '3,1', '1,2', '2,2', '1,3', '2,3', '3,3']);
   assert.equal(g.patternPositionKeys(honey).length, g.computePatternPositions(honey).length);
   assert.deepEqual(g.patternPositionKeys({ enabled: false }), ['1,1']);

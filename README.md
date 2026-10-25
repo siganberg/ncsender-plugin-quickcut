@@ -128,7 +128,7 @@ Turn on the **Pattern** switch on a Rectangle, Circle, Polygon, Slot, Keyhole, o
 | --- | --- |
 | Linear | A grid of rows and columns. |
 | Grid | Slot only, straight slots: lines instead of copies. **Rows** lines run along X and **Columns** lines run along Y, spaced by Row Spacing and Column Spacing, and each line spans the grid, so the outer lines meet at the corners. The Slot's Length and Angle are greyed out; the pattern Angle turns the whole grid. Use the **Center line** cut type for a grid of grooves. |
-| Honeycomb | Like Linear, plus a shifted row (offset by half a step in both directions) between each pair of rows. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. |
+| Honeycomb | Like Linear, but every other row is shifted half a step along it, and rows are half the Y Spacing apart (Y Spacing is between the unshifted rows). **Y Count** is every row, shifted ones included, starting with an unshifted row; an even count ends on a shifted row. **Symmetric Ends** drops one copy from each shifted row so both ends of the pattern line up. Settings saved before Y Count meant every row (when it counted only the unshifted ones) load as the same layout. |
 | Circular (Identical) | *Count* copies on a circle of *Radius*, starting at *Start Angle* and spread over *Total Angle* (see below). Every copy keeps the same orientation. |
 | Circular (Path Direction) | Same as above, but each copy turns with the circle: the first copy (at the Start Angle) looks like the shape preview, and each later copy is turned by how far round the circle it is from the first. |
 
@@ -156,7 +156,7 @@ Linear and Honeycomb normally take a **Spacing**: the center-to-center distance 
 
 - Flipping the switch converts the numbers so the pattern stays where it is (X Spacing 25 with X Count 5 becomes X Extent 100).
 - At an angle it works the same way, along and across the angled row (**Extent** / **Row Extent**).
-- On Honeycomb the extent covers the main rows; the shifted rows still sit half a step in between, and overhang by half a step unless **Symmetric Ends** is on.
+- On Honeycomb the Y extent runs from the first row to the last; the shifted rows overhang by half a step along the row unless **Symmetric Ends** is on.
 - The G-code header gives both, e.g. `Pattern: Linear 5x1 [extent X=400, Y=0; dX=100, dY=0]`.
 
 ### Linear and Honeycomb at an angle
