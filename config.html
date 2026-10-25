@@ -3698,6 +3698,11 @@
   function validateField(id, value) {
     var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE : validationRules()[id];
     if (!rules) return null;
+    // An Inside / Outside Radius is an edge distance: 0 is a copy touching the center.
+    var edgeRadius = /^qc-(\w+)-pattern-radius$/.exec(id);
+    if (edgeRadius && patternRadiusMode(edgeRadius[1]) !== 'center') {
+      rules = Object.assign({}, rules, { min: 0, label: patternRadiusMode(edgeRadius[1]) === 'inside' ? 'Inside Radius' : 'Outside Radius' });
+    }
     var unitKind = $(id) && $(id).getAttribute('data-unit');
     var n = unitKind ? parseUnitValue(value, state.isImperial, unitKind) : parseFloat(value);
     if (n == null || isNaN(n))                                  return rules.label + ' must be a number';
@@ -3735,7 +3740,8 @@
     }
     // An Outer cut's Gap is between the parts: the bit has to fit.
     var gapOf = /^qc-(\w+)-pattern-([xy])-dist$/.exec(id);
-    if (gapOf && patternGapMode(gapOf[1], gapOf[2]) && $('qc-' + gapOf[1] + '-cut-type') && $('qc-' + gapOf[1] + '-cut-type').value === 'outer') {
+    if (gapOf && patternGapMode(gapOf[1], gapOf[2]) && num('qc-' + gapOf[1] + '-pattern-' + gapOf[2] + '-count', 1) > 1 &&
+        $('qc-' + gapOf[1] + '-cut-type') && $('qc-' + gapOf[1] + '-cut-type').value === 'outer') {
       var gapBit = num('qc-bit', 0);
       if (Math.abs(n) < gapBit - 1e-9) return 'Gap must be at least the bit diameter (' + roundDisplay(gapBit) + ') on an Outer cut, for the bit to pass between the parts';
     }
@@ -4517,7 +4523,8 @@
   // The single copy that's measured, and a key for it.
   function patternGeomParams(params) {
     var pat = params.pattern || {};
-    var p = Object.assign({}, params, { tabs: null, depth: 1, depthOfCut: 1, peckDepth: 0 });
+    var p = Object.assign({}, params, { tabs: null, depth: 1, depthOfCut: 1, peckDepth: 0, feedRate: 1, plungeFeedRate: 1,
+                                        spindleRpm: 0, spindleDelay: 0, mistM7: false, floodM8: false });
     if (p.cutType === 'clearing') p.cutType = 'inner';
     p.pattern = { enabled: true, style: 'linear', xCount: 1, yCount: 1, xDist: 0, yDist: 0, angle: pat.angle || 0, rotateShapes: !!pat.rotateShapes };
     return p;
@@ -4944,19 +4951,25 @@
     });
     return best;
   }
-  // Inside a closed loop of the path, by the crossings of a ray toward +u.
+  // Inside a closed loop of the path, by the crossings of a ray from the
+  // point. The ray leaves at an odd angle, so it doesn't run through the
+  // joins between moves (a circle's halves meet straight across from it).
+  var PATTERN_RAY_COS = Math.cos(0.7234), PATTERN_RAY_SIN = Math.sin(0.7234);
   function patternRadiusInLoop(loop, pu, pv) {
-    var inside = false;
+    var inside = false, c = PATTERN_RAY_COS, sn = PATTERN_RAY_SIN;
+    // Turned so the ray runs toward +u from (0, 0).
+    var U = function(u, v) { return (u - pu) * c + (v - pv) * sn; }, V = function(u, v) { return (v - pv) * c - (u - pu) * sn; };
     loop.forEach(function(q) {
       if (q.r === undefined) {
-        if ((q.v0 > pv) !== (q.v1 > pv) && q.u0 + (pv - q.v0) * (q.u1 - q.u0) / (q.v1 - q.v0) > pu) inside = !inside;
+        var u0 = U(q.u0, q.v0), v0 = V(q.u0, q.v0), u1 = U(q.u1, q.v1), v1 = V(q.u1, q.v1);
+        if ((v0 > 0) !== (v1 > 0) && u0 - v0 * (u1 - u0) / (v1 - v0) > 0) inside = !inside;
         return;
       }
-      var dv = pv - q.cv;
-      if (Math.abs(dv) >= q.r) return;
-      var h = Math.sqrt(q.r * q.r - dv * dv);
-      [q.cu - h, q.cu + h].forEach(function(u) {
-        if (u > pu && onArc(q, Math.atan2(dv, u - q.cu))) inside = !inside;
+      var cu = U(q.cu, q.cv), cv = V(q.cu, q.cv), arc = { cu: cu, cv: cv, r: q.r, t0: q.t0 - 0.7234, sweep: q.sweep };
+      if (Math.abs(cv) >= q.r) return;
+      var h = Math.sqrt(q.r * q.r - cv * cv);
+      [cu - h, cu + h].forEach(function(u) {
+        if (u > 0 && onArc(arc, Math.atan2(-cv, u - cu))) inside = !inside;
       });
     });
     return inside;
@@ -4975,6 +4988,8 @@
   // copy's cut covers the center.
   function patternRadiusEdgeAt(geom, pat, mode, R) {
     var positions = makeQuickCutGenerator(state.isImperial).computePatternPositions(Object.assign({}, pat, { radius: R }));
+    // Path Direction copies all see the center the same way.
+    if (pat.style === 'circular-follow' || pat.rotate) positions = positions.slice(0, 1);
     var best = mode === 'inside' ? Infinity : -Infinity;
     for (var i = 0; i < positions.length; i++) {
       var a = -(positions[i].rotDeg || 0) * Math.PI / 180, x = -positions[i].x, y = -positions[i].y;
@@ -4985,20 +5000,56 @@
     }
     return best;
   }
-  // The smallest center radius whose Inside / Outside Radius is `edge`
-  // (both only grow as the copies move out), by halving the range; null
-  // when no radius gives it (an Outside Radius smaller than a copy).
-  function patternRadiusFor(geom, pat, mode, edge) {
+  // The center radius whose Inside / Outside Radius is `edge`; null when
+  // none gives it (an Outside Radius smaller than a copy). The edge mostly
+  // grows as the copies move out, but not always: an arc slot turns about
+  // a point outside it, so its Inside Radius dips first. Every crossing is
+  // found (sampled, then halved down) and the one nearest `ref`, the
+  // radius the copies were at, wins, so they don't jump; else the least.
+  function patternRadiusFor(geom, pat, mode, edge, ref) {
     var at = function(R) { return patternRadiusEdgeAt(geom, pat, mode, R); };
-    if (mode === 'outside' && at(0) > edge + 1e-9) return null;
-    var lo = 0, hi = edge + geom.reach + 1;
+    var hi = edge + geom.reach + 1;
     for (var n = 0; n < 8 && at(hi) < edge; n++) hi *= 2;
     if (at(hi) < edge) return null;
-    for (var k = 0; k < 50; k++) {
-      var mid = (lo + hi) / 2;
-      if (at(mid) < edge) lo = mid; else hi = mid;
+    var N = 96, roots = [], prevR = 0, prevBelow = at(0) < edge;
+    if (!prevBelow && Math.abs(at(0) - edge) < 1e-9) roots.push(0);
+    for (var i = 1; i <= N; i++) {
+      var R = hi * i / N, below = at(R) < edge;
+      if (below !== prevBelow) {
+        var a = prevR, b = R;
+        for (var k = 0; k < 50; k++) {
+          var mid = (a + b) / 2;
+          if ((at(mid) < edge) === prevBelow) a = mid; else b = mid;
+        }
+        roots.push(prevBelow ? b : a);
+      }
+      prevR = R; prevBelow = below;
     }
-    return hi;
+    if (!roots.length) return null;
+    if (ref == null || !isFinite(ref)) return roots[0];
+    return roots.reduce(function(best, r) { return Math.abs(r - ref) < Math.abs(best - ref) ? r : best; });
+  }
+  // The least Outside Radius the copies can have, at whatever radius:
+  // sampled, then narrowed round the least sample.
+  function patternRadiusLeast(geom, pat) {
+    var at = function(R) { return patternRadiusEdgeAt(geom, pat, 'outside', R); };
+    var hi = 2 * geom.reach + 1, N = 96, bestR = 0, best = at(0);
+    for (var i = 1; i <= N; i++) {
+      var v = at(hi * i / N);
+      if (v < best) { best = v; bestR = hi * i / N; }
+    }
+    var a = Math.max(0, bestR - hi / N), b = Math.min(hi, bestR + hi / N);
+    for (var k = 0; k < 60; k++) {
+      var m1 = a + (b - a) / 3, m2 = b - (b - a) / 3;
+      if (at(m1) < at(m2)) b = m2; else a = m1;
+    }
+    return Math.min(best, at((a + b) / 2));
+  }
+  // The radius the copies were last at: kept by a switch, Load or reopen,
+  // or the last one worked out.
+  function patternRadiusRef(prefix) {
+    var ref = Number(patternRadiusSelect(prefix).getAttribute('data-ref'));
+    return patternRadiusSelect(prefix).hasAttribute('data-ref') && isFinite(ref) ? ref : null;
   }
   function patternRadiusCtx(prefix, params) {
     var pat = params.pattern;
@@ -5015,18 +5066,19 @@
     var pat = params.pattern, geom = patternRadiusGeom(prefix, params);
     if (!geom) return;
     var R = patternRadiusKept(prefix, params);
-    if (R == null) R = patternRadiusFor(geom, pat, pat.radiusTo, pat.radiusEdge);
+    if (R == null) R = patternRadiusFor(geom, pat, pat.radiusTo, pat.radiusEdge, patternRadiusRef(prefix));
+    if (R != null) patternRadiusSelect(prefix).setAttribute('data-ref', String(R));
     // Rounded to 4 decimals, up for Inside and down for Outside: a
     // readable header, never less clearance and never past the circle.
     if (R != null) pat.radius = pat.radiusTo === 'inside' ? Math.ceil(R * 1e4 - 1e-6) / 1e4 : Math.floor(R * 1e4 + 1e-6) / 1e4;
     else if (pat.radiusTo === 'outside') pat.radius = 0;
   }
-  // The smallest Outside Radius the copies can have (at center radius 0).
+  // An Outside Radius smaller than the copies can have.
   function patternRadiusProblem(prefix, n) {
     if (patternRadiusMode(prefix) !== 'outside' || !/^circular/.test($('qc-' + prefix + '-pattern-style').value)) return null;
     var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read(), geom = patternRadiusGeom(prefix, params);
     if (!geom) return null;
-    var least = patternRadiusEdgeAt(geom, params.pattern, 'outside', 0);
+    var least = patternRadiusLeast(geom, params.pattern);
     if (n < least - 1e-9) return 'Outside Radius must be at least ' + roundDisplay(Math.ceil(least * 1e4) / 1e4) + ' (how far a copy reaches from its own center)';
     return null;
   }
@@ -5049,8 +5101,9 @@
     // Untouched since the last switch: start from the exact radius, not
     // the rounded number shown, so switching back and forth doesn't drift.
     var R = patternRadiusKept(prefix, params);
-    if (R == null) R = was === 'center' ? v : patternRadiusFor(geom, pat, was, v);
+    if (R == null) R = was === 'center' ? v : patternRadiusFor(geom, pat, was, v, patternRadiusRef(prefix));
     if (R == null) R = 0;
+    sel.setAttribute('data-ref', String(R));
     var edge = mode === 'center' ? R : patternRadiusEdgeAt(geom, pat, mode, R);
     input.value = roundDisplay(Math.max(0, edge));
     // Clamped to 0 (the copies covered the center): the radius is what 0 gives.
@@ -6114,6 +6167,7 @@
       radiusSel.removeAttribute('data-radius');
       radiusSel.removeAttribute('data-shown');
       radiusSel.removeAttribute('data-ctx');
+      if (p.radius != null) radiusSel.setAttribute('data-ref', String(mmToDisplay(p.radius))); else radiusSel.removeAttribute('data-ref');
       if (radiusTo !== 'center' && p.radiusEdge != null) $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radiusEdge));
       updatePatternRadiusTitle(prefix);
     }
