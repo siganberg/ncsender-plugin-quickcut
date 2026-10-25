@@ -7305,7 +7305,7 @@
     var split = typeof v === 'object' && !v.both, center = typeof v === 'object' && v.to === 'center';
     $('qc-' + prefix + '-inset-mode').value = center ? (split ? 'xy-center' : 'center') : (split ? 'xy' : 'both');
     $('qc-' + prefix + '-inset-mode').setAttribute('data-was', $('qc-' + prefix + '-inset-mode').value);
-    $('qc-' + prefix + '-inset').value = roundDisplay(mmToDisplay(split ? v.x : v));
+    $('qc-' + prefix + '-inset').value = roundDisplay(mmToDisplay(typeof v === 'object' ? +v.x || 0 : v));
     if (split) $('qc-' + prefix + '-inset-y').value = roundDisplay(mmToDisplay(v.y));
     updateInsetMode(prefix);
   }
