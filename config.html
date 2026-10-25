@@ -5502,7 +5502,7 @@
     var box = svg.getBoundingClientRect();
     var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160);
     svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx,
-                                     patternRadiusRing(tab.prefix, gen, params, trace)) +
+                                     patternRadiusRing(tab.prefix, gen, params, trace), outlines ? patternDims(tab.prefix, gen, params, trace) : null) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
@@ -5520,6 +5520,131 @@
     var r = pat.radiusTo !== 'center' && pat.radiusEdge != null ? pat.radiusEdge : pat.radius;
     if (!first || !positions.length || !(Math.abs(r) > 0)) return null;
     return { x: first.x - positions[0].x, y: first.y - positions[0].y, r: Math.abs(r) };
+  }
+
+  // Linear / Honeycomb: what each X / Y menu sets (Spacing, Extent or
+  // Gap), measured like the shape previews: X below the copies and Y to
+  // their left (along and across the rows). Spacing runs between two
+  // copies' centers and Extent between the outermost solid edges, each
+  // with extension lines; Gap is drawn across the gap itself, where two
+  // neighbours come closest. Returns, for a drawing scale, the points to
+  // keep in view and the SVG.
+  function patternDims(prefix, gen, params, trace) {
+    var pat = params.pattern;
+    if (!pat || !pat.enabled || (pat.style !== 'linear' && pat.style !== 'honeycomb')) return null;
+    var lg = patternRadiusGeom(prefix, params), positions = gen.computePatternPositions(pat);
+    if (!lg || positions.length < 2) return null;
+    var first = trace.plunges[0], shape = PATTERN_RADIUS_SHAPES[prefix];
+    if (shape) {
+      var off = gen.shapeOriginOffset(shape, params);
+      first = { x: -off.x, y: -off.y };
+    }
+    if (!first) return null;
+    var a = (pat.angle || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    var U = function(x, y) { return x * ca + y * sa; }, V = function(x, y) { return y * ca - x * sa; };
+    var W = function(u, v) { return { x: u * ca - v * sa, y: u * sa + v * ca }; };
+    // A copy's solid edge as points (arcs sampled), grown by lg.grow where
+    // that edge is a bit radius off the path.
+    var local = [];
+    lg.edges.forEach(function(q) {
+      var n = q.r === undefined ? 24 : Math.max(8, Math.ceil(q.sweep / (Math.PI / 48)));
+      for (var k = 0; k <= n; k++) local.push(patternRadiusPoint(q, k / n));
+    });
+    var copies = positions.map(function(p) {
+      var t = (p.rotDeg || 0) * Math.PI / 180, ct = Math.cos(t), st = Math.sin(t);
+      var cx = first.x + p.x - positions[0].x, cy = first.y + p.y - positions[0].y;
+      return { u: U(cx, cy), v: V(cx, cy), pts: local.map(function(q) {
+        var x = cx + q.u * ct - q.v * st, y = cy + q.u * st + q.v * ct;
+        return { u: U(x, y), v: V(x, y) };
+      }) };
+    });
+    var g = lg.grow, box = { u0: Infinity, v0: Infinity, u1: -Infinity, v1: -Infinity };
+    var lowU = null, highU = null, lowV = null, highV = null;
+    copies.forEach(function(c) {
+      c.pts.forEach(function(q) {
+        if (q.u - g < box.u0) { box.u0 = q.u - g; lowU = q; }
+        if (q.u + g > box.u1) { box.u1 = q.u + g; highU = q; }
+        if (q.v - g < box.v0) { box.v0 = q.v - g; lowV = q; }
+        if (q.v + g > box.v1) { box.v1 = q.v + g; highV = q; }
+      });
+    });
+    var c0 = copies[0];
+    // The copy nearest a spot in the rows' frame.
+    var nearest = function(u, v) {
+      var best = null;
+      copies.forEach(function(c) { if (c !== c0 && (!best || Math.hypot(c.u - u, c.v - v) < Math.hypot(best.u - u, best.v - v))) best = c; });
+      return best;
+    };
+    // The closest two copies' solid edges come, by their sample points:
+    // where edges run side by side, the spot nearest the line between the
+    // two copies' centers.
+    var closest = function(b) {
+      var best = null, least = Infinity, mu = (c0.u + b.u) / 2, mv = (c0.v + b.v) / 2;
+      c0.pts.forEach(function(p) { b.pts.forEach(function(q) { least = Math.min(least, Math.hypot(q.u - p.u, q.v - p.v)); }); });
+      c0.pts.forEach(function(p) {
+        b.pts.forEach(function(q) {
+          var d = Math.hypot(q.u - p.u, q.v - p.v);
+          if (d > least + 1e-6 * (1 + least)) return;
+          var off = Math.hypot((p.u + q.u) / 2 - mu, (p.v + q.v) / 2 - mv);
+          if (!best || off < best.off) best = { p: p, q: q, d: d, off: off };
+        });
+      });
+      if (!best || !(best.d > 2 * g)) return null;
+      var du = (best.q.u - best.p.u) / best.d, dv = (best.q.v - best.p.v) / best.d;
+      return { a: { u: best.p.u + du * g, v: best.p.v + dv * g }, b: { u: best.q.u - du * g, v: best.q.v - dv * g } };
+    };
+    var label = function(v) { return roundDisplay(Math.abs(v)); };
+    var axes = [];
+    ['x', 'y'].forEach(function(axis) {
+      var count = Math.floor((axis === 'x' ? pat.xCount : pat.yCount) || 1);
+      if (count < 2) return;
+      var mode = patternAxisMode(prefix, axis), step = pat[axis + 'Dist'] || 0;
+      var next = axis === 'x' ? nearest(c0.u + step, c0.v) : nearest(c0.u + (pat.style === 'honeycomb' ? Math.abs(pat.xDist || 0) / 2 : 0), c0.v + step);
+      if (mode === 'gap') {
+        var gap = next && closest(next);
+        if (gap) axes.push({ gap: gap, text: label(pat[axis + 'Gap']) });
+        return;
+      }
+      var ends = mode === 'extent' ? (axis === 'x' ? [lowU, highU] : [lowV, highV]) : [c0, next];
+      if (!ends[0] || !ends[1]) return;
+      var text = label(mode === 'extent' ? pat[axis + 'ExtentEdge'] : step);
+      if (mode === 'extent') {
+        ends = axis === 'x' ? [{ u: box.u0, v: lowU.v }, { u: box.u1, v: highU.v }] : [{ u: lowV.u, v: box.v0 }, { u: highV.u, v: box.v1 }];
+      }
+      axes.push({ axis: axis, ends: ends, text: text });
+    });
+    if (!axes.length) return null;
+    return function(scale) {
+      var out = 6 / scale, labelOut = 11 / scale, pts = [], svg = '';
+      var arr = 'marker-start="url(#qc-' + prefix + '-pat-arr)" marker-end="url(#qc-' + prefix + '-pat-arr)"';
+      var line = function(cls, p, q, X, Y, extra) {
+        var P = W(p.u, p.v), Q = W(q.u, q.v);
+        return '<line class="' + cls + '" x1="' + X(P.x) + '" y1="' + Y(P.y) + '" x2="' + X(Q.x) + '" y2="' + Y(Q.y) + '"' + (extra ? ' ' + extra : '') + '/>';
+      };
+      var text = function(p, value, X, Y) {
+        var P = W(p.u, p.v);
+        return '<text class="qc-shape-dim-label" x="' + X(P.x) + '" y="' + Y(P.y) + '" text-anchor="middle" dominant-baseline="middle">' + value + '</text>';
+      };
+      var parts = axes.map(function(d) {
+        if (d.gap) {
+          var mid = { u: (d.gap.a.u + d.gap.b.u) / 2, v: (d.gap.a.v + d.gap.b.v) / 2 };
+          var len = Math.hypot(d.gap.b.u - d.gap.a.u, d.gap.b.v - d.gap.a.v) || 1;
+          var at = { u: mid.u - (d.gap.b.v - d.gap.a.v) / len * labelOut / 2, v: mid.v + (d.gap.b.u - d.gap.a.u) / len * labelOut / 2 };
+          pts.push(at);
+          return function(X, Y) { return line('qc-shape-dim-line', d.gap.a, d.gap.b, X, Y, arr) + text(at, d.text, X, Y); };
+        }
+        var x = d.axis === 'x';
+        var lineAt = x ? box.v0 - out : box.u0 - out, ends = d.ends.map(function(e) { return x ? { u: e.u, v: lineAt } : { u: lineAt, v: e.v }; });
+        var tip = function(e, k) { return x ? { u: e.u, v: lineAt - k } : { u: lineAt - k, v: e.v }; };
+        var at = x ? { u: (ends[0].u + ends[1].u) / 2, v: lineAt - labelOut / 1.6 } : { u: lineAt - labelOut, v: (ends[0].v + ends[1].v) / 2 };
+        pts.push(tip(d.ends[0], 2 / scale), tip(d.ends[1], 2 / scale), at);
+        return function(X, Y) {
+          return line('qc-shape-dim-ext', d.ends[0], tip(d.ends[0], 2 / scale), X, Y) + line('qc-shape-dim-ext', d.ends[1], tip(d.ends[1], 2 / scale), X, Y) +
+                 line('qc-shape-dim-line', ends[0], ends[1], X, Y, arr) + text(at, d.text, X, Y);
+        };
+      });
+      return { points: pts.map(function(p) { return W(p.u, p.v); }), svg: function(X, Y) { return parts.map(function(f) { return f(X, Y); }).join(''); } };
+    };
   }
 
   // SVG text doesn't wrap, so the caption is short lines, one per tspan.
@@ -5598,8 +5723,9 @@
   // its edges, and the part or hole it leaves (tinted). The bands are
   // opaque, so neighbouring copies merge into one outline and any overlap
   // shows. Without one, just the toolpath and its plunge points.
-  function drawPatternTrace(trace, bitRadius, captionLines, prefix, cutType, unitPx, ring) {
-    // The drawing also keeps X0 Y0 and the radius circle in view.
+  function drawPatternTrace(trace, bitRadius, captionLines, prefix, cutType, unitPx, ring, dims) {
+    // The drawing also keeps X0 Y0, the radius circle and the
+    // measurements in view.
     var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
     var minY = Math.min(tb.minY, 0), maxY = Math.max(tb.maxY, 0);
@@ -5607,9 +5733,18 @@
       minX = Math.min(minX, ring.x - ring.r); maxX = Math.max(maxX, ring.x + ring.r);
       minY = Math.min(minY, ring.y - ring.r); maxY = Math.max(maxY, ring.y + ring.r);
     }
-    var span = Math.max(maxX - minX, maxY - minY) || 1;
     // Each caption line past the first takes room from the bottom.
     var extra = ((captionLines || 1) - 1) * PATTERN_PREVIEW_LINE;
+    // The measurements sit a few drawing units out, so they are placed at
+    // the scale without them, then kept in view.
+    var measured = dims && dims((80 - extra) / (Math.max(maxX - minX, maxY - minY) || 1));
+    if (measured) {
+      measured.points.forEach(function(p) {
+        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+      });
+    }
+    var span = Math.max(maxX - minX, maxY - minY) || 1;
     var s = (80 - extra) / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
     var X = function(v) { return ((v - midX) * s).toFixed(2); };
     var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
@@ -5643,7 +5778,8 @@
     var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
       ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
     var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') +
-      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '');
+      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '') +
+      (measured ? measured.svg(X, Y) : '');
     if (cutType) return patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, 1.5 * (unitPx || 1)) + marks;
 
     var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
@@ -9392,7 +9528,7 @@
       'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
-      'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
