@@ -955,6 +955,26 @@
   .qc-shape-preview-cell .qc-pattern-plunge {
     fill: color-mix(in srgb, var(--color-accent) 45%, transparent);
   }
+  /* With few enough copies, each one's cut (patternCuts): the bit's band
+     is painted in the preview's own background, and each copy's edges
+     are drawn on top. */
+  .qc-shape-preview-cell { --qc-pattern-bg: var(--color-surface-muted, var(--color-surface)); }
+  .qc-shape-preview-cell.qc-preview-big { --qc-pattern-bg: var(--color-surface, #fff); }
+  .qc-shape-preview-cell .qc-pattern-part { fill: color-mix(in srgb, var(--color-accent) 8%, var(--qc-pattern-bg)); }
+  .qc-shape-preview-cell .qc-pattern-cut {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .qc-shape-preview-cell .qc-pattern-outline { fill: currentColor; }
+  .qc-shape-preview-cell .qc-pattern-band { stroke: var(--qc-pattern-bg); }
+  .qc-shape-preview-cell .qc-pattern-band.qc-pattern-tint { stroke: color-mix(in srgb, var(--color-accent) 8%, var(--qc-pattern-bg)); }
+  .qc-shape-preview-cell .qc-pattern-hatch {
+    color: var(--color-text-secondary, #888);
+    opacity: 0.55;
+  }
+  /* The band is a bit diameter wide in drawing units, enlarged or not. */
+  .qc-shape-preview-cell.qc-preview-big svg .qc-pattern-cut { vector-effect: none; }
   .qc-shape-preview-cell svg[id$="-pattern-preview"] { cursor: grab; touch-action: none; }
   /* A click on a blank spot enlarges a preview over the dialog; taps and
      drags still work on it. */
@@ -4611,6 +4631,7 @@
   };
   var PATTERN_PREVIEW_MAX_COPIES = 3000;
   var PATTERN_PREVIEW_MAX_OUTLINES = 500;
+  var PATTERN_PREVIEW_MAX_EDGES = 120;
   var patternPreviewQueued = false;
   var patternPreviewKey = null;
 
@@ -4742,13 +4763,16 @@
     // generator, whose depth loops never end with a step of 0 (Generate
     // can't reach that: validation needs more than 0).
     params.tabs = null;
+    // A clearing is drawn as its outline with the inside filled in, so it
+    // doesn't need its rings traced.
+    var cutType = params.cutType;
     if (params.cutType === 'clearing') params.cutType = 'inner';
     params.depth = params.depthOfCut = 1;
     params.peckDepth = 0;
     params.feedRate = params.plungeFeedRate = 1;
     params.spindleRpm = params.spindleDelay = 0;
     params.mistM7 = params.floodM8 = false;
-    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(params);
+    var key = state.currentTab + (state.isImperial ? ' in ' : ' mm ') + cutType + ' ' + JSON.stringify(params);
     if (key === patternPreviewKey && svg.firstChild) return;
     patternPreviewKey = key;
     if (!(params.bitDiameter > 0)) {
@@ -4778,7 +4802,10 @@
     var sizeText = function(v) { return String(parseFloat(v.toFixed(dp))); };
     if (size) caption.push(sizeText(size.maxX - size.minX) + ' × ' + sizeText(size.maxY - size.minY) + ' ' + state.unitLabel);
     if (!outlines) caption.push('start points');
-    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix) +
+    // Drawing units per screen pixel (the viewBox is 100 across, fitted).
+    var box = svg.getBoundingClientRect();
+    var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160);
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
@@ -4795,7 +4822,7 @@
   // which is absolute (G90) with I/J arcs.
   var TRACE_WORDS = { X: /X(-?[\d.]+)/, Y: /Y(-?[\d.]+)/, Z: /Z(-?[\d.]+)/, I: /I(-?[\d.]+)/, J: /J(-?[\d.]+)/ };
   function traceProgram(gcode) {
-    var moves = [], plunges = [];
+    var moves = [], plunges = [], copies = [];
     var pos = { x: 0, y: 0, z: 0 }, mode = 0;
     var lines = gcode.split('\n');
     var line;
@@ -4804,6 +4831,8 @@
       return m ? parseFloat(m[1]) : null;
     };
     for (var i = 0; i < lines.length; i++) {
+      // A pattern's copies each start with an (Instance n/N ...) comment.
+      if (/^\(Instance \d/.test(lines[i])) copies.push({ m: moves.length, p: plunges.length });
       line = lines[i].replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim().toUpperCase();
       if (!line || /\bG53\b/.test(line)) continue;
       var g = line.match(/\bG0*([0-3])(?![0-9])/);
@@ -4822,7 +4851,7 @@
       }
       pos = next;
     }
-    return { moves: moves, plunges: plunges };
+    return { moves: moves, plunges: plunges, copies: copies };
   }
 
   // The area the bit touches: the tool path's box (arcs exact: their ends
@@ -4851,7 +4880,12 @@
     return { minX: b.minX - bitRadius, maxX: b.maxX + bitRadius, minY: b.minY - bitRadius, maxY: b.maxY + bitRadius };
   }
 
-  function drawPatternTrace(trace, bitRadius, captionLines, prefix) {
+  // With a cutType, each copy is drawn like the shape previews, from its
+  // own toolpath: the band the bit sweeps (a bit diameter wide, hatched),
+  // its edges, and the part or hole it leaves (tinted). The bands are
+  // opaque, so neighbouring copies merge into one outline and any overlap
+  // shows. Without one, just the toolpath and its plunge points.
+  function drawPatternTrace(trace, bitRadius, captionLines, prefix, cutType, unitPx) {
     // The drawing also keeps X0 Y0 in view.
     var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
@@ -4863,35 +4897,120 @@
     var X = function(v) { return ((v - midX) * s).toFixed(2); };
     var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
 
-    var d = '', penX = null, penY = null;
-    trace.moves.forEach(function(m) {
-      if (penX !== m.x0 || penY !== m.y0) d += 'M' + X(m.x0) + ',' + Y(m.y0);
-      if (m.cx === undefined) {
-        d += 'L' + X(m.x1) + ',' + Y(m.y1);
-      } else {
-        var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
-        var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
-        var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
-        sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-        var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
-        if (sweepAngle < 1e-9) {
-          var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
-          d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+    var pathD = function(moves) {
+      var d = '', penX = null, penY = null;
+      moves.forEach(function(m) {
+        if (penX !== m.x0 || penY !== m.y0) d += 'M' + X(m.x0) + ',' + Y(m.y0);
+        if (m.cx === undefined) {
+          d += 'L' + X(m.x1) + ',' + Y(m.y1);
         } else {
-          d += 'A' + rr + (sweepAngle > Math.PI ? 1 : 0) + ' ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+          var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+          var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+          var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
+          sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
+          if (sweepAngle < 1e-9) {
+            var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
+            d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+          } else {
+            d += 'A' + rr + (sweepAngle > Math.PI ? 1 : 0) + ' ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
+          }
         }
-      }
-      penX = m.x1; penY = m.y1;
-    });
+        penX = m.x1; penY = m.y1;
+      });
+      return d;
+    };
+    var d = pathD(trace.moves);
+
+    var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
+    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
+      ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
+    var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '');
+    if (cutType) return patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, 1.5 * (unitPx || 1)) + marks;
 
     var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
     var dots = trace.plunges.map(function(p) {
       return '<circle class="qc-pattern-plunge" cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + dotR + '"/>';
     }).join('');
-    var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
-    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
-      ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
-    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + origin + (prefix ? insetMarks(prefix, ox, oy, s) : '');
+    return '<path class="qc-pattern-path" d="' + d + '"/>' + dots + marks;
+  }
+
+  // The layers, bottom up. Inner and Outer cuts tint the inside of the
+  // toolpath: the piece that drops out, or the part. A plunge is a
+  // zero-length line, so a hole (Drill, Keyhole's head) is a dot the bit's
+  // size. Outer bands are plain, as on the shape preview; the rest are
+  // tinted like the hole they make. Each copy's edges go on top, so copies
+  // that overlap still show their own outlines: the band's two edges (a
+  // clearing's outer one only), cut out by a mask the size of that copy.
+  // On Inner and Outer cuts, as on the shape preview, the shape's edge is
+  // solid and the bit's other edge dashed: the edge outside the toolpath
+  // is kept by masking out its inside, the one inside by clipping to it,
+  // and the dashes are a dashed stroke along the toolpath.
+  function patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, edge) {
+    var width = 2 * bitRadius * s;
+    var dot = function(p) { return 'M' + X(p.x) + ',' + Y(p.y) + 'h0'; };
+    var d = pathD(trace.moves), all = d + trace.plunges.map(dot).join('');
+    var hatch = 'url(#qc-' + prefix + '-pat-hatch)';
+    var band = function(cls) {
+      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+    };
+    var inside = function(cls) { return '<path class="' + cls + '" d="' + d + '"/>'; };
+    var clearing = cutType === 'clearing';
+    // The dashed edge: thinner, with dashes the shape preview's length on screen.
+    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(2);
+    var out = shapePreviewDefs('qc-' + prefix + '-pat');
+    if (cutType === 'inner' || cutType === 'outer') out += inside('qc-pattern-part');
+    out += band(cutType === 'outer' ? 'qc-pattern-band' : 'qc-pattern-band qc-pattern-tint');
+    if (clearing) out += inside('qc-pattern-part') + '<path class="qc-shape-hatch" fill="' + hatch + '" d="' + d + '"/>';
+    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+    // Hundreds of masks get slow to draw; past that many copies the edges
+    // are drawn for all of them at once, and overlaps merge.
+    var copies = patternCopies(trace);
+    if (copies.length > PATTERN_PREVIEW_MAX_EDGES) copies = [{ moves: trace.moves, plunges: trace.plunges }];
+    copies.forEach(function(copy, i) {
+      var b = traceBounds(copy, bitRadius);
+      if (!b) return;
+      var cd = pathD(copy.moves) + copy.plunges.map(dot).join('');
+      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(2) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(2) +
+        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(2) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(2) + '"';
+      var ring = function(color, w, style) {
+        return '<path class="qc-pattern-cut" style="stroke: ' + color + (clearing ? '; fill: ' + color : '') + (style || '') +
+          '" stroke-width="' + w.toFixed(2) + '" d="' + cd + '"/>';
+      };
+      var id = 'qc-' + prefix + '-pat-edge' + i;
+      var outline = function(key, white, extra, clip) {
+        return '<mask id="' + id + key + '" maskUnits="userSpaceOnUse" ' + box + '>' + white + ring('#000', width) + (extra || '') + '</mask>' +
+          '<rect class="qc-pattern-outline" ' + box + ' mask="url(#' + id + key + ')"' + (clip ? ' clip-path="url(#' + id + 'c)"' : '') + '/>';
+      };
+      if (cutType !== 'inner' && cutType !== 'outer') {
+        out += outline('', ring('#fff', width + 2 * edge));
+        return;
+      }
+      var solid = ring('#fff', width + 2 * edge);
+      var dashed = ring('#fff', width + 2 * thin, '; stroke-linecap: butt; stroke-dasharray: ' + dash + ' ' + dash);
+      var inner = cutType === 'inner';
+      out += '<clipPath id="' + id + 'c"><path d="' + pathD(copy.moves) + '"/></clipPath>' +
+        outline('o', inner ? solid : dashed, '<path style="fill: #000" d="' + pathD(copy.moves) + '"/>') +
+        outline('i', inner ? dashed : solid, '', true);
+    });
+    return out;
+  }
+
+  // The trace split into its pattern's copies. Drill has no copy markers;
+  // there each hole (pecks share one) is a copy.
+  function patternCopies(trace) {
+    if (!trace.copies.length && !trace.moves.length) {
+      var seen = {};
+      return trace.plunges.filter(function(p) {
+        var k = p.x + ',' + p.y;
+        return seen[k] ? false : (seen[k] = true);
+      }).map(function(p) { return { moves: [], plunges: [p] }; });
+    }
+    var starts = trace.copies.length ? trace.copies : [{ m: 0, p: 0 }];
+    return starts.map(function(st, i) {
+      var next = starts[i + 1] || { m: trace.moves.length, p: trace.plunges.length };
+      return { moves: trace.moves.slice(st.m, next.m), plunges: trace.plunges.slice(st.p, next.p) };
+    });
   }
 
   // At 0° the grid runs along the machine axes, so X/Y labels are
@@ -8220,6 +8339,8 @@
                    'qc-poly-preview': updatePolygonPreview, 'qc-drl-preview': updateDrillPreview,
                    'qc-circ-preview': updateCirclePreview, 'qc-key-preview': updateKeyholePreview }[svg.id];
     if (redraw) redraw();
+    // The pattern's edge lines are sized for the preview's size on screen.
+    if (/-pattern-preview$/.test(svg.id)) { patternPreviewKey = null; updatePatternPreview(); }
   }
   // The box sits in the preview's real corners, so a preview showing one
   // redraws when its size changes (an enlarged preview as the window is
