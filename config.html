@@ -3159,6 +3159,7 @@
     wireUnitFields();
     wireArrowKeySteps();
     wirePatternExtent();
+    wirePatternGaps();
     ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(updatePatternAngleLabels);
     wireTabs();
     wireValidation();
@@ -3743,6 +3744,13 @@
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min;
     if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max;
 
+    // A Gap can overlap the copies, but not by a whole copy.
+    var gapField = /^qc-(\w+)-pattern-([xy])-dist$/.exec(id);
+    if (gapField && patternGapMode(gapField[1], gapField[2])) {
+      var copySize = patternCopySize(gapField[1], PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[gapField[1]]].read());
+      if (copySize && n <= -copySize[gapField[2]]) return 'Gap must be more than -' + roundDisplay(copySize[gapField[2]]) + ', or the copies sit on top of each other';
+    }
+
     // Cross-field: Depth of Cut can't be deeper than Total Depth — a
     // single pass to that depth would overshoot the requested total.
     if (id === 'qc-rect-step') {
@@ -4097,7 +4105,7 @@
 
   function readRectangleForm() {
     var common = readCommonParams();
-    return Object.assign({}, common, {
+    return withPatternGaps('rect', Object.assign({}, common, {
       width:        num('qc-rect-width', 0),
       height:       num('qc-rect-height', 0),
       cornerRadius: num('qc-rect-corner', 0),
@@ -4115,12 +4123,12 @@
       pattern:      readPatternForm('rect'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
-    });
+    }));
   }
 
   function readCircleForm() {
     var common = readCommonParams();
-    return Object.assign({}, common, {
+    return withPatternGaps('circ', Object.assign({}, common, {
       diameter:     num('qc-circ-diameter', 0),
       cutType:      $('qc-circ-cut-type').value,
       tabs:         readTabsForm('circ'),
@@ -4132,7 +4140,7 @@
       pattern:      readPatternForm('circ'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
-    });
+    }));
   }
 
   function readPlanerForm() {
@@ -4397,7 +4405,7 @@
   function readPolygonForm() {
     var common = readCommonParams();
     var diameter = polygonCornerDiameter(0);
-    return Object.assign({}, common, {
+    return withPatternGaps('poly', Object.assign({}, common, {
       sides:         Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))),
       diameter:      diameter,
       // What the size field holds (for the header, file name and Load).
@@ -4419,7 +4427,7 @@
       pattern:       readPatternForm('poly'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
-    });
+    }));
   }
 
   function updateJointerHint() {
@@ -4460,6 +4468,12 @@
       spacing: extentEl && extentEl.checked ? 'extent' : 'spacing',
       xDist:   num(pre + 'x-dist', 0),
       yDist:   num(pre + 'y-dist', 0),
+      // Gap mode (Linear only): the box shows the stock left between
+      // neighbours' cuts; withPatternGaps turns it into xDist / yDist.
+      xGap:    patternGapMode(prefix, 'x') ? num(pre + 'x-dist', 0) : null,
+      yGap:    patternGapMode(prefix, 'y') ? num(pre + 'y-dist', 0) : null,
+      xSign:   patternGapSign(prefix, 'x'),
+      ySign:   patternGapSign(prefix, 'y'),
       xCount:  Math.max(1, Math.floor(num(pre + 'x-count', 1))),
       yCount:  Math.max(1, Math.floor(num(pre + 'y-count', 1))),
       count:      Math.max(1, Math.floor(num(pre + 'count', 1))),
@@ -4474,6 +4488,107 @@
       // of the pattern line up (no dangling shifted-row overhang).
       hexTrim:    hexTrimEl ? hexTrimEl.checked : false
     };
+  }
+
+  // Linear pattern Gap: the X / Y Spacing labels are menus (wirePatternGaps)
+  // that switch the box to the stock left between neighbouring copies'
+  // cuts, edge to edge along the row (and across it), where the bit's cut
+  // is the toolpath plus the bit radius. Spacing = Gap + one copy's cut size
+  // that way, taken from the generator so it matches the program. A gap
+  // keeps the direction the spacing had (negative runs toward -X / -Y).
+  var PATTERN_GAP_TABS = { rect: 'generateRectangleProgram', circ: 'generateCircleProgram', poly: 'generatePolygonProgram',
+                           slt: 'generateSlotProgram', key: 'generateKeyholeProgram', drl: 'generateDrillProgram' };
+  function patternGapSelect(prefix, axis) { return $('qc-' + prefix + '-pattern-' + axis + '-mode'); }
+  function patternGapMode(prefix, axis) {
+    var sel = patternGapSelect(prefix, axis);
+    return !!sel && sel.value === 'gap' && patternGapAllowed(prefix);
+  }
+  function patternGapSign(prefix, axis) {
+    var sel = patternGapSelect(prefix, axis);
+    return sel && sel.getAttribute('data-sign') === '-1' ? -1 : 1;
+  }
+  function patternGapAllowed(prefix) {
+    var ext = $('qc-' + prefix + '-pattern-extent');
+    return $('qc-' + prefix + '-pattern-style').value === 'linear' && !(ext && ext.checked);
+  }
+  // One copy's cut size along the rows (x) and across them (y), or null if
+  // the shape can't be generated yet.
+  function patternCopySize(prefix, params) {
+    var pat = params.pattern || {};
+    var p = Object.assign({}, params, { tabs: null, depth: 1, depthOfCut: 1, peckDepth: 0 });
+    if (p.cutType === 'clearing') p.cutType = 'inner';
+    p.pattern = { enabled: true, style: 'linear', xCount: 1, yCount: 1, xDist: 0, yDist: 0, angle: pat.angle || 0, rotateShapes: !!pat.rotateShapes };
+    var trace;
+    try { trace = traceProgram(makeQuickCutGenerator(state.isImperial)[PATTERN_GAP_TABS[prefix]](p)); } catch (e) { return null; }
+    var a = (pat.angle || 0) * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+    var b = { u0: Infinity, u1: -Infinity, v0: Infinity, v1: -Infinity };
+    var add = function(x, y) {
+      var u = x * ux + y * uy, v = y * ux - x * uy;
+      b.u0 = Math.min(b.u0, u); b.u1 = Math.max(b.u1, u); b.v0 = Math.min(b.v0, v); b.v1 = Math.max(b.v1, v);
+    };
+    trace.plunges.forEach(function(q) { add(q.x, q.y); });
+    trace.moves.forEach(function(m) {
+      add(m.x0, m.y0); add(m.x1, m.y1);
+      if (m.cx === undefined) return;
+      var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+      var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+      var sweep = m.cw ? a0 - a1 : a1 - a0;
+      sweep = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
+      for (var k = 1; k < 64; k++) {
+        var t = a0 + (m.cw ? -1 : 1) * sweep * k / 64;
+        add(m.cx + r * Math.cos(t), m.cy + r * Math.sin(t));
+      }
+    });
+    if (!(b.u1 >= b.u0)) return null;
+    var d = Math.max(0, params.bitDiameter || 0);
+    return { x: b.u1 - b.u0 + d, y: b.v1 - b.v0 + d };
+  }
+  function withPatternGaps(prefix, params) {
+    var pat = params.pattern;
+    if (!pat || !pat.enabled || (pat.xGap == null && pat.yGap == null)) return params;
+    var size = patternCopySize(prefix, params);
+    if (!size) return params;
+    if (pat.xGap != null) pat.xDist = pat.xSign * (pat.xGap + size.x);
+    if (pat.yGap != null) pat.yDist = pat.ySign * (pat.yGap + size.y);
+    return params;
+  }
+  // Switches a box between Spacing and Gap, converting the number so the
+  // pattern stays where it is.
+  function setPatternGapMode(prefix, axis, mode) {
+    var sel = patternGapSelect(prefix, axis), input = $('qc-' + prefix + '-pattern-' + axis + '-dist');
+    var was = sel.getAttribute('data-was') || 'spacing';
+    sel.value = mode;
+    sel.setAttribute('data-was', mode);
+    if (was === mode) return;
+    var v = num(input.id, NaN);
+    var size = patternCopySize(prefix, PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read());
+    if (!isFinite(v) || !size) return;
+    if (mode === 'gap') {
+      sel.setAttribute('data-sign', v < 0 ? '-1' : '1');
+      input.value = roundDisplay(Math.abs(v) - size[axis]);
+    } else {
+      input.value = roundDisplay(patternGapSign(prefix, axis) * (v + size[axis]));
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function wirePatternGaps() {
+    Object.keys(PATTERN_GAP_TABS).forEach(function(prefix) {
+      ['x', 'y'].forEach(function(axis) {
+        var label = $('qc-' + prefix + '-pattern-body').querySelector('[data-pattern-label="' + axis + '-dist"]');
+        var sel = document.createElement('select');
+        sel.className = 'qc-label-select';
+        sel.id = 'qc-' + prefix + '-pattern-' + axis + '-mode';
+        sel.innerHTML = '<option value="spacing">Spacing</option><option value="gap">Gap</option>';
+        sel.style.display = 'none';
+        label.parentNode.insertBefore(sel, label.nextSibling);
+        sel.addEventListener('change', function() {
+          var mode = sel.value;
+          sel.value = sel.getAttribute('data-was') || 'spacing';
+          setPatternGapMode(prefix, axis, mode);
+          updatePatternAngleLabels(prefix);
+        });
+      });
+    });
   }
 
   function updateClearingVisibility(prefix) {
@@ -4629,6 +4744,8 @@
     keyhole:   { prefix: 'key',  read: function() { return readKeyholeForm(); },   gen: 'generateKeyholeProgram' },
     drill:     { prefix: 'drl',  read: function() { return readDrillForm(); },     gen: 'generateDrillProgram' }
   };
+  var PATTERN_TAB_OF = {};
+  Object.keys(PATTERN_PREVIEW_TABS).forEach(function(tab) { PATTERN_TAB_OF[PATTERN_PREVIEW_TABS[tab].prefix] = tab; });
   var PATTERN_PREVIEW_MAX_COPIES = 3000;
   var PATTERN_PREVIEW_MAX_OUTLINES = 500;
   var PATTERN_PREVIEW_MAX_EDGES = 120;
@@ -5016,6 +5133,8 @@
   // At 0° the grid runs along the machine axes, so X/Y labels are
   // accurate. At any other angle the distances are measured along and
   // across the angled row, so the labels say that instead.
+  var PATTERN_GAP_LABELS = { axis: { x: 'X Gap', y: 'Y Gap' }, angled: { x: 'Gap', y: 'Row Gap' } };
+  var PATTERN_GAP_TITLE = 'Spacing: center to center between copies. Gap: the stock left between neighbouring copies\u2019 cuts, edge to edge (on an Outer cut, outside the bit\u2019s path), so the spacing follows the shape and bit. Changing it converts the number so the copies stay put.';
   var PATTERN_LABELS = {
     axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
@@ -5048,6 +5167,7 @@
       if (!sw) return;
       sw.addEventListener('change', function() {
         ['x', 'y'].forEach(function(axis) {
+          if (sw.checked && patternGapSelect(prefix, axis).value === 'gap') setPatternGapMode(prefix, axis, 'spacing');
           var count = Math.max(1, Math.floor(num(pre + axis + '-count', 1)));
           var d = num(pre + axis + '-dist', NaN);
           if (count < 2 || !isFinite(d)) return;
@@ -5086,6 +5206,22 @@
       }
       $(labels[i].getAttribute('for')).title = labels[i].title;
     }
+    var gapOk = patternGapAllowed(prefix);
+    ['x', 'y'].forEach(function(axis) {
+      var sel = patternGapSelect(prefix, axis);
+      if (!sel) return;
+      // Leaving Linear goes back to Spacing (Extent does it itself, first).
+      if (!gapOk && sel.value === 'gap') setPatternGapMode(prefix, axis, 'spacing');
+      var label = body.querySelector('[data-pattern-label="' + axis + '-dist"]');
+      var input = $(label.getAttribute('for'));
+      sel.options[0].textContent = label.textContent;
+      sel.options[1].textContent = (angle ? PATTERN_GAP_LABELS.angled : PATTERN_GAP_LABELS.axis)[axis];
+      sel.title = PATTERN_GAP_TITLE;
+      if (sel.value === 'gap') input.title = PATTERN_GAP_TITLE;
+      label.style.display = gapOk ? 'none' : '';
+      sel.style.display = gapOk ? '' : 'none';
+      if (gapOk) input.setAttribute('aria-labelledby', sel.id); else input.removeAttribute('aria-labelledby');
+    });
     // The Rotate switch only means something for an angled grid (Grid's
     // lines always turn with it); the Angle field is hidden for Circular.
     var isGrid = style === 'linear' || style === 'honeycomb' || isLineGrid;
@@ -5431,6 +5567,15 @@
     if (rotateEl && p.rotateShapes != null) rotateEl.checked = !!p.rotateShapes;
     var extentEl = $(pre + 'extent');
     if (extentEl && p.spacing != null) extentEl.checked = p.spacing === 'extent';
+    ['x', 'y'].forEach(function(axis) {
+      var sel = patternGapSelect(prefix, axis), gap = p[axis + 'Gap'];
+      if (!sel) return;
+      var mode = gap != null ? 'gap' : 'spacing';
+      sel.value = mode;
+      sel.setAttribute('data-was', mode);
+      sel.setAttribute('data-sign', p[axis + 'Sign'] === -1 ? '-1' : '1');
+      if (gap != null) $(pre + axis + '-dist').value = roundDisplay(mmToDisplay(gap));
+    });
   }
 
   function saveSettings(params) {
@@ -5859,7 +6004,12 @@
       hexTrim:    !!p.hexTrim,
       angle:        p.angle || 0,
       rotateShapes: !!p.rotateShapes,
-      spacing:      p.spacing === 'extent' ? 'extent' : 'spacing'
+      spacing:      p.spacing === 'extent' ? 'extent' : 'spacing',
+      // Gap mode: xDist / yDist above are the spacings it works out to.
+      xGap:       p.xGap != null ? displayToMm(p.xGap) : null,
+      yGap:       p.yGap != null ? displayToMm(p.yGap) : null,
+      xSign:      p.xSign === -1 ? -1 : 1,
+      ySign:      p.ySign === -1 ? -1 : 1
     };
   }
 
@@ -7340,7 +7490,7 @@
 
   function readKeyholeForm() {
     var common = readCommonParams();
-    return Object.assign({}, common, {
+    return withPatternGaps('key', Object.assign({}, common, {
       slotLength:    keyholeSlotLength(),
       slotLengthMode: $('qc-key-length-mode').value,
       slotRatio:     keyLengthIsRatio() ? num('qc-key-length', 0) : null,
@@ -7351,7 +7501,7 @@
       pattern:       readPatternForm('key'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
-    });
+    }));
   }
 
   // Keyhole preview — plan view drawn to scale. The plunge hole is the
@@ -7614,7 +7764,7 @@
 
   function readDrillForm() {
     var common = readCommonParams();
-    return Object.assign({}, common, {
+    return withPatternGaps('drl', Object.assign({}, common, {
       depth:         num('qc-drl-depth', 0),
       peckDepth:     num('qc-drl-peck', 0),
       peckMode:      $('qc-drl-peck-mode').value,
@@ -7624,7 +7774,7 @@
       pattern:       readPatternForm('drl'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
-    });
+    }));
   }
 
   // Drill preview: plan view of every hole, to scale. Hole size is the
@@ -7997,7 +8147,7 @@
 
   function readSlotForm() {
     var common = readCommonParams();
-    return Object.assign({}, common, {
+    return withPatternGaps('slt', Object.assign({}, common, {
       slotType:      $('qc-slt-type').value,
       arcMode:       $('qc-slt-arc-mode').value,
       width:         num('qc-slt-width', 0),
@@ -8019,7 +8169,7 @@
       pattern:       readPatternForm('slt'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
-    });
+    }));
   }
 
   // The slot's finished width: the bit's on a Center line cut.
@@ -8551,6 +8701,7 @@
     pattern: { title: 'Patterns', notes: [
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
+      'On a Linear pattern, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. A negative gap overlaps the copies.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
       'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
