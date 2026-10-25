@@ -2740,3 +2740,14 @@ test('corner relief leaves holding tabs centred on each edge', () => {
     assert.equal(tabMids(relief, { sides: 6, diameter: 80 }, 'generatePolygonProgram'), tabMids('none', { sides: 6, diameter: 80 }, 'generatePolygonProgram'), relief);
   }
 });
+
+test('circular pattern header names an Inside / Outside Radius it was set by', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const params = (pattern) => baseParams({
+    width: 6, height: 6, cornerRadius: 0, cutType: 'inner', bitDiameter: 2, depth: 1, depthOfCut: 1, origin: 'center',
+    pattern: Object.assign({ enabled: true, style: 'circular', count: 4, radius: 40, startAngle: 0 }, pattern)
+  });
+  assert.match(gen(params({ radiusTo: 'inside', radiusEdge: 37 })), /Pattern: Circular \[Identical\] n=4 r=40 \[inside 37\] start=0°/);
+  assert.match(gen(params({ radiusTo: 'outside', radiusEdge: 43 })), /r=40 \[outside 43\] start=/);
+  assert.match(gen(params({ radiusTo: 'center', radiusEdge: null })), /r=40 start=/);
+});

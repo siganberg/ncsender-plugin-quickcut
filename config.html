@@ -3733,6 +3733,11 @@
       var pgTot = num('qc-poly-depth', NaN);
       if (isFinite(pgTot) && n > pgTot) return 'Depth of Cut must not exceed Total Depth (' + pgTot + ')';
     }
+    var radiusOf = /^qc-(\w+)-pattern-radius$/.exec(id);
+    if (radiusOf) {
+      var radiusProblem = patternRadiusProblem(radiusOf[1], n);
+      if (radiusProblem) return radiusProblem;
+    }
     // A Total Angle of 0 would stack every circular copy on one spot.
     if (/-pattern-total-angle$/.test(id) && n === 0) return 'Total Angle must not be 0';
     // A polygon's corner radius can't be more than half its across-flats size.
@@ -3748,7 +3753,7 @@
     }
     if (id === 'qc-slt-sweep' && n === 0) return 'Sweep must not be 0';
     // Radius 0 turns each copy about one center: only Path Direction turns them.
-    if (id === 'qc-slt-pattern-radius' && n === 0 && $('qc-slt-pattern-style').value !== 'circular-follow') {
+    if (id === 'qc-slt-pattern-radius' && n === 0 && patternRadiusMode('slt') === 'center' && $('qc-slt-pattern-style').value !== 'circular-follow') {
       return 'Radius 0 only works with Circular (Path Direction), which turns each copy';
     }
     // A straight slot's Length is overall, so it can't be shorter than the slot is wide.
@@ -4440,6 +4445,10 @@
       yCount:  Math.max(1, Math.floor(num(pre + 'y-count', 1))),
       count:      Math.max(1, Math.floor(num(pre + 'count', 1))),
       radius:     num(pre + 'radius', 0),
+      // The Radius menu: to each copy's center, or Inside / Outside (the
+      // edge distance, which withPatternGaps turns into the radius).
+      radiusTo:   patternRadiusMode(prefix),
+      radiusEdge: patternRadiusMode(prefix) !== 'center' ? Math.abs(num(pre + 'radius', 0)) : null,
       startAngle: num(pre + 'start-angle', 0),
       // Circular arc the copies spread over; 360 = full circle.
       totalAngle: num(pre + 'total-angle', 360),
@@ -4675,6 +4684,7 @@
   }
   function withPatternGaps(prefix, params) {
     var pat = params.pattern;
+    if (pat && pat.enabled && /^circular/.test(pat.style) && pat.radiusEdge != null) withPatternRadius(prefix, params);
     if (!pat || !pat.enabled || (pat.xGap == null && pat.yGap == null)) return params;
     var geom = patternCopyGeom(prefix, params);
     if (!geom) return params;
@@ -4743,7 +4753,214 @@
           updatePatternAngleLabels(prefix);
         });
       });
+      var input = $('qc-' + prefix + '-pattern-radius'), label = input.parentNode.querySelector('label[for="' + input.id + '"]');
+      var sel = document.createElement('select');
+      sel.className = 'qc-label-select';
+      sel.id = 'qc-' + prefix + '-pattern-radius-mode';
+      sel.innerHTML = '<option value="center">Center Radius</option><option value="inside">Inside Radius</option><option value="outside">Outside Radius</option>';
+      sel.title = PATTERN_RADIUS_TITLE;
+      label.parentNode.insertBefore(sel, label.nextSibling);
+      label.style.display = 'none';
+      input.setAttribute('aria-labelledby', sel.id);
+      input.setAttribute('data-center-title', input.title);
+      sel.addEventListener('change', function() {
+        var mode = sel.value;
+        sel.value = sel.getAttribute('data-was') || 'center';
+        setPatternRadiusMode(prefix, mode);
+      });
     });
+  }
+
+  // Circular Radius menu: Center Radius is to each copy's center (as the
+  // copies are placed); Inside Radius from the pattern's center to the
+  // nearest edge of any copy's cut, Outside Radius to the farthest. Edges
+  // are where the bit cuts, as Gap measures them (on an Outer cut, outside
+  // the bit's path). The center radius that gives the edge is searched
+  // for, so it follows the shape, bit, cut type and copies.
+  var PATTERN_RADIUS_TITLE = 'Center Radius: from the pattern\u2019s center to each copy\u2019s center. Inside Radius: to the nearest edge of any copy\u2019s cut, the clear circle left in the middle. Outside Radius: to the farthest edge, so the pattern fits in a circle that size. Edges are where the bit cuts (on an Outer cut, outside the bit\u2019s path). Changing it converts the number so the copies stay put.';
+  var PATTERN_RADIUS_SHAPES = { rect: 'rectangle', circ: 'circle', poly: 'polygon', slt: 'slot', key: 'keyhole', drl: null };
+  function patternRadiusSelect(prefix) { return $('qc-' + prefix + '-pattern-radius-mode'); }
+  function patternRadiusMode(prefix) {
+    var sel = patternRadiusSelect(prefix);
+    return sel ? sel.value : 'center';
+  }
+  // One copy's toolpath with its center at (0, 0), unturned: its lines and
+  // exact arcs, its closed loops (to tell whether a point is inside the
+  // cut), the bit radius, and how far it reaches from its center.
+  var patternRadiusCache = { key: null, geom: null };
+  function patternRadiusGeom(prefix, params) {
+    var p = patternGeomParams(Object.assign({}, params, { pattern: { angle: 0 } }));
+    var key = prefix + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(p);
+    if (patternRadiusCache.key === key) return patternRadiusCache.geom;
+    var geom = null;
+    try {
+      var gen = makeQuickCutGenerator(state.isImperial);
+      var trace = traceProgram(gen[PATTERN_GAP_TABS[prefix]](p));
+      var off = PATTERN_RADIUS_SHAPES[prefix] ? gen.shapeOriginOffset(PATTERN_RADIUS_SHAPES[prefix], p) : null;
+      var c = off ? { x: -off.x, y: -off.y } : trace.plunges[0] || { x: 0, y: 0 };
+      // A loop is wherever the path comes back to a point it passed: a
+      // lead-in from the middle doesn't count as part of it.
+      var parts = [], loops = [], chain = [], verts = [], end = null;
+      var same = function(a, b) { return Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6; };
+      trace.plunges.forEach(function(q) { parts.push({ u0: q.x - c.x, v0: q.y - c.y, u1: q.x - c.x, v1: q.y - c.y }); });
+      trace.moves.forEach(function(m) {
+        var from = { x: m.x0, y: m.y0 };
+        if (!chain.length || !same(from, end)) { chain = []; verts = [from]; }
+        var part;
+        if (m.cx === undefined) {
+          part = { u0: m.x0 - c.x, v0: m.y0 - c.y, u1: m.x1 - c.x, v1: m.y1 - c.y };
+        } else {
+          var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
+          var t0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), t1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
+          var sweep = ((m.cw ? t0 - t1 : t1 - t0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
+          part = { cu: m.cx - c.x, cv: m.cy - c.y, r: r, t0: m.cw ? t1 : t0, sweep: sweep };
+        }
+        parts.push(part);
+        chain.push(part);
+        end = { x: m.x1, y: m.y1 };
+        for (var j = 0; j < verts.length; j++) {
+          if (same(verts[j], end)) { loops.push(chain.slice(j)); break; }
+        }
+        verts.push(end);
+      });
+      if (parts.length) {
+        geom = { parts: parts, loops: loops, r: Math.max(0, params.bitDiameter || 0) / 2 };
+        geom.reach = patternRadiusFar(geom, 0, 0) + geom.r;
+      }
+    } catch (e) { geom = null; }
+    patternRadiusCache = { key: key, geom: geom };
+    return geom;
+  }
+  function patternRadiusNear(geom, pu, pv) {
+    var best = Infinity;
+    geom.parts.forEach(function(q) {
+      best = Math.min(best, q.r === undefined ? pointSegmentDistance(pu, pv, q.u0, q.v0, q.u1, q.v1) : pointArcDistance(pu, pv, q));
+    });
+    return best;
+  }
+  // The farthest point of a line is an end; of an arc, an end or the point
+  // straight across its center from (pu, pv).
+  function patternRadiusFar(geom, pu, pv) {
+    var best = 0;
+    geom.parts.forEach(function(q) {
+      if (q.r === undefined) { best = Math.max(best, Math.hypot(pu - q.u0, pv - q.v0), Math.hypot(pu - q.u1, pv - q.v1)); return; }
+      arcEnds(q).forEach(function(e) { best = Math.max(best, Math.hypot(pu - e[0], pv - e[1])); });
+      if (onArc(q, Math.atan2(q.cv - pv, q.cu - pu))) best = Math.max(best, Math.hypot(pu - q.cu, pv - q.cv) + q.r);
+    });
+    return best;
+  }
+  // Inside a closed loop of the path, by the crossings of a ray toward +u.
+  function patternRadiusInLoop(loop, pu, pv) {
+    var inside = false;
+    loop.forEach(function(q) {
+      if (q.r === undefined) {
+        if ((q.v0 > pv) !== (q.v1 > pv) && q.u0 + (pv - q.v0) * (q.u1 - q.u0) / (q.v1 - q.v0) > pu) inside = !inside;
+        return;
+      }
+      var dv = pv - q.cv;
+      if (Math.abs(dv) >= q.r) return;
+      var h = Math.sqrt(q.r * q.r - dv * dv);
+      [q.cu - h, q.cu + h].forEach(function(u) {
+        if (u > pu && onArc(q, Math.atan2(dv, u - q.cu))) inside = !inside;
+      });
+    });
+    return inside;
+  }
+  // The Inside or Outside Radius the copies have at center radius R: the
+  // nearest (farthest) any copy's cut comes to (reaches from) the
+  // pattern's center. Seen from a copy, that center is at minus its
+  // position, turned back by the copy's turn. -Infinity for Inside when a
+  // copy's cut covers the center.
+  function patternRadiusEdgeAt(geom, pat, mode, R) {
+    var positions = makeQuickCutGenerator(state.isImperial).computePatternPositions(Object.assign({}, pat, { radius: R }));
+    var best = mode === 'inside' ? Infinity : -Infinity;
+    for (var i = 0; i < positions.length; i++) {
+      var a = -(positions[i].rotDeg || 0) * Math.PI / 180, x = -positions[i].x, y = -positions[i].y;
+      var pu = x * Math.cos(a) - y * Math.sin(a), pv = x * Math.sin(a) + y * Math.cos(a);
+      if (mode === 'outside') { best = Math.max(best, patternRadiusFar(geom, pu, pv) + geom.r); continue; }
+      var near = patternRadiusNear(geom, pu, pv) - geom.r;
+      if (near <= 0 || geom.loops.some(function(loop) { return patternRadiusInLoop(loop, pu, pv); })) return -Infinity;
+      best = Math.min(best, near);
+    }
+    return best;
+  }
+  // The smallest center radius whose Inside / Outside Radius is `edge`
+  // (both only grow as the copies move out), by halving the range; null
+  // when no radius gives it (an Outside Radius smaller than a copy).
+  function patternRadiusFor(geom, pat, mode, edge) {
+    var at = function(R) { return patternRadiusEdgeAt(geom, pat, mode, R); };
+    if (mode === 'outside' && at(0) > edge + 1e-9) return null;
+    var lo = 0, hi = edge + geom.reach + 1;
+    for (var n = 0; n < 8 && at(hi) < edge; n++) hi *= 2;
+    if (at(hi) < edge) return null;
+    for (var k = 0; k < 50; k++) {
+      var mid = (lo + hi) / 2;
+      if (at(mid) < edge) lo = mid; else hi = mid;
+    }
+    return hi;
+  }
+  function patternRadiusCtx(prefix, params) {
+    var pat = params.pattern;
+    return [pat.style, pat.count, pat.startAngle, pat.totalAngle, patternGeomKey(prefix, params)].join('|');
+  }
+  // The exact center radius kept by the last menu switch, while the number
+  // shown and what it depends on are unchanged.
+  function patternRadiusKept(prefix, params) {
+    var sel = patternRadiusSelect(prefix), R = Number(sel.getAttribute('data-radius'));
+    var unchanged = $('qc-' + prefix + '-pattern-radius').value === sel.getAttribute('data-shown') && sel.getAttribute('data-ctx') === patternRadiusCtx(prefix, params);
+    return unchanged && sel.hasAttribute('data-radius') && isFinite(R) ? R : null;
+  }
+  function withPatternRadius(prefix, params) {
+    var pat = params.pattern, geom = patternRadiusGeom(prefix, params);
+    if (!geom) return;
+    var R = patternRadiusKept(prefix, params);
+    if (R == null) R = patternRadiusFor(geom, pat, pat.radiusTo, pat.radiusEdge);
+    // Rounded to 4 decimals, up for Inside and down for Outside: a
+    // readable header, never less clearance and never past the circle.
+    if (R != null) pat.radius = pat.radiusTo === 'inside' ? Math.ceil(R * 1e4 - 1e-6) / 1e4 : Math.floor(R * 1e4 + 1e-6) / 1e4;
+    else if (pat.radiusTo === 'outside') pat.radius = 0;
+  }
+  // The smallest Outside Radius the copies can have (at center radius 0).
+  function patternRadiusProblem(prefix, n) {
+    if (patternRadiusMode(prefix) !== 'outside' || !/^circular/.test($('qc-' + prefix + '-pattern-style').value)) return null;
+    var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read(), geom = patternRadiusGeom(prefix, params);
+    if (!geom) return null;
+    var least = patternRadiusEdgeAt(geom, params.pattern, 'outside', 0);
+    if (n < least - 1e-9) return 'Outside Radius must be at least ' + roundDisplay(Math.ceil(least * 1e4) / 1e4) + ' (how far a copy reaches from its own center)';
+    return null;
+  }
+  // Switches the Radius menu, converting the number through the center
+  // radius it stands for so the copies stay put. Copies that cover the
+  // center have no Inside Radius; it goes to 0, the nearest that works.
+  function setPatternRadiusMode(prefix, mode) {
+    var sel = patternRadiusSelect(prefix), input = $('qc-' + prefix + '-pattern-radius');
+    var was = sel.getAttribute('data-was') || 'center';
+    sel.value = mode;
+    sel.setAttribute('data-was', mode);
+    updatePatternRadiusTitle(prefix);
+    if (was === mode) return;
+    var v = Math.abs(num(input.id, NaN));
+    if (!isFinite(v)) return;
+    var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read(), pat = params.pattern;
+    var geom = patternRadiusGeom(prefix, params);
+    if (!geom) return;
+    var ctx = patternRadiusCtx(prefix, params);
+    // Untouched since the last switch: start from the exact radius, not
+    // the rounded number shown, so switching back and forth doesn't drift.
+    var R = patternRadiusKept(prefix, params);
+    if (R == null) R = was === 'center' ? v : patternRadiusFor(geom, pat, was, v);
+    if (R == null) R = 0;
+    var edge = mode === 'center' ? R : patternRadiusEdgeAt(geom, pat, mode, R);
+    input.value = roundDisplay(Math.max(0, edge));
+    // Clamped to 0 (the copies covered the center): the radius is what 0 gives.
+    if (edge < 0) sel.removeAttribute('data-radius'); else sel.setAttribute('data-radius', String(R));
+    sel.setAttribute('data-shown', input.value);
+    sel.setAttribute('data-ctx', ctx);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function updatePatternRadiusTitle(prefix) {
+    var input = $('qc-' + prefix + '-pattern-radius'), mode = patternRadiusMode(prefix);
+    input.title = mode === 'center' ? input.getAttribute('data-center-title') : PATTERN_RADIUS_TITLE;
   }
 
   function updateClearingVisibility(prefix) {
@@ -5766,6 +5983,17 @@
     if (p.yDist != null && oldHoney && p.spacing !== 'extent') $(pre + 'y-dist').value = parseFloat((Number(roundDisplay(mmToDisplay(p.yDist))) / 2).toFixed(6));
     if (p.count != null)    $(pre + 'count').value = p.count;
     if (p.radius != null)   $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radius));
+    var radiusSel = patternRadiusSelect(prefix);
+    if (radiusSel) {
+      var radiusTo = p.radiusTo === 'inside' || p.radiusTo === 'outside' ? p.radiusTo : 'center';
+      radiusSel.value = radiusTo;
+      radiusSel.setAttribute('data-was', radiusTo);
+      radiusSel.removeAttribute('data-radius');
+      radiusSel.removeAttribute('data-shown');
+      radiusSel.removeAttribute('data-ctx');
+      if (radiusTo !== 'center' && p.radiusEdge != null) $(pre + 'radius').value = roundDisplay(mmToDisplay(p.radiusEdge));
+      updatePatternRadiusTitle(prefix);
+    }
     if (p.startAngle != null) $(pre + 'start-angle').value = p.startAngle;
     if (p.totalAngle != null) $(pre + 'total-angle').value = p.totalAngle;
     var hexTrimEl = $(pre + 'hex-trim');
@@ -6208,6 +6436,9 @@
       yCount:     p.yCount,
       count:      p.count,
       radius:     displayToMm(p.radius),
+      // Inside / Outside Radius: radius above is the center radius it gives.
+      radiusTo:   p.radiusTo === 'inside' || p.radiusTo === 'outside' ? p.radiusTo : 'center',
+      radiusEdge: p.radiusEdge != null ? displayToMm(p.radiusEdge) : null,
       startAngle: p.startAngle,
       totalAngle: p.totalAngle != null ? p.totalAngle : 360,
       hexTrim:    !!p.hexTrim,
@@ -8926,7 +9157,7 @@
       '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus: pick <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it. Each direction has its own.',
       'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts at their closest instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
-      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
+      'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy&rsquo;s cut, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are where the bit cuts, as with Gap. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
@@ -10135,8 +10366,10 @@
         return 'Grid ' + (p.xCount || 1) + 'x' + (p.yCount || 1) + ' lines (' + gDims + ')' + (gAngle ? ' angle=' + gAngle + '°' : '');
       }
       var follow = p.style === 'circular-follow' || !!p.rotate;
+      // Inside / Outside Radius: the edge distance asked for, which r gives.
+      var edge = (p.radiusTo === 'inside' || p.radiusTo === 'outside') && p.radiusEdge != null ? ' (' + p.radiusTo + ' ' + p.radiusEdge + ')' : '';
       return 'Circular' + (follow ? ' (Path Direction)' : ' (Identical)') + ' n=' + (p.count || 1) +
-             ' r=' + (p.radius || 0) + ' start=' + (p.startAngle || 0) + '°' +
+             ' r=' + (p.radius || 0) + edge + ' start=' + (p.startAngle || 0) + '°' +
              (p.totalAngle != null && Number(p.totalAngle) !== 360 ? ' total=' + p.totalAngle + '°' : '');
     }
 
