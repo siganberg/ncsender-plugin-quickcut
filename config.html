@@ -3115,11 +3115,12 @@
     }
     renderOriginPickers();
     if (state.isImperial) convertDefaultsToInches();
+    // The pattern menus exist before saved settings set them.
+    wirePatternAxisModes();
     hydrateSavedSettings();
     updateUnitBadges();
     wireUnitFields();
     wireArrowKeySteps();
-    wirePatternAxisModes();
     ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(updatePatternAngleLabels);
     wireTabs();
     wireValidation();
