@@ -3350,7 +3350,9 @@
   // a note on leaving a field, or on a related field, must not, or the
   // rest of what's being typed lands in the other field and two fields
   // that need each other fixed can't both be reached.
-  var TOOLTIP_OK = '#2e7d32';
+  // Confirmations take the theme's accent, as ncSender's own success
+  // notes do (e.g. Settings' server-port note), so they follow any accent.
+  var TOOLTIP_OK = 'var(--color-accent)';
   function showTooltip(el, message, color, stay) {
     color = color || '#d32f2f';
     if (!_tooltip) _tooltip = createTooltip();
