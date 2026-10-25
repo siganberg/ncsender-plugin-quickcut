@@ -4031,7 +4031,9 @@
     var fields = ROOT.querySelectorAll('[data-unit]');
     for (var i = 0; i < fields.length; i++) {
       var v = parseFloat(fields[i].value);
-      if (isFinite(v)) fields[i].value = roundDisplay(mmToDisplay(v));
+      if (!isFinite(v)) continue;
+      if (fields[i].getAttribute('data-unit') === 'feed') writeFeed(fields[i].id, v);
+      else fields[i].value = roundDisplay(mmToDisplay(v));
     }
   }
 
@@ -4081,7 +4083,19 @@
   }
 
   function mmToDisplay(mm)  { return state.isImperial ? mm * MM_TO_INCH : mm; }
-  function displayToMm(val) { return state.isImperial ? val * INCH_TO_MM : val; }
+  // Inches back to mm: the shortest mm number that shows as the same
+  // inches, so a value that started in mm comes back as it was (6 mm shows
+  // as 0.2362 in and returns as 6, not 5.99948), and a real inch value
+  // stays exact (0.25 in is 6.35).
+  function displayToMm(val) {
+    if (!state.isImperial) return val;
+    var mm = val * INCH_TO_MM, shown = roundDisplay(val);
+    for (var d = 0; d <= 4; d++) {
+      var r = parseFloat(mm.toFixed(d));
+      if (roundDisplay(r * MM_TO_INCH) === shown) return r;
+    }
+    return mm;
+  }
   function roundDisplay(v)  {
     // 4 decimals in imperial catches sub-thou; 3 in metric matches
     // typical grblHAL precision.
@@ -6040,20 +6054,39 @@
     if (toggles) toggles.style.display = isGrid ? '' : 'none';
   }
 
+  // Feed and plunge rates show whole numbers (one decimal under 10), far
+  // finer than a machine holds. The exact rate saved in mm/min is kept
+  // while its box still shows it, so switching units doesn't round it:
+  // 2000 mm/min shows as 79 in/min and is saved again as 2000.
+  function feedToDisplay(mm) {
+    var v = mmToDisplay(mm);
+    return Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v);
+  }
+  function writeFeed(id, mm) {
+    var el = $(id);
+    el.value = feedToDisplay(mm);
+    el.setAttribute('data-mm', String(mm));
+    el.setAttribute('data-shown', el.value);
+  }
+  function feedMm(id) {
+    var el = $(id), mm = Number(el.getAttribute('data-mm'));
+    return el.value === el.getAttribute('data-shown') && el.hasAttribute('data-mm') && isFinite(mm) ? mm : displayToMm(num(id, 0));
+  }
+
   // Read/write helpers for the per-shape Tool card. Values in state are
   // canonical mm / mm-per-min; DOM shows active-unit values.
   function readToolFromInputs() {
     return {
       bitDiameter:    displayToMm(num('qc-bit', 0)),
-      feedRate:       displayToMm(num('qc-feed', 0)),
-      plungeFeedRate: displayToMm(num('qc-plunge', 0))
+      feedRate:       feedMm('qc-feed'),
+      plungeFeedRate: feedMm('qc-plunge')
     };
   }
   function writeToolToInputs(tool) {
     if (!tool) return;
     if (tool.bitDiameter != null)    $('qc-bit').value    = roundDisplay(mmToDisplay(tool.bitDiameter));
-    if (tool.feedRate != null)       $('qc-feed').value   = roundDisplay(mmToDisplay(tool.feedRate));
-    if (tool.plungeFeedRate != null) $('qc-plunge').value = roundDisplay(mmToDisplay(tool.plungeFeedRate));
+    if (tool.feedRate != null)       writeFeed('qc-feed', tool.feedRate);
+    if (tool.plungeFeedRate != null) writeFeed('qc-plunge', tool.plungeFeedRate);
   }
 
   // Old builds saved origin as bottom-left / top-right / etc. Renamed to
@@ -6411,8 +6444,8 @@
     // the app's unit later doesn't reinterpret the saved numbers.
     var common = {
       bitDiameter:    displayToMm(params.bitDiameter),
-      feedRate:       displayToMm(params.feedRate),
-      plungeFeedRate: displayToMm(params.plungeFeedRate),
+      feedRate:       feedMm('qc-feed'),
+      plungeFeedRate: feedMm('qc-plunge'),
       spindleRpm:     params.spindleRpm,
       spindleDelay:   params.spindleDelay,
       mistM7:         params.mistM7,
@@ -6425,8 +6458,8 @@
     var body = { common: common };
     var toolForShape = {
       bitDiameter:    displayToMm(params.bitDiameter),
-      feedRate:       displayToMm(params.feedRate),
-      plungeFeedRate: displayToMm(params.plungeFeedRate)
+      feedRate:       feedMm('qc-feed'),
+      plungeFeedRate: feedMm('qc-plunge')
     };
     if (params.shape === 'rectangle') {
       body.rectangle = {
