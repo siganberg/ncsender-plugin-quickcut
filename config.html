@@ -6279,7 +6279,11 @@
           if (sb != null && sb > 1e-9) {
             var onA = { x: v.x + ea.x * t, y: v.y + ea.y * t }, onB = { x: v.x + eb.x * sb, y: v.y + eb.y * sb };
             s0 = alongIn ? onA : onB; s1 = alongIn ? onB : onA;
-            apex = { x: c.x - ea.x * rP, y: c.y - ea.y * rP };
+            // The notch is where the bit pokes through the other wall:
+            // straight out through it from the bit's centre.
+            var ox = -eb.y, oy = eb.x;
+            if (ox * b.x + oy * b.y > 0) { ox = -ox; oy = -oy; }
+            apex = { x: c.x + ox * rP, y: c.y + oy * rP };
           }
         } else {
           var D = rP + Math.max(0, rcP) * (1 / sinA - 1), disc = rP * rP - D * D * sinA * sinA;
