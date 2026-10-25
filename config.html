@@ -3747,13 +3747,6 @@
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min;
     if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max;
 
-    // A Gap can overlap the copies, but not by a whole copy.
-    var gapField = /^qc-(\w+)-pattern-([xy])-dist$/.exec(id);
-    if (gapField && patternGapMode(gapField[1], gapField[2])) {
-      var copySize = patternCopySize(gapField[1], PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[gapField[1]]].read());
-      if (copySize && n <= -copySize[gapField[2]]) return 'Gap must be more than -' + roundDisplay(copySize[gapField[2]]) + ', or the copies sit on top of each other';
-    }
-
     // Cross-field: Depth of Cut can't be deeper than Total Depth — a
     // single pass to that depth would overshoot the requested total.
     if (id === 'qc-rect-step') {
@@ -4471,10 +4464,10 @@
       spacing: extentEl && extentEl.checked ? 'extent' : 'spacing',
       xDist:   num(pre + 'x-dist', 0),
       yDist:   num(pre + 'y-dist', 0),
-      // Gap mode (Linear only): the box shows the stock left between
+      // Gap mode (Linear, Honeycomb): the box shows the stock left between
       // neighbours' cuts; withPatternGaps turns it into xDist / yDist.
-      xGap:    patternGapMode(prefix, 'x') ? num(pre + 'x-dist', 0) : null,
-      yGap:    patternGapMode(prefix, 'y') ? num(pre + 'y-dist', 0) : null,
+      xGap:    patternGapMode(prefix, 'x') ? Math.abs(num(pre + 'x-dist', 0)) : null,
+      yGap:    patternGapMode(prefix, 'y') ? Math.abs(num(pre + 'y-dist', 0)) : null,
       xSign:   patternGapSign(prefix, 'x'),
       ySign:   patternGapSign(prefix, 'y'),
       xCount:  Math.max(1, Math.floor(num(pre + 'x-count', 1))),
@@ -4493,12 +4486,16 @@
     };
   }
 
-  // Linear pattern Gap: the X / Y Spacing labels are menus (wirePatternGaps)
-  // that switch the box to the stock left between neighbouring copies'
-  // cuts, edge to edge along the row (and across it), where the bit's cut
-  // is the toolpath plus the bit radius. Spacing = Gap + one copy's cut size
-  // that way, taken from the generator so it matches the program. A gap
-  // keeps the direction the spacing had (negative runs toward -X / -Y).
+  // Pattern Gap (Linear and Honeycomb): the X / Y Spacing labels are menus
+  // (wirePatternGaps) that switch the box to the stock left between
+  // neighbouring copies' cuts, edge to edge, measured on the cuts
+  // themselves: the closest distance between two copies' toolpaths, less
+  // the bit diameter. X is the next copy along the row; Y the next row
+  // across (on Honeycomb, the nearest of the shifted row's copies and the
+  // copy a whole row away). The spacing that gives the gap is searched for,
+  // so it follows the shape, bit and cut type. As with Spacing, the sign
+  // sets the direction (negative runs toward -X / -Y) and the size is the
+  // gap; a 0 gap keeps the last direction typed.
   var PATTERN_GAP_TABS = { rect: 'generateRectangleProgram', circ: 'generateCircleProgram', poly: 'generatePolygonProgram',
                            slt: 'generateSlotProgram', key: 'generateKeyholeProgram', drl: 'generateDrillProgram' };
   function patternGapSelect(prefix, axis) { return $('qc-' + prefix + '-pattern-' + axis + '-mode'); }
@@ -4507,71 +4504,205 @@
     return !!sel && sel.value === 'gap' && patternGapAllowed(prefix);
   }
   function patternGapSign(prefix, axis) {
+    var v = num('qc-' + prefix + '-pattern-' + axis + '-dist', 0);
+    if (v) return v < 0 ? -1 : 1;
     var sel = patternGapSelect(prefix, axis);
     return sel && sel.getAttribute('data-sign') === '-1' ? -1 : 1;
   }
   function patternGapAllowed(prefix) {
-    var ext = $('qc-' + prefix + '-pattern-extent');
-    return $('qc-' + prefix + '-pattern-style').value === 'linear' && !(ext && ext.checked);
+    var ext = $('qc-' + prefix + '-pattern-extent'), style = $('qc-' + prefix + '-pattern-style').value;
+    return (style === 'linear' || style === 'honeycomb') && !(ext && ext.checked);
   }
-  // One copy's cut size along the rows (x) and across them (y), or null if
-  // the shape can't be generated yet.
-  function patternCopySize(prefix, params) {
+  // One copy's toolpath in the rows' frame (u along a row, v across): its
+  // lines, and its arcs exactly (center, radius, start angle and the sweep
+  // counter-clockwise), with a box round each for skipping far pairs, and
+  // the bit radius; null if the shape can't be generated yet. The last one
+  // is kept: every keystroke reads the form more than once.
+  var patternGeomCache = { key: null, geom: null };
+  function patternCopyGeom(prefix, params) {
     var pat = params.pattern || {};
     var p = Object.assign({}, params, { tabs: null, depth: 1, depthOfCut: 1, peckDepth: 0 });
     if (p.cutType === 'clearing') p.cutType = 'inner';
     p.pattern = { enabled: true, style: 'linear', xCount: 1, yCount: 1, xDist: 0, yDist: 0, angle: pat.angle || 0, rotateShapes: !!pat.rotateShapes };
-    var trace;
-    try { trace = traceProgram(makeQuickCutGenerator(state.isImperial)[PATTERN_GAP_TABS[prefix]](p)); } catch (e) { return null; }
-    var a = (pat.angle || 0) * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
-    var b = { u0: Infinity, u1: -Infinity, v0: Infinity, v1: -Infinity };
-    var add = function(x, y) {
-      var u = x * ux + y * uy, v = y * ux - x * uy;
-      b.u0 = Math.min(b.u0, u); b.u1 = Math.max(b.u1, u); b.v0 = Math.min(b.v0, v); b.v1 = Math.max(b.v1, v);
-    };
-    trace.plunges.forEach(function(q) { add(q.x, q.y); });
-    trace.moves.forEach(function(m) {
-      add(m.x0, m.y0); add(m.x1, m.y1);
-      if (m.cx === undefined) return;
-      var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy);
-      var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
-      var sweep = m.cw ? a0 - a1 : a1 - a0;
-      sweep = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
-      for (var k = 1; k < 64; k++) {
-        var t = a0 + (m.cw ? -1 : 1) * sweep * k / 64;
-        add(m.cx + r * Math.cos(t), m.cy + r * Math.sin(t));
+    var key = prefix + (state.isImperial ? ' in ' : ' mm ') + JSON.stringify(p);
+    if (patternGeomCache.key === key) return patternGeomCache.geom;
+    var geom = null;
+    try {
+      var trace = traceProgram(makeQuickCutGenerator(state.isImperial)[PATTERN_GAP_TABS[prefix]](p));
+      var a = (pat.angle || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), parts = [];
+      var U = function(x, y) { return x * ca + y * sa; }, V = function(x, y) { return y * ca - x * sa; };
+      var line = function(x0, y0, x1, y1) {
+        var u0 = U(x0, y0), v0 = V(x0, y0), u1 = U(x1, y1), v1 = V(x1, y1);
+        parts.push({ u0: u0, v0: v0, u1: u1, v1: v1, box: [Math.min(u0, u1), Math.min(v0, v1), Math.max(u0, u1), Math.max(v0, v1)] });
+      };
+      trace.plunges.forEach(function(q) { line(q.x, q.y, q.x, q.y); });
+      trace.moves.forEach(function(m) {
+        if (m.cx === undefined) { line(m.x0, m.y0, m.x1, m.y1); return; }
+        var r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy), cu = U(m.cx, m.cy), cv = V(m.cx, m.cy);
+        var t0 = Math.atan2(V(m.x0, m.y0) - cv, U(m.x0, m.y0) - cu), t1 = Math.atan2(V(m.x1, m.y1) - cv, U(m.x1, m.y1) - cu);
+        var sweep = ((m.cw ? t0 - t1 : t1 - t0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
+        parts.push({ cu: cu, cv: cv, r: r, t0: m.cw ? t1 : t0, sweep: sweep, box: [cu - r, cv - r, cu + r, cv + r] });
+      });
+      if (parts.length) {
+        var box = [Infinity, Infinity, -Infinity, -Infinity];
+        parts.forEach(function(q) {
+          box = [Math.min(box[0], q.box[0]), Math.min(box[1], q.box[1]), Math.max(box[2], q.box[2]), Math.max(box[3], q.box[3])];
+        });
+        geom = { parts: parts, r: Math.max(0, params.bitDiameter || 0) / 2, box: { u0: box[0], v0: box[1], u1: box[2], v1: box[3] } };
       }
-    });
-    if (!(b.u1 >= b.u0)) return null;
-    var d = Math.max(0, params.bitDiameter || 0);
-    return { x: b.u1 - b.u0 + d, y: b.v1 - b.v0 + d };
+    } catch (e) { geom = null; }
+    patternGeomCache = { key: key, geom: geom };
+    return geom;
+  }
+  // The gap between a copy and the same copy moved (du, dv): the closest
+  // its toolpath comes to the moved one's, less the bit diameter. 0 or less
+  // where they touch.
+  function patternCopyGap(geom, du, dv) {
+    var best = Infinity, parts = geom.parts;
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      for (var j = 0; j < parts.length; j++) {
+        var q = parts[j];
+        if (p.box[0] - q.box[2] - du > best || q.box[0] + du - p.box[2] > best ||
+            p.box[1] - q.box[3] - dv > best || q.box[1] + dv - p.box[3] > best) continue;
+        var d = pathPartDistance(p, q, du, dv);
+        if (d < best) best = d;
+      }
+    }
+    return best - 2 * geom.r;
+  }
+  // The closest two toolpath parts come, the second moved (du, dv). It is
+  // at an end of one of them, or where the line between them is square to
+  // both: for a line and an arc, on the line square from the arc's center;
+  // for two arcs, on the line through both centers. Crossing gives 0.
+  function pathPartDistance(p, q, du, dv) {
+    var arc = function(o) { return { cu: o.cu + du, cv: o.cv + dv, r: o.r, t0: o.t0, sweep: o.sweep }; };
+    if (p.r === undefined && q.r === undefined) return segmentDistance(p.u0, p.v0, p.u1, p.v1, q.u0 + du, q.v0 + dv, q.u1 + du, q.v1 + dv);
+    if (p.r === undefined) return lineArcDistance(p.u0, p.v0, p.u1, p.v1, arc(q));
+    if (q.r === undefined) return lineArcDistance(q.u0 + du, q.v0 + dv, q.u1 + du, q.v1 + dv, p);
+    return arcArcDistance(p, arc(q));
+  }
+  function onArc(a, t) { return a.sweep >= 2 * Math.PI - 1e-12 || ((t - a.t0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) <= a.sweep + 1e-12; }
+  function arcEnds(a) {
+    return [[a.cu + a.r * Math.cos(a.t0), a.cv + a.r * Math.sin(a.t0)], [a.cu + a.r * Math.cos(a.t0 + a.sweep), a.cv + a.r * Math.sin(a.t0 + a.sweep)]];
+  }
+  function pointArcDistance(pu, pv, a) {
+    var d = Math.hypot(pu - a.cu, pv - a.cv);
+    if (d > 0 && onArc(a, Math.atan2(pv - a.cv, pu - a.cu))) return Math.abs(d - a.r);
+    var e = arcEnds(a);
+    return Math.min(Math.hypot(pu - e[0][0], pv - e[0][1]), Math.hypot(pu - e[1][0], pv - e[1][1]));
+  }
+  function pointSegmentDistance(pu, pv, u0, v0, u1, v1) {
+    var vx = u1 - u0, vy = v1 - v0, len = vx * vx + vy * vy;
+    var t = len ? Math.max(0, Math.min(1, ((pu - u0) * vx + (pv - v0) * vy) / len)) : 0;
+    return Math.hypot(pu - u0 - t * vx, pv - v0 - t * vy);
+  }
+  function lineArcDistance(u0, v0, u1, v1, a) {
+    var vx = u1 - u0, vy = v1 - v0, len = vx * vx + vy * vy;
+    // Where the line crosses the circle, on both parts.
+    if (len) {
+      var fx = u0 - a.cu, fy = v0 - a.cv, B = 2 * (fx * vx + fy * vy), C = fx * fx + fy * fy - a.r * a.r, disc = B * B - 4 * len * C;
+      if (disc >= 0) {
+        var root = Math.sqrt(disc);
+        for (var k = -1; k <= 1; k += 2) {
+          var t = (-B + k * root) / (2 * len);
+          if (t >= 0 && t <= 1 && onArc(a, Math.atan2(v0 + t * vy - a.cv, u0 + t * vx - a.cu))) return 0;
+        }
+      }
+    }
+    var e = arcEnds(a);
+    var best = Math.min(pointArcDistance(u0, v0, a), pointArcDistance(u1, v1, a),
+                        pointSegmentDistance(e[0][0], e[0][1], u0, v0, u1, v1), pointSegmentDistance(e[1][0], e[1][1], u0, v0, u1, v1));
+    if (len) {
+      var s = ((a.cu - u0) * vx + (a.cv - v0) * vy) / len;
+      if (s > 0 && s < 1) {
+        var px = u0 + s * vx, py = v0 + s * vy, d = Math.hypot(px - a.cu, py - a.cv);
+        if (d > 0 && onArc(a, Math.atan2(py - a.cv, px - a.cu))) best = Math.min(best, Math.abs(d - a.r));
+      }
+    }
+    return best;
+  }
+  function arcArcDistance(a, b) {
+    var dx = b.cu - a.cu, dy = b.cv - a.cv, d = Math.hypot(dx, dy);
+    // Where the circles cross, on both arcs.
+    if (d > 0 && d <= a.r + b.r && d >= Math.abs(a.r - b.r)) {
+      var along = (d * d + a.r * a.r - b.r * b.r) / (2 * d), h = Math.sqrt(Math.max(0, a.r * a.r - along * along));
+      var mx = a.cu + along * dx / d, my = a.cv + along * dy / d;
+      for (var k = -1; k <= 1; k += 2) {
+        var ix = mx - k * h * dy / d, iy = my + k * h * dx / d;
+        if (onArc(a, Math.atan2(iy - a.cv, ix - a.cu)) && onArc(b, Math.atan2(iy - b.cv, ix - b.cu))) return 0;
+      }
+    }
+    var ea = arcEnds(a), eb = arcEnds(b);
+    var best = Math.min(pointArcDistance(ea[0][0], ea[0][1], b), pointArcDistance(ea[1][0], ea[1][1], b),
+                        pointArcDistance(eb[0][0], eb[0][1], a), pointArcDistance(eb[1][0], eb[1][1], a));
+    if (d > 0) {
+      var t = Math.atan2(dy, dx);
+      [t, t + Math.PI].forEach(function(ta) {
+        if (!onArc(a, ta)) return;
+        [t, t + Math.PI].forEach(function(tb) {
+          if (!onArc(b, tb)) return;
+          best = Math.min(best, Math.hypot(a.cu + a.r * Math.cos(ta) - b.cu - b.r * Math.cos(tb), a.cv + a.r * Math.sin(ta) - b.cv - b.r * Math.sin(tb)));
+        });
+      });
+    }
+    return best;
+  }
+  function segmentDistance(ax, ay, bx, by, cx, cy, dx, dy) {
+    var cross = function(ox, oy, px, py, qx, qy) { return (px - ox) * (qy - oy) - (py - oy) * (qx - ox); };
+    var d1 = cross(ax, ay, bx, by, cx, cy), d2 = cross(ax, ay, bx, by, dx, dy);
+    var d3 = cross(cx, cy, dx, dy, ax, ay), d4 = cross(cx, cy, dx, dy, bx, by);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
+    return Math.min(pointSegmentDistance(ax, ay, cx, cy, dx, dy), pointSegmentDistance(bx, by, cx, cy, dx, dy),
+                    pointSegmentDistance(cx, cy, ax, ay, bx, by), pointSegmentDistance(dx, dy, ax, ay, bx, by));
+  }
+  // The gap at a spacing s, for an axis of a style. On Honeycomb, Y's
+  // nearest neighbours are the shifted row's (half a step along, half a row
+  // across) or the copy a whole row away; sx is the row's spacing.
+  function patternGapAt(geom, honeycomb, axis, s, sx) {
+    if (axis === 'x') return patternCopyGap(geom, s, 0);
+    if (!honeycomb) return patternCopyGap(geom, 0, s);
+    return Math.min(patternCopyGap(geom, sx / 2, s / 2), patternCopyGap(geom, -sx / 2, s / 2), patternCopyGap(geom, 0, s));
+  }
+  // The smallest spacing whose gap is `gap` (the gap only grows as copies
+  // move apart), by halving the range.
+  function patternSpacingFor(geom, honeycomb, axis, gap, sx) {
+    var lo = 0, hi = (axis === 'x' ? geom.box.u1 - geom.box.u0 : geom.box.v1 - geom.box.v0) + 2 * geom.r + gap;
+    for (var n = 0; n < 8 && patternGapAt(geom, honeycomb, axis, hi, sx) < gap; n++) hi *= 2;
+    for (var k = 0; k < 40; k++) {
+      var mid = (lo + hi) / 2;
+      if (patternGapAt(geom, honeycomb, axis, mid, sx) < gap) lo = mid; else hi = mid;
+    }
+    return hi;
   }
   function withPatternGaps(prefix, params) {
     var pat = params.pattern;
     if (!pat || !pat.enabled || (pat.xGap == null && pat.yGap == null)) return params;
-    var size = patternCopySize(prefix, params);
-    if (!size) return params;
-    if (pat.xGap != null) pat.xDist = pat.xSign * (pat.xGap + size.x);
-    if (pat.yGap != null) pat.yDist = pat.ySign * (pat.yGap + size.y);
+    var geom = patternCopyGeom(prefix, params);
+    if (!geom) return params;
+    var honeycomb = pat.style === 'honeycomb';
+    if (pat.xGap != null) pat.xDist = pat.xSign * patternSpacingFor(geom, honeycomb, 'x', pat.xGap);
+    if (pat.yGap != null) pat.yDist = pat.ySign * patternSpacingFor(geom, honeycomb, 'y', pat.yGap, Math.abs(pat.xDist));
     return params;
   }
   // Switches a box between Spacing and Gap, converting the number so the
-  // pattern stays where it is.
+  // pattern stays where it is. Copies that overlap have no gap to show;
+  // they go to a gap of 0.
   function setPatternGapMode(prefix, axis, mode) {
     var sel = patternGapSelect(prefix, axis), input = $('qc-' + prefix + '-pattern-' + axis + '-dist');
     var was = sel.getAttribute('data-was') || 'spacing';
+    var sign = patternGapSign(prefix, axis);
+    sel.setAttribute('data-sign', String(sign));
     sel.value = mode;
     sel.setAttribute('data-was', mode);
     if (was === mode) return;
-    var v = num(input.id, NaN);
-    var size = patternCopySize(prefix, PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read());
-    if (!isFinite(v) || !size) return;
-    if (mode === 'gap') {
-      sel.setAttribute('data-sign', v < 0 ? '-1' : '1');
-      input.value = roundDisplay(Math.abs(v) - size[axis]);
-    } else {
-      input.value = roundDisplay(patternGapSign(prefix, axis) * (v + size[axis]));
-    }
+    var v = Math.abs(num(input.id, NaN));
+    var params = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read();
+    var geom = patternCopyGeom(prefix, params);
+    if (!isFinite(v) || !geom) return;
+    var honeycomb = params.pattern.style === 'honeycomb', sx = Math.abs(params.pattern.xDist);
+    input.value = roundDisplay(sign * (mode === 'gap' ? Math.max(0, patternGapAt(geom, honeycomb, axis, v, sx))
+                                                      : patternSpacingFor(geom, honeycomb, axis, v, sx)));
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
   function wirePatternGaps() {
@@ -5199,8 +5330,8 @@
   // At 0° the grid runs along the machine axes, so X/Y labels are
   // accurate. At any other angle the distances are measured along and
   // across the angled row, so the labels say that instead.
-  var PATTERN_GAP_LABELS = { axis: { x: 'X Gap', y: 'Y Gap' }, angled: { x: 'Gap', y: 'Row Gap' } };
-  var PATTERN_GAP_TITLE = 'Spacing: center to center between copies. Gap: the stock left between neighbouring copies\u2019 cuts, edge to edge (on an Outer cut, outside the bit\u2019s path), so the spacing follows the shape and bit. Changing it converts the number so the copies stay put.';
+  var PATTERN_GAP_LABELS = { axis: { x: 'X Gap', y: 'Y Gap' }, angled: { x: 'Gap', y: 'Row Gap' }, honeycomb: { x: 'X Gap', y: 'Row Gap' } };
+  var PATTERN_GAP_TITLE = 'Spacing: center to center between copies. Gap: the stock left between neighbouring copies\u2019 cuts at their closest, edge to edge (on an Outer cut, outside the bit\u2019s path), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. As with Spacing, a negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
   var PATTERN_LABELS = {
     axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
@@ -5276,12 +5407,12 @@
     ['x', 'y'].forEach(function(axis) {
       var sel = patternGapSelect(prefix, axis);
       if (!sel) return;
-      // Leaving Linear goes back to Spacing (Extent does it itself, first).
+      // Leaving Linear / Honeycomb goes back to Spacing (Extent does it itself, first).
       if (!gapOk && sel.value === 'gap') setPatternGapMode(prefix, axis, 'spacing');
       var label = body.querySelector('[data-pattern-label="' + axis + '-dist"]');
       var input = $(label.getAttribute('for'));
       sel.options[0].textContent = label.textContent;
-      sel.options[1].textContent = (angle ? PATTERN_GAP_LABELS.angled : PATTERN_GAP_LABELS.axis)[axis];
+      sel.options[1].textContent = (style === 'honeycomb' && !angle ? PATTERN_GAP_LABELS.honeycomb : angle ? PATTERN_GAP_LABELS.angled : PATTERN_GAP_LABELS.axis)[axis];
       sel.title = PATTERN_GAP_TITLE;
       if (sel.value === 'gap') input.title = PATTERN_GAP_TITLE;
       label.style.display = gapOk ? 'none' : '';
@@ -5640,7 +5771,7 @@
       sel.value = mode;
       sel.setAttribute('data-was', mode);
       sel.setAttribute('data-sign', p[axis + 'Sign'] === -1 ? '-1' : '1');
-      if (gap != null) $(pre + axis + '-dist').value = roundDisplay(mmToDisplay(gap));
+      if (gap != null) $(pre + axis + '-dist').value = roundDisplay((p[axis + 'Sign'] === -1 ? -1 : 1) * mmToDisplay(gap));
     });
   }
 
@@ -8767,7 +8898,7 @@
     pattern: { title: 'Patterns', notes: [
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> adds a row shifted half a step between rows (<strong>Symmetric Ends</strong> trims those rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. Turn on <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it.',
-      'On a Linear pattern, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. A negative gap overlaps the copies.',
+      'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts at their closest instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise.',
       'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
