@@ -5299,8 +5299,25 @@
     // Drawing units per screen pixel (the viewBox is 100 across, fitted).
     var box = svg.getBoundingClientRect();
     var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160);
-    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx) +
+    svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx,
+                                     patternRadiusRing(tab.prefix, gen, params, trace)) +
       patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
+  }
+
+  // Circular: the circle the Radius menu measures (Center, Inside or
+  // Outside), about the pattern's center: the first copy's center less its
+  // place in the pattern.
+  function patternRadiusRing(prefix, gen, params, trace) {
+    var pat = params.pattern;
+    if (!pat || !pat.enabled || !/^circular/.test(pat.style)) return null;
+    var positions = gen.computePatternPositions(pat), shape = PATTERN_RADIUS_SHAPES[prefix], first = trace.plunges[0];
+    if (shape) {
+      var off = gen.shapeOriginOffset(shape, params);
+      first = { x: -off.x, y: -off.y };
+    }
+    var r = pat.radiusTo !== 'center' && pat.radiusEdge != null ? pat.radiusEdge : pat.radius;
+    if (!first || !positions.length || !(Math.abs(r) > 0)) return null;
+    return { x: first.x - positions[0].x, y: first.y - positions[0].y, r: Math.abs(r) };
   }
 
   // SVG text doesn't wrap, so the caption is short lines, one per tspan.
@@ -5379,11 +5396,15 @@
   // its edges, and the part or hole it leaves (tinted). The bands are
   // opaque, so neighbouring copies merge into one outline and any overlap
   // shows. Without one, just the toolpath and its plunge points.
-  function drawPatternTrace(trace, bitRadius, captionLines, prefix, cutType, unitPx) {
-    // The drawing also keeps X0 Y0 in view.
+  function drawPatternTrace(trace, bitRadius, captionLines, prefix, cutType, unitPx, ring) {
+    // The drawing also keeps X0 Y0 and the radius circle in view.
     var tb = traceBounds(trace, bitRadius) || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     var minX = Math.min(tb.minX, 0), maxX = Math.max(tb.maxX, 0);
     var minY = Math.min(tb.minY, 0), maxY = Math.max(tb.maxY, 0);
+    if (ring) {
+      minX = Math.min(minX, ring.x - ring.r); maxX = Math.max(maxX, ring.x + ring.r);
+      minY = Math.min(minY, ring.y - ring.r); maxY = Math.max(maxY, ring.y + ring.r);
+    }
     var span = Math.max(maxX - minX, maxY - minY) || 1;
     // Each caption line past the first takes room from the bottom.
     var extra = ((captionLines || 1) - 1) * PATTERN_PREVIEW_LINE;
@@ -5419,7 +5440,8 @@
     var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
     var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
       ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
-    var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '');
+    var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') +
+      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '');
     if (cutType) return patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, 1.5 * (unitPx || 1)) + marks;
 
     var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
