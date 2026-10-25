@@ -1222,6 +1222,8 @@
   }
   /* e.g. Feed Rate on the Drill tab, where every move is at the Plunge Rate. */
   .qc-input:disabled { opacity: 0.5; cursor: not-allowed; }
+  .qc-relief-field.qc-relief-off { opacity: 0.5; }
+  .qc-relief-field.qc-relief-off .qc-select { cursor: not-allowed; }
   .qc-input:focus, .qc-select:focus {
     outline: none;
     border-color: var(--color-accent);
@@ -1508,7 +1510,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-corner">Corner Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0" title="Rounds the corners (0 = square). On an Inner cut the corner can't be tighter than the bit's radius; the preview shows what you'll get.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0" title="Rounds the corners (0 = square). On an Inner cut the corner can't be tighter than the bit's radius; the preview shows what you'll get. With Corner Relief, a radius smaller than the bit's sets how far into each corner the notch goes, for a part with rounded corners of its own.">
                   </div>
                 </div>
                 <div class="qc-row-3 qc-type-row">
@@ -1920,7 +1922,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-poly-corner">Corner Radius</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get. With Corner Relief, a radius smaller than the bit's sets how far into each corner the notch goes, for a part with rounded corners of its own.">
                   </div>
                   <div class="qc-field qc-poly-clearing-only" style="display: none;">
                     <label for="qc-poly-stepover">Stepover (%)</label>
@@ -6215,6 +6217,17 @@
 
   // Corner Relief on an Inner cut whose corners are tighter than the bit:
   // 'dogbone' or 'tbone', else null.
+  // Corner Relief does nothing when the bit can already cut the Corner
+  // Radius, so it's greyed out then, with a tooltip saying why; its value
+  // stays for when the radius or the bit changes.
+  function updateReliefState(prefix) {
+    var sel = $('qc-' + prefix + '-corner-relief');
+    if (!sel.hasAttribute('data-title')) sel.setAttribute('data-title', sel.title);
+    var fits = Math.max(0, num('qc-' + prefix + '-corner', 0)) >= Math.max(0, num('qc-bit', 0)) / 2 && num('qc-bit', 0) > 0;
+    sel.disabled = fits;
+    sel.closest('.qc-relief-field').classList.toggle('qc-relief-off', fits);
+    sel.title = fits ? "Not needed: the bit can cut this Corner Radius. Make the Corner Radius smaller than the bit's radius to use it." : sel.getAttribute('data-title');
+  }
   function reliefStyle(prefix, cutType) {
     var style = $('qc-' + prefix + '-corner-relief').value;
     return (style === 'dogbone' || style === 'tbone') && (cutType === 'inner' || cutType === 'clearing') &&
@@ -6305,6 +6318,7 @@
   function updateRectanglePreview() {
     schedulePatternPreview();
     updateInsetState('rect');
+    updateReliefState('rect');
     var svg = document.getElementById('qc-rect-preview');
     if (!svg) return;
     var W = num('qc-rect-width', 0);
@@ -7362,6 +7376,7 @@
   function updatePolygonPreview() {
     schedulePatternPreview();
     updateInsetState('poly');
+    updateReliefState('poly');
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
     var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
@@ -8204,7 +8219,7 @@
       var title = titleEl ? titleEl.textContent.trim() : '';
       var seen = {}, tips = [];
       card.querySelectorAll('[title]').forEach(function(el) {
-        var tip = el.getAttribute('title');
+        var tip = el.getAttribute('data-title') || el.getAttribute('title');
         if (!tip || el.hasAttribute('data-pattern-label') || /-pattern-[xy]-(count|dist)$/.test(el.id)) return;
         var name = helpTipName(el, title);
         if (seen[name + tip]) return;
