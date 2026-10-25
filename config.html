@@ -3733,6 +3733,12 @@
       var pgTot = num('qc-poly-depth', NaN);
       if (isFinite(pgTot) && n > pgTot) return 'Depth of Cut must not exceed Total Depth (' + pgTot + ')';
     }
+    // An Outer cut's Gap is between the parts: the bit has to fit.
+    var gapOf = /^qc-(\w+)-pattern-([xy])-dist$/.exec(id);
+    if (gapOf && patternGapMode(gapOf[1], gapOf[2]) && $('qc-' + gapOf[1] + '-cut-type') && $('qc-' + gapOf[1] + '-cut-type').value === 'outer') {
+      var gapBit = num('qc-bit', 0);
+      if (Math.abs(n) < gapBit - 1e-9) return 'Gap must be at least the bit diameter (' + roundDisplay(gapBit) + ') on an Outer cut, for the bit to pass between the parts';
+    }
     var radiusOf = /^qc-(\w+)-pattern-radius$/.exec(id);
     if (radiusOf) {
       var radiusProblem = patternRadiusProblem(radiusOf[1], n);
@@ -4430,8 +4436,8 @@
       enabled: $(pre + 'enable').checked,
       style:   $(pre + 'style').value,
       // Each axis's label menu: Spacing, Extent (xDist / yDist are first-
-      // to-last center) or Gap (Linear, Honeycomb: the stock left between
-      // neighbours' cuts, which withPatternGaps turns into xDist / yDist).
+      // to-last center) or Gap (Linear, Honeycomb: between neighbours'
+      // edges, which withPatternGaps turns into xDist / yDist).
       spacing: xMode === 'extent' && yMode === 'extent' ? 'extent' : 'spacing',
       xExtent: xMode === 'extent',
       yExtent: yMode === 'extent',
@@ -4464,10 +4470,11 @@
   // Pattern spacing menus: each axis's X / Y Spacing label is a menu
   // (wirePatternAxisModes) of Spacing, Extent and, on Linear and
   // Honeycomb, Gap. Switching converts the number so the copies stay put.
-  // Gap switches the box to the stock left between
-  // neighbouring copies' cuts, edge to edge, measured on the cuts
-  // themselves: the closest distance between two copies' toolpaths, less
-  // the bit diameter. X is the next copy along the row; Y the next row
+  // Gap switches the box to the distance between neighbouring copies'
+  // edges, the solid lines on the preview, at their closest: the stock
+  // left between their cuts (the closest distance between two copies'
+  // toolpaths, less the bit diameter), or on an Outer cut between the
+  // parts themselves (at least a bit diameter). X is the next copy along the row; Y the next row
   // across (on Honeycomb, the nearest of the shifted row's copies and the
   // copy a whole row away). The spacing that gives the gap is searched for,
   // so it follows the shape, bit and cut type. As with Spacing, the sign
@@ -4540,12 +4547,29 @@
         var sweep = ((m.cw ? t0 - t1 : t1 - t0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI;
         parts.push({ cu: cu, cv: cv, r: r, t0: m.cw ? t1 : t0, sweep: sweep, box: [cu - r, cv - r, cu + r, cv + r] });
       });
+      // An Outer cut's gap is between the parts' own edges (patternRadiusGeom
+      // finds them, unturned): turned into the rows' frame, unless the
+      // copies turn with the rows, and with no bit radius to take off.
+      var rg = p.cutType === 'outer' ? patternRadiusGeom(prefix, params) : null, bitR = Math.max(0, params.bitDiameter || 0) / 2;
+      if (rg && rg.outer) {
+        var turn = pat.rotateShapes ? 0 : a, ct = Math.cos(turn), st = Math.sin(turn);
+        var TU = function(x, y) { return x * ct + y * st; }, TV = function(x, y) { return y * ct - x * st; };
+        parts = rg.edges.map(function(q) {
+          if (q.r === undefined) {
+            var u0 = TU(q.u0, q.v0), v0 = TV(q.u0, q.v0), u1 = TU(q.u1, q.v1), v1 = TV(q.u1, q.v1);
+            return { u0: u0, v0: v0, u1: u1, v1: v1, box: [Math.min(u0, u1), Math.min(v0, v1), Math.max(u0, u1), Math.max(v0, v1)] };
+          }
+          var cu = TU(q.cu, q.cv), cv = TV(q.cu, q.cv);
+          return { cu: cu, cv: cv, r: q.r, t0: q.t0 - turn, sweep: q.sweep, box: [cu - q.r, cv - q.r, cu + q.r, cv + q.r] };
+        });
+        bitR = 0;
+      }
       if (parts.length) {
         var box = [Infinity, Infinity, -Infinity, -Infinity];
         parts.forEach(function(q) {
           box = [Math.min(box[0], q.box[0]), Math.min(box[1], q.box[1]), Math.max(box[2], q.box[2]), Math.max(box[3], q.box[3])];
         });
-        geom = { parts: parts, r: Math.max(0, params.bitDiameter || 0) / 2, box: { u0: box[0], v0: box[1], u1: box[2], v1: box[3] } };
+        geom = { parts: parts, r: bitR, box: { u0: box[0], v0: box[1], u1: box[2], v1: box[3] } };
       }
     } catch (e) { geom = null; }
     patternGeomCache = { key: key, geom: geom };
@@ -4682,6 +4706,12 @@
     }
     return hi;
   }
+  // The least Gap: 0, or on an Outer cut a bit diameter (the gap is
+  // between the parts, and the bit runs between them).
+  function patternGapLeast(prefix) {
+    var cut = $('qc-' + prefix + '-cut-type');
+    return cut && cut.value === 'outer' ? Math.max(0, num('qc-bit', 0)) : 0;
+  }
   function withPatternGaps(prefix, params) {
     var pat = params.pattern;
     if (pat && pat.enabled && /^circular/.test(pat.style) && pat.radiusEdge != null) withPatternRadius(prefix, params);
@@ -4697,7 +4727,8 @@
   }
   // Switches an axis's mode, converting the number through the spacing it
   // stands for so the copies stay put. Copies that overlap have no gap to
-  // show; they go to a gap of 0. The sign (direction) carries over.
+  // show; they go to the least gap (patternGapLeast). The sign (direction)
+  // carries over.
   function setPatternAxisMode(prefix, axis, mode) {
     var sel = patternGapSelect(prefix, axis), input = $('qc-' + prefix + '-pattern-' + axis + '-dist');
     var was = sel.getAttribute('data-was') || 'spacing';
@@ -4724,7 +4755,7 @@
     // the rounded number shown, so switching back and forth doesn't drift.
     if (input.value === sel.getAttribute('data-shown') && sel.getAttribute('data-ctx') === ctx && isFinite(Number(sel.getAttribute('data-spacing')))) spacing = Number(sel.getAttribute('data-spacing'));
     var out = mode === 'extent' ? (count > 1 ? spacing * (count - 1) : spacing)
-            : mode === 'gap' ? Math.max(0, patternGapAt(geom, honeycomb, axis, spacing, sx)) : spacing;
+            : mode === 'gap' ? Math.max(patternGapLeast(prefix), patternGapAt(geom, honeycomb, axis, spacing, sx)) : spacing;
     input.value = roundDisplay(sign * out);
     sel.setAttribute('data-spacing', String(spacing));
     sel.setAttribute('data-shown', input.value);
@@ -5666,7 +5697,7 @@
   // accurate. At any other angle the distances are measured along and
   // across the angled row, so the labels say that instead.
   var PATTERN_GAP_LABELS = { axis: { x: 'X Gap', y: 'Y Gap' }, angled: { x: 'Gap', y: 'Row Gap' }, honeycomb: { x: 'X Gap', y: 'Row Gap' } };
-  var PATTERN_MODE_TITLE = 'Spacing: center to center between neighbouring copies. Extent: first copy\u2019s center to the last; the copies spread evenly over it. Gap (Linear, Honeycomb): the stock left between neighbouring copies\u2019 cuts at their closest, edge to edge (on an Outer cut, outside the bit\u2019s path), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. A negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
+  var PATTERN_MODE_TITLE = 'Spacing: center to center between neighbouring copies. Extent: first copy\u2019s center to the last; the copies spread evenly over it. Gap (Linear, Honeycomb): between neighbouring copies\u2019 edges at their closest, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts (at least a bit diameter, for the bit to pass), so the spacing follows the shape and bit; on Honeycomb, Row Gap is to the nearest copy in the next row. A negative number runs the copies the other way. Changing it converts the number so the copies stay put.';
   var PATTERN_LABELS = {
     axis:   { 'x-dist': 'X Spacing', 'y-dist': 'Y Spacing', 'x-count': 'X Count', 'y-count': 'Y Count' },
     angled: { 'x-dist': 'Spacing', 'y-dist': 'Row Spacing', 'x-count': 'Count', 'y-count': 'Rows' },
@@ -9247,7 +9278,7 @@
     pattern: { title: 'Patterns', notes: [
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> shifts every other row half a step; its <strong>Y Count</strong> and <strong>Y Spacing</strong> are row by row, shifted rows included (<strong>Symmetric Ends</strong> trims the shifted rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
       '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus: pick <strong>Extent</strong> to give the first-to-last distance instead, and the copies spread evenly over it. Each direction has its own.',
-      'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the stock left between neighbouring copies&rsquo; cuts at their closest instead, edge to edge (on an Outer cut, outside the bit&rsquo;s path). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
+      'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
