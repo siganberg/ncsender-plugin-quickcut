@@ -398,8 +398,8 @@ test('clearing preserves cornerRadius only on outermost level', () => {
 // Pattern replicates the same shape at multiple positions inside a
 // single program. Header/spindle/coolant run once; each instance emits
 // its own approach, plunge, cut, and safe-Z lift.
-test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert between', () => {
-  // 3×3 primary grid with 40mm pitch:
+test('honeycomb: yCount is every row; rows alternate primary and shifted', () => {
+  // 3 across, 5 rows 20mm apart (primary rows 40mm apart):
   //   Row 0 primary (y=0):    x = 0, 40, 80          → 3 items
   //   Shifted    (y=20):      x = 20, 60, 100        → 3 items
   //   Row 1 primary (y=40):   x = 0, 40, 80          → 3 items
@@ -409,10 +409,10 @@ test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert betwe
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, cutType: 'inner', bitDiameter: 3,
-    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 3 }
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 3, yCount: 5 }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 15\)/m);
-  assert.match(gcode, /^\(Pattern: Honeycomb 3x3/m);
+  assert.match(gcode, /^\(Pattern: Honeycomb 3x5/m);
   // Origin=center anchors the WHOLE pattern's aggregate bbox center at
   // (0,0), so instance coordinates are shifted by (-50, -40) — the
   // negative of the aggregate bbox center for this 100×80 spread.
@@ -424,8 +424,18 @@ test('honeycomb: xCount × yCount = primary rows; shifted rows auto-insert betwe
   assert.match(gcode, /\(Instance 13\/15 at X-50\.000 Y40\.000\)/);
 });
 
+test('honeycomb: an even row count ends on a shifted row', () => {
+  const g = makeQuickCutGenerator(false);
+  const pts = g.computePatternPositions({ enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 3, yCount: 4 });
+  assert.equal(pts.length, 12);
+  assert.deepEqual([...new Set(pts.map(q => q.y))], [0, 20, 40, 60]);
+  assert.deepEqual(pts.filter(q => q.y === 60).map(q => q.x), [20, 60, 100]);
+  // One row is just the primary one.
+  assert.deepEqual(g.computePatternPositions({ enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 3, yCount: 1 }).map(q => q.y), [0, 0, 0]);
+});
+
 test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are always primary', () => {
-  // 3×3 primary grid with hexTrim:
+  // 3 across, 5 rows, with hexTrim:
   //   Primary row 0 (y=0):  3 items
   //   Shifted    (y=20):    2 items (trim)
   //   Primary row 1 (y=40): 3 items
@@ -437,7 +447,7 @@ test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are alwa
     diameter: 5, cutType: 'inner', bitDiameter: 3,
     pattern: {
       enabled: true, style: 'honeycomb', hexTrim: true,
-      xDist: 40, yDist: 40, xCount: 3, yCount: 3
+      xDist: 40, yDist: 20, xCount: 3, yCount: 5
     }
   }));
   assert.match(gcode, /^\(QuickCut: Circle × 13\)/m);
@@ -606,7 +616,7 @@ test('honeycomb at an angle rotates the shifted rows too', () => {
   const gen = makeQuickCutGenerator(false).generateCircleProgram;
   const gcode = gen(circleBase({
     diameter: 5, bitDiameter: 3,
-    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 40, xCount: 2, yCount: 2, angle: 90 }
+    pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 2, yCount: 3, angle: 90 }
   }));
   // Local (0,0),(40,0) | shifted (20,20),(60,20) | (0,40),(40,40),
   // rotated 90° → x = -v, y = u. Shifted item 3 sits 20 left of row 0.
@@ -1224,6 +1234,27 @@ test('polygon: startAngleDeg=90 rotates the polygon by +90°', () => {
   assert.match(gcode, /G0 X17\.32[01] Y10\.000/);
 });
 
+test('polygon clearing: steps down from the cleared floor without lifting between passes', () => {
+  // Like rectangle clearing: after each pass the bit moves back to the
+  // innermost ring along the floor and plunges one Depth of Cut, rather
+  // than lifting to safe Z and plunging from 2mm above the stock.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  for (const cornerRadius of [0, 5]) {
+    const lines = gen(polygonBase({
+      sides: 6, radius: 20, cutType: 'clearing', bitDiameter: 6, stepoverPct: 40,
+      depth: 6, depthOfCut: 2, cornerRadius
+    })).split('\n');
+    const plunges = lines.filter(l => /^G1 Z-/.test(l));
+    assert.deepEqual(plunges.map(l => l.split(' ')[1]), ['Z-2.000', 'Z-4.000', 'Z-6.000'], 'cornerRadius ' + cornerRadius);
+    for (let i = 1; i < plunges.length; i++) {
+      const k = lines.indexOf(plunges[i]);
+      assert.match(lines[k - 1], /^G0 X\S+ Y\S+$/, 'cornerRadius ' + cornerRadius + ': hop along the floor');
+      assert.match(lines[k - 2], /^G[123] X/, 'cornerRadius ' + cornerRadius + ': no lift after the pass');
+    }
+    assert.equal(lines.filter(l => /^G0 Z/.test(l) && !/G53/.test(l)).length, 3, 'cornerRadius ' + cornerRadius + ': lifts only before and after the pocket');
+  }
+});
+
 test('polygon clearing: pattern (linear 2x2) emits 4 instances', () => {
   const gen = makeQuickCutGenerator(false).generatePolygonProgram;
   const gcode = gen(polygonBase({
@@ -1265,6 +1296,73 @@ test('polygon: clearing emits concentric shrinking polygons', () => {
   assert.match(gcode, /Stepover: 50%/);
   const g1Count = countG1XY(gcode);
   assert.ok(g1Count >= 30 && g1Count <= 40, `expected ~34 G1 XY moves, got ${g1Count}`);
+});
+
+// Points (of `pts`) that no straight cutting move below Z0 brings within
+// the bit's radius: material a clearing leaves behind.
+function uncutPoints(gcode, toolRadius, pts) {
+  const segs = []; let x = 0, y = 0, z = 0;
+  for (const line of gcode.split('\n')) {
+    const m = line.match(/^G([0-3])\b/); if (!m) continue;
+    const get = (c, v) => { const w = line.match(new RegExp(c + '(-?[\\d.]+)')); return w ? +w[1] : v; };
+    const nx = get('X', x), ny = get('Y', y), nz = get('Z', z);
+    if (m[1] === '1' && Math.max(z, nz) < 0) segs.push([x, y, nx, ny]);
+    x = nx; y = ny; z = nz;
+  }
+  const dist = (p, s) => {
+    const dx = s[2] - s[0], dy = s[3] - s[1], L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((p[0] - s[0]) * dx + (p[1] - s[1]) * dy) / L)) : 0;
+    return Math.hypot(p[0] - s[0] - t * dx, p[1] - s[1] - t * dy);
+  };
+  return pts.filter(p => segs.every(s => dist(p, s) > toolRadius + 1e-3));
+}
+
+test('polygon clearing: a high stepover still clears the middle', () => {
+  // Square, 6mm bit, 85% stepover: the rings used to stop 4.85mm from the
+  // middle (more than the 3mm bit radius), leaving a post there. The last
+  // ring now sits a bit radius from the middle.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 4, radius: 40, cutType: 'clearing', bitDiameter: 6, stepoverPct: 85, depth: 1, depthOfCut: 1 }));
+  const grid = [];
+  for (let px = -5; px <= 5; px += 0.5) for (let py = -5; py <= 5; py += 0.5) grid.push([px, py]);
+  assert.deepEqual(uncutPoints(gcode, 3, grid), []);
+});
+
+test('polygon clearing: rings close enough together to clear a triangle\'s corners', () => {
+  // Past r * (1 + cos(π/3)) = 1.5r apart (75% stepover), neighbouring rings
+  // leave an island between them in each corner, on the corner's bisector.
+  // Sample each corner's bisector, from the triangle's centre out to the
+  // outer ring's corner. (Origin 'center' is the middle of the bounding
+  // box, so the triangle's own centre isn't at X0 Y0.)
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  for (const stepoverPct of [80, 90]) {
+    const gcode = gen(polygonBase({ sides: 3, radius: 40, cutType: 'clearing', bitDiameter: 6, stepoverPct, depth: 1, depthOfCut: 1 }));
+    const corners = gcode.split('\n').filter(l => /^G1 X/.test(l)).slice(-3).map(l => [+l.match(/X(-?[\d.]+)/)[1], +l.match(/Y(-?[\d.]+)/)[1]]);
+    const cx = (corners[0][0] + corners[1][0] + corners[2][0]) / 3, cy = (corners[0][1] + corners[1][1] + corners[2][1]) / 3;
+    const pts = [];
+    for (const [qx, qy] of corners) for (let t = 0; t <= 1; t += 0.01) pts.push([cx + (qx - cx) * t, cy + (qy - cy) * t]);
+    assert.deepEqual(uncutPoints(gcode, 3, pts), [], 'stepover ' + stepoverPct);
+  }
+});
+
+test('polygon clearing: rounded corners near the bit radius still generate', () => {
+  // The rings used to land a hair over the bit radius and add an empty
+  // ring after it, which threw before anything was emitted.
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const gcode = gen(polygonBase({ sides: 3, radius: 30, cornerRadius: 2, startAngleDeg: 13, cutType: 'clearing', bitDiameter: 6, stepoverPct: 50, depth: 2, depthOfCut: 1 }));
+  assert.match(gcode.trim(), /M30/);
+  assert.ok(!/NaN/.test(gcode));
+});
+
+test('rectangle clearing: a high stepover still clears the centre line', () => {
+  // 80 × 50, 6mm bit, 75% stepover: the levels used to stop 4mm either side
+  // of the centre line, leaving a 2mm strip along it.
+  const gcode = makeQuickCutGenerator(false).generateRectangleProgram(baseParams({
+    width: 80, height: 50, cutType: 'clearing', bitDiameter: 6, stepoverPct: 75, depth: 1, depthOfCut: 1
+  }));
+  const line = [];
+  for (let px = -30; px <= 30; px += 0.5) line.push([px, 0]);
+  assert.deepEqual(uncutPoints(gcode, 3, line), []);
 });
 
 test('polygon: closes back to first vertex (last G1 equals first G0)', () => {
@@ -1688,14 +1786,19 @@ test('extent spacing spreads copies evenly from first to last center', () => {
   assert.ok(Math.abs(last.x - -40) < 1e-9 && Math.abs(last.y - 60) < 1e-9, JSON.stringify(last));
   // A count of 1 has no spacing.
   assert.deepEqual(xs(Object.assign({}, ext, { xCount: 1 })), [0]);
-  // Honeycomb: the extent covers the primary rows.
-  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 3, xDist: 80, yDist: 60, spacing: 'extent' };
+  // Honeycomb: the extent runs from the first row to the last.
+  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 5, xDist: 80, yDist: 60, spacing: 'extent' };
   const pts = g.computePatternPositions(honey);
   // Main (unshifted) rows run 0..80; the shifted rows overhang by half
   // a spacing unless Symmetric Ends trims them.
   assert.equal(Math.max(...pts.filter(q => q.y % 30 === 0).map(q => q.x)), 80);
   assert.equal(Math.max(...pts.map(q => q.y)), 60);
-  assert.deepEqual(pts, g.computePatternPositions(Object.assign({}, honey, { xDist: 40, yDist: 30, spacing: 'spacing' })));
+  assert.deepEqual(pts, g.computePatternPositions(Object.assign({}, honey, { xDist: 40, yDist: 15, spacing: 'spacing' })));
+  // Extent can be set for one axis alone.
+  const mixed = { enabled: true, style: 'linear', xCount: 5, yCount: 3, xDist: 400, yDist: 30, xExtent: true };
+  assert.deepEqual(g.computePatternPositions(mixed), g.computePatternPositions(Object.assign({}, mixed, { xDist: 100, xExtent: false })));
+  const mixedY = Object.assign({}, mixed, { xDist: 100, yDist: 60, xExtent: false, yExtent: true });
+  assert.deepEqual(g.computePatternPositions(mixedY), g.computePatternPositions(Object.assign({}, mixed, { xDist: 100, xExtent: false })));
   assert.ok(pts.some(q => q.x === 20 && q.y === 15), 'shifted row at half the worked-out spacing');
 });
 
@@ -1704,6 +1807,16 @@ test('extent pattern header gives the extent and the spacing it works out to', (
     pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 2, xDist: 100, yDist: 25, spacing: 'extent' }
   }));
   assert.match(gcode, /\(Pattern: Linear 4x2 \[extent X=100, Y=25; dX=33\.3333, dY=25\]\)/);
+  // One axis in extent: the other gives its spacing.
+  const xOnly = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
+    pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 2, xDist: 100, yDist: 25, xExtent: true }
+  }));
+  assert.match(xOnly, /\(Pattern: Linear 4x2 \[extent X=100; dX=33\.3333, dY=25\]\)/);
+  // Gap mode: the header also gives the gap asked for.
+  const gapped = makeQuickCutGenerator(false).generateDrillProgram(drillBase({
+    pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 2, xDist: 13, yDist: 25, xGap: 8 }
+  }));
+  assert.match(gapped, /\(Pattern: Linear 2x2 \[dX=13, dY=25; gap X=8\]\)/);
   assert.equal((gcode.match(/^\(Hole \d+\/8 /mg) || []).length, 8);
 });
 
@@ -1920,7 +2033,7 @@ test('origin inset on Circle, Polygon, Drill and Keyhole', () => {
 
 test('pattern position keys follow cutting order, honeycomb shifted rows are even rows', () => {
   const g = makeQuickCutGenerator(false);
-  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 2, xDist: 10, yDist: 10, hexTrim: true };
+  const honey = { enabled: true, style: 'honeycomb', xCount: 3, yCount: 3, xDist: 10, yDist: 10, hexTrim: true };
   assert.deepEqual(g.patternPositionKeys(honey), ['1,1', '2,1', '3,1', '1,2', '2,2', '1,3', '2,3', '3,3']);
   assert.equal(g.patternPositionKeys(honey).length, g.computePatternPositions(honey).length);
   assert.deepEqual(g.patternPositionKeys({ enabled: false }), ['1,1']);
@@ -2498,4 +2611,181 @@ test('slot: an outer arc cut whose ends would meet around the gap is refused', (
   assert.equal(g.slotProblem(Object.assign({}, params, { cutType: 'inner' }), g.slotCenterline(params), 5), null);
   const short = Object.assign({}, params, { sweepDeg: 300 });
   assert.equal(g.slotProblem(short, g.slotCenterline(short), 5), null);
+});
+
+// The bit centres a program visits at full depth, from its G1 moves.
+function fullDepthPoints(gcode, depth) {
+  const pts = []; let x = 0, y = 0, z = 0;
+  gcode.split('\n').forEach(l => {
+    if (/^G53/.test(l) || !/^G[0-3]\b/.test(l)) return;
+    const mx = /X(-?[\d.]+)/.exec(l), my = /Y(-?[\d.]+)/.exec(l), mz = /Z(-?[\d.]+)/.exec(l);
+    if (mx) x = +mx[1]; if (my) y = +my[1]; if (mz) z = +mz[1];
+    if (/^G1\b/.test(l) && Math.abs(z + depth) < 1e-6) pts.push({ x, y });
+  });
+  return pts;
+}
+function nearestTo(pts, p) { return Math.min(...pts.map(q => Math.hypot(q.x - p.x, q.y - p.y))); }
+
+test('dog-bone corners: the bit reaches each inside corner of a rectangle', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
+  const off = g.generateRectangleProgram(base);
+  const on = g.generateRectangleProgram(Object.assign({}, base, { cornerRelief: 'dogbone' }));
+  assert.match(on, /^\(Corner Radius: 0mm, dog-bone corners\)$/m);
+  const corners = [[-30, -20], [30, -20], [30, 20], [-30, 20]].map(([x, y]) => ({ x, y }));
+  // Without them the bit stops r·√2 from a corner; with them, exactly r.
+  corners.forEach(c => {
+    assert.ok(Math.abs(nearestTo(fullDepthPoints(off, 6), c) - 3 * Math.SQRT2) < 1e-3);
+    assert.ok(Math.abs(nearestTo(fullDepthPoints(on, 6), c) - 3) < 1e-3, JSON.stringify(c));
+  });
+  // Turned, with holding tabs: still every corner.
+  const turned = Object.assign({}, base, { cornerRelief: 'dogbone', startAngleDeg: 30, tabs: { count: 4, width: 6, height: 2 } });
+  const t = (x, y) => { const a = Math.PI / 6; return { x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) }; };
+  const tp = fullDepthPoints(g.generateRectangleProgram(turned), 6);
+  [[-30, -20], [30, -20], [30, 20], [-30, 20]].forEach(([x, y]) => assert.ok(Math.abs(nearestTo(tp, t(x, y)) - 3) < 1e-3));
+  // A clearing's last lap gets them too.
+  const cp = fullDepthPoints(g.generateRectangleProgram(Object.assign({}, base, { cornerRelief: 'dogbone', cutType: 'clearing' })), 6);
+  corners.forEach(c => assert.ok(Math.abs(nearestTo(cp, c) - 3) < 1e-3));
+});
+
+test('dog-bone corners on polygons, and to a typed corner radius smaller than the bit', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { diameter: 50, cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'dogbone' };
+  for (const sides of [3, 6]) for (const cutType of ['inner', 'clearing']) {
+    const pts = fullDepthPoints(g.generatePolygonProgram(Object.assign({}, base, { sides, cutType })), 6);
+    g.polygonCorners(Object.assign({}, base, { sides }))(0).forEach(v => assert.ok(Math.abs(nearestTo(pts, v) - 3) < 1e-3, `${sides} ${cutType}`));
+  }
+  // Corner Radius 1 with a 3 mm bit radius: the bit's edge stops on the
+  // 1 mm fillet, (r - rc)(1/sin(half) - 1) short of the sharp corner's reach.
+  const rect = { width: 60, height: 40, cornerRadius: 1, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'dogbone' };
+  const d = nearestTo(fullDepthPoints(g.generateRectangleProgram(rect), 6), { x: 30, y: 20 });
+  assert.ok(Math.abs(d - (3 + 1 * (Math.SQRT2 - 1))) < 1e-3, String(d));
+});
+
+test('corner relief changes nothing on outer cuts, when off, or when the corner radius covers the bit', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'outer', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1 };
+  assert.equal(g.generateRectangleProgram(Object.assign({}, base, { cornerRelief: 'dogbone' })), g.generateRectangleProgram(base));
+  const inner = Object.assign({}, base, { cutType: 'inner' });
+  assert.equal(g.generateRectangleProgram(Object.assign({}, inner, { cornerRelief: 'none' })), g.generateRectangleProgram(inner));
+  const round = Object.assign({}, inner, { cornerRadius: 3 });
+  assert.equal(g.generateRectangleProgram(Object.assign({}, round, { cornerRelief: 'dogbone' })), g.generateRectangleProgram(round));
+});
+
+test('T-bone corners: the bit runs on along the longer edge until it reaches the corner', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { width: 60, height: 40, cornerRadius: 0, cutType: 'inner', origin: 'center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+    feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'tbone' };
+  const prog = g.generateRectangleProgram(base);
+  assert.match(prog, /^\(Corner Radius: 0mm, T-bone corners\)$/m);
+  const pts = fullDepthPoints(prog, 6);
+  // Wider than tall: each tip is a bit radius in from the long (top or
+  // bottom) edge, straight in line with the corner, so only the short end
+  // walls are notched.
+  [[30, 20, 30, 17], [-30, 20, -30, 17], [-30, -20, -30, -17], [30, -20, 30, -17]].forEach(([cx, cy, tx, ty]) => {
+    assert.ok(Math.abs(nearestTo(pts, { x: cx, y: cy }) - 3) < 1e-3, `${cx},${cy}`);
+    assert.ok(nearestTo(pts, { x: tx, y: ty }) < 1e-3, `tip ${tx},${ty}`);
+  });
+  // Taller than wide: along the Y edges instead.
+  const tall = fullDepthPoints(g.generateRectangleProgram(Object.assign({}, base, { width: 40, height: 60 })), 6);
+  assert.ok(nearestTo(tall, { x: 17, y: 30 }) < 1e-3);
+  // Polygons and clearings reach every corner too.
+  for (const sides of [3, 6]) for (const cutType of ['inner', 'clearing']) {
+    const p = { diameter: 50, sides, cornerRadius: 0, cutType, origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+      feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'tbone' };
+    const pp = fullDepthPoints(g.generatePolygonProgram(p), 6);
+    g.polygonCorners(p)(0).forEach(v => assert.ok(Math.abs(nearestTo(pp, v) - 3) < 1e-3, `${sides} ${cutType}`));
+  }
+});
+
+test('polygon T-bones pinwheel: every edge runs on past its end in the cut direction', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const [sides, start] of [[3, 0], [4, 45], [6, 0], [8, 10]]) {
+    const p = { diameter: 50, sides, startAngleDeg: start, cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6,
+      depth: 3, depthOfCut: 3, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: 'tbone' };
+    const L = g.generatePolygonProgram(p).split('\n').filter(l => /^G[01] X/.test(l)).map(l => { const m = /X(-?[\d.]+) Y(-?[\d.]+)/.exec(l); return [+m[1], +m[2]]; });
+    let bones = 0;
+    for (let i = 2; i + 1 < L.length; i++) {
+      // An out-and-back move: it returns to the corner it left.
+      if (Math.hypot(L[i - 1][0] - L[i + 1][0], L[i - 1][1] - L[i + 1][1]) > 1e-4) continue;
+      const out = [L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1]], edge = [L[i - 1][0] - L[i - 2][0], L[i - 1][1] - L[i - 2][1]];
+      const cos = (out[0] * edge[0] + out[1] * edge[1]) / Math.hypot(...out) / Math.hypot(...edge);
+      assert.ok(cos > 0.9999, `${sides} sides: corner ${i} goes off the incoming edge`);
+      bones++;
+    }
+    assert.equal(bones, sides, `${sides} sides`);
+  }
+});
+
+test('corner relief leaves holding tabs centred on each edge', () => {
+  const g = makeQuickCutGenerator(false);
+  const tabMids = (relief, extra, fn) => {
+    const p = Object.assign({ cornerRadius: 0, cutType: 'inner', origin: 'shape-center', bitDiameter: 6, depth: 6, depthOfCut: 3,
+      feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, cornerRelief: relief, tabs: { count: 3, width: 6, height: 2 } }, extra);
+    let x = 0, y = 0, a = null; const mids = [];
+    g[fn](p).split('\n').forEach(l => {
+      const mx = /X(-?[\d.]+)/.exec(l), my = /Y(-?[\d.]+)/.exec(l);
+      if (/; Tab/.test(l)) { a = [x, y]; return; }
+      if (a && /^G1 Z/.test(l)) { mids.push([(a[0] + x) / 2, (a[1] + y) / 2]); a = null; }
+      if (mx) x = +mx[1]; if (my) y = +my[1];
+    });
+    return mids.map(m => m.map(v => v.toFixed(3)).join(',')).join(' ');
+  };
+  for (const relief of ['dogbone', 'tbone']) {
+    assert.equal(tabMids(relief, { sides: 3, diameter: 80 }, 'generatePolygonProgram'), tabMids('none', { sides: 3, diameter: 80 }, 'generatePolygonProgram'), relief);
+    assert.equal(tabMids(relief, { sides: 6, diameter: 80 }, 'generatePolygonProgram'), tabMids('none', { sides: 6, diameter: 80 }, 'generatePolygonProgram'), relief);
+  }
+});
+
+test('circular pattern header names an Inside / Outside Radius it was set by', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const params = (pattern) => baseParams({
+    width: 6, height: 6, cornerRadius: 0, cutType: 'inner', bitDiameter: 2, depth: 1, depthOfCut: 1, origin: 'center',
+    pattern: Object.assign({ enabled: true, style: 'circular', count: 4, radius: 40, startAngle: 0 }, pattern)
+  });
+  assert.match(gen(params({ radiusTo: 'inside', radiusEdge: 37 })), /Pattern: Circular \[Identical\] n=4 r=40 \[inside 37\] start=0°/);
+  assert.match(gen(params({ radiusTo: 'outside', radiusEdge: 43 })), /r=40 \[outside 43\] start=/);
+  assert.match(gen(params({ radiusTo: 'center', radiusEdge: null })), /r=40 start=/);
+});
+
+test('linear pattern header names an Overall size it was set by', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const gcode = gen(baseParams({
+    width: 6, height: 6, cornerRadius: 0, cutType: 'inner', bitDiameter: 2, depth: 1, depthOfCut: 1, origin: 'center',
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 2, xDist: 22, yDist: 10, xOverall: 50 }
+  }));
+  assert.match(gcode, /Pattern: Linear 3x2 \[dX=22, dY=10; overall X=50\]/);
+});
+
+test('a Center Inset puts the first copy\'s center that far from a corner origin', () => {
+  const gen = makeQuickCutGenerator(false).generateDrillProgram;
+  const gcode = gen(baseParams({
+    bitDiameter: 6, depth: 3, peckDepth: 0, origin: 'front-left',
+    inset: { x: 10, y: 10, to: 'center', both: true },
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 10, yDist: 10 }
+  }));
+  assert.match(gcode, /front-left, inset 10mm to centers/);
+  assert.match(gcode, /\(Hole 1\/3 at X10\.000 Y10\.000\)/);
+  assert.match(gcode, /\(Hole 3\/3 at X30\.000 Y10\.000\)/);
+  // An Edge Inset of 10 puts the hole's edge there: its center a bit radius further in.
+  assert.match(gen(baseParams({ bitDiameter: 6, depth: 3, peckDepth: 0, origin: 'front-left', inset: 10,
+    pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 10, yDist: 10 } })), /\(Hole 1\/3 at X13\.000 Y13\.000\)/);
+});
+
+test('a Center Inset changes only the axis it is on: a triangle keeps its Y on a left-center origin', () => {
+  const gen = makeQuickCutGenerator(false).generatePolygonProgram;
+  const params = (inset) => baseParams({ sides: 3, diameter: 40, cornerRadius: 0, cutType: 'inner', bitDiameter: 6, depth: 1, depthOfCut: 1,
+    origin: 'left-center', inset: inset, pattern: { enabled: false } });
+  const firstMove = (g) => g.match(/G0 X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number);
+  const edge = firstMove(gen(params(0))), center = firstMove(gen(params({ x: 0, y: 0, to: 'center', both: true })));
+  assert.equal(center[1], edge[1], 'Y unchanged');
+  assert.notEqual(center[0], edge[0], 'X measured to the center');
+  // A center origin is never moved by Center Inset.
+  const c = (inset) => firstMove(makeQuickCutGenerator(false).generatePolygonProgram(baseParams({ sides: 3, diameter: 40, cornerRadius: 0, cutType: 'inner',
+    bitDiameter: 6, depth: 1, depthOfCut: 1, origin: 'center', inset: inset, pattern: { enabled: false } })));
+  assert.deepEqual(c({ x: 5, y: 5, to: 'center', both: true }), c(0));
 });
