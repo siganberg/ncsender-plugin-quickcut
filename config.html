@@ -310,6 +310,16 @@
     color: var(--color-text-primary);
     margin: 0;
   }
+  /* A dropdown standing in for a panel's title (Rectangle / Trapezoid). */
+  .qc-title-select {
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    border: none;
+    padding: 0 2px 0 0;
+    margin-left: -2px;
+    cursor: pointer;
+  }
   /* Unit indicator inline after the panel title — accent-tinted pill
      so the operator sees at-a-glance which units the shape/depth
      fields are in. Sized to sit comfortably next to the title text. */
@@ -1520,8 +1530,11 @@
     <section class="qc-content active" data-view="rectangle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title">Rectangle</h2>
-          <p class="qc-panel-sub">Cut a rectangle by width × height, with optional corner radius. Give it a Top Width for a trapezoid.</p>
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle, or Trapezoid: a different width on top, like a sign with slanted ends. Both share every other setting.">
+            <option value="rectangle" selected>Rectangle</option>
+            <option value="trapezoid">Trapezoid</option>
+          </select></h2>
+          <p class="qc-panel-sub" id="qc-rect-sub">Cut a rectangle by width × height, with optional corner radius.</p>
         </div>
 
         <!-- One switch for every shape, moved into the active header with the
@@ -1598,35 +1611,29 @@
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
-                <div class="qc-row-3">
+                <div class="qc-row-3" id="qc-rect-size-row">
                   <div class="qc-field">
-                    <label for="qc-rect-width">Width</label>
+                    <label for="qc-rect-width" id="qc-rect-width-label">Width</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-width" min="0.001" step="0.01" value="50" required title="Size of the rectangle along X. Cut Type sets which side of the line the bit runs on.">
+                  </div>
+                  <div class="qc-field qc-rect-trap-only" style="display: none;">
+                    <select class="qc-label-select" id="qc-rect-top-align" aria-label="Top Width, lined up" title="Top Width: the back edge's length, Height from the front edge. Its menu sets where it sits over the bottom edge: centered (both ends slant the same, like a sign), or lined up with the left or right end (that end square).">
+                      <option value="center" selected>Top Width</option>
+                      <option value="left">Top Width, Left</option>
+                      <option value="right">Top Width, Right</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-top-width" min="0.001" step="0.01" value="" required aria-labelledby="qc-rect-top-align" title="The back (top) edge's length. Width is the front (bottom) edge, Height apart.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-height">Height</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required title="Size of the rectangle along Y. Cut Type sets which side of the line the bit runs on.">
                   </div>
-                  <div class="qc-field">
+                  <div class="qc-field" id="qc-rect-corner-field">
                     <label for="qc-rect-corner">Corner Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-corner" min="0" step="0.01" value="0" title="Rounds the corners (0 = square). On an Inner cut the corner can't be tighter than the bit's radius; the preview shows what you'll get. With Corner Relief, a radius smaller than the bit's sets how far into each corner the notch goes, for a part with rounded corners of its own.">
                   </div>
                 </div>
-                <div class="qc-row-3">
-                  <div class="qc-field">
-                    <label for="qc-rect-top-width">Top Width</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-top-width" min="0" step="0.01" value="" placeholder="= Width" title="Makes a trapezoid: the back (top) edge is this long and the front edge is Width, Height apart. Leave it empty for a rectangle.">
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-rect-top-align">Top Align</label>
-                    <select class="qc-select" id="qc-rect-top-align" disabled title="Where the top edge sits over the bottom one: centered (both ends slant the same, like a sign), or lined up with its left or right end (that end square).">
-                      <option value="center" selected>Centered</option>
-                      <option value="left">Left</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="qc-row-3 qc-type-row">
+                <div class="qc-row-3 qc-type-row" id="qc-rect-type-row">
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-rect-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
@@ -3473,7 +3480,7 @@
       return {
         'qc-rect-width':  { min: 0.004, max: 200,     label: 'Width' },
         'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
-        'qc-rect-top-width': { min: 0, max: 200,      label: 'Top Width' },
+        'qc-rect-top-width': { min: 0.004, max: 200,  label: 'Top Width' },
         'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
         'qc-rect-inset': { min: -200, max: 200, label: 'Inset' },
         'qc-rect-inset-y': { min: -200, max: 200, label: 'Inset Y' },
@@ -3623,7 +3630,7 @@
     return {
       'qc-rect-width':  { min: 0.1,   max: 5000,   label: 'Width' },
       'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
-      'qc-rect-top-width': { min: 0,  max: 5000,   label: 'Top Width' },
+      'qc-rect-top-width': { min: 0.1, max: 5000,  label: 'Top Width' },
       'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
       'qc-rect-inset': { min: -5000, max: 5000, label: 'Inset' },
       'qc-rect-inset-y': { min: -5000, max: 5000, label: 'Inset Y' },
@@ -3779,8 +3786,6 @@
     if (edgeRadius && patternRadiusMode(edgeRadius[1]) !== 'center') {
       rules = Object.assign({}, rules, { min: 0, label: patternRadiusMode(edgeRadius[1]) === 'inside' ? 'Inside Radius' : 'Outside Radius' });
     }
-    // Top Width is optional: empty is a plain rectangle.
-    if (id === 'qc-rect-top-width' && !String(value).trim()) return null;
     var unitKind = $(id) && $(id).getAttribute('data-unit');
     var n = unitKind ? parseUnitValue(value, state.isImperial, unitKind) : parseFloat(value);
     if (n == null || isNaN(n))                                  return rules.label + ' must be a number';
@@ -4186,7 +4191,7 @@
     return withPatternGaps('rect', Object.assign({}, common, {
       width:        num('qc-rect-width', 0),
       height:       num('qc-rect-height', 0),
-      topWidth:     num('qc-rect-top-width', 0),
+      topWidth:     rectKind() === 'trapezoid' ? num('qc-rect-top-width', 0) : 0,
       topAlign:     $('qc-rect-top-align').value,
       cornerRadius: num('qc-rect-corner', 0),
       startAngleDeg: num('qc-rect-start-angle', 0),
@@ -6299,6 +6304,8 @@
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (saved.rectangle)            $('qc-rect-top-width').value = rect.topWidth > 0 ? roundDisplay(mmToDisplay(rect.topWidth)) : '';
     if (rect.topAlign)              $('qc-rect-top-align').value = rect.topAlign;
+    if (saved.rectangle)            $('qc-rect-kind').value = rect.kind === 'trapezoid' ? 'trapezoid' : 'rectangle';
+    showRectKind(false);
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
     if (saved.rectangle)            $('qc-rect-corner-relief').value = rect.cornerRelief || 'none';
@@ -6536,7 +6543,8 @@
         tool:         toolForShape,
         width:        displayToMm(params.width),
         height:       displayToMm(params.height),
-        topWidth:     params.topWidth > 0 ? displayToMm(params.topWidth) : 0,
+        kind:         rectKind(),
+        topWidth:     num('qc-rect-top-width', 0) > 0 ? displayToMm(num('qc-rect-top-width', 0)) : 0,
         topAlign:     params.topAlign,
         cornerRadius: displayToMm(params.cornerRadius),
         startAngleDeg: params.startAngleDeg,
@@ -7119,6 +7127,8 @@
       $(id).addEventListener('input', updateRectanglePreview);
     });
     $('qc-rect-top-align').addEventListener('change', updateRectanglePreview);
+    $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); });
+    showRectKind(false);
     $('qc-rect-corner-relief').addEventListener('change', updateRectanglePreview);
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
@@ -7896,6 +7906,27 @@
     return r;
   }
 
+  // Rectangle or Trapezoid, from the menu in the title. Trapezoid adds
+  // Top Width (its label is the alignment menu) to the size row, calls
+  // Width the bottom edge, and moves Corner Radius down beside Cut Type
+  // so each row keeps three fields. picked: just chosen, so an empty Top
+  // Width is filled with 80% of Width to start from.
+  function rectKind() { return $('qc-rect-kind').value; }
+  function showRectKind(picked) {
+    var trap = rectKind() === 'trapezoid';
+    ROOT.querySelectorAll('.qc-rect-trap-only').forEach(function(el) { el.style.display = trap ? '' : 'none'; });
+    var corner = $('qc-rect-corner-field');
+    if (trap) $('qc-rect-type-row').insertBefore(corner, $('qc-rect-type-row').children[2]);
+    else $('qc-rect-size-row').appendChild(corner);
+    $('qc-rect-width-label').textContent = trap ? 'Bottom Width' : 'Width';
+    $('qc-rect-sub').textContent = trap
+      ? 'Cut a trapezoid: a bottom and a top width, Height apart, with optional corner radius.'
+      : 'Cut a rectangle by width × height, with optional corner radius.';
+    if (trap && picked && !(num('qc-rect-top-width', 0) > 0) && num('qc-rect-width', 0) > 0) {
+      $('qc-rect-top-width').value = roundDisplay(num('qc-rect-width', 0) * 0.8);
+    }
+  }
+
   function updateRectanglePreview() {
     schedulePatternPreview();
     updateInsetState('rect');
@@ -7905,8 +7936,7 @@
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
     var topW = num('qc-rect-top-width', 0);
-    $('qc-rect-top-align').disabled = !(topW > 0);
-    if (W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9) return updateTrapezoidPreview(svg);
+    if (rectKind() === 'trapezoid' && W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9) return updateTrapezoidPreview(svg);
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
     // The corner you'll get: an inner cut can't be tighter than the bit.
@@ -9793,7 +9823,7 @@
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
-      '<strong>Top Width</strong> makes it a trapezoid, like a sign with slanted ends: the front edge is Width, the back edge Top Width, Height apart. <strong>Top Align</strong> centers the top edge (both ends slant the same) or lines it up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Leave Top Width empty for a rectangle.',
+      'Pick <strong>Trapezoid</strong> from the menu in the title for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
