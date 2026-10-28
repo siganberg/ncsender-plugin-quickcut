@@ -2789,3 +2789,139 @@ test('a Center Inset changes only the axis it is on: a triangle keeps its Y on a
     bitDiameter: 6, depth: 1, depthOfCut: 1, origin: 'center', inset: inset, pattern: { enabled: false } })));
   assert.deepEqual(c({ x: 5, y: 5, to: 'center', both: true }), c(0));
 });
+
+// === Trapezoid (Rectangle with a Top Width) ===
+
+function trapezoidBase(overrides) {
+  return baseParams(Object.assign({ width: 600, topWidth: 520, height: 100, cornerRadius: 10, bitDiameter: 6.35, depth: 3, depthOfCut: 3 }, overrides));
+}
+
+// Every cutting move's points (lines and arcs, every 0.5 mm) below Z0.
+function cutPoints(gcode) {
+  const pts = []; let p = { x: 0, y: 0, z: 0 };
+  for (const line of gcode.split('\n')) {
+    const m = line.match(/^G([0-3])\b/); if (!m) continue;
+    const get = (c, v) => { const w = line.match(new RegExp('(?<![A-Z])' + c + '(-?[\\d.]+)')); return w ? +w[1] : v; };
+    const n = { x: get('X', p.x), y: get('Y', p.y), z: get('Z', p.z) };
+    if (m[1] !== '0' && Math.max(p.z, n.z) < 0) {
+      if (m[1] === '1') {
+        const k = Math.max(2, Math.ceil(Math.hypot(n.x - p.x, n.y - p.y) / 0.5));
+        for (let i = 0; i <= k; i++) pts.push([p.x + (n.x - p.x) * i / k, p.y + (n.y - p.y) * i / k]);
+      } else {
+        const cx = p.x + get('I', 0), cy = p.y + get('J', 0), r = Math.hypot(p.x - cx, p.y - cy);
+        let a0 = Math.atan2(p.y - cy, p.x - cx), a1 = Math.atan2(n.y - cy, n.x - cx);
+        if (m[1] === '3' && a1 <= a0) a1 += 2 * Math.PI;
+        if (m[1] === '2' && a1 >= a0) a1 -= 2 * Math.PI;
+        const k = Math.max(8, Math.ceil(Math.abs(a1 - a0) * r / 0.5));
+        for (let i = 0; i <= k; i++) { const a = a0 + (a1 - a0) * i / k; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+      }
+    }
+    p = n;
+  }
+  return pts;
+}
+
+// Signed distance from the trapezoid as typed (corners rounded by r):
+// the distance from its corners pulled in by r, less r.
+function trapezoidDistance(params, r) {
+  const B = params.width, T = params.topWidth, h = params.height / 2, half = Math.max(B, T) / 2;
+  const align = params.topAlign || 'center';
+  const b0 = align === 'left' ? -half : align === 'right' ? half - B : -B / 2;
+  const t0 = align === 'left' ? -half : align === 'right' ? half - T : -T / 2;
+  const v = [[b0, -h], [b0 + B, -h], [t0 + T, h], [t0, h]];
+  const n = v.map((a, i) => { const b = v[(i + 1) % 4], L = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[1] - a[1]) / L, -(b[0] - a[0]) / L]; });
+  const core = v.map((a, i) => { const p = n[(i + 3) % 4], q = n[i], s = -r / (1 + p[0] * q[0] + p[1] * q[1]); return [a[0] + (p[0] + q[0]) * s, a[1] + (p[1] + q[1]) * s]; });
+  return (pt) => {
+    let inside = true, toLine = -Infinity, toEdge = Infinity;
+    core.forEach((a, i) => {
+      const b = core[(i + 1) % 4], ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey);
+      const s = ((pt[0] - a[0]) * ey - (pt[1] - a[1]) * ex) / L;
+      toLine = Math.max(toLine, s); if (s > 0) inside = false;
+      const t = Math.max(0, Math.min(1, ((pt[0] - a[0]) * ex + (pt[1] - a[1]) * ey) / (L * L)));
+      toEdge = Math.min(toEdge, Math.hypot(pt[0] - a[0] - t * ex, pt[1] - a[1] - t * ey));
+    });
+    return (inside ? toLine : toEdge) - r;
+  };
+}
+
+test('trapezoid: Rectangle with a Top Width cuts a trapezoid; no Top Width (or the same) is the plain rectangle', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  assert.match(gen(trapezoidBase()), /\(QuickCut: Trapezoid\)/);
+  assert.match(gen(trapezoidBase()), /Size: 600mm \[bottom\], 520mm \[top, center\] x 100mm/);
+  const plain = gen(baseParams());
+  assert.equal(gen(baseParams({ topWidth: 0 })), plain);
+  assert.equal(gen(baseParams({ topWidth: 50 })), plain);
+});
+
+test('trapezoid: the bit runs exactly a bit radius outside or inside the outline, corners included', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const cases = [
+    [{}, 3.175, 3.175],
+    [{ cutType: 'inner' }, -3.175, -3.175],
+    [{ topWidth: 700, topAlign: 'left' }, 3.175, 3.175],
+    [{ topAlign: 'right', cornerRadius: 25 }, 3.175, 3.175],
+    [{ cutType: 'inner', cornerRadius: 0 }, -3.175, -3.175],
+    // Outer with sharp corners: the bit's center goes round each corner's
+    // point, further away there.
+    [{ cornerRadius: 0 }, 3.175, null]
+  ];
+  for (const [o, lo, hi] of cases) {
+    const p = trapezoidBase(o), dist = trapezoidDistance(p, p.cornerRadius);
+    const d = cutPoints(gen(p)).map(dist);
+    assert.ok(Math.abs(Math.min(...d) - lo) < 0.002, JSON.stringify(o) + ' nearest ' + Math.min(...d));
+    if (hi != null) assert.ok(Math.abs(Math.max(...d) - hi) < 0.002, JSON.stringify(o) + ' furthest ' + Math.max(...d));
+  }
+});
+
+test('trapezoid: Start Angle turns it about its center', () => {
+  const gen = makeQuickCutGenerator(false);
+  const p = trapezoidBase({ startAngleDeg: 30 }), dist = trapezoidDistance(p, p.cornerRadius);
+  const back = cutPoints(gen.generateRectangleProgram(p)).map(([x, y]) => {
+    const a = -30 * Math.PI / 180;
+    return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+  }).map(dist);
+  assert.ok(Math.abs(Math.min(...back) - 3.175) < 0.002 && Math.abs(Math.max(...back) - 3.175) < 0.002);
+});
+
+test('trapezoid: a Corner Radius too big for the shape is capped, and the header says so', () => {
+  const gcode = makeQuickCutGenerator(false).generateRectangleProgram(trapezoidBase({ cornerRadius: 500 }));
+  assert.match(gcode, /Corner Radius: 49\.99\d*mm \[500mm typed; the most that fits\]/);
+});
+
+test('trapezoid: clearing leaves nothing but the sharp corners a round bit can\'t reach', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  // The sign, and a tall one whose short top edge runs out early.
+  for (const o of [{}, { width: 200, topWidth: 20, height: 150, cornerRadius: 0 }, { stepoverPct: 90 }]) {
+    const p = trapezoidBase(Object.assign({ cutType: 'clearing' }, o)), dist = trapezoidDistance(p, p.cornerRadius);
+    const pts = cutPoints(gen(p)), r = p.bitDiameter / 2;
+    assert.ok(Math.max(...pts.map(dist)) <= -r + 1e-3, 'stays inside');
+    const reach = r / Math.sin(Math.atan2(p.height, (p.width - p.topWidth) / 2) / 2);
+    const corners = [[-p.width / 2, -p.height / 2], [p.width / 2, -p.height / 2], [p.topWidth / 2, p.height / 2], [-p.topWidth / 2, p.height / 2]];
+    const grid = [];
+    for (let x = -p.width / 2; x <= p.width / 2; x += 2) for (let y = -p.height / 2; y <= p.height / 2; y += 2) {
+      if (dist([x, y]) < -0.05 && corners.every(c => Math.hypot(c[0] - x, c[1] - y) > reach + p.cornerRadius)) grid.push([x, y]);
+    }
+    const uncut = grid.filter(g => pts.every(q => Math.hypot(q[0] - g[0], q[1] - g[1]) > r + 0.3));
+    assert.deepEqual(uncut, [], JSON.stringify(o));
+  }
+});
+
+test('trapezoid: origin corners are its own corners and edge middles', () => {
+  const gen = makeQuickCutGenerator(false);
+  const off = (origin) => gen.shapeOriginOffset('rectangle', trapezoidBase({ origin, cornerRadius: 0 }));
+  // The back-left corner (corner 4) of a 600/520 x 100 trapezoid is at (-260, 50) from its center.
+  assert.deepEqual(off('corner:4'), { x: -260, y: 50 });
+  // A box point is the box's: front-left of a 600-wide box.
+  assert.deepEqual(off('front-left'), { x: -300, y: -50 });
+  // The right edge's middle (corner 6).
+  assert.deepEqual(off('corner:6'), { x: 280, y: 0 });
+});
+
+test('trapezoid: too small for the bit says so; tabs and dog-bones still work', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  assert.match(gen(trapezoidBase({ width: 5, topWidth: 4, height: 4, cutType: 'inner' })), /WARNING: shape smaller than tool diameter/);
+  const tabbed = gen(trapezoidBase({ depth: 6, depthOfCut: 3, tabs: { count: 4, width: 10, height: 1 } }));
+  assert.match(tabbed, /Tabs: 4 x 10mm wide, 1mm high/);
+  assert.match(gen(trapezoidBase({ cutType: 'inner', cornerRadius: 0, cornerRelief: 'dogbone' })), /dog-bone corners/);
+  assert.ok(maxArcRadiusDelta(gen(trapezoidBase())) < GRBL_ARC_TOLERANCE_MM);
+});
