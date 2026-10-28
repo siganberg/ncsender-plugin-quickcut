@@ -2861,9 +2861,9 @@ test('trapezoid: the bit runs exactly a bit radius outside or inside the outline
     [{ topWidth: 700, topAlign: 'left' }, 3.175, 3.175],
     [{ topAlign: 'right', cornerRadius: 25 }, 3.175, 3.175],
     [{ cutType: 'inner', cornerRadius: 0 }, -3.175, -3.175],
-    // Outer with sharp corners: the bit's center goes round each corner's
-    // point, further away there.
-    [{ cornerRadius: 0 }, 3.175, null]
+    // Outer with sharp corners: the bit goes round each corner's point.
+    [{ cornerRadius: 0 }, 3.175, 3.175],
+    [{ cornerRadius: 0, width: 200, topWidth: 20, height: 5 }, 3.175, 3.175]
   ];
   for (const [o, lo, hi] of cases) {
     const p = trapezoidBase(o), dist = trapezoidDistance(p, p.cornerRadius);
@@ -2924,4 +2924,26 @@ test('trapezoid: too small for the bit says so; tabs and dog-bones still work', 
   assert.match(tabbed, /Tabs: 4 x 10mm wide, 1mm high/);
   assert.match(gen(trapezoidBase({ cutType: 'inner', cornerRadius: 0, cornerRelief: 'dogbone' })), /dog-bone corners/);
   assert.ok(maxArcRadiusDelta(gen(trapezoidBase())) < GRBL_ARC_TOLERANCE_MM);
+});
+
+test('trapezoid: clearing a tall narrow one at a high stepover leaves no ridge down the middle', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  for (const o of [{ width: 40, topWidth: 20, height: 100, stepoverPct: 75 }, { width: 20, topWidth: 10, height: 300, stepoverPct: 90 }]) {
+    const p = trapezoidBase(Object.assign({ cutType: 'clearing', cornerRadius: 0, bitDiameter: 6 }, o)), dist = trapezoidDistance(p, 0);
+    const pts = cutPoints(gen(p)), r = 3;
+    const reach = r / Math.sin(Math.atan2(p.height, (p.width - p.topWidth) / 2) / 2);
+    const corners = [[-p.width / 2, -p.height / 2], [p.width / 2, -p.height / 2], [p.topWidth / 2, p.height / 2], [-p.topWidth / 2, p.height / 2]];
+    const grid = [];
+    for (let x = -p.width / 2; x <= p.width / 2; x += 0.5) for (let y = -p.height / 2; y <= p.height / 2; y += 1) {
+      if (dist([x, y]) < -0.05 && corners.every(c => Math.hypot(c[0] - x, c[1] - y) > reach)) grid.push([x, y]);
+    }
+    assert.deepEqual(grid.filter(g => pts.every(q => Math.hypot(q[0] - g[0], q[1] - g[1]) > r + 0.05)), [], JSON.stringify(o));
+  }
+});
+
+test('trapezoid: no Corner Relief notch past a top edge too short to keep its corners', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const p = trapezoidBase({ width: 100, topWidth: 2, height: 50, bitDiameter: 6, cutType: 'inner', cornerRadius: 0, cornerRelief: 'dogbone' });
+  const top = Math.max(...cutPoints(gen(p)).map(q => q[1]));
+  assert.ok(top + 3 <= 25 + 1e-3, 'the bit stays below the top edge, reached ' + (top + 3));
 });
