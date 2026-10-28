@@ -8075,23 +8075,23 @@
     // Fitted as the rectangle is, a thin shape drawn at least 14 tall (so
     // each axis has its own scale, fx and fy).
     var pad = insetPad('rect') + bitEdgePad(cutType), boxW = Math.max(W, T);
-    var fit = Math.min(60 / (boxW + 2 * pad), 52 / (H + 2 * pad));
-    if (turn % 180) fit = Math.min(fit, 66 / Math.hypot(boxW + 2 * pad, H + 2 * pad));
+    var fit = Math.min(54 / (boxW + 2 * pad), 52 / (H + 2 * pad));
+    if (turn % 180) fit = Math.min(fit, 60 / Math.hypot(boxW + 2 * pad, H + 2 * pad));
     var fx = fit, fy = Math.max(fit, Math.min(14, 52 * H / (H + 2 * pad)) / H);
     // SVG y points down, so a CCW machine turn is this on screen.
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T2(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
     function S(mx, my) { return T2(mx * fx, -my * fy); }
     function P(mx, my) { var q = S(mx, my); return q.x.toFixed(2) + ',' + q.y.toFixed(2); }
-    // A generator outline (lines and CCW arcs) as an SVG path; CCW on the
-    // machine is clockwise on screen (sweep 1).
+    // A generator outline (lines and CCW arcs) as an SVG path. Flipping Y
+    // keeps it turning left on screen, so the arcs are sweep 0.
     function pathOf(segs) {
       if (!segs || !segs.length) return '';
       var d = '';
       segs.forEach(function(sg, i) {
         if (i === 0) d += sg.type === 'line' ? 'M' + P(sg.x0, sg.y0) : 'M' + P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0));
         if (sg.type === 'line') { d += ' L' + P(sg.x1, sg.y1); return; }
-        d += ' A' + (sg.r * fx).toFixed(2) + ',' + (sg.r * fy).toFixed(2) + ' ' + (-turn) + ' ' + (sg.a1 - sg.a0 > Math.PI ? 1 : 0) + ' 1 ' +
+        d += ' A' + (sg.r * fx).toFixed(2) + ',' + (sg.r * fy).toFixed(2) + ' ' + (-turn) + ' ' + (sg.a1 - sg.a0 > Math.PI ? 1 : 0) + ' 0 ' +
           P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
       });
       return d + ' Z';
