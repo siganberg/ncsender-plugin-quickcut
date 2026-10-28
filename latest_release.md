@@ -1,34 +1,29 @@
 ## What's Changed
 
 ### ✨ New Features
-- New Slot tab for straight and arc slots, with holding tabs, Cut Type beside Width, and a Radius and Sweep row that puts Sweep before Start Angle
-- Grid pattern for straight slots, with center lines cut back and forth
-- Ring of arc slots by setting the pattern Radius to 0
-- Live pattern preview beside the pattern fields, showing the pattern's overall size
-- Click a blank spot on any preview to enlarge it, then drag to turn the pattern or shape; the angle is shown while you drag, and Esc closes the enlarged view
-- Preview twists use half degrees with miter stops, and snap square within 5 degrees
-- Inset from the origin, with separate Inset X and Inset Y; a negative inset moves the cut out past the origin, and previews show the Inset
-- Load a tab's settings from a saved QuickCut program, with a search box to find files
-- Saved programs get descriptive names
-- Polygon size can be set across corners, across flats, or by edge length
-- Keyhole can be sized by Slot Length or Slot Ratio, starts with a 3/8 inch bit, and shows a surface outline
-- Both Ways cut direction on the Jointer and the Cutter
-- Wasteboard Surfacing can avoid the ncSender Pro keepout zone and the ATCi tool rack keepout, and works on machines whose coordinates run negative
-- Tooltips for every field, menu and switch, shown after 1 second of touch or keyboard focus, with a Touch Tooltips switch at the top right of Help
-- New All help topics page, linked from every Help page and shown the first time you open Help
+- Corner Relief for inside Rectangle and Polygon cuts, with a choice of Dog-bone or T-bone corners so square parts fit into the pocket. On Polygons, T-bones turn the same way around the shape
+- Corner Relief is greyed out when your bit can already cut the Corner Radius
+- Click Bit Diameter to fill in the diameter of the tool that is loaded
+- Linear and Honeycomb patterns have a new Gap option that sets how much stock is left between copies. On an Outer cut, Gap is measured between the parts and is never less than one bit diameter
+- Spacing, Extent and Gap now sit in each axis's spacing menu. Extent is measured center to center, and a new Overall mode measures edge to edge so every copy fits inside it
+- Honeycomb Y Count is now the actual number of rows, and Honeycomb Y Spacing is measured row to row
+- The Circular pattern has a Radius menu with Center, Inside or Outside. Inside and Outside measure to the solid edges, or to the part on an Outer cut
+- Inset can measure to the edge of the cut or to the centers of the copies
 
 ### 🔧 Improvements
-- Pick the Origin by tapping the preview on Circle, Keyhole, Rectangle edge middles, and straight slot corners and long sides
-- Magnified origin view attached to the preview corner, and you can tap slot points inside it
-- Larger tap targets on the Origin picker's dots, faint hints showing where you can tap, and a pointer cursor over pickable points
-- Keyhole now uses the standard Origin picker, and the Planer's Origin picker sits under its preview
-- Shape previews mark the cut's other edge for perimeter and outer cuts, and Outer previews hatch only the band the bit removes
-- Previews show the shape as typed even when the bit rounds its corners
-- Dimensions are clearer: arrows end on the outline, Polygon Edge Length is dimensioned outside the edge, and labels match the Inset accent style
-- Jointer preview draws each trim with its feed arrow
-- More compact Shape and Depth layout on every shape tab
-- Field problems stay on the field until fixed without moving the cursor, and error messages clear on any edit, on Generate, and when the dialog closes
+- The pattern preview draws each copy the same way the shape previews do, keeps dashed corners, tints areas where copies overlap, and shows the Circular pattern's radius circle
+- The pattern preview shows Spacing, Extent and Gap measurements, and tells you why it is empty when there is nothing to show
+- Slot shape problems now show as soon as you leave the field
+- The magnified origin view also shows the dashed edge of the cut
+- The Load panel now looks like ncSender's File Manager
+- The Inset menu uses "XY" when X and Y are set separately, to save space
+- When you switch an Inset back, only the values that still work are restored
 
 ### 🐛 Bug Fixes
-- Fixed Climb and Conventional being swapped on some Jointer and Cutter sides
-- Fixed the Origin picker's corner dots hanging past the card's left edge
+- Clearings no longer leave islands at high stepover, and rounded Polygon clearings no longer crash
+- Polygon clearing steps down to the next pass without lifting
+- Polygon Depth of Cut can no longer be set higher than Total Depth
+- Feeds show whole numbers, and values are kept when you switch units
+- Load's confirmation bubble uses the theme's accent colour
+- The Jointer "# of Trims" label fits on one line
+- Note bubbles close as soon as you click or move focus elsewhere
