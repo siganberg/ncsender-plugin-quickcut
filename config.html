@@ -3799,6 +3799,11 @@
       if (slotProblem && slotProblem.field === id) return slotProblem.message;
     }
 
+    // A trapezoid's top and bottom widths must differ (else it's a rectangle).
+    if (id === 'qc-rect-top-width' && rectKind() === 'trapezoid' && Math.abs(n - num('qc-rect-width', NaN)) < 1e-9) {
+      return 'Top Width is the same as Bottom Width; pick Rectangle in the title for that';
+    }
+
     // Cross-field: Depth of Cut can't be deeper than Total Depth — a
     // single pass to that depth would overshoot the requested total.
     if (id === 'qc-rect-step') {
@@ -8173,8 +8178,26 @@
       bitEdge(edgeD, cutType) +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       ideal + dims +
+      tabMarks('rect', tabLines()) +
       pickHints(rectPreviewNodes) +
       originCross(o.x, o.y, 'rect', scale);
+
+    // The tool path, as tabIntervals spaces the tabs along it (real
+    // lengths), moved back onto the shape's outline (a bit radius in or
+    // out) and drawn there.
+    function tabLines() {
+      var d = (cutType === 'outer' ? 1 : -1) * bitD / 2;
+      return (geo.segs || []).map(function(sg) {
+        var ends = sg.type === 'line' ? [{ x: sg.x0, y: sg.y0 }, { x: sg.x1, y: sg.y1 }]
+          : [sg.a0, sg.a1].map(function(a) { return { x: sg.cx + (sg.r - d) * Math.cos(a), y: sg.cy + (sg.r - d) * Math.sin(a) }; });
+        if (sg.type === 'line') {
+          var nx = (sg.y1 - sg.y0) / sg.len, ny = -(sg.x1 - sg.x0) / sg.len;
+          ends = ends.map(function(q) { return { x: q.x - d * nx, y: q.y - d * ny }; });
+        }
+        var a = S(ends[0].x, ends[0].y), b = S(ends[1].x, ends[1].y);
+        return { type: 'line', x0: a.x, y0: a.y, x1: b.x, y1: b.y, len: sg.len };
+      });
+    }
   }
 
   // Planer preview — side view of the material being surfaced. The
@@ -9826,7 +9849,7 @@
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
-      'Pick <strong>Trapezoid</strong> from the menu in the title for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so.',
+      'Pick <strong>Trapezoid</strong> from the menu in the title for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Tap a corner or an edge&rsquo;s middle in the preview to put X0 Y0 on the trapezoid itself; the Origin picker&rsquo;s points are the corners and edges of the box around it, so with a top wider or narrower than the bottom, a box corner can sit in the air beside the slanted end.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
