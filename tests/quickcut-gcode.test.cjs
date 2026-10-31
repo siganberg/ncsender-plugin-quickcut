@@ -3066,3 +3066,127 @@ test('triangle: Corner Radius, tabs, dog-bones and a pattern work as on the trap
   assert.match(gen(triangleBase({ cutType: 'inner', cornerRelief: 'dogbone' })), /dog-bone corners/);
   assert.match(gen(triangleBase({ pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 120, yDist: 0 } })), /Instance 2\/2/);
 });
+
+// === Ellipse, Arch, Ring, Star ===
+
+// Distance from a closed outline given as dense points, signed: negative inside.
+function outlineDistance(pts, inside) {
+  return (q) => {
+    let best = Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length], ex = b[0] - a[0], ey = b[1] - a[1], L2 = ex * ex + ey * ey;
+      const t = L2 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * ex + (q[1] - a[1]) * ey) / L2)) : 0;
+      best = Math.min(best, Math.hypot(q[0] - a[0] - t * ex, q[1] - a[1] - t * ey));
+    }
+    return inside(q) ? -best : best;
+  };
+}
+function ellipsePts(a, b) {
+  return Array.from({ length: 4000 }, (_, i) => { const t = 2 * Math.PI * i / 4000; return [a * Math.cos(t), b * Math.sin(t)]; });
+}
+function archPts(W, H, h, pointed) {
+  const a = W / 2, yc = H / 2 - h, pts = [[-a, -H / 2], [a, -H / 2]];
+  if (pointed) {
+    const R = (a * a + h * h) / (2 * a), cx = a - R, apex = Math.atan2(h, -cx), right = [];
+    for (let i = 0; i <= 2000; i++) { const t = apex * i / 2000; right.push([cx + R * Math.cos(t), yc + R * Math.sin(t)]); }
+    return pts.concat(right, right.slice().reverse().map(p => [-p[0], p[1]]));
+  }
+  for (let i = 0; i <= 4000; i++) { const u = Math.PI * i / 4000; pts.push([a * Math.cos(u), yc + h * Math.sin(u)]); }
+  return pts;
+}
+function pointInPolygon(pts) {
+  return (q) => {
+    let c = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      if ((yi > q[1]) !== (yj > q[1]) && q[0] < (xj - xi) * (q[1] - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  };
+}
+function shapeBase(overrides) {
+  return baseParams(Object.assign({ cornerRadius: 0, bitDiameter: 6.35, depth: 3, depthOfCut: 3 }, overrides));
+}
+
+test('ellipse: the bit runs a bit radius outside or inside it, within 0.02 mm', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  for (const [cutType, want] of [['outer', 3.175], ['inner', -3.175]]) {
+    const p = shapeBase({ kind: 'ellipse', width: 200, height: 80, cutType }), g = gen(p);
+    assert.match(g, /\(QuickCut: Ellipse\)/);
+    assert.match(g, /Size: 200mm x 80mm/);
+    const pts = ellipsePts(100, 40), dist = outlineDistance(pts, pointInPolygon(pts));
+    const cut = cutPoints(g);
+    assert.ok(cut.length > 100);
+    for (const q of cut) assert.ok(Math.abs(dist(q) - want) < 0.02, JSON.stringify([cutType, q, dist(q)]));
+  }
+});
+
+test('ellipse: clearing stays inside and leaves no gap; no Corner Relief on it', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const p = shapeBase({ kind: 'ellipse', width: 120, height: 60, cutType: 'clearing', stepoverPct: 40 });
+  const pts = ellipsePts(60, 30), inside = pointInPolygon(pts), dist = outlineDistance(pts, inside);
+  const cut = cutPoints(gen(p));
+  for (const q of cut) assert.ok(dist(q) <= -3.175 + 0.02);
+  for (let i = 0; i < 300; i++) {
+    const q = [(Math.random() - 0.5) * 120, (Math.random() - 0.5) * 60];
+    if (!inside(q) || dist(q) > -3.175 - 0.5) continue;
+    assert.ok(cut.some(s => Math.hypot(s[0] - q[0], s[1] - q[1]) <= 3.175 + 0.3), JSON.stringify(q));
+  }
+  assert.doesNotMatch(gen(shapeBase({ kind: 'ellipse', width: 120, height: 60, cutType: 'inner', cornerRelief: 'dogbone' })), /dog-bone/);
+});
+
+test('arch: round and pointed tops, outer cut a bit radius off; bad numbers refused', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  for (const [style, h] of [['round', 40], ['round', 100], ['pointed', 90]]) {
+    const p = shapeBase({ kind: 'arch', width: 120, height: 160, archRise: h, archStyle: style, cutType: 'outer' }), g = gen(p);
+    assert.match(g, /\(QuickCut: Arch\)/);
+    const pts = archPts(120, 160, h, style === 'pointed'), dist = outlineDistance(pts, pointInPolygon(pts));
+    for (const q of cutPoints(g)) assert.ok(Math.abs(dist(q) - 3.175) < 0.02, JSON.stringify([style, h, q, dist(q)]));
+  }
+  assert.match(gen(shapeBase({ kind: 'arch', width: 120, height: 160, archRise: 40, archStyle: 'pointed' })), /pointed top must rise at least half the width; nothing to cut/);
+  assert.match(gen(shapeBase({ kind: 'arch', width: 120, height: 60, archRise: 80 })), /rise is more than the height; nothing to cut/);
+  // Corner Radius rounds the front corners; the origin points are its own.
+  assert.match(gen(shapeBase({ kind: 'arch', width: 120, height: 160, archRise: 60, cornerRadius: 10 })), /^G3 /m);
+  const off = makeQuickCutGenerator(false).shapeOriginOffset('rectangle', shapeBase({ kind: 'arch', width: 120, height: 160, archRise: 60, origin: 'corner:4' }));
+  assert.ok(Math.abs(off.x) < 1e-9 && Math.abs(off.y - 80) < 1e-9, JSON.stringify(off));
+});
+
+test('ring: the hole first, then the part, each a bit radius off', () => {
+  const gen = makeQuickCutGenerator(false).generateCircleProgram;
+  const g = gen(shapeBase({ kind: 'ring', diameter: 100, innerDiameter: 40, cutType: 'outer' }));
+  assert.match(g, /\(QuickCut: Ring\)/);
+  assert.ok(g.indexOf('(Hole)') > 0 && g.indexOf('(Hole)') < g.indexOf('(Part)'));
+  const radii = [...new Set(cutPoints(g).map(q => Math.hypot(q[0], q[1]).toFixed(1)))];
+  assert.deepEqual(radii.sort(), ['16.8', '53.2']);
+  assert.match(gen(shapeBase({ kind: 'ring', diameter: 100, innerDiameter: 120 })), /inner diameter must be less than the diameter; nothing to cut/);
+  assert.match(gen(shapeBase({ kind: 'ring', diameter: 100, innerDiameter: 5 })), /hole is smaller than the bit; nothing to cut/);
+});
+
+test('star: Outer and Inner cuts a bit radius off its edges, a point up at Start Angle 0', () => {
+  const gen = makeQuickCutGenerator(false);
+  const params = (o) => shapeBase(Object.assign({ kind: 'star', sides: 5, diameter: 120, innerDiameter: 50, origin: 'shape-center' }, o));
+  const v = gen.starVertices(params({}));
+  assert.ok(Math.abs(v[0].x) < 1e-9 && Math.abs(v[0].y - 60) < 1e-9);
+  const pts = v.map(p => [p.x, p.y]), dist = outlineDistance(pts, pointInPolygon(pts));
+  for (const [cutType, want] of [['outer', 3.175], ['inner', -3.175]]) {
+    const g = gen.generatePolygonProgram(params({ cutType }));
+    assert.match(g, /\(QuickCut: Star\)/);
+    const cut = cutPoints(g);
+    assert.ok(cut.length > 50);
+    for (const q of cut) assert.ok(Math.abs(dist(q) - want) < 0.01, JSON.stringify([cutType, q, dist(q)]));
+  }
+  assert.match(gen.generatePolygonProgram(params({ diameter: 12, innerDiameter: 6, cutType: 'inner' })), /star too small for the bit/);
+  assert.match(gen.generatePolygonProgram(params({ innerDiameter: 130 })), /inner diameter must be less than the diameter/);
+  // Its points, then its inner corners, are origin corners.
+  const off = gen.shapeOriginOffset('polygon', params({ origin: 'corner:1' }));
+  assert.ok(Math.abs(off.x) < 1e-9 && Math.abs(off.y - 60) < 1e-9, JSON.stringify(off));
+});
+
+test('a pattern of curved copies reuses one worked-out shape and stays quick', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const t0 = Date.now();
+  const g = gen(shapeBase({ kind: 'ellipse', width: 300, height: 200, cutType: 'clearing', depth: 6, depthOfCut: 3,
+    pattern: { enabled: true, style: 'linear', xCount: 4, yCount: 4, xDist: 320, yDist: 220 } }));
+  assert.equal((g.match(/Instance/g) || []).length, 16);
+  assert.ok(Date.now() - t0 < 4000, 'took ' + (Date.now() - t0) + ' ms');
+});

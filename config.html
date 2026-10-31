@@ -110,7 +110,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 12px;
+    padding: 9px 12px;
     background: transparent !important;
     border: none !important;
     border-radius: 8px !important;
@@ -312,6 +312,8 @@
   }
   /* A Triangle's sides and angles that Defined By worked out, not typed. */
   .qc-tri-derived { opacity: 0.55; font-style: italic; }
+  /* A field the shape kind in the title has no use for. */
+  .qc-kind-hidden { display: none !important; }
   .qc-shape-preview-cell .qc-shape-dim-label.qc-tri-angle { font-size: 7px; }
   .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label.qc-tri-angle { font-size: 2.4px; }
   .qc-tri-drop { stroke-dasharray: 2 2; }
@@ -1514,17 +1516,41 @@
         <span class="qc-sidebar-unit" data-unit-badge>METRIC (mm)</span>
       </div>
       <nav class="qc-sidebar-nav">
-        <button type="button" class="qc-nav-btn active" data-tab="rectangle">
+        <button type="button" class="qc-nav-btn active" data-tab="rectangle" data-kind="rectangle">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></span>
           <span class="qc-nav-label">Rectangle</span>
         </button>
-        <button type="button" class="qc-nav-btn" data-tab="circle">
+        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="trapezoid">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6h9L21 18H3Z"/></svg></span>
+          <span class="qc-nav-label">Trapezoid</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="triangle">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19H3Z"/></svg></span>
+          <span class="qc-nav-label">Triangle</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="arch">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
+          <span class="qc-nav-label">Arch</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="ellipse">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></svg></span>
+          <span class="qc-nav-label">Ellipse</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="circle" data-kind="circle">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
           <span class="qc-nav-label">Circle</span>
         </button>
-        <button type="button" class="qc-nav-btn" data-tab="polygon">
+        <button type="button" class="qc-nav-btn" data-tab="circle" data-kind="ring">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/></svg></span>
+          <span class="qc-nav-label">Ring</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="polygon" data-kind="polygon">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
           <span class="qc-nav-label">Polygon</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="polygon" data-kind="star">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.8L12 16.4l-5.1 2.9 1.1-5.8-4.3-4 5.8-.7Z"/></svg></span>
+          <span class="qc-nav-label">Star</span>
         </button>
         <button type="button" class="qc-nav-btn" data-tab="slot">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
@@ -1564,10 +1590,12 @@
     <section class="qc-content active" data-view="rectangle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; or Triangle, given by its sides, angles or height. They share every other setting.">
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; Triangle, given by its sides, angles or height; Arch: a round or pointed top; or Ellipse. Each also has its own tab in the sidebar. They share every other setting.">
             <option value="rectangle" selected>Rectangle</option>
             <option value="trapezoid">Trapezoid</option>
             <option value="triangle">Triangle</option>
+            <option value="arch">Arch</option>
+            <option value="ellipse">Ellipse</option>
           </select></h2>
           <p class="qc-panel-sub" id="qc-rect-sub">Cut a rectangle by width × height, with optional corner radius.</p>
         </div>
@@ -1700,6 +1728,13 @@
                   <div class="qc-field">
                     <label for="qc-rect-height">Height</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required title="Size of the rectangle along Y. Cut Type sets which side of the line the bit runs on.">
+                  </div>
+                  <div class="qc-field qc-rect-arch-only" style="display: none;">
+                    <select class="qc-label-select" id="qc-rect-arch-style" aria-label="Rise, and the top's shape" title="How far the top rises above the straight sides. Its menu sets the top's shape: Round (half an ellipse; a semicircle at half the Width) or Pointed (two arcs meeting at a point, like a church window; it must rise at least half the Width).">
+                      <option value="round" selected>Rise, Round Top</option>
+                      <option value="pointed">Rise, Pointed Top</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-arch-rise" min="0.001" step="0.01" value="25" aria-labelledby="qc-rect-arch-style" title="How far the top rises above where the straight sides end. Height includes it; equal to Height, there are no straight sides.">
                   </div>
                   <div class="qc-field qc-rect-tri-field" data-by="height" style="display: none;">
                     <select class="qc-label-select" id="qc-rect-tri-peak" aria-label="Peak" title="Where the peak is along the base: over its middle (both sides the same), over its left or right end (a right angle there), or a set distance from the left end (past either end for a peak that leans out).">
@@ -1905,8 +1940,11 @@
     <section class="qc-content" data-view="circle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title">Circle</h2>
-          <p class="qc-panel-sub">Cut a circle by diameter, inner/outer/clearing, with optional pattern.</p>
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-circ-kind" aria-label="Shape" title="Circle, or Ring: a circle with a hole, like a washer; the hole is cut first, then the part. Each also has its own tab in the sidebar.">
+            <option value="circle" selected>Circle</option>
+            <option value="ring">Ring</option>
+          </select></h2>
+          <p class="qc-panel-sub" id="qc-circ-sub">Cut a circle by diameter, inner/outer/clearing, with optional pattern.</p>
         </div>
       </header>
 
@@ -1921,7 +1959,11 @@
                     <label for="qc-circ-diameter">Diameter</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required title="Diameter of the circle. Cut Type sets which side of the line the bit runs on.">
                   </div>
-                  <div class="qc-field">
+                  <div class="qc-field qc-circ-ring-only" style="display: none;">
+                    <label for="qc-circ-inner">Inner Diameter</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inner" min="0.001" step="0.01" value="15" title="The hole's diameter. The hole is cut first, while the part is still held, then the part around it; holding tabs go on both.">
+                  </div>
+                  <div class="qc-field" id="qc-circ-cut-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-circ-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
                       <option value="inner">Inner (perimeter)</option>
@@ -2083,8 +2125,11 @@
     <section class="qc-content" data-view="polygon">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title">Polygon</h2>
-          <p class="qc-panel-sub">Regular N-sided polygon, sized across the corners, across the flats, or by edge length.</p>
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-poly-kind" aria-label="Shape" title="Polygon, or Star: points round a diameter with their inner corners on a smaller one. Each also has its own tab in the sidebar.">
+            <option value="polygon" selected>Polygon</option>
+            <option value="star">Star</option>
+          </select></h2>
+          <p class="qc-panel-sub" id="qc-poly-sub">Regular N-sided polygon, sized across the corners, across the flats, or by edge length.</p>
         </div>
       </header>
 
@@ -2096,10 +2141,11 @@
               <div class="qc-shape-fields">
                 <div class="qc-row-3">
                   <div class="qc-field">
-                    <label for="qc-poly-sides">Sides</label>
+                    <label for="qc-poly-sides" id="qc-poly-sides-label">Sides</label>
                     <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required title="Number of sides: 3 for a triangle, 6 for a hexagon.">
                   </div>
                   <div class="qc-field">
+                    <label for="qc-poly-diameter" class="qc-poly-star-only" style="display: none;">Diameter</label>
                     <select class="qc-label-select" id="qc-poly-size-mode" aria-label="Size measured" title="What the size measures: across the corners (the circle the corners sit on), across the flats (between opposite sides; e.g. a hex pocket for a nut), or the length of one edge. Changing it converts the number so the polygon stays the same.">
                       <option value="corners" selected>Across Corners</option>
                       <option value="flats">Across Flats</option>
@@ -2107,7 +2153,11 @@
                     </select>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-diameter" min="0.001" step="0.01" value="40" required aria-labelledby="qc-poly-size-mode" title="Size of the polygon, measured the way the menu above picks: across corners, across flats or along one edge.">
                   </div>
-                  <div class="qc-field">
+                  <div class="qc-field qc-poly-star-only" style="display: none;">
+                    <label for="qc-poly-inner">Inner Diameter</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inner" min="0.001" step="0.01" value="16" title="Across the corners between the points: smaller for sharper points.">
+                  </div>
+                  <div class="qc-field" id="qc-poly-start-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
                     <input class="qc-input" type="number" id="qc-poly-start-angle" step="1" value="0" title="Turns the polygon about its center, CCW (negative = CW). 0 = a flat edge at the bottom. You can also twist the preview to turn it.">
                   </div>
@@ -2122,7 +2172,7 @@
                     </select>
                   </div>
                   <div class="qc-field">
-                    <label for="qc-poly-corner">Corner Radius</label>
+                    <label for="qc-poly-corner" id="qc-poly-corner-label">Corner Radius</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-corner" min="0" step="0.01" value="0" title="Rounds every corner (0 = sharp). On an Inner cut a corner can't be tighter than the bit's radius; the preview shows what you'll get. With Corner Relief, a radius smaller than the bit's sets how far into each corner the notch goes, for a part with rounded corners of its own.">
                   </div>
                   <div class="qc-field qc-poly-clearing-only" style="display: none;">
@@ -3343,9 +3393,7 @@
     if (TOOL_SHAPES.indexOf(state.currentTab) >= 0) {
       state.toolByShape[state.currentTab] = readToolFromInputs();
     }
-    if (target !== 'measure') {
-      btns.forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-tab') === target); });
-    }
+    if (target !== 'measure') highlightNav(target);
     var helpBtn = $('qc-help-btn');
     if (helpBtn) helpBtn.classList.toggle('active', target === 'help');
     panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
@@ -3378,25 +3426,59 @@
     // lands on it (never the measure view, which needs a shape to
     // return to). Wrapped in try/catch because some browser contexts
     // (private mode, storage quota) can throw here.
-    try { localStorage.setItem(LAST_TAB_KEY, target); } catch (e) {}
+    rememberTab();
+  }
+
+  // Some sidebar tabs are another kind of a view's shape (data-kind),
+  // the one its title menu picks: Trapezoid is the Rectangle view with
+  // Trapezoid picked. The tab lit is the view's and its kind's.
+  var KIND_MENUS = { rectangle: 'qc-rect-kind', circle: 'qc-circ-kind', polygon: 'qc-poly-kind' };
+  function navKey(btn) {
+    return btn.getAttribute('data-tab') + (btn.hasAttribute('data-kind') ? ':' + btn.getAttribute('data-kind') : '');
+  }
+  function highlightNav(view) {
+    var kind = KIND_MENUS[view] ? $(KIND_MENUS[view]).value : null;
+    document.querySelectorAll('.qc-nav-btn[data-tab]').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === view &&
+        (!b.hasAttribute('data-kind') || b.getAttribute('data-kind') === kind));
+    });
+  }
+  function rememberTab() {
+    var active = document.querySelector('.qc-nav-btn.active[data-tab]');
+    try { if (active) localStorage.setItem(LAST_TAB_KEY, navKey(active)); } catch (e) {}
+  }
+  // A title menu's pick lights its tab.
+  function kindPicked(view) {
+    if (state.currentTab !== view) return;
+    highlightNav(view);
+    rememberTab();
   }
 
   function wireTabs() {
     var btns = document.querySelectorAll('.qc-nav-btn[data-tab]');
     btns.forEach(function(btn) {
-      btn.addEventListener('click', function() { switchTab(btn.getAttribute('data-tab')); });
+      btn.addEventListener('click', function() {
+        var view = btn.getAttribute('data-tab'), menu = KIND_MENUS[view] && $(KIND_MENUS[view]);
+        if (menu && btn.hasAttribute('data-kind') && menu.value !== btn.getAttribute('data-kind')) {
+          menu.value = btn.getAttribute('data-kind');
+          menu.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        switchTab(view);
+      });
     });
-    // Restore the last-selected tab. If the saved tab no longer exists
-    // (e.g., renamed / removed), silently fall back to the default.
+    // Restore the last-selected tab (view:kind, or a view saved before
+    // kinds had tabs). If it no longer exists, fall back to the default.
     try {
       var saved = localStorage.getItem(LAST_TAB_KEY);
       if (saved) {
-        var savedBtn = document.querySelector('.qc-nav-btn[data-tab="' + saved + '"]');
+        var savedBtn = [].filter.call(btns, function(b) { return navKey(b) === saved; })[0] ||
+          document.querySelector('.qc-nav-btn[data-tab="' + saved.split(':')[0] + '"]');
         if (savedBtn) savedBtn.click();
       } else {
         state.firstOpen = true;
       }
     } catch (e) {}
+    highlightNav(state.currentTab);
   }
 
   // The Tool + Spindle & Coolant cards exist ONCE (unique input IDs) but
@@ -3599,6 +3681,9 @@
         'qc-rect-tri-left': { min: 0.004, max: 200,   label: 'Left Side' },
         'qc-rect-tri-right': { min: 0.004, max: 200,  label: 'Right Side' },
         'qc-rect-tri-height': { min: 0.004, max: 200, label: 'Height' },
+        'qc-rect-arch-rise': { min: 0.004, max: 200,  label: 'Rise' },
+        'qc-circ-inner':    { min: 0.004, max: 200, label: 'Inner Diameter' },
+        'qc-poly-inner':    { min: 0.004, max: 200, label: 'Inner Diameter' },
         'qc-rect-tri-left-angle': { min: 0.01, max: 179.99, label: 'Left Angle' },
         'qc-rect-tri-right-angle': { min: 0.01, max: 179.99, label: 'Right Angle' },
         'qc-rect-tri-peak-offset': { min: -200, max: 200, label: 'Peak From Left' },
@@ -3755,6 +3840,9 @@
       'qc-rect-tri-left': { min: 0.1, max: 5000,   label: 'Left Side' },
       'qc-rect-tri-right': { min: 0.1, max: 5000,  label: 'Right Side' },
       'qc-rect-tri-height': { min: 0.1, max: 5000, label: 'Height' },
+      'qc-rect-arch-rise': { min: 0.1, max: 5000,  label: 'Rise' },
+      'qc-circ-inner':    { min: 0.1,  max: 5000, label: 'Inner Diameter' },
+      'qc-poly-inner':    { min: 0.1,  max: 5000, label: 'Inner Diameter' },
       'qc-rect-tri-left-angle': { min: 0.01, max: 179.99, label: 'Left Angle' },
       'qc-rect-tri-right-angle': { min: 0.01, max: 179.99, label: 'Right Angle' },
       'qc-rect-tri-peak-offset': { min: -5000, max: 5000, label: 'Peak From Left' },
@@ -3947,6 +4035,29 @@
           return 'Left and Right Angles must add up to less than 180°, to leave the peak its angle';
         }
       }
+    }
+
+    // An arch's rise is part of its height; a pointed one rises at least
+    // half its width (lower, its two arcs would meet in a dip).
+    if (rectKind() === 'arch' && /^qc-rect-(arch-rise|height|width)$/.test(id)) {
+      var archW = id === 'qc-rect-width' ? n : num('qc-rect-width', NaN);
+      var archH = id === 'qc-rect-height' ? n : num('qc-rect-height', NaN);
+      var rise = id === 'qc-rect-arch-rise' ? n : num('qc-rect-arch-rise', NaN);
+      if (id === 'qc-rect-arch-rise' && rise > archH + 1e-9) return 'Rise must not exceed the Height (' + archH + ')';
+      if (id === 'qc-rect-arch-rise' && $('qc-rect-arch-style').value === 'pointed' && rise < archW / 2 - 1e-9) {
+        return 'A pointed top must rise at least half the Width (' + roundDisplay(archW / 2) + ')';
+      }
+    }
+    // A ring's or star's inner diameter is inside its diameter; a ring's
+    // hole takes the bit.
+    if (id === 'qc-circ-inner' && circKind() === 'ring') {
+      var ringD = num('qc-circ-diameter', NaN);
+      if (n >= ringD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + ringD + ')';
+      if (n <= num('qc-bit', 0) + 1e-9) return 'Inner Diameter must be more than the Bit Diameter, for the bit to cut the hole';
+    }
+    if (id === 'qc-poly-inner' && polyKind() === 'star') {
+      var starD = num('qc-poly-diameter', NaN);
+      if (n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
     }
 
     // A trapezoid's top and bottom widths must differ (else it's a rectangle).
@@ -4352,7 +4463,10 @@
       // An object even when the numbers make no triangle, so the program
       // says so rather than cutting a rectangle.
       triangle:     rectKind() === 'triangle' ? (triangleSides() || { base: 0, left: 0, right: 0 }) : null,
-      cornerRadius: num('qc-rect-corner', 0),
+      kind:         rectKind(),
+      archRise:     num('qc-rect-arch-rise', 0),
+      archStyle:    $('qc-rect-arch-style').value,
+      cornerRadius: rectKind() === 'ellipse' ? 0 : num('qc-rect-corner', 0),
       startAngleDeg: num('qc-rect-start-angle', 0),
       cutType:      $('qc-rect-cut-type').value,
       cornerRelief: $('qc-rect-corner-relief').value,
@@ -4374,7 +4488,10 @@
     var common = readCommonParams();
     return withPatternGaps('circ', Object.assign({}, common, {
       diameter:     num('qc-circ-diameter', 0),
-      cutType:      $('qc-circ-cut-type').value,
+      kind:         circKind(),
+      innerDiameter: num('qc-circ-inner', 0),
+      // A ring's part is an Outer cut (its hole an Inner one).
+      cutType:      circKind() === 'ring' ? 'outer' : $('qc-circ-cut-type').value,
       tabs:         readTabsForm('circ'),
       origin:       $('qc-circ-origin').value,
       inset:      readInset('circ'),
@@ -4659,7 +4776,9 @@
       // stores/reads diameter for parity with the Circle tab.
       radius:        diameter / 2,
       startAngleDeg: num('qc-poly-start-angle', 0),
-      cornerRadius:  num('qc-poly-corner', 0),
+      kind:          polyKind(),
+      innerDiameter: num('qc-poly-inner', 0),
+      cornerRadius:  polyKind() === 'star' ? 0 : num('qc-poly-corner', 0),
       cutType:       $('qc-poly-cut-type').value,
       cornerRelief:  $('qc-poly-corner-relief').value,
       tabs:          readTabsForm('poly'),
@@ -5440,7 +5559,7 @@
     var block = $('qc-' + prefix + '-tabs-block');
     if (!block) return;
     var cut = $('qc-' + prefix + '-cut-type').value;
-    var allowed = cut !== 'clearing' && cut !== 'center';
+    var allowed = (cut !== 'clearing' && cut !== 'center') || block.classList.contains('qc-ring-tabs');
     block.style.display = allowed ? '' : 'none';
     $('qc-' + prefix + '-tabs-fields').style.display = allowed && $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
   }
@@ -6488,7 +6607,9 @@
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (saved.rectangle)            $('qc-rect-top-width').value = rect.topWidth > 0 ? roundDisplay(mmToDisplay(rect.topWidth)) : '';
     if (rect.topAlign)              $('qc-rect-top-align').value = rect.topAlign;
-    if (saved.rectangle)            $('qc-rect-kind').value = rect.kind === 'trapezoid' || rect.kind === 'triangle' ? rect.kind : 'rectangle';
+    if (saved.rectangle)            $('qc-rect-kind').value = /^(trapezoid|triangle|arch|ellipse)$/.test(rect.kind) ? rect.kind : 'rectangle';
+    if (rect.archRise > 0)          $('qc-rect-arch-rise').value = roundDisplay(mmToDisplay(rect.archRise));
+    if (rect.archStyle)             $('qc-rect-arch-style').value = rect.archStyle;
     hydrateTriangle(rect);
     showRectKind(false);
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
@@ -6506,6 +6627,9 @@
     var circ = saved.circle || {};
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
     if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
+    if (saved.circle)               $('qc-circ-kind').value = circ.kind === 'ring' ? 'ring' : 'circle';
+    if (circ.innerDiameter > 0)     $('qc-circ-inner').value = roundDisplay(mmToDisplay(circ.innerDiameter));
+    showCircKind(false);
     if (circ.origin)                setOriginPickerValue('qc-circ-origin', migrateOrigin(circ.origin));
     hydrateInset('circ', circ.inset);
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
@@ -6567,6 +6691,9 @@
     if (poly.startAngleDeg != null) $('qc-poly-start-angle').value = poly.startAngleDeg;
     if (poly.cornerRadius != null)  $('qc-poly-corner').value = roundDisplay(mmToDisplay(poly.cornerRadius));
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
+    if (saved.polygon)              $('qc-poly-kind').value = poly.kind === 'star' ? 'star' : 'polygon';
+    if (poly.innerDiameter > 0)     $('qc-poly-inner').value = roundDisplay(mmToDisplay(poly.innerDiameter));
+    showPolyKind(false);
     if (saved.polygon)              $('qc-poly-corner-relief').value = poly.cornerRelief || 'none';
     if (poly.origin)                setOriginPickerValue('qc-poly-origin', poly.origin);
     hydrateInset('poly', poly.inset);
@@ -6741,6 +6868,8 @@
         triRightAngle: num('qc-rect-tri-right-angle', 0),
         triPeak:      $('qc-rect-tri-peak').value,
         triPeakOffset: displayToMm(num('qc-rect-tri-peak-offset', 0)),
+        archRise:     displayToMm(num('qc-rect-arch-rise', 0)),
+        archStyle:    $('qc-rect-arch-style').value,
         cornerRadius: displayToMm(params.cornerRadius),
         startAngleDeg: params.startAngleDeg,
         cutType:      params.cutType,
@@ -6757,6 +6886,8 @@
       body.circle = {
         tool:         toolForShape,
         diameter:     displayToMm(params.diameter),
+        kind:         params.kind,
+        innerDiameter: displayToMm(params.innerDiameter),
         cutType:      params.cutType,
         origin:       params.origin,
         inset:      insetToMm(params.inset),
@@ -6812,6 +6943,8 @@
         diameter:      displayToMm(params.diameter),
         sizeMode:      params.sizeMode,
         sizeValue:     displayToMm(params.sizeValue),
+        kind:          params.kind,
+        innerDiameter: displayToMm(params.innerDiameter),
         startAngleDeg: params.startAngleDeg,
         cornerRadius:  displayToMm(params.cornerRadius),
         cutType:       params.cutType,
@@ -7234,12 +7367,25 @@
           break;
         }
         tags.push('W-' + n(params.width));
+        if (params.kind === 'arch' || params.kind === 'ellipse') {
+          tags.push('H-' + n(params.height));
+          if (params.kind === 'arch') tags.push((params.archStyle === 'pointed' ? 'Pointed-' : 'Rise-') + n(params.archRise));
+          if (params.kind === 'arch' && params.cornerRadius > 0) tags.push('R-' + n(params.cornerRadius));
+          break;
+        }
         if (makeQuickCutGenerator(state.isImperial).isTrapezoid(params)) tags.push('Top-' + n(params.topWidth));
         tags.push('H-' + n(params.height));
         if (params.cornerRadius > 0) tags.push('R-' + n(params.cornerRadius));
         break;
-      case 'circle': tags.push('Dia-' + n(params.diameter)); break;
+      case 'circle':
+        tags.push('Dia-' + n(params.diameter));
+        if (params.kind === 'ring') tags.push('In-' + n(params.innerDiameter));
+        break;
       case 'polygon':
+        if (params.kind === 'star') {
+          tags.push('N-' + params.sides, 'Dia-' + n(params.diameter), 'In-' + n(params.innerDiameter));
+          break;
+        }
         tags.push('N-' + params.sides, (params.sizeMode === 'flats' ? 'AF-' : params.sizeMode === 'edge' ? 'Edge-' : 'Dia-') +
           n(params.sizeMode === 'flats' || params.sizeMode === 'edge' ? params.sizeValue : params.diameter));
         break;
@@ -7266,7 +7412,9 @@
       tags.push(/^circular/.test(pat.style) ? 'P-' + pat.count : 'P-' + pat.xCount + 'x' + pat.yCount);
     }
     tags.push(state.isImperial ? 'in' : 'mm');
-    var shapeName = params.shape === 'rectangle' && params.triangle ? 'Triangle'
+    var KIND_NAMES = { arch: 'Arch', ellipse: 'Ellipse', ring: 'Ring', star: 'Star' };
+    var shapeName = KIND_NAMES[params.kind] ? KIND_NAMES[params.kind]
+      : params.shape === 'rectangle' && params.triangle ? 'Triangle'
       : params.shape === 'rectangle' && makeQuickCutGenerator(state.isImperial).isTrapezoid(params) ? 'Trapezoid'
       : params.shape.charAt(0).toUpperCase() + params.shape.slice(1);
     return 'QuickCut-' + shapeName + '_' + tags.join('_') + '.nc';
@@ -7332,7 +7480,15 @@
     });
     $('qc-rect-top-align').addEventListener('change', updateRectanglePreview);
     wireTriangle();
-    $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); });
+    $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); kindPicked('rectangle'); });
+    $('qc-rect-arch-style').addEventListener('change', function() { recheckField('qc-rect-arch-rise'); updateRectanglePreview(); });
+    ['qc-rect-arch-rise', 'qc-rect-width', 'qc-rect-height'].forEach(function(id) {
+      $(id).addEventListener('input', function() {
+        if (rectKind() !== 'arch') return;
+        if (id === 'qc-rect-arch-rise') updateRectanglePreview();
+        else if ($('qc-rect-arch-rise').value.trim()) recheckField('qc-rect-arch-rise');
+      });
+    });
     showRectKind(false);
     $('qc-rect-corner-relief').addEventListener('change', updateRectanglePreview);
     updateClearingVisibility('rect');
@@ -7473,7 +7629,34 @@
     });
   }
 
+  // Circle or Ring, from the title menu. A ring is always its hole and
+  // its part, so Cut Type and what only a clearing uses don't show.
+  function circKind() { return $('qc-circ-kind').value; }
+  function showCircKind(picked) {
+    var ring = circKind() === 'ring';
+    ROOT.querySelectorAll('.qc-circ-ring-only').forEach(function(el) { el.style.display = ring ? '' : 'none'; });
+    $('qc-circ-cut-field').classList.toggle('qc-kind-hidden', ring);
+    ROOT.querySelectorAll('.qc-circ-clearing-only').forEach(function(el) { el.classList.toggle('qc-kind-hidden', ring); });
+    $('qc-circ-tabs-block').classList.toggle('qc-ring-tabs', ring);
+    // Its tab marks follow Cut Type, which a clearing would turn off.
+    if (ring && $('qc-circ-cut-type').value === 'clearing') {
+      $('qc-circ-cut-type').value = 'outer';
+      updateClearingVisibility('circ');
+    }
+    $('qc-circ-sub').textContent = ring
+      ? 'Cut a ring, like a washer: the hole first, then the part around it.'
+      : 'Cut a circle by diameter, inner/outer/clearing, with optional pattern.';
+    if (ring && picked && !(num('qc-circ-inner', 0) > 0 && num('qc-circ-inner', 0) < num('qc-circ-diameter', 0))) {
+      $('qc-circ-inner').value = roundDisplay(num('qc-circ-diameter', 0) / 2);
+    }
+    updateTabsVisibility('circ');
+  }
   function wireCircleForm() {
+    $('qc-circ-kind').addEventListener('change', function() { showCircKind(true); updateCirclePreview(); kindPicked('circle'); });
+    $('qc-circ-inner').addEventListener('input', updateCirclePreview);
+    $('qc-circ-diameter').addEventListener('input', function() {
+      if (circKind() === 'ring' && $('qc-circ-inner').value.trim()) recheckField('qc-circ-inner');
+    });
     $('qc-circ-cut-type').addEventListener('change', function() {
       updateClearingVisibility('circ');
       updateCirclePreview();
@@ -8461,17 +8644,28 @@
   // Width is filled with 80% of Width to start from.
   function rectKind() { return $('qc-rect-kind').value; }
   function showRectKind(picked) {
-    var kind = rectKind(), trap = kind === 'trapezoid', tri = kind === 'triangle';
+    var kind = rectKind(), trap = kind === 'trapezoid', tri = kind === 'triangle', arch = kind === 'arch', ellipse = kind === 'ellipse';
     ROOT.querySelectorAll('.qc-rect-trap-only').forEach(function(el) { el.style.display = trap ? '' : 'none'; });
     ROOT.querySelectorAll('.qc-rect-tri-only').forEach(function(el) { el.style.display = tri ? '' : 'none'; });
+    ROOT.querySelectorAll('.qc-rect-arch-only').forEach(function(el) { el.style.display = arch ? '' : 'none'; });
     var corner = $('qc-rect-corner-field');
-    if (trap || tri) $('qc-rect-type-row').insertBefore(corner, $('qc-rect-stepover').parentNode);
+    if (trap || tri || arch) $('qc-rect-type-row').insertBefore(corner, $('qc-rect-stepover').parentNode);
     else $('qc-rect-size-row').appendChild(corner);
+    // An ellipse has no corners; on a curve, Corner Relief would notch
+    // every short edge, so neither shows.
+    corner.classList.toggle('qc-kind-hidden', ellipse);
+    $('qc-rect-corner-relief').closest('.qc-relief-field').classList.toggle('qc-kind-hidden', arch || ellipse);
     $('qc-rect-width-label').textContent = rectWidthLabel();
     $('qc-rect-sub').textContent = trap
       ? 'Cut a trapezoid: a bottom and a top width, Height apart, with optional corner radius.'
       : tri ? 'Cut a triangle from its sides, angles or height, with optional corner radius.'
+      : arch ? 'Cut an arch: straight sides and a round or pointed top, with optional corner radius at the bottom.'
+      : ellipse ? 'Cut an ellipse (an oval) by width × height.'
       : 'Cut a rectangle by width × height, with optional corner radius.';
+    // A new arch starts as a semicircle on top.
+    if (arch && picked && !(num('qc-rect-arch-rise', 0) > 0) && num('qc-rect-width', 0) > 0) {
+      $('qc-rect-arch-rise').value = roundDisplay(Math.min(num('qc-rect-width', 0) / 2, num('qc-rect-height', 0)));
+    }
     if (trap && picked && !(num('qc-rect-top-width', 0) > 0) && num('qc-rect-width', 0) > 0) {
       $('qc-rect-top-width').value = roundDisplay(num('qc-rect-width', 0) * 0.8);
     }
@@ -8586,7 +8780,7 @@
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
     var topW = num('qc-rect-top-width', 0);
-    if (rectKind() === 'triangle') return updateTrapezoidPreview(svg);
+    if (/^(triangle|arch|ellipse)$/.test(rectKind())) return updateTrapezoidPreview(svg);
     if (rectKind() === 'trapezoid' && W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9) return updateTrapezoidPreview(svg);
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
@@ -8746,15 +8940,16 @@
   function updateTrapezoidPreview(svg) {
     var params = readRectangleForm(), cutType = params.cutType;
     var gen = makeQuickCutGenerator(state.isImperial);
-    var tri = !!params.triangle;
-    if (tri && !gen.isTriangle(params)) {
+    var tri = !!params.triangle, smooth = params.kind === 'arch' || params.kind === 'ellipse';
+    if (gen.convexShapeProblem(params)) {
       rectPreviewNodes = null;
-      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not a triangle yet</text>';
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not ' +
+        ({ triangle: 'a triangle', arch: 'an arch', ellipse: 'an ellipse' }[params.kind] || 'a shape') + ' yet</text>';
       return;
     }
     var W = params.width, T = params.topWidth, H = params.height, turn = params.startAngleDeg || 0;
     var geo = gen.computeTrapezoidGeom(params);
-    var most = gen.computeTrapezoidGeom(Object.assign({}, params, { cornerRadius: 1e9 })).cornerR;
+    var most = params.kind === 'ellipse' ? 0 : gen.computeTrapezoidGeom(Object.assign({}, params, { cornerRadius: 1e9 })).cornerR;
     var typedCR = Math.min(Math.max(0, params.cornerRadius || 0), most);
     var relief = geo.allCorners ? reliefStyle('rect', cutType) : null;
     var CR = relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most);
@@ -8814,7 +9009,7 @@
              '" text-anchor="' + anchor + '" dominant-baseline="' + baseline + '">' + value + '</text>';
     }
     var yB = v[0].y - gap, yT = v[2].y + gap, xH = Math.max(v[1].x, v[2].x) + gapX;
-    var dims = tri ? triangleDims() : line([v[0].x, yB], [v[1].x, yB]) + text((v[0].x + v[1].x) / 2, yB - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
+    var dims = tri ? triangleDims() : smooth ? smoothDims() : line([v[0].x, yB], [v[1].x, yB]) + text((v[0].x + v[1].x) / 2, yB - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
                line([v[3].x, yT], [v[2].x, yT]) + text((v[2].x + v[3].x) / 2, yT + 3 / fy, 'middle', turn ? 'middle' : 'auto', T) +
                line([xH, v[0].y], [xH, v[2].y]) + text(xH + 2 / fx, 0, 'start', 'middle', H);
 
@@ -8862,6 +9057,19 @@
           out += '<line class="qc-shape-dim-line qc-tri-drop" x1="' + baseEnd.x.toFixed(2) + '" y1="' + baseEnd.y.toFixed(2) + '" x2="' + foot.x.toFixed(2) + '" y2="' + foot.y.toFixed(2) + '"/>';
         }
         out += label((top.x + foot.x) / 2 + 3 + String(roundDisplay(m.height)).length * 2.2, (top.y + foot.y) / 2, roundDisplay(m.height), true);
+      }
+      return out;
+    }
+
+    // An ellipse's or arch's width under it and height beside it; an
+    // arch's rise beside its top, on the left.
+    function smoothDims() {
+      var hw = W / 2, hh = H / 2, yb = -hh - gap, xr = hw + gapX;
+      var out = line([-hw, yb], [hw, yb]) + text(0, yb - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
+                line([xr, -hh], [xr, hh]) + text(xr + 2 / fx, 0, 'start', 'middle', H);
+      if (params.kind === 'arch') {
+        var xl = -hw - gapX, ys = hh - Math.min(params.archRise, H);
+        out += line([xl, ys], [xl, hh]) + text(xl - 2 / fx, (ys + hh) / 2, 'end', 'middle', params.archRise);
       }
       return out;
     }
@@ -9304,6 +9512,7 @@
     updateInsetState('circ');
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
+    if (circKind() === 'ring') return updateRingPreview(svg);
     var D = num('qc-circ-diameter', 0);
     var cutType = $('qc-circ-cut-type').value;
     // Smaller when an inset needs room, so X0 Y0 stays in view.
@@ -9359,6 +9568,116 @@
         var k = r / (D / 2);
         return originCross(off.x * k, -off.y * k, 'circ', k);
       })() : '');
+  }
+
+  // A ring: the part and its hole to scale, the bands the bit takes
+  // (outside the part, inside the hole) hatched, holding tabs on both.
+  // The long arrows are the Diameter, the short ones the hole's.
+  function updateRingPreview(svg) {
+    var D = num('qc-circ-diameter', 0), d = num('qc-circ-inner', 0), bit = Math.max(0, num('qc-bit', 0));
+    var pad = insetPad('circ') + bitEdgePad('outer');
+    var r = D > 0 ? Math.min(40, 44 * (D / 2) / (D / 2 + pad)) : 40, k = D > 0 ? r / (D / 2) : 1;
+    var ri = d > 0 && d < D ? d / 2 * k : 0, edgeR = r + bit * k, holeEdge = Math.max(0, ri - bit * k);
+    function loop(rr) {
+      var a = rr.toFixed(2);
+      return 'M' + a + ',0 A' + a + ',' + a + ' 0 1 0 ' + (-rr).toFixed(2) + ',0 A' + a + ',' + a + ' 0 1 0 ' + a + ',0 Z';
+    }
+    var hatch = 'class="qc-shape-hatch" fill="url(#qc-circ-hatch)" fill-rule="evenodd"';
+    var hatched = '<path ' + hatch + ' d="' + loop(edgeR) + ' ' + loop(r) + '"/>' +
+      (holeEdge > 0.5 ? '<path ' + hatch + ' d="' + loop(ri) + ' ' + loop(holeEdge) + '"/>' : '');
+    circPreviewNodes = ownPreviewNodes('circ', [
+      ['back-left', -r, -r], ['back-center', 0, -r], ['back-right', r, -r],
+      ['left-center', -r, 0], ['center', 0, 0], ['right-center', r, 0],
+      ['front-left', -r, r], ['front-center', 0, r], ['front-right', r, r]
+    ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; }), 'shape-center');
+    function dimLine(rr) {
+      return '<line class="qc-shape-dim-line" x1="' + (-rr).toFixed(2) + '" y1="0" x2="' + rr.toFixed(2) + '" y2="0" ' +
+             'marker-start="url(#qc-circ-arr)" marker-end="url(#qc-circ-arr)"/>';
+    }
+    var label = function(x, value) {
+      return '<text class="qc-shape-dim-label" x="' + x.toFixed(2) + '" y="-3" text-anchor="middle">' + value + '</text>';
+    };
+    var dims = dimLine(r) + label(ri > 0 ? (r + ri) / 2 : 0, D > 0 ? D : '?') + (ri > 0 ? dimLine(ri) + label(0, d) : '');
+    var tabsOn = $('qc-circ-tabs-enable').checked;
+    svg.innerHTML =
+      shapePreviewDefs('qc-circ') +
+      hatched +
+      bitEdge(loop(edgeR), 'outer') +
+      (holeEdge > 0.5 ? bitEdge(loop(holeEdge), 'inner') : '') +
+      '<path class="qc-shape-fill" fill-rule="evenodd" d="' + loop(r) + (ri > 0 ? ' ' + loop(ri) : '') + '"/>' +
+      dims +
+      (tabsOn ? tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]) +
+        (ri > 0 ? tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: ri, a0: 0, a1: 2 * Math.PI, len: Math.PI * d }]) : '') : '') +
+      pickHints(circPreviewNodes) +
+      (D > 0 ? (function() {
+        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
+        return originCross(off.x * k, -off.y * k, 'circ', k);
+      })() : '');
+  }
+
+  // A star: drawn from the generator's own outline, its points on the
+  // preview's 40-unit circle, turned by the Start Angle; an Outer or
+  // Inner cut shows the bit's far edge. The dashed circles are its
+  // Diameter (through the points) and Inner Diameter. Taps on a point,
+  // an inner corner or its center pick the Origin.
+  function updateStarPreview(svg) {
+    var params = readPolygonForm(), gen = makeQuickCutGenerator(state.isImperial), cutType = params.cutType;
+    var D = params.diameter, d = params.innerDiameter;
+    if (!(D > 0 && d > 0 && d < D)) {
+      polyPreviewNodes = null;
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not a star yet</text>';
+      return;
+    }
+    var pad = insetPad('poly') + bitEdgePad(cutType);
+    var R = Math.min(40, 44 * (D / 2) / (D / 2 + pad)), k = R / (D / 2);
+    function P(x, y) { return (x * k).toFixed(2) + ',' + (-y * k).toFixed(2); }
+    function pathOf(segs) {
+      var out = '';
+      segs.forEach(function(sg, i) {
+        if (i === 0) out += 'M' + (sg.type === 'line' ? P(sg.x0, sg.y0) : P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0)));
+        if (sg.type === 'line') { out += ' L' + P(sg.x1, sg.y1); return; }
+        var rr = (sg.r * k).toFixed(2);
+        out += ' A' + rr + ',' + rr + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' + (sg.dir === -1 ? 1 : 0) + ' ' +
+               P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
+      });
+      return out + ' Z';
+    }
+    var verts = gen.starVertices(params), n = verts.length;
+    var outline = 'M' + verts.map(function(v) { return P(v.x, v.y); }).join(' L') + ' Z';
+    var bit = Math.max(0, params.bitDiameter), dir = bitEdgeDir(cutType);
+    var edgeSegs = dir && bit > 0 ? gen.starOutline(params, dir * bit) : null;
+    var edgeD = edgeSegs ? pathOf(edgeSegs) : '';
+    var hatched = cutType === 'outer' && edgeD
+      ? '<path class="qc-shape-hatch" fill="url(#qc-poly-hatch)" fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>' : '';
+    var ri = d / 2 * k;
+    var dim = '<circle class="qc-shape-dim-line" cx="0" cy="0" r="' + R.toFixed(2) + '"/>' +
+              '<line class="qc-shape-dim-line" x1="' + (-R).toFixed(2) + '" y1="0" x2="' + R.toFixed(2) + '" y2="0" ' +
+                'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
+              '<text class="qc-shape-dim-label" x="' + ((R + ri) / 2).toFixed(2) + '" y="-4" text-anchor="middle">' + D + '</text>' +
+              '<circle class="qc-shape-dim-line" cx="0" cy="0" r="' + ri.toFixed(2) + '"/>' +
+              '<text class="qc-shape-dim-label" x="0" y="9" text-anchor="middle">' + d + '</text>';
+    var pts = verts.map(function(v) { return { x: v.x * k, y: -v.y * k }; });
+    // Its points, then its inner corners (the generator's corner:N), then its center.
+    polyPreviewNodes = pts.filter(function(q, i) { return i % 2 === 0; })
+      .concat(pts.filter(function(q, i) { return i % 2 === 1; }))
+      .map(function(q, i) { return { x: q.x, y: q.y, value: 'corner:' + (i + 1) }; })
+      .concat([{ x: 0, y: 0, value: 'shape-center' }]);
+    originZoomFrames.poly = null;
+    svg.innerHTML =
+      shapePreviewDefs('qc-poly') +
+      hatched +
+      bitEdge(edgeD, cutType) +
+      '<path class="qc-shape-fill" d="' + outline + '"/>' +
+      dim +
+      tabMarks('poly', previewLines(pts.concat([pts[0]]), verts.map(function(v, i) {
+        var w = verts[(i + 1) % n];
+        return Math.hypot(w.x - v.x, w.y - v.y);
+      }))) +
+      pickHints(polyPreviewNodes) +
+      (function() {
+        var off = gen.shapeOriginOffset('polygon', params);
+        return originCross(off.x * k, -off.y * k, 'poly', k);
+      })();
   }
 
   // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
@@ -9810,6 +10129,7 @@
     updateReliefState('poly');
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
+    if (polyKind() === 'star') return updateStarPreview(svg);
     var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
     var startDeg = num('qc-poly-start-angle', 0);
     var diameter = polygonCornerDiameter(0);
@@ -9986,7 +10306,45 @@
     }
   }
 
+  // Polygon or Star, from the title menu. A star: Points, its Diameter
+  // across them and an Inner Diameter; no Corner Radius, Corner Relief
+  // or clearing; Start Angle moves down beside Cut Type.
+  function polyKind() { return $('qc-poly-kind').value; }
+  function showPolyKind(picked) {
+    var star = polyKind() === 'star';
+    ROOT.querySelectorAll('.qc-poly-star-only').forEach(function(el) { el.style.display = star ? '' : 'none'; });
+    var mode = $('qc-poly-size-mode');
+    // A star's size is across its points: convert the number first.
+    if (star && mode.value !== 'corners') {
+      mode.value = 'corners';
+      mode.dispatchEvent(new Event('change'));
+    }
+    mode.classList.toggle('qc-kind-hidden', star);
+    $('qc-poly-sides-label').textContent = star ? 'Points' : 'Sides';
+    $('qc-poly-corner').closest('.qc-field').classList.toggle('qc-kind-hidden', star);
+    $('qc-poly-corner-relief').closest('.qc-relief-field').classList.toggle('qc-kind-hidden', star);
+    var clearOpt = $('qc-poly-cut-type').querySelector('option[value="clearing"]');
+    clearOpt.hidden = clearOpt.disabled = star;
+    if (star && $('qc-poly-cut-type').value === 'clearing') {
+      $('qc-poly-cut-type').value = 'inner';
+      updateClearingVisibility('poly');
+    }
+    var start = $('qc-poly-start-field');
+    if (star) $('qc-poly-cut-type').closest('.qc-type-row').insertBefore(start, $('qc-poly-stepover').parentNode);
+    else $('qc-poly-sides').closest('.qc-row-3').appendChild(start);
+    $('qc-poly-sub').textContent = star
+      ? 'Cut a star: its points round a diameter, the corners between them on a smaller one.'
+      : 'Regular N-sided polygon, sized across the corners, across the flats, or by edge length.';
+    if (star && picked && !(num('qc-poly-inner', 0) > 0 && num('qc-poly-inner', 0) < num('qc-poly-diameter', 0))) {
+      $('qc-poly-inner').value = roundDisplay(num('qc-poly-diameter', 0) * 0.4);
+    }
+  }
   function wirePolygonForm() {
+    $('qc-poly-kind').addEventListener('change', function() { showPolyKind(true); updatePolygonPreview(); kindPicked('polygon'); });
+    $('qc-poly-inner').addEventListener('input', updatePolygonPreview);
+    $('qc-poly-diameter').addEventListener('input', function() {
+      if (polyKind() === 'star' && $('qc-poly-inner').value.trim()) recheckField('qc-poly-inner');
+    });
     $('qc-poly-sides').addEventListener('input', updatePolygonPreview);
     $('qc-poly-start-angle').addEventListener('input', updatePolygonPreview);
     wirePreviewAngleDrag('qc-poly-preview', 'qc-poly-start-angle', true, function(pt) {
@@ -10555,6 +10913,7 @@
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       'Pick <strong>Trapezoid</strong> from the menu in the title for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Tap a corner or an edge&rsquo;s middle in the preview to put X0 Y0 on the trapezoid itself; the Origin picker&rsquo;s points are the corners and edges of the box around it, so with a top wider or narrower than the bottom, a box corner can sit in the air beside the slanted end.',
+      'Pick <strong>Arch</strong> for straight sides under a curved top: <strong>Rise</strong> is how far the top rises, and its label is a menu: <strong>Round Top</strong> (half an ellipse; a semicircle at half the Width) or <strong>Pointed Top</strong> (two arcs meeting at a point, like a church window; it must rise at least half the Width). Height includes the rise. Corner Radius rounds the two front corners. Pick <strong>Ellipse</strong> for an oval Width by Height. Curves are cut as short straight moves within 0.01 mm of the curve, and Corner Relief doesn&rsquo;t apply to them.',
       'Pick <strong>Triangle</strong> from the same menu, then say what you know in <strong>Defined By</strong>: <strong>3 Sides</strong>; <strong>2 Sides + Angle</strong> (the Base, the Left Side and the angle between them); <strong>Base + 2 Angles</strong> (the angles at the base&rsquo;s ends); or <strong>Base + Height</strong>, with the peak centered, over either end (a right angle there), or a set distance from the left end. The Base is the front edge and the peak points to the back; Start Angle turns it. The preview shows every side and angle, the ones worked out fainter, and switching Defined By keeps the triangle. Corner Radius, tabs, Corner Relief, clearing and patterns work as on the rectangle; tap a corner or a side&rsquo;s middle to put X0 Y0 there.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
@@ -10563,10 +10922,12 @@
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS,
-      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.' ] },
+      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.',
+      'Pick <strong>Ring</strong> from the menu in the title (or its own tab) for a washer: <strong>Inner Diameter</strong> is the hole. The hole is cut first, while the part is still held, then the part around it; holding tabs go on both. Cut Type doesn&rsquo;t apply.' ] },
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
+      'Pick <strong>Star</strong> from the menu in the title (or its own tab): <strong>Points</strong>, the <strong>Diameter</strong> across them and the <strong>Inner Diameter</strong> the corners between them sit on (smaller for sharper points). Start Angle 0 points the first one to the back. Inner and Outer cuts only; the inside corners of an Outer cut and the points of an Inner one stay as sharp as the bit allows. Tap a point, an inner corner or the center to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
@@ -11421,6 +11782,10 @@
     }
 
     function polygonShapeBbox(params) {
+      if (params.kind === 'star') return segmentsBbox(starVertices(params).map(function(p, i, v) {
+        var q = v[(i + 1) % v.length];
+        return { type: 'line', x0: p.x, y0: p.y, x1: q.x, y1: q.y, len: 1 };
+      }));
       var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
       var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
       // Rounded corners: the box of the core polygon (see
@@ -11903,6 +12268,14 @@
       };
     }
     function polygonCorners(params) {
+      if (params.kind === 'star') {
+        // A star's points, then the corners between them.
+        return function(rot) {
+          var v = starVertices(params), tips = [], valleys = [];
+          v.forEach(function(p, i) { (i % 2 ? valleys : tips).push(rotatePoint(0, 0, p.x, p.y, rot)); });
+          return tips.concat(valleys);
+        };
+      }
       return function(rot) {
         var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
         var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
@@ -11963,7 +12336,7 @@
     }
 
     function generateRectangleProgram(params) {
-      if (params.triangle || isTrapezoid(params)) return generateTrapezoidProgram(params);
+      if (params.triangle || isSmoothKind(params) || isTrapezoid(params)) return generateTrapezoidProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {
         return generateRectangleClearingProgram(params);
       }
@@ -12234,6 +12607,7 @@
     }
 
     function generateCircleProgram(params) {
+      if (params.kind === 'ring') return generateRingProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {
         return generateCircleClearingProgram(params);
       }
@@ -12944,6 +13318,7 @@
     }
 
     function generatePolygonProgram(params) {
+      if (params.kind === 'star') return generateStarProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {
         return generatePolygonClearingProgram(params);
       }
@@ -13277,7 +13652,21 @@
       var most = Math.max(t.base, t.left, t.right);
       return most < t.base + t.left + t.right - most - 1e-9;
     }
-    function isConvexShape(params) { return isTriangle(params) || isTrapezoid(params); }
+    function isSmoothKind(params) { return params.kind === 'ellipse' || params.kind === 'arch'; }
+    function isConvexShape(params) {
+      return isTriangle(params) || (isSmoothKind(params) && !convexShapeProblem(params)) || isTrapezoid(params);
+    }
+    // Why the numbers make no shape, or null.
+    function convexShapeProblem(params) {
+      if (params.triangle && !isTriangle(params)) return 'the sides don\'t make a triangle';
+      if (params.kind === 'arch') {
+        if (!(params.width > 0 && params.height > 0 && params.archRise > 0)) return 'the arch needs a width, a height and a rise';
+        if (params.archRise > params.height + 1e-9) return 'the rise is more than the height';
+        if (params.archStyle === 'pointed' && params.archRise < params.width / 2 - 1e-9) return 'a pointed top must rise at least half the width';
+      }
+      if (params.kind === 'ellipse' && !(params.width > 0 && params.height > 0)) return 'the ellipse needs a width and a height';
+      return null;
+    }
 
     // The three sides from what the Triangle was given (spec.by):
     //   sss     base, left, right: the sides
@@ -13330,7 +13719,66 @@
       return [{ x: -cx, y: -cy }, { x: B - cx, y: -cy }, { x: m.peakOffset - cx, y: m.height - cy }];
     }
     function convexVertices(params) {
+      if (params.kind === 'ellipse') return ellipseVertices(params);
+      if (params.kind === 'arch') return archVertices(params);
       return isTriangle(params) ? triangleVertices(params) : trapezoidVertices(params);
+    }
+
+    // Curves on the same code: many short edges within tol of the curve,
+    // the corners between them marked smooth (s), so a grown or rounded
+    // outline joins them with a line rather than a tiny arc.
+    function curvePoints(r, sweep) {
+      var tol = isImperial ? 0.0004 : 0.01;
+      var step = 2 * Math.acos(Math.max(-1, 1 - tol / Math.max(r, tol)));
+      return Math.max(8, Math.min(360, Math.ceil(sweep / step)));
+    }
+    // Width x Height, from the front middle round CCW (a multiple of four
+    // points, so the four ends of its axes are corners).
+    function ellipseVertices(params) {
+      var a = params.width / 2, b = params.height / 2, n = 4 * Math.ceil(curvePoints(Math.max(a, b), 2 * Math.PI) / 4), v = [];
+      for (var i = 0; i < n; i++) {
+        var t = -Math.PI / 2 + 2 * Math.PI * i / n;
+        v.push({ x: a * Math.cos(t), y: b * Math.sin(t), s: true });
+      }
+      return v;
+    }
+    // A Width x Height arch: straight sides, then a top rising archRise:
+    // half an ellipse (round), or two arcs meeting at a point (pointed,
+    // with their centers on the line the curve springs from).
+    function archVertices(params) {
+      var a = params.width / 2, H = params.height, h = Math.min(params.archRise, H), yc = H / 2 - h;
+      var v = [{ x: -a, y: -H / 2 }, { x: a, y: -H / 2 }], right = [], i, n;
+      var sides = h < H - 1e-9;
+      if (params.archStyle === 'pointed' && h > a + 1e-9) {
+        var R = (a * a + h * h) / (2 * a), cx = a - R, apex = Math.atan2(h, -cx);
+        n = curvePoints(R, apex);
+        for (i = sides ? 0 : 1; i < n; i++) {
+          var t = apex * i / n;
+          right.push({ x: cx + R * Math.cos(t), y: yc + R * Math.sin(t), s: i > 0 || sides });
+        }
+        v = v.concat(right, [{ x: 0, y: yc + h }], right.slice().reverse().map(function(p) { return { x: -p.x, y: p.y, s: p.s }; }));
+      } else {
+        n = 2 * Math.ceil(curvePoints(Math.max(a, h), Math.PI) / 2);
+        for (i = sides ? 0 : 1; i <= n - (sides ? 0 : 1); i++) {
+          var u = Math.PI * i / n;
+          v.push({ x: a * Math.cos(u), y: yc + h * Math.sin(u), s: i > 0 && i < n ? true : sides });
+        }
+      }
+      return v;
+    }
+    // The points the preview's taps and corner:N origins use.
+    function convexPicks(params) {
+      var a = params.width / 2, H = params.height / 2;
+      if (params.kind === 'ellipse') return [{ x: 0, y: -H }, { x: a, y: 0 }, { x: 0, y: H }, { x: -a, y: 0 }];
+      if (params.kind === 'arch') {
+        var yc = H - Math.min(params.archRise, params.height);
+        return [{ x: -a, y: -H }, { x: a, y: -H }, { x: a, y: yc }, { x: 0, y: H }, { x: -a, y: yc }, { x: 0, y: -H }];
+      }
+      var v = convexVertices(params), k = v.length;
+      return v.concat(v.map(function(p, i) {
+        var w = v[(i + 1) % k];
+        return { x: (p.x + w.x) / 2, y: (p.y + w.y) / 2 };
+      }));
     }
 
     function trapezoidVertices(params) {
@@ -13346,7 +13794,7 @@
     function edgeNormals(verts) {
       return verts.map(function(v, i) {
         var w = verts[(i + 1) % verts.length], len = Math.hypot(w.x - v.x, w.y - v.y);
-        return { x: (w.y - v.y) / len, y: -(w.x - v.x) / len };
+        return v.s ? { x: (w.y - v.y) / len, y: -(w.x - v.x) / len, s: true } : { x: (w.y - v.y) / len, y: -(w.x - v.x) / len };
       });
     }
 
@@ -13409,8 +13857,11 @@
       var a = off(0, verts[0].e), b = off(1, verts[0].e), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       pushLine(segs, mid, b);
       for (var s = 1; s <= k; s++) {
-        var i = s % k, e = verts[i].e, p = normals[verts[(i + k - 1) % k].e], q = normals[e];
-        if (r > 0) {
+        var i = s % k, e = verts[i].e, pe = verts[(i + k - 1) % k].e, p = normals[pe], q = normals[e];
+        // A curve's corner (its edges still neighbors): a line across.
+        if (r > 0 && q.s && pe === (e + normals.length - 1) % normals.length) {
+          pushLine(segs, off(i, pe), off(i, e));
+        } else if (r > 0) {
           var a0 = Math.atan2(p.y, p.x), turn = Math.acos(Math.max(-1, Math.min(1, p.x * q.x + p.y * q.y)));
           if (turn > 1e-12) segs.push({ type: 'arc', cx: verts[i].x, cy: verts[i].y, r: r, a0: a0, a1: a0 + turn, len: r * turn });
         }
@@ -13438,13 +13889,15 @@
     function computeTrapezoidGeom(params, cx, cy, rot) {
       var part = convexVertices(params).map(function(v) {
         var p = rotatePoint(0, 0, v.x, v.y, rot || 0);
-        return { x: p.x + (cx || 0), y: p.y + (cy || 0) };
+        return { x: p.x + (cx || 0), y: p.y + (cy || 0), s: v.s };
       });
       var normals = edgeNormals(part);
       var toolRadius = params.bitDiameter / 2;
       var d = (params.cutType || 'inner') === 'outer' ? toolRadius : -toolRadius;
-      var maxInset = maxConvexInset(part, true);
-      var cornerR = Math.max(0, Math.min(params.cornerRadius || 0, maxConvexInset(part) * 0.9999));
+      // Only a clearing needs how far in the shape goes (a slow search on a
+      // curve's many edges).
+      var maxInset = params.cutType === 'clearing' ? maxConvexInset(part, true) : 0;
+      var cornerR = params.cornerRadius > 0 ? Math.max(0, Math.min(params.cornerRadius, maxConvexInset(part) * 0.9999)) : 0;
       // The sharpest corner sets how far apart clearing rings can be.
       var minAngle = Math.PI;
       for (var i = 0; i < normals.length; i++) {
@@ -13458,9 +13911,31 @@
       return {
         part: part, normals: normals, toolRadius: toolRadius, cornerR: cornerR,
         rounded: cornerR > 0 && cornerR + d > 1e-9, maxInset: maxInset, minAngle: minAngle,
-        allCorners: !!inset && inset.length === part.length,
+        // No Corner Relief on a curve: its every short edge would get one.
+        allCorners: !!inset && inset.length === part.length && !isSmoothKind(params),
         segs: convexOutline(part, normals, d, cornerR)
       };
+    }
+
+    // A path (lines and arcs) turned rot degrees about 0, 0 and moved to
+    // (cx, cy): a pattern's copies reuse one worked-out shape this way.
+    function placeSegs(segs, cx, cy, rot) {
+      var rad = (rot || 0) * Math.PI / 180;
+      function at(x, y) { var q = rotatePoint(0, 0, x, y, rot || 0); return { x: q.x + cx, y: q.y + cy }; }
+      return segs.map(function(sg) {
+        if (sg.type === 'line') {
+          var a = at(sg.x0, sg.y0), b = at(sg.x1, sg.y1);
+          return Object.assign({}, sg, { x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+        }
+        var c = at(sg.cx, sg.cy);
+        return Object.assign({}, sg, { cx: c.x, cy: c.y, a0: sg.a0 + rad, a1: sg.a1 + rad });
+      });
+    }
+    function placeConvexGeom(geom, cx, cy, rot) {
+      return Object.assign({}, geom, {
+        segs: geom.segs && placeSegs(geom.segs, cx, cy, rot),
+        rings: geom.rings && geom.rings.map(function(ring) { return placeSegs(ring, cx, cy, rot); })
+      });
     }
 
     // The part's box, about its center (as rectangleShapeBbox).
@@ -13469,19 +13944,20 @@
         var v = triangleVertices(params);
         return { minX: v[0].x, maxX: -v[0].x, minY: v[0].y, maxY: -v[0].y };
       }
+      if (isSmoothKind(params)) return { minX: -params.width / 2, maxX: params.width / 2, minY: -params.height / 2, maxY: params.height / 2 };
       var W = Math.max(params.width, params.topWidth), H = params.height;
       return { minX: -W / 2, maxX: W / 2, minY: -H / 2, maxY: H / 2 };
     }
     // Corners in cut order, then the middles of the edges each one starts:
     // a trapezoid's front, right, back and left (corner:5-8, as
     // rectangleCorners), a triangle's base, right and left (corner:4-6).
+    // An ellipse: the ends of its axes, front, right, back, left. An arch:
+    // its front corners, the right and left of where the top springs
+    // from, its top and its front's middle.
     function trapezoidCorners(params) {
+      var picks = convexPicks(params);
       return function(rot) {
-        var v = convexVertices(params), k = v.length;
-        return v.concat(v.map(function(p, i) {
-          var w = v[(i + 1) % k];
-          return { x: (p.x + w.x) / 2, y: (p.y + w.y) / 2 };
-        })).map(function(c) { return rotatePoint(0, 0, c.x, c.y, rot); });
+        return picks.map(function(c) { return rotatePoint(0, 0, c.x, c.y, rot); });
       };
     }
 
@@ -13496,10 +13972,14 @@
     function generateTrapezoidProgram(params) {
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var clearing = (params.cutType || 'inner') === 'clearing';
-      var tri = !!params.triangle, name = tri ? 'Triangle' : 'Trapezoid';
-      if (tri && !isTriangle(params)) {
+      var tri = !!params.triangle;
+      var name = tri ? 'Triangle' : params.kind === 'ellipse' ? 'Ellipse' : params.kind === 'arch' ? 'Arch' : 'Trapezoid';
+      var problem = convexShapeProblem(params);
+      // A curve has no corners to relieve.
+      if (isSmoothKind(params)) params = Object.assign({}, params, { cornerRelief: 'none' });
+      if (problem) {
         var bad = programHeader(params, { shapeLabel: name });
-        bad.push('(WARNING: the sides don\'t make a triangle; nothing to cut)');
+        bad.push(comment('WARNING: ' + problem + '; nothing to cut'));
         return bad.concat(programFooter(params)).join('\n');
       }
       var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
@@ -13509,15 +13989,19 @@
       var origin = resolveShapeOrigin(params, positions, trapezoidShapeBbox(params), trapezoidCorners(params));
       var typedR = Math.max(0, params.cornerRadius || 0);
 
-      var extras = (tri ? triangleSizeNotes(params.triangle, unitsLabel) : [
+      var extras = (tri ? triangleSizeNotes(params.triangle, unitsLabel)
+        : isSmoothKind(params) ? ['Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel +
+            (params.kind === 'arch' ? ', ' + (params.archStyle === 'pointed' ? 'pointed' : 'round') + ' top rising ' + params.archRise + unitsLabel : '') +
+            (params.kind === 'ellipse' && Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : '')]
+        : [
         'Size: ' + params.width + unitsLabel + ' (bottom), ' + params.topWidth + unitsLabel + ' (top, ' +
           (params.topAlign || 'center') + ') x ' + params.height + unitsLabel]).concat([
-        'Corner Radius: ' + parseFloat(baseGeom.cornerR.toFixed(4)) + unitsLabel +
+        params.kind === 'ellipse' ? null : 'Corner Radius: ' + parseFloat(baseGeom.cornerR.toFixed(4)) + unitsLabel +
           (typedR > baseGeom.cornerR + 1e-6 ? ' (' + typedR + unitsLabel + ' typed; the most that fits)' : '') +
           bitCornerNote(params, unitsLabel) +
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel
-      ]);
+      ]).filter(Boolean);
       if (clearing) {
         extras.push('Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')');
         extras.push('Entry: straight plunge at the innermost ring');
@@ -13541,6 +14025,7 @@
         lines.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }
+      if (clearing) baseGeom.rings = clearingRings(baseGeom, step);
 
       lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
@@ -13554,7 +14039,7 @@
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        var geom = computeTrapezoidGeom(params, mx, my, pos.rotDeg);
+        var geom = placeConvexGeom(baseGeom, mx, my, pos.rotDeg);
         if (clearing) emitOneTrapezoidClearing(lines, params, geom, step);
         else emitOneTrapezoid(lines, params, geom);
       }
@@ -13601,19 +14086,24 @@
     // corner radius while it's bigger than its distance in. Rings are at
     // most a bit radius apart: where the shape narrows along its height the
     // inner rings stop short, and wider gaps would leave a ridge there.
-    function emitOneTrapezoidClearing(lines, params, geom, step) {
-      var depth = params.depth;
-      var feedRate = params.feedRate;
-      var plungeFeedRate = params.plungeFeedRate;
+    // The rings of a copy at 0, 0, unturned (placeConvexGeom moves them).
+    function clearingRings(geom, step) {
       var r = geom.toolRadius;
       var ringStep = Math.min(step, r);
       var inmost = Math.max(r, geom.maxInset - r), insets = [r];
       while (insets[insets.length - 1] < inmost - 1e-9) {
         insets.push(Math.min(insets[insets.length - 1] + ringStep, inmost));
       }
-      var rings = insets.reverse().map(function(e) {
+      return insets.reverse().map(function(e) {
         return convexOutline(geom.part, geom.normals, -e, geom.cornerR);
       }).filter(function(ring) { return ring && ring.length; });
+    }
+    function emitOneTrapezoidClearing(lines, params, geom, step) {
+      var depth = params.depth;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+      var r = geom.toolRadius;
+      var rings = geom.rings.slice();
       var relief = !geom.rounded && geom.allCorners && cornerRelief(params);
       if (relief) rings[rings.length - 1] = cornerReliefSegments(rings[rings.length - 1], relief, r, params.cornerRadius);
 
@@ -13639,6 +14129,153 @@
       }
 
       lines.push('G0 Z' + safeHeight);
+    }
+
+    // === RING ================================================================
+    //
+    // A Circle with a hole: the hole (an Inner cut at innerDiameter) first,
+    // while the part is still held, then the part (an Outer cut at
+    // diameter), each as emitOneCircle cuts it, tabs on both.
+
+    function generateRingProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var hole = Object.assign({}, params, { diameter: params.innerDiameter, cutType: 'inner' });
+      var outer = Object.assign({}, params, { cutType: 'outer' });
+      var placed = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params));
+      var extras = [
+        'Diameter: ' + params.diameter + unitsLabel + ', Inner Diameter: ' + params.innerDiameter + unitsLabel,
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Origin: ' + placed.label
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var tabNotes = tabHeaderNotes(outer, circleSegments(computeCircleGeom(outer)), extras);
+      var lines = programHeader(params, {
+        shapeLabel: 'Ring' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+      var problem = !(params.innerDiameter > 0 && params.innerDiameter < params.diameter) ? 'the inner diameter must be less than the diameter'
+        : computeCircleGeom(hole).pathRadius <= 0 ? 'the hole is smaller than the bit' : null;
+      if (problem) {
+        lines.push(comment('WARNING: ' + problem + '; nothing to cut'));
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      lines.push.apply(lines, tabNotes);
+      lines.push.apply(lines, startupBlock(params));
+      for (var p = 0; p < positions.length; p++) {
+        var mx = positions[p].x + placed.shift.x, my = positions[p].y + placed.shift.y;
+        if (positions.length > 1) {
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length + ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + ')');
+        }
+        lines.push('(Hole)');
+        emitOneCircle(lines, hole, mx, my);
+        lines.push('(Part)');
+        emitOneCircle(lines, outer, mx, my);
+      }
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    // === STAR ================================================================
+    //
+    // A Polygon with points: sides points round diameter (across the
+    // points), with corners between them on innerDiameter; the first point
+    // straight up (to the back) at Start Angle 0. Not convex, so it has its
+    // own offset: edges moved a bit radius out (Outer) or in (Inner),
+    // meeting where their lines cross, except at a corner that turns away
+    // from the bit's side, which the bit goes round on an arc. Inner and
+    // Outer only: no clearing.
+
+    function starVertices(params) {
+      var n = Math.max(3, Math.min(12, Math.floor(params.sides || 5)));
+      var R = (params.diameter || 0) / 2, r = (params.innerDiameter || 0) / 2, v = [];
+      for (var i = 0; i < 2 * n; i++) {
+        var t = Math.PI / 2 + ((params.startAngleDeg || 0) * Math.PI / 180) + Math.PI * i / n;
+        var k = i % 2 ? r : R;
+        v.push({ x: k * Math.cos(t), y: k * Math.sin(t) });
+      }
+      return v;
+    }
+
+    // The star's outline moved d out (negative: in), CCW from the middle
+    // of its first edge, or null when an edge would run out of length (the
+    // bit too big for the star).
+    function starOutline(params, d) {
+      var v = starVertices(params), k = v.length, n = edgeNormals(v);
+      function line(i) { return n[i].x * v[i].x + n[i].y * v[i].y + d; }
+      function meet(i, j) {
+        var a = n[i], b = n[j], ca = line(i), cb = line(j), det = a.x * b.y - a.y * b.x;
+        return { x: (ca * b.y - cb * a.y) / det, y: (a.x * cb - b.x * ca) / det };
+      }
+      // The bit goes round corner i (where edge i - 1 meets edge i) when it
+      // turns away from the side it's on.
+      var round = v.map(function(p, i) {
+        var a = n[(i + k - 1) % k], b = n[i], left = a.x * b.y - a.y * b.x > 0;
+        return d > 0 ? left : d < 0 && !left;
+      });
+      var starts = [], ends = [];
+      for (var i = 0; i < k; i++) {
+        var j = (i + 1) % k;
+        starts.push(round[i] ? { x: v[i].x + d * n[i].x, y: v[i].y + d * n[i].y } : meet((i + k - 1) % k, i));
+        ends.push(round[j] ? { x: v[j].x + d * n[i].x, y: v[j].y + d * n[i].y } : meet(i, j));
+        var ex = v[j].x - v[i].x, ey = v[j].y - v[i].y;
+        if ((ends[i].x - starts[i].x) * ex + (ends[i].y - starts[i].y) * ey <= 1e-9) return null;
+      }
+      var segs = [], mid = { x: (starts[0].x + ends[0].x) / 2, y: (starts[0].y + ends[0].y) / 2 };
+      pushLine(segs, mid, ends[0]);
+      for (var s = 1; s <= k; s++) {
+        var c = s % k, p = n[(c + k - 1) % k], q = n[c];
+        if (round[c] && Math.abs(d) > 1e-12) {
+          var turn = Math.acos(Math.max(-1, Math.min(1, p.x * q.x + p.y * q.y)));
+          var sign = d > 0 ? 1 : -1, a0 = Math.atan2(sign * p.y, sign * p.x);
+          segs.push(arcSeg(v[c].x, v[c].y, Math.abs(d), a0, a0 + sign * turn, sign));
+        }
+        pushLine(segs, starts[c], s === k ? mid : ends[c]);
+      }
+      return segs;
+    }
+
+    function generateStarProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var cutType = params.cutType === 'outer' ? 'outer' : 'inner';
+      var r = params.bitDiameter / 2;
+      var n = Math.max(3, Math.min(12, Math.floor(params.sides || 5)));
+      var placed = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params));
+      var extras = [
+        'Points: ' + n + ', Diameter: ' + params.diameter + unitsLabel + ' (points), ' + params.innerDiameter + unitsLabel + ' (inner corners)',
+        'Start Angle: ' + (params.startAngleDeg || 0) + '°',
+        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
+        'Origin: ' + placed.label
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var valid = params.innerDiameter > 0 && params.innerDiameter < params.diameter;
+      var base = valid ? starOutline(params, cutType === 'outer' ? r : -r) : null;
+      var tabNotes = base ? tabHeaderNotes(params, base, extras) : [];
+      var lines = programHeader(params, {
+        shapeLabel: 'Star' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+      if (!base) {
+        lines.push(comment('WARNING: ' + (valid ? 'star too small for the bit' : 'the inner diameter must be less than the diameter') + '; nothing to cut'));
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      lines.push.apply(lines, tabNotes);
+      lines.push.apply(lines, startupBlock(params));
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p], mx = pos.x + placed.shift.x, my = pos.y + placed.shift.y;
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length + ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
+        }
+        emitOneTrapezoid(lines, params, { segs: placeSegs(base, mx, my, pos.rotDeg), toolRadius: r, rounded: true, allCorners: false });
+      }
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
     }
 
     // === SLOT ================================================================
@@ -14161,6 +14798,9 @@
       generatePolygonProgram: generatePolygonProgram,
       isTrapezoid: isTrapezoid,
       isTriangle: isTriangle,
+      convexShapeProblem: convexShapeProblem,
+      starVertices: starVertices,
+      starOutline: starOutline,
       solveTriangle: solveTriangle,
       triangleMeasures: triangleMeasures,
       computeTrapezoidGeom: computeTrapezoidGeom,
