@@ -778,6 +778,8 @@
      each label centred over its control. */
   .qc-inset-field { width: 84px; }
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
+  /* Feed Rate's menu spans its column, so the arrow sits at its own edge. */
+  #qc-feed-start { align-self: stretch; height: 14px; line-height: 14px; }
   /* Above the front dots' tap targets, which reach a few px into it. */
   .qc-origin-stack .qc-inset-field { position: relative; z-index: 1; }
   /* Inset X / Y: two boxes in the one box's width. */
@@ -1564,8 +1566,25 @@
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-bit" min="0.001" step="0.01" value="3.175" required title="Diameter of the cutting bit. The toolpath is offset by half of it so the cut lands on size.">
               </div>
               <div class="qc-field">
-                <label for="qc-feed">Feed Rate</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required title="How fast the bit moves sideways while cutting.">
+                <select class="qc-label-select" id="qc-feed-start" aria-label="Feed Rate, or starting feeds for a material" title="Feed Rate. Its menu fills in starting feeds for a material: Spindle RPM, Feed Rate and Plunge Rate for this Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. A start: listen, look at the chips, and adjust.">
+                  <option value="" selected>Feed Rate</option>
+                  <optgroup label="Starting feeds for">
+                    <option value="mdf">MDF / Plywood</option>
+                    <option value="softwood">Softwood</option>
+                    <option value="hardwood">Hardwood</option>
+                    <option value="hdpe">HDPE / UHMW</option>
+                    <option value="acrylic">Acrylic</option>
+                    <option value="aluminum">Aluminum</option>
+                    <option value="foam">Foam / tooling board</option>
+                  </optgroup>
+                  <optgroup label="The bit has">
+                    <option value="flutes-1">1 flute</option>
+                    <option value="flutes-2">2 flutes</option>
+                    <option value="flutes-3">3 flutes</option>
+                    <option value="flutes-4">4 flutes</option>
+                  </optgroup>
+                </select>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required aria-labelledby="qc-feed-start" title="How fast the bit moves sideways while cutting.">
               </div>
               <div class="qc-field">
                 <label for="qc-plunge">Plunge Rate</label>
@@ -3112,7 +3131,14 @@
     toolByShape: {},
     // Keepout zones Wasteboard Surfacing can avoid (machine mm):
     // ncSender Pro's and the ATCi plugin's, when they're on.
-    keepoutZonesMm: []
+    keepoutZonesMm: [],
+    // grblHAL $110/$111 (max rate, mm/min) and $30/$31 (spindle range),
+    // which keep the starting feeds in reach; null when unknown.
+    maxFeedMm: null,
+    spindleMax: null,
+    spindleMin: null,
+    // Flutes on the bit, for the starting feeds.
+    flutes: 2
   };
   var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
@@ -3158,6 +3184,11 @@
       }
       var travelMin = machineTravelMin(fwSettings, state.machineLimitXmm, state.machineLimitYmm);
       if (travelMin) { state.machineMinXmm = travelMin.x; state.machineMinYmm = travelMin.y; }
+      var fwNum = function(k) { return parseFloat(fwSettings && fwSettings[k] && fwSettings[k].value); };
+      if (fwNum('110') > 0 && fwNum('111') > 0) state.maxFeedMm = Math.min(fwNum('110'), fwNum('111'));
+      // grblHAL's default $30 is 1000: not a router's real top speed.
+      if (fwNum('30') >= 5000) state.spindleMax = fwNum('30');
+      if (fwNum('31') > 0) state.spindleMin = fwNum('31');
       var atci = atciKeepout(fwSettings);
       if (atci) state.keepoutZonesMm.push(atci);
     } catch (err) {
@@ -3180,6 +3211,7 @@
       evt.preventDefault();
       useLoadedToolDiameter();
     });
+    wireStartingFeeds();
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -3363,7 +3395,8 @@
       'opacity: 0;' +
       'transition: opacity 0.2s;' +
       'box-shadow: 0 2px 8px rgba(0,0,0,0.2);' +
-      'white-space: nowrap;';
+      'width: max-content;' +
+      'max-width: min(380px, 90vw);';
     document.body.appendChild(tooltip);
     var arrow = document.createElement('div');
     arrow.style.cssText =
@@ -6280,6 +6313,7 @@
     if (common.spindleDelay != null)   $('qc-delay').value  = common.spindleDelay;
     if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
     if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
+    if (!loaded && common.flutes >= 1 && common.flutes <= 4) state.flutes = Math.round(common.flutes);
     if (!loaded) {
       $('qc-save-files').checked = !!common.saveToFileManager;
       $('qc-save-files').addEventListener('change', function() {
@@ -7545,6 +7579,69 @@
       showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
     }
   }
+  // Feed Rate's label is a menu: a material fills in starting feeds (RPM,
+  // Feed and Plunge) for the Bit Diameter and the bit's flutes, which the
+  // same menu sets. It goes back to reading "Feed Rate" after each pick.
+  function startingFeeds(bitMm, flutes, material, limits) {
+    // By material, as ncCAM's (src/core/tools.js) and Spoilboard Toolbox's:
+    // the chip each tooth takes grows with the bit up to a cap; feed = RPM x
+    // flutes x chip; plunge 30% of the feed; depth per pass a share of the
+    // bit. HDPE takes a thick chip (a thin one melts it); aluminum a small
+    // one. limits: the machine's max feed ($110/$111) and spindle range
+    // ($30/$31), when known.
+    var MATERIALS = {
+      mdf: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5 },
+      softwood: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5 },
+      hardwood: { rpm: 18000, chip: 0.009, maxChip: 0.2, stepdown: 0.35 },
+      hdpe: { rpm: 15000, chip: 0.02, maxChip: 0.25, stepdown: 0.3 },
+      acrylic: { rpm: 16000, chip: 0.015, maxChip: 0.2, stepdown: 0.3 },
+      aluminum: { rpm: 18000, chip: 0.0045, maxChip: 0.06, stepdown: 0.1 },
+      foam: { rpm: 12000, chip: 0.02, maxChip: 0.4, stepdown: 1 }
+    };
+    var m = MATERIALS[material] || MATERIALS.mdf, L = limits || {};
+    var rpm = Math.round(Math.min(L.maxRpm || 24000, Math.max(L.minRpm || 0, m.rpm)));
+    var chip = Math.min(m.maxChip, m.chip * bitMm), maxFeed = Math.min(L.maxFeed || 4000, 4000);
+    var raw = rpm * (flutes || 2) * chip, feed = Math.round(Math.min(maxFeed, Math.max(150, raw)));
+    return { rpm: rpm, chipMm: chip, feedMm: feed, capped: raw > maxFeed,
+             plungeMm: Math.round(Math.max(60, feed * 0.3)), stepMm: Math.max(0.05, bitMm * m.stepdown) };
+  }
+  function showFlutes() {
+    $('qc-feed-start').querySelectorAll('option[value^="flutes-"]').forEach(function(o) {
+      var n = +o.value.slice(7);
+      o.textContent = (n === state.flutes ? '\u2713 ' : '') + n + (n === 1 ? ' flute' : ' flutes');
+    });
+  }
+  function pickStartingFeeds() {
+    var sel = $('qc-feed-start'), v = sel.value, feed = $('qc-feed');
+    sel.value = '';
+    if (!v) return;
+    if (/^flutes-/.test(v)) {
+      state.flutes = +v.slice(7);
+      showFlutes();
+      persistSettings({ common: { flutes: state.flutes } });
+      setTimeout(function() { showTooltip(feed, 'Starting feeds are now for a ' + state.flutes + '-flute bit. Pick the material from this menu.', TOOLTIP_OK, true); }, 0);
+      return;
+    }
+    var bit = displayToMm(num('qc-bit', 0));
+    if (!(bit > 0)) { setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
+    var f = startingFeeds(bit, state.flutes, v, { maxFeed: state.maxFeedMm, maxRpm: state.spindleMax, minRpm: state.spindleMin });
+    $('qc-rpm').value = f.rpm;
+    writeFeed('qc-feed', f.feedMm);
+    writeFeed('qc-plunge', f.plungeMm);
+    ['qc-rpm', 'qc-feed', 'qc-plunge'].forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
+    var u = state.unitLabel, chip = roundDisplay(mmToDisplay(f.chipMm));
+    // After the form's own change handler, which takes bubbles down.
+    setTimeout(function() { showTooltip(feed, sel.querySelector('option[value="' + v + '"]').textContent + ', a ' + state.flutes + '-flute ' +
+      roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
+      (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth per pass about ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u + '.' +
+      (v === 'aluminum' ? ' Aluminum: a 1-flute bit, air or mist, and ramp in rather than plunge.' : '') +
+      ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
+  }
+  function wireStartingFeeds() {
+    showFlutes();
+    $('qc-feed-start').addEventListener('change', pickStartingFeeds);
+  }
+
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
   // from each preview update, which every way of changing the origin hits.
@@ -9908,7 +10005,7 @@
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. The <strong>Feed Rate</strong> label is a menu: pick a material for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter, and set how many flutes the bit has in the same menu. They stay within the machine&rsquo;s max feed and spindle range. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID).',
       '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.',
