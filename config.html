@@ -4068,6 +4068,12 @@
       var cTot = num('qc-circ-depth', NaN);
       if (isFinite(cTot) && n > cTot) return 'Depth of Cut must not exceed Total Depth (' + cTot + ')';
     }
+    // Target Thickness: Z0 is on the wasteboard, so removing the whole
+    // stock or more would cut into it.
+    if (id === 'qc-plan-depth' && $('qc-plan-mode').value === 'thickness') {
+      var start = num('qc-plan-start-thickness', NaN);
+      if (isFinite(start) && n >= start - 1e-9) return 'Amount to Remove must be less than the Starting Thickness (' + start + '), or the bit cuts into the wasteboard';
+    }
     if (id === 'qc-plan-step') {
       var pTot = num('qc-plan-depth', NaN);
       if (isFinite(pTot) && n > pTot) return 'Depth of Cut must not exceed Total Depth (' + pTot + ')';
@@ -7505,7 +7511,9 @@
     $('qc-plan-mode').addEventListener('change', function() {
       updatePlanerModeVisibility();
       updatePlanerPreview();
+      recheckField('qc-plan-depth');
     });
+    $('qc-plan-start-thickness').addEventListener('input', function() { recheckField('qc-plan-depth'); });
     $('qc-plan-keepout').addEventListener('change', updatePlanerModeVisibility);
     ['qc-plan-depth', 'qc-plan-start-thickness'].forEach(function(id) {
       var el = $(id);
@@ -13014,8 +13022,10 @@
         Array.prototype.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }
-      if (isThickness && startingThickness - depth < 0) {
-        lines.push('(WARNING: target thickness goes below wasteboard — check Amount to Remove)');
+      if (isThickness && depth >= startingThickness - 1e-9) {
+        lines.push('(WARNING: Amount to Remove is the whole Starting Thickness or more, so the bit would cut into the wasteboard; nothing to cut)');
+        Array.prototype.push.apply(lines, programFooter(params));
+        return lines.join('\n');
       }
 
       Array.prototype.push.apply(lines, startupBlock(params));

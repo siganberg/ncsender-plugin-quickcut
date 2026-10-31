@@ -834,12 +834,14 @@ test('planer thickness mode emits POSITIVE Z above wasteboard', () => {
   assert.equal(negatives, 0, 'thickness mode should not emit negative-Z plunges');
 });
 
-test('planer thickness mode warns if target goes below wasteboard', () => {
+test('planer thickness mode refuses to remove the whole stock (it would cut the wasteboard)', () => {
   const gen = makeQuickCutGenerator(false).generatePlanerProgram;
-  const gcode = gen(planerBase({
-    mode: 'thickness', startingThickness: 5, depth: 10, depthOfCut: 1
-  }));
-  assert.match(gcode, /WARNING: target thickness goes below wasteboard/);
+  for (const depth of [10, 5]) {
+    const gcode = gen(planerBase({ mode: 'thickness', startingThickness: 5, depth, depthOfCut: 1 }));
+    assert.match(gcode, /WARNING: Amount to Remove is the whole Starting Thickness or more, so the bit would cut into the wasteboard; nothing to cut/);
+    assert.doesNotMatch(gcode, /^G1 /m);
+  }
+  assert.match(gen(planerBase({ mode: 'thickness', startingThickness: 5, depth: 4, depthOfCut: 1 })), /^G1 Z1\.000/m);
 });
 
 test('planer wasteboard mode disables overrun and insets by bit radius', () => {
