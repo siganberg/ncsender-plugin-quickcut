@@ -3070,7 +3070,7 @@ test('triangle: Corner Radius, tabs, dog-bones and a pattern work as on the trap
   assert.match(gen(triangleBase({ pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 120, yDist: 0 } })), /Instance 2\/2/);
 });
 
-// === Ellipse, Arch, Ring, Star ===
+// === Ellipse, Arch, Star ===
 
 // Distance from a closed outline given as dense points, signed: negative inside.
 function outlineDistance(pts, inside) {
@@ -3152,17 +3152,6 @@ test('arch: round and pointed tops, outer cut a bit radius off; bad numbers refu
   assert.match(gen(shapeBase({ kind: 'arch', width: 120, height: 160, archRise: 60, cornerRadius: 10 })), /^G3 /m);
   const off = makeQuickCutGenerator(false).shapeOriginOffset('rectangle', shapeBase({ kind: 'arch', width: 120, height: 160, archRise: 60, origin: 'corner:4' }));
   assert.ok(Math.abs(off.x) < 1e-9 && Math.abs(off.y - 80) < 1e-9, JSON.stringify(off));
-});
-
-test('ring: the hole first, then the part, each a bit radius off', () => {
-  const gen = makeQuickCutGenerator(false).generateCircleProgram;
-  const g = gen(shapeBase({ kind: 'ring', diameter: 100, innerDiameter: 40, cutType: 'outer' }));
-  assert.match(g, /\(QuickCut: Ring\)/);
-  assert.ok(g.indexOf('(Hole)') > 0 && g.indexOf('(Hole)') < g.indexOf('(Part)'));
-  const radii = [...new Set(cutPoints(g).map(q => Math.hypot(q[0], q[1]).toFixed(1)))];
-  assert.deepEqual(radii.sort(), ['16.8', '53.2']);
-  assert.match(gen(shapeBase({ kind: 'ring', diameter: 100, innerDiameter: 120 })), /inner diameter must be less than the diameter; nothing to cut/);
-  assert.match(gen(shapeBase({ kind: 'ring', diameter: 100, innerDiameter: 5 })), /hole is smaller than the bit; nothing to cut/);
 });
 
 test('star: Outer and Inner cuts a bit radius off its edges, a point up at Start Angle 0', () => {

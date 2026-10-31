@@ -1536,13 +1536,9 @@
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></svg></span>
           <span class="qc-nav-label">Ellipse</span>
         </button>
-        <button type="button" class="qc-nav-btn" data-tab="circle" data-kind="circle">
+        <button type="button" class="qc-nav-btn" data-tab="circle">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
           <span class="qc-nav-label">Circle</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="circle" data-kind="ring">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/></svg></span>
-          <span class="qc-nav-label">Ring</span>
         </button>
         <button type="button" class="qc-nav-btn" data-tab="polygon" data-kind="polygon">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
@@ -1940,11 +1936,8 @@
     <section class="qc-content" data-view="circle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-circ-kind" aria-label="Shape" title="Circle, or Ring: a circle with a hole, like a washer; the hole is cut first, then the part. Each also has its own tab in the sidebar.">
-            <option value="circle" selected>Circle</option>
-            <option value="ring">Ring</option>
-          </select></h2>
-          <p class="qc-panel-sub" id="qc-circ-sub">Cut a circle by diameter, inner/outer/clearing, with optional pattern.</p>
+          <h2 class="qc-panel-title">Circle</h2>
+          <p class="qc-panel-sub">Cut a circle by diameter, inner/outer/clearing, with optional pattern.</p>
         </div>
       </header>
 
@@ -1959,11 +1952,7 @@
                     <label for="qc-circ-diameter">Diameter</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required title="Diameter of the circle. Cut Type sets which side of the line the bit runs on.">
                   </div>
-                  <div class="qc-field qc-circ-ring-only" style="display: none;">
-                    <label for="qc-circ-inner">Inner Diameter</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inner" min="0.001" step="0.01" value="15" title="The hole's diameter. The hole is cut first, while the part is still held, then the part around it; holding tabs go on both.">
-                  </div>
-                  <div class="qc-field" id="qc-circ-cut-field">
+                  <div class="qc-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-circ-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
                       <option value="inner">Inner (perimeter)</option>
@@ -3435,7 +3424,7 @@
   // Some sidebar tabs are another kind of a view's shape (data-kind),
   // the one its title menu picks: Trapezoid is the Rectangle view with
   // Trapezoid picked. The tab lit is the view's and its kind's.
-  var KIND_MENUS = { rectangle: 'qc-rect-kind', circle: 'qc-circ-kind', polygon: 'qc-poly-kind' };
+  var KIND_MENUS = { rectangle: 'qc-rect-kind', polygon: 'qc-poly-kind' };
   function navKey(btn) {
     return btn.getAttribute('data-tab') + (btn.hasAttribute('data-kind') ? ':' + btn.getAttribute('data-kind') : '');
   }
@@ -3686,7 +3675,6 @@
         'qc-rect-tri-right': { min: 0.004, max: 200,  label: 'Right Side' },
         'qc-rect-tri-height': { min: 0.004, max: 200, label: 'Height' },
         'qc-rect-arch-rise': { min: 0.004, max: 200,  label: 'Rise' },
-        'qc-circ-inner':    { min: 0.004, max: 200, label: 'Inner Diameter' },
         'qc-poly-inner':    { min: 0.004, max: 200, label: 'Inner Diameter' },
         'qc-poly-star-dia': { min: 0.004, max: 200, label: 'Diameter' },
         'qc-rect-tri-left-angle': { min: 0.01, max: 179.99, label: 'Left Angle' },
@@ -3846,7 +3834,6 @@
       'qc-rect-tri-right': { min: 0.1, max: 5000,  label: 'Right Side' },
       'qc-rect-tri-height': { min: 0.1, max: 5000, label: 'Height' },
       'qc-rect-arch-rise': { min: 0.1, max: 5000,  label: 'Rise' },
-      'qc-circ-inner':    { min: 0.1,  max: 5000, label: 'Inner Diameter' },
       'qc-poly-inner':    { min: 0.1,  max: 5000, label: 'Inner Diameter' },
       'qc-poly-star-dia': { min: 0.1,  max: 5000, label: 'Diameter' },
       'qc-rect-tri-left-angle': { min: 0.01, max: 179.99, label: 'Left Angle' },
@@ -4054,13 +4041,7 @@
         return 'A pointed top must rise at least half the Width (' + roundDisplay(archW / 2) + ')';
       }
     }
-    // A ring's or star's inner diameter is inside its diameter; a ring's
-    // hole takes the bit.
-    if (id === 'qc-circ-inner' && circKind() === 'ring') {
-      var ringD = num('qc-circ-diameter', NaN);
-      if (n >= ringD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + ringD + ')';
-      if (n <= num('qc-bit', 0) + 1e-9) return 'Inner Diameter must be more than the Bit Diameter, for the bit to cut the hole';
-    }
+    // A star's inner diameter is inside its diameter.
     if (id === 'qc-poly-inner' && polyKind() === 'star') {
       var starD = num('qc-poly-star-dia', NaN);
       if (n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
@@ -4500,10 +4481,7 @@
     var common = readCommonParams();
     return withPatternGaps('circ', Object.assign({}, common, {
       diameter:     num('qc-circ-diameter', 0),
-      kind:         circKind(),
-      innerDiameter: num('qc-circ-inner', 0),
-      // A ring's part is an Outer cut (its hole an Inner one).
-      cutType:      circKind() === 'ring' ? 'outer' : $('qc-circ-cut-type').value,
+      cutType:      $('qc-circ-cut-type').value,
       tabs:         readTabsForm('circ'),
       origin:       $('qc-circ-origin').value,
       inset:      readInset('circ'),
@@ -5571,7 +5549,7 @@
     var block = $('qc-' + prefix + '-tabs-block');
     if (!block) return;
     var cut = $('qc-' + prefix + '-cut-type').value;
-    var allowed = (cut !== 'clearing' && cut !== 'center') || block.classList.contains('qc-ring-tabs');
+    var allowed = cut !== 'clearing' && cut !== 'center';
     block.style.display = allowed ? '' : 'none';
     $('qc-' + prefix + '-tabs-fields').style.display = allowed && $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
   }
@@ -5623,8 +5601,7 @@
   // land where the tabs will even though the preview isn't to scale.
   function tabMarks(prefix, segs) {
     var tabs = readTabsForm(prefix);
-    // A ring is cut Outer (and its hole Inner) whatever Cut Type says.
-    var cutNow = prefix === 'circ' && circKind() === 'ring' ? 'outer' : $('qc-' + prefix + '-cut-type').value;
+    var cutNow = $('qc-' + prefix + '-cut-type').value;
     if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center') return '';
     tabs.count = Math.min(24, tabs.count);
     tabs.width = Math.max(0, tabs.width);
@@ -6640,9 +6617,6 @@
     var circ = saved.circle || {};
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
     if (circ.cutType)               $('qc-circ-cut-type').value = circ.cutType;
-    if (saved.circle)               $('qc-circ-kind').value = circ.kind === 'ring' ? 'ring' : 'circle';
-    if (circ.innerDiameter > 0)     $('qc-circ-inner').value = roundDisplay(mmToDisplay(circ.innerDiameter));
-    showCircKind(false);
     if (circ.origin)                setOriginPickerValue('qc-circ-origin', migrateOrigin(circ.origin));
     hydrateInset('circ', circ.inset);
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
@@ -6901,10 +6875,7 @@
       body.circle = {
         tool:         toolForShape,
         diameter:     displayToMm(params.diameter),
-        kind:         params.kind,
-        innerDiameter: displayToMm(params.innerDiameter),
-        // A ring cuts Outer whatever Cut Type says; keep the Circle's.
-        cutType:      $('qc-circ-cut-type').value,
+        cutType:      params.cutType,
         origin:       params.origin,
         inset:      insetToMm(params.inset),
         depth:        displayToMm(params.depth),
@@ -7396,7 +7367,6 @@
         break;
       case 'circle':
         tags.push('Dia-' + n(params.diameter));
-        if (params.kind === 'ring') tags.push('In-' + n(params.innerDiameter));
         break;
       case 'polygon':
         if (params.kind === 'star') {
@@ -7429,7 +7399,7 @@
       tags.push(/^circular/.test(pat.style) ? 'P-' + pat.count : 'P-' + pat.xCount + 'x' + pat.yCount);
     }
     tags.push(state.isImperial ? 'in' : 'mm');
-    var KIND_NAMES = { arch: 'Arch', ellipse: 'Ellipse', ring: 'Ring', star: 'Star' };
+    var KIND_NAMES = { arch: 'Arch', ellipse: 'Ellipse', star: 'Star' };
     var shapeName = KIND_NAMES[params.kind] ? KIND_NAMES[params.kind]
       : params.shape === 'rectangle' && params.triangle ? 'Triangle'
       : params.shape === 'rectangle' && makeQuickCutGenerator(state.isImperial).isTrapezoid(params) ? 'Trapezoid'
@@ -7646,29 +7616,7 @@
     });
   }
 
-  // Circle or Ring, from the title menu. A ring is always its hole and
-  // its part, so Cut Type and what only a clearing uses don't show.
-  function circKind() { return $('qc-circ-kind').value; }
-  function showCircKind(picked) {
-    var ring = circKind() === 'ring';
-    ROOT.querySelectorAll('.qc-circ-ring-only').forEach(function(el) { el.style.display = ring ? '' : 'none'; });
-    $('qc-circ-cut-field').classList.toggle('qc-kind-hidden', ring);
-    ROOT.querySelectorAll('.qc-circ-clearing-only').forEach(function(el) { el.classList.toggle('qc-kind-hidden', ring); });
-    $('qc-circ-tabs-block').classList.toggle('qc-ring-tabs', ring);
-    $('qc-circ-sub').textContent = ring
-      ? 'Cut a ring, like a washer: the hole first, then the part around it.'
-      : 'Cut a circle by diameter, inner/outer/clearing, with optional pattern.';
-    if (ring && picked && !(num('qc-circ-inner', 0) > 0 && num('qc-circ-inner', 0) < num('qc-circ-diameter', 0))) {
-      $('qc-circ-inner').value = roundDisplay(num('qc-circ-diameter', 0) / 2);
-    }
-    updateTabsVisibility('circ');
-  }
   function wireCircleForm() {
-    $('qc-circ-kind').addEventListener('change', function() { showCircKind(true); updateCirclePreview(); kindPicked('circle'); });
-    $('qc-circ-inner').addEventListener('input', updateCirclePreview);
-    $('qc-circ-diameter').addEventListener('input', function() {
-      if (circKind() === 'ring' && $('qc-circ-inner').value.trim()) recheckField('qc-circ-inner');
-    });
     $('qc-circ-cut-type').addEventListener('change', function() {
       updateClearingVisibility('circ');
       updateCirclePreview();
@@ -9537,7 +9485,6 @@
     updateInsetState('circ');
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
-    if (circKind() === 'ring') return updateRingPreview(svg);
     var D = num('qc-circ-diameter', 0);
     var cutType = $('qc-circ-cut-type').value;
     // Smaller when an inset needs room, so X0 Y0 stays in view.
@@ -9591,51 +9538,6 @@
       (D > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
         var k = r / (D / 2);
-        return originCross(off.x * k, -off.y * k, 'circ', k);
-      })() : '');
-  }
-
-  // A ring: the part and its hole to scale, the bands the bit takes
-  // (outside the part, inside the hole) hatched, holding tabs on both.
-  // The long arrows are the Diameter, the short ones the hole's.
-  function updateRingPreview(svg) {
-    var D = num('qc-circ-diameter', 0), d = num('qc-circ-inner', 0), bit = Math.max(0, num('qc-bit', 0));
-    var pad = insetPad('circ') + bitEdgePad('outer');
-    var r = D > 0 ? Math.min(40, 44 * (D / 2) / (D / 2 + pad)) : 40, k = D > 0 ? r / (D / 2) : 1;
-    var ri = d > 0 && d < D ? d / 2 * k : 0, edgeR = r + bit * k, holeEdge = Math.max(0, ri - bit * k);
-    function loop(rr) {
-      var a = rr.toFixed(2);
-      return 'M' + a + ',0 A' + a + ',' + a + ' 0 1 0 ' + (-rr).toFixed(2) + ',0 A' + a + ',' + a + ' 0 1 0 ' + a + ',0 Z';
-    }
-    var hatch = 'class="qc-shape-hatch" fill="url(#qc-circ-hatch)" fill-rule="evenodd"';
-    var hatched = '<path ' + hatch + ' d="' + loop(edgeR) + ' ' + loop(r) + '"/>' +
-      (holeEdge > 0.5 ? '<path ' + hatch + ' d="' + loop(ri) + ' ' + loop(holeEdge) + '"/>' : '');
-    circPreviewNodes = ownPreviewNodes('circ', [
-      ['back-left', -r, -r], ['back-center', 0, -r], ['back-right', r, -r],
-      ['left-center', -r, 0], ['center', 0, 0], ['right-center', r, 0],
-      ['front-left', -r, r], ['front-center', 0, r], ['front-right', r, r]
-    ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; }), 'shape-center');
-    function dimLine(rr) {
-      return '<line class="qc-shape-dim-line" x1="' + (-rr).toFixed(2) + '" y1="0" x2="' + rr.toFixed(2) + '" y2="0" ' +
-             'marker-start="url(#qc-circ-arr)" marker-end="url(#qc-circ-arr)"/>';
-    }
-    var label = function(x, value) {
-      return '<text class="qc-shape-dim-label" x="' + x.toFixed(2) + '" y="-3" text-anchor="middle">' + value + '</text>';
-    };
-    var dims = dimLine(r) + label(ri > 0 ? (r + ri) / 2 : 0, D > 0 ? D : '?') + (ri > 0 ? dimLine(ri) + label(0, d) : '');
-    var tabsOn = $('qc-circ-tabs-enable').checked;
-    svg.innerHTML =
-      shapePreviewDefs('qc-circ') +
-      hatched +
-      bitEdge(loop(edgeR), 'outer') +
-      (holeEdge > 0.5 ? bitEdge(loop(holeEdge), 'inner') : '') +
-      '<path class="qc-shape-fill" fill-rule="evenodd" d="' + loop(r) + (ri > 0 ? ' ' + loop(ri) : '') + '"/>' +
-      dims +
-      (tabsOn ? tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]) +
-        (ri > 0 ? tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: ri, a0: 0, a1: 2 * Math.PI, len: Math.PI * d }]) : '') : '') +
-      pickHints(circPreviewNodes) +
-      (D > 0 ? (function() {
-        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
         return originCross(off.x * k, -off.y * k, 'circ', k);
       })() : '');
   }
@@ -10948,8 +10850,7 @@
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS,
-      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.',
-      'Pick <strong>Ring</strong> from the menu in the title (or its own tab) for a washer: <strong>Inner Diameter</strong> is the hole. The hole is cut first, while the part is still held, then the part around it; holding tabs go on both. Cut Type doesn&rsquo;t apply.' ] },
+      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.' ] },
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
@@ -12698,8 +12599,7 @@
     }
 
     function generateCircleProgram(params) {
-      if (params.kind === 'ring') return generateRingProgram(params);
-      if ((params.cutType || 'inner') === 'clearing') {
+        if ((params.cutType || 'inner') === 'clearing') {
         return generateCircleClearingProgram(params);
       }
       var unitsLabel = isImperial ? 'inch' : 'mm';
@@ -14228,53 +14128,6 @@
       }
 
       lines.push('G0 Z' + safeHeight);
-    }
-
-    // === RING ================================================================
-    //
-    // A Circle with a hole: the hole (an Inner cut at innerDiameter) first,
-    // while the part is still held, then the part (an Outer cut at
-    // diameter), each as emitOneCircle cuts it, tabs on both.
-
-    function generateRingProgram(params) {
-      var unitsLabel = isImperial ? 'inch' : 'mm';
-      var positions = computePatternPositions(params.pattern);
-      var hole = Object.assign({}, params, { diameter: params.innerDiameter, cutType: 'inner' });
-      var outer = Object.assign({}, params, { cutType: 'outer' });
-      var placed = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params));
-      var extras = [
-        'Diameter: ' + params.diameter + unitsLabel + ', Inner Diameter: ' + params.innerDiameter + unitsLabel,
-        'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + placed.label
-      ];
-      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
-      var tabNotes = tabHeaderNotes(outer, circleSegments(computeCircleGeom(outer)), extras);
-      var lines = programHeader(params, {
-        shapeLabel: 'Ring' + (positions.length > 1 ? ' × ' + positions.length : ''),
-        extraComments: extras
-      });
-      var problem = !(params.innerDiameter > 0 && params.innerDiameter < params.diameter) ? 'the inner diameter must be less than the diameter'
-        : computeCircleGeom(hole).pathRadius <= 0 ? 'the hole is smaller than the bit' : null;
-      if (problem) {
-        lines.push(comment('WARNING: ' + problem + '; nothing to cut'));
-        lines.push.apply(lines, programFooter(params));
-        return lines.join('\n');
-      }
-      lines.push.apply(lines, tabNotes);
-      lines.push.apply(lines, startupBlock(params));
-      for (var p = 0; p < positions.length; p++) {
-        var mx = positions[p].x + placed.shift.x, my = positions[p].y + placed.shift.y;
-        if (positions.length > 1) {
-          lines.push('(Instance ' + (p + 1) + '/' + positions.length + ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + ')');
-        }
-        lines.push('(Hole)');
-        emitOneCircle(lines, hole, mx, my);
-        lines.push('(Part)');
-        emitOneCircle(lines, outer, mx, my);
-      }
-      lines.push('');
-      lines.push.apply(lines, programFooter(params));
-      return lines.join('\n');
     }
 
     // === STAR ================================================================
