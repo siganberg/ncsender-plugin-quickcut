@@ -814,6 +814,7 @@
   .qc-depth-pic .qc-dp-pass { stroke: var(--color-accent); stroke-width: 1.2; stroke-dasharray: 4 3; }
   .qc-depth-pic .qc-dp-dim { stroke: var(--color-text-secondary); stroke-width: 1; }
   .qc-depth-pic .qc-dp-z0 { stroke: var(--color-accent); stroke-width: 1.5; }
+  .qc-through-hint { margin-top: 6px; font-size: 0.85rem; }
   /* Above the front dots' tap targets, which reach a few px into it. */
   .qc-origin-stack .qc-inset-field { position: relative; z-index: 1; }
   /* Inset X / Y: two boxes in the one box's width. */
@@ -825,6 +826,7 @@
   .qc-plan-side .qc-field { align-items: center; }
   .qc-shape-grid.qc-shape-grid--origin { grid-template-columns: minmax(0, 1fr) auto auto; }
   .qc-origin-stack { display: flex; flex-direction: column; gap: 12px; }
+  .qc-origin-say { margin: 0; max-width: 120px; font-size: 0.78rem; line-height: 1.3; text-align: center; color: var(--color-text-secondary); }
   .qc-origin-stack .qc-field { align-items: center; }
   .qc-origin-grid {
     position: relative;
@@ -1820,7 +1822,7 @@
             <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-rect-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
               </div>
               <div class="qc-field">
                 <label for="qc-rect-step">Depth of Cut</label>
@@ -2004,7 +2006,7 @@
             <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-circ-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
               </div>
               <div class="qc-field">
                 <label for="qc-circ-step">Depth of Cut</label>
@@ -2219,7 +2221,7 @@
             <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-poly-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
               </div>
               <div class="qc-field">
                 <label for="qc-poly-step">Depth of Cut</label>
@@ -2458,7 +2460,7 @@
             <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-slt-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
               </div>
               <div class="qc-field">
                 <label for="qc-slt-step">Depth of Cut</label>
@@ -2745,7 +2747,7 @@
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-drl-depth">Total Depth</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-depth" min="0.001" step="0.01" value="10" required title="How deep the hole goes below Z0.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-depth" min="0.001" step="0.01" value="10" required title="How deep the hole goes below Z0, the top of the stock.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-peck">Peck Depth</label>
@@ -3038,7 +3040,7 @@
             <div class="qc-row-2">
               <div class="qc-field">
                 <label for="qc-join-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes.">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
               </div>
               <div class="qc-field">
                 <label for="qc-join-step">Depth of Cut</label>
@@ -6491,8 +6493,27 @@
               '" data-origin="' + key + '"></div>';
     }
     html +=   '</div>' +
+        '<p class="qc-origin-say" id="' + inputId + '-say">' + originSay(sel) + '</p>' +
       '</div>';
     return html;
+  }
+
+  // Under the picker: where X and Y get zeroed on the machine.
+  var ORIGIN_SAY = {
+    'center': 'the center', 'shape-center': 'the shape&rsquo;s own center', 'hole': 'the plunge hole',
+    'front-left': 'the front-left corner', 'front-right': 'the front-right corner',
+    'back-left': 'the back-left corner', 'back-right': 'the back-right corner',
+    'front-center': 'the middle of the front', 'back-center': 'the middle of the back',
+    'left-center': 'the middle of the left side', 'right-center': 'the middle of the right side'
+  };
+  function originSay(value) {
+    var m = /^(corner|hole):(\d+)$/.exec(value || '');
+    var where = m ? (m[1] === 'corner' ? 'corner ' : 'hole ') + m[2] : ORIGIN_SAY[value];
+    return where ? 'Zero X and Y at ' + where : '';
+  }
+  function updateOriginSay(inputId) {
+    var say = document.getElementById(inputId + '-say'), input = document.getElementById(inputId);
+    if (say && input) say.innerHTML = originSay(input.value);
   }
 
   // Wires click handlers on every origin picker present in the DOM.
@@ -6512,6 +6533,7 @@
               pt.classList.add('active');
               if (input) {
                 input.value = pt.getAttribute('data-origin');
+                updateOriginSay(inputId);
                 input.dispatchEvent(new Event('change', { bubbles: true }));
               }
             });
@@ -6552,6 +6574,7 @@
     var input = document.getElementById(inputId);
     if (!input) return;
     input.value = value;
+    updateOriginSay(inputId);
     var grid = document.querySelector('.qc-origin-grid[data-picker-for="' + inputId + '"]');
     if (!grid) return;
     var points = grid.querySelectorAll('.qc-origin-point');
@@ -8075,6 +8098,9 @@
         holder.appendChild(row);
       }
       holder.insertAdjacentHTML('beforeend', '<svg class="qc-depth-pic" id="qc-' + pre + '-depth-pic" viewBox="0 0 270 74" role="img" aria-label="Side view of the cut: its depth and each pass"></svg>');
+      if (['rect', 'circ', 'poly', 'slt'].indexOf(pre) >= 0) {
+        holder.insertAdjacentHTML('afterend', '<p class="qc-mode-hint qc-through-hint" id="qc-' + pre + '-through-hint" hidden></p>');
+      }
     });
     ROOT.addEventListener('input', scheduleRunNote);
     ROOT.addEventListener('change', scheduleRunNote);
@@ -8226,7 +8252,8 @@
       out.push('<line class="qc-dp-dim" x1="' + (cx1 + 4) + '" y1="' + end + '" x2="' + (cx1 + 12) + '" y2="' + end + '"/>');
     }
     out.push('<line class="qc-dp-z0" x1="' + (X0 - 4) + '" y1="' + TOP + '" x2="' + (X1 + 4) + '" y2="' + TOP + '"/>');
-    out.push('<text class="qc-dp-z0t" x="' + X0 + '" y="' + (TOP - 5) + '">Z0</text>');
+    var z0Top = !(pre === 'plan' && $('qc-plan-mode').value === 'thickness');
+    out.push('<text class="qc-dp-z0t" x="' + X0 + '" y="' + (TOP - 5) + '">' + (z0Top ? 'Z0 = top of stock' : 'Top of stock') + '</text>');
     var tx = 108, say = [];
     if (levels.length) {
       var n = levels.length, last = levels[n - 1] - (n > 1 ? levels[n - 2] : 0);
@@ -8237,12 +8264,29 @@
     } else say.push(['qc-dp-note', 'Total Depth and Depth of Cut']);
     say.forEach(function(e, i) { out.push('<text class="' + e[0] + '" x="' + tx + '" y="' + (TOP + 10 + i * 15) + '">' + esc(e[1]) + '</text>'); });
     svg.innerHTML = out.join('');
+    updateThroughHint(pre);
+  }
+
+  // A profile without tabs: if it goes right through, the part (or the
+  // piece in the middle of a hole) comes loose on the last pass.
+  function updateThroughHint(pre) {
+    var hint = $('qc-' + pre + '-through-hint');
+    if (!hint) return;
+    var cut = $('qc-' + pre + '-cut-type').value, block = $('qc-' + pre + '-tabs-block');
+    var show = (cut === 'outer' || cut === 'inner') && block.style.display !== 'none' && !$('qc-' + pre + '-tabs-enable').checked;
+    hint.hidden = !show;
+    if (show) {
+      hint.innerHTML = 'Cutting right through? Make Total Depth a little more than the stock (about ' +
+        (state.isImperial ? '0.02 in' : '0.5 mm') + ' into the spoilboard), and turn on <strong>Holding Tabs</strong> so ' +
+        (cut === 'outer' ? 'the part can&rsquo;t come loose.' : 'the piece in the middle can&rsquo;t come loose and be thrown.');
+    }
   }
 
   // Inset only applies to a corner or edge origin (not center, a tapped
   // corner or hole, or Keyhole's plunge hole); grey it out otherwise. Run
   // from each preview update, which every way of changing the origin hits.
   function updateInsetState(prefix) {
+    updateOriginSay('qc-' + prefix + '-origin');
     var el = $('qc-' + prefix + '-inset'), o = $('qc-' + prefix + '-origin');
     if (!el || !o) return;
     var on = /^(front|back|left|right)-/.test(o.value);
@@ -10841,7 +10885,7 @@
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu. <strong>Edge Inset</strong> is to the edge of the cut; <strong>Center Inset</strong> is to the copies&rsquo; centers instead, e.g. the first of a row of holes 10&nbsp;mm in from the corner, whatever the bit (Drill starts there). An arc slot&rsquo;s center is its arc&rsquo;s center, so Center Inset suits holes and shapes centered on themselves best. The <strong>XY</strong> choices split it into two boxes, X from a left or right origin point and Y from a front or back one. Changing it converts the numbers so nothing moves.';
-  var HELP_DEPTH = '<strong>Total Depth</strong> is cut in passes no deeper than <strong>Depth of Cut</strong>.';
+  var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the spoilboard): sheet goods are seldom exactly their nominal thickness.';
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
@@ -11326,6 +11370,7 @@
         for (var i = 0; i < opts.extraComments.length; i++) lines.push(comment(opts.extraComments[i]));
       }
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
+      lines.push(comment('Z0: ' + (opts.z0 || 'the top of the stock')));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
       lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
       lines.push('');
@@ -13014,6 +13059,7 @@
 
       var lines = programHeader(params, {
         shapeLabel: 'Planer' + (isThickness ? ' (thickness)' : isWasteboard ? ' (wasteboard)' : ''),
+        z0: isThickness ? 'the wasteboard, under the stock' : isWasteboard ? 'the wasteboard surface' : null,
         extraComments: extras
       });
 
