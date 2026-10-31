@@ -29,6 +29,7 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
 - Units — metric + imperial (honors ncSender's `unitsPreference`)
 - Safe Z — honors ncSender's core `safeZHeight` setting; falls back to machine Z0 when unset
 - Pattern (shapes only) — Linear, Honeycomb, or Circular; see [Patterns](#patterns)
+- Starting feeds — the **Feed Rate** label is a menu: pick the material (MDF / Plywood, Softwood, Hardwood, HDPE / UHMW, Acrylic, Polycarbonate, Aluminum, Foam) and the bit's flutes, and QuickCut fills Spindle RPM, Feed Rate, Plunge Rate, Depth of Cut and Stepover from the Bit Diameter, within the machine's max feed (`$110`/`$111`) and spindle range (`$30`/`$31`). A starting point to adjust by ear and chip. Inspired by [ncCAM](https://github.com/siganberg/ncsender-plugin-nccam)'s tool-aware material selector, whose formula it uses
 - Unit entry — type `.25in`, `1/4"`, or `6.35mm` into size and feed fields; see [Typing units](#typing-units)
 - Measure pattern angle — the **Measure** link on a Linear/Honeycomb pattern measures the angle of a line on the workpiece, from a point typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
@@ -252,7 +253,7 @@ Generators live in two places on purpose:
 - `config.html` — the copy the browser dialog runs (ncSenderPro V2's plugin server serves this HTML directly; external `<script src>` won't resolve)
 - `lib/*.cjs` — Node-loadable twin used by tests, kept in sync by hand
 
-Every fix to a generator must be applied to BOTH. The same goes for the unit-entry parser (`parseUnitValue` in `config.html` and `lib/unit-input.cjs`); `tests/unit-input.test.cjs` fails if the two copies differ.
+Every fix to a generator must be applied to BOTH. The starting feeds (`startingFeeds` in `config.html` and `lib/starting-feeds.cjs`, checked by `tests/starting-feeds.test.cjs`) follow [ncCAM](https://github.com/siganberg/ncsender-plugin-nccam)'s `src/core/tools.js`: the chip each tooth takes grows with the bit up to a cap per material, and feed = RPM × flutes × chip. [Spoilboard Toolbox](https://github.com/tmuka/ncsender-plugin-spoilboard-toolbox) has the same materials table; change a material in all three rather than inventing a new formula. The same goes for the unit-entry parser (`parseUnitValue` in `config.html` and `lib/unit-input.cjs`); `tests/unit-input.test.cjs` fails if the two copies differ.
 
 ## License
 
