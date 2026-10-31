@@ -51,3 +51,8 @@ test('config.html carries the same startingFeeds as lib/starting-feeds.cjs', () 
   assert.ok(html.indexOf('function startingFeeds(') >= 0);
   assert.equal(body(html), body(lib));
 });
+
+test('stepover by material', () => {
+  assert.equal(startingFeeds(6, 2, 'mdf').stepoverPct, 45);
+  assert.equal(startingFeeds(6, 1, 'aluminum').stepoverPct, 25);
+});

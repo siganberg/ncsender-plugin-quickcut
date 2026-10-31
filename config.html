@@ -778,8 +778,26 @@
      each label centred over its control. */
   .qc-inset-field { width: 84px; }
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
-  /* Feed Rate's menu spans its column, so the arrow sits at its own edge. */
-  #qc-feed-start { align-self: stretch; height: 14px; line-height: 14px; }
+  /* Feed Rate's and Bit Diameter's menus span their column, so the arrow
+     sits at its own edge. */
+  #qc-feed-start, #qc-bit-tool { align-self: stretch; height: 14px; line-height: 14px; }
+  /* Beside Generate: about how long it runs, and the travel check. */
+  .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
+  .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
+  /* The Depth card's fields, with the side view of the passes beside them. */
+  .qc-depth-wrap { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .qc-depth-wrap > .qc-row-2 { flex: 1 1 300px; min-width: 0; }
+  .qc-depth-pic { flex: 0 0 270px; width: 270px; height: 74px; }
+  .qc-row-5 > .qc-depth-pic { grid-column: span 3; align-self: center; }
+  .qc-depth-pic text { font-family: inherit; font-size: 11px; fill: var(--color-text-secondary); }
+  .qc-depth-pic .qc-dp-val { font-weight: 600; fill: var(--color-text-primary); }
+  .qc-depth-pic .qc-dp-z0t { font-weight: 600; fill: var(--color-accent); }
+  .qc-depth-pic .qc-dp-stock { fill: color-mix(in srgb, var(--color-text-secondary) 18%, var(--color-surface)); }
+  .qc-depth-pic .qc-dp-tab { fill: color-mix(in srgb, var(--color-text-secondary) 18%, var(--color-surface)); }
+  .qc-depth-pic .qc-dp-cut { fill: var(--color-surface); stroke: var(--color-text-primary); stroke-width: 1; }
+  .qc-depth-pic .qc-dp-pass { stroke: var(--color-accent); stroke-width: 1.2; stroke-dasharray: 4 3; }
+  .qc-depth-pic .qc-dp-dim { stroke: var(--color-text-secondary); stroke-width: 1; }
+  .qc-depth-pic .qc-dp-z0 { stroke: var(--color-accent); stroke-width: 1.5; }
   /* Above the front dots' tap targets, which reach a few px into it. */
   .qc-origin-stack .qc-inset-field { position: relative; z-index: 1; }
   /* Inset X / Y: two boxes in the one box's width. */
@@ -3138,7 +3156,13 @@
     spindleMax: null,
     spindleMin: null,
     // Flutes on the bit, for the starting feeds.
-    flutes: 2
+    flutes: 2,
+    // A tool changer is on (ncSender's tool.source and tool.count), so a
+    // bit picked from the tool table starts the program with M6 T<n>.
+    atc: false,
+    toolById: false,
+    // The work offset in use (machine mm) when homed, for the travel check.
+    wco: null
   };
   var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
@@ -3149,6 +3173,8 @@
       state.isImperial = (s.unitsPreference || 'metric') === 'imperial';
       state.unitLabel = state.isImperial ? 'in' : 'mm';
       state.unitDisplay = state.isImperial ? 'IMPERIAL (in)' : 'METRIC (mm)';
+      state.atc = !!(s.tool && s.tool.source && s.tool.count > 0);
+      state.toolById = !!(s.tool && s.tool.numbering === 'toolId');
       var safeZRaw = Number(s.safeZHeight);
       state.safeZHeightMm = isFinite(safeZRaw) ? safeZRaw : null;
       // ncSender Pro's keepout zones, in machine coordinates (mm). Only
@@ -3211,6 +3237,8 @@
       evt.preventDefault();
       useLoadedToolDiameter();
     });
+    if (state.atc) wireToolMenu();
+    wireRunNotes();
     wireStartingFeeds();
     wireRectangleForm();
     wireCircleForm();
@@ -3279,6 +3307,8 @@
     if (target === 'polygon') updatePolygonPreview();
     if (target === 'slot') updateSlotPreview();
     state.currentTab = target;
+    showBitTool();
+    scheduleRunNote();
     closeEnlargedPreview();
     schedulePatternPreview();
     if (target === 'measure') {
@@ -4220,7 +4250,8 @@
       spindleRpm:     num('qc-rpm', 0),
       spindleDelay:   num('qc-delay', 0),
       mistM7:         $('qc-mist').checked,
-      floodM8:        $('qc-flood').checked
+      floodM8:        $('qc-flood').checked,
+      toolNumber:     bitToolNumber()
     };
   }
 
@@ -6190,7 +6221,9 @@
     return {
       bitDiameter:    displayToMm(num('qc-bit', 0)),
       feedRate:       feedMm('qc-feed'),
-      plungeFeedRate: feedMm('qc-plunge')
+      plungeFeedRate: feedMm('qc-plunge'),
+      toolNumber:     bitTool().n,
+      toolMm:         bitTool().mm
     };
   }
   function writeToolToInputs(tool) {
@@ -6198,6 +6231,24 @@
     if (tool.bitDiameter != null)    $('qc-bit').value    = roundDisplay(mmToDisplay(tool.bitDiameter));
     if (tool.feedRate != null)       writeFeed('qc-feed', tool.feedRate);
     if (tool.plungeFeedRate != null) writeFeed('qc-plunge', tool.plungeFeedRate);
+    setBitTool(tool.toolNumber, tool.toolMm);
+  }
+  // The tool Bit Diameter was picked from (its T number and diameter in
+  // mm), kept on the field. It counts only while the field still shows
+  // that diameter and a tool changer is on.
+  function bitTool() {
+    var bit = $('qc-bit'), n = Number(bit.getAttribute('data-tool')), mm = Number(bit.getAttribute('data-tool-mm'));
+    return n > 0 && mm > 0 ? { n: n, mm: mm } : { n: 0, mm: 0 };
+  }
+  function setBitTool(n, mm) {
+    var bit = $('qc-bit');
+    if (n > 0 && mm > 0) { bit.setAttribute('data-tool', String(n)); bit.setAttribute('data-tool-mm', String(mm)); }
+    else { bit.removeAttribute('data-tool'); bit.removeAttribute('data-tool-mm'); }
+    showBitTool();
+  }
+  function bitToolNumber() {
+    var t = bitTool();
+    return state.atc && t.n > 0 && Math.abs(displayToMm(num('qc-bit', 0)) - t.mm) < 0.002 ? t.n : 0;
   }
 
   // Old builds saved origin as bottom-left / top-right / etc. Renamed to
@@ -6575,7 +6626,9 @@
     var toolForShape = {
       bitDiameter:    displayToMm(params.bitDiameter),
       feedRate:       feedMm('qc-feed'),
-      plungeFeedRate: feedMm('qc-plunge')
+      plungeFeedRate: feedMm('qc-plunge'),
+      toolNumber:     bitTool().n,
+      toolMm:         bitTool().mm
     };
     if (params.shape === 'rectangle') {
       body.rectangle = {
@@ -7585,25 +7638,25 @@
   function startingFeeds(bitMm, flutes, material, limits) {
     // By material, as ncCAM's (src/core/tools.js) and Spoilboard Toolbox's:
     // the chip each tooth takes grows with the bit up to a cap; feed = RPM x
-    // flutes x chip; plunge 30% of the feed; depth per pass a share of the
-    // bit. HDPE takes a thick chip (a thin one melts it); aluminum a small
-    // one. limits: the machine's max feed ($110/$111) and spindle range
-    // ($30/$31), when known.
+    // flutes x chip; plunge 30% of the feed; depth per pass and stepover a
+    // share of the bit. HDPE takes a thick chip (a thin one melts it);
+    // aluminum a small one. limits: the machine's max feed ($110/$111) and
+    // spindle range ($30/$31), when known.
     var MATERIALS = {
-      mdf: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5 },
-      softwood: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5 },
-      hardwood: { rpm: 18000, chip: 0.009, maxChip: 0.2, stepdown: 0.35 },
-      hdpe: { rpm: 15000, chip: 0.02, maxChip: 0.25, stepdown: 0.3 },
-      acrylic: { rpm: 16000, chip: 0.015, maxChip: 0.2, stepdown: 0.3 },
-      aluminum: { rpm: 18000, chip: 0.0045, maxChip: 0.06, stepdown: 0.1 },
-      foam: { rpm: 12000, chip: 0.02, maxChip: 0.4, stepdown: 1 }
+      mdf: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5, stepover: 0.45 },
+      softwood: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5, stepover: 0.45 },
+      hardwood: { rpm: 18000, chip: 0.009, maxChip: 0.2, stepdown: 0.35, stepover: 0.4 },
+      hdpe: { rpm: 15000, chip: 0.02, maxChip: 0.25, stepdown: 0.3, stepover: 0.4 },
+      acrylic: { rpm: 16000, chip: 0.015, maxChip: 0.2, stepdown: 0.3, stepover: 0.4 },
+      aluminum: { rpm: 18000, chip: 0.0045, maxChip: 0.06, stepdown: 0.1, stepover: 0.25 },
+      foam: { rpm: 12000, chip: 0.02, maxChip: 0.4, stepdown: 1, stepover: 0.6 }
     };
     var m = MATERIALS[material] || MATERIALS.mdf, L = limits || {};
     var rpm = Math.round(Math.min(L.maxRpm || 24000, Math.max(L.minRpm || 0, m.rpm)));
     var chip = Math.min(m.maxChip, m.chip * bitMm), maxFeed = Math.min(L.maxFeed || 4000, 4000);
     var raw = rpm * (flutes || 2) * chip, feed = Math.round(Math.min(maxFeed, Math.max(150, raw)));
     return { rpm: rpm, chipMm: chip, feedMm: feed, capped: raw > maxFeed,
-             plungeMm: Math.round(Math.max(60, feed * 0.3)), stepMm: Math.max(0.05, bitMm * m.stepdown) };
+             plungeMm: Math.round(Math.max(60, feed * 0.3)), stepMm: Math.max(0.05, bitMm * m.stepdown), stepoverPct: Math.round(m.stepover * 100) };
   }
   function showFlutes() {
     $('qc-feed-start').querySelectorAll('option[value^="flutes-"]').forEach(function(o) {
@@ -7628,18 +7681,289 @@
     $('qc-rpm').value = f.rpm;
     writeFeed('qc-feed', f.feedMm);
     writeFeed('qc-plunge', f.plungeMm);
-    ['qc-rpm', 'qc-feed', 'qc-plunge'].forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
+    // Depth of Cut too (not on Planer, whose bit is a surfacing one), and
+    // Stepover for the shapes that clear pockets.
+    var pre = TAB_PREFIX[state.currentTab], filled = ['qc-rpm', 'qc-feed', 'qc-plunge'];
+    if (pre && pre !== 'plan' && $('qc-' + pre + '-step')) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(f.stepMm)); filled.push('qc-' + pre + '-step'); }
+    if (pre && $('qc-' + pre + '-stepover') && pre !== 'plan') { $('qc-' + pre + '-stepover').value = f.stepoverPct; filled.push('qc-' + pre + '-stepover'); }
+    filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
     var u = state.unitLabel, chip = roundDisplay(mmToDisplay(f.chipMm));
     // After the form's own change handler, which takes bubbles down.
     setTimeout(function() { showTooltip(feed, sel.querySelector('option[value="' + v + '"]').textContent + ', a ' + state.flutes + '-flute ' +
       roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
-      (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth per pass about ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u + '.' +
+      (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
+      ($('qc-' + pre + '-stepover') && pre !== 'plan' ? ', Stepover ' + f.stepoverPct + '%' : '') + '.' +
       (v === 'aluminum' ? ' Aluminum: a 1-flute bit, air or mist, and ramp in rather than plunge.' : '') +
       ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
   }
   function wireStartingFeeds() {
     showFlutes();
     $('qc-feed-start').addEventListener('change', pickStartingFeeds);
+  }
+  // The field prefix of each shape tab.
+  var TAB_PREFIX = { rectangle: 'rect', circle: 'circ', polygon: 'poly', slot: 'slt', keyhole: 'key', drill: 'drl',
+                     planer: 'plan', jointer: 'join', cutter: 'cut' };
+
+  // With a tool changer, Bit Diameter's label is a menu of ncSender's
+  // tool table: picking a tool sets the diameter and starts the program
+  // with M6 T<n> (T is a slot or a Tool ID, by Settings > Tool Changer >
+  // Tool Numbering, as /api/tools/active lists them). Typing another
+  // diameter drops the tool change.
+  async function wireToolMenu() {
+    var label = $('qc-bit').parentNode.querySelector('.qc-bit-label');
+    var sel = document.createElement('select');
+    sel.className = 'qc-label-select';
+    sel.id = 'qc-bit-tool';
+    sel.setAttribute('aria-label', 'Bit Diameter, or a tool from the tool table');
+    sel.title = 'Bit Diameter. Its menu lists ncSender\u2019s tool table: pick the tool to cut with and the program starts with a tool change to it (M6 T). Type a diameter for no tool change.';
+    label.parentNode.replaceChild(sel, label);
+    $('qc-bit').setAttribute('aria-labelledby', 'qc-bit-tool');
+    sel.addEventListener('change', pickBitTool);
+    $('qc-bit').addEventListener('input', showBitTool);
+    showBitTool();
+    try {
+      var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
+      var st = await (await fetch(BASE_URL + '/api/server-state')).json();
+      var loaded = Number(st && st.machineState && st.machineState.tool);
+      state.tools = (tools || []).map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '' }; })
+        .filter(function(t) { return t.n > 0 && t.mm > 0; })
+        .sort(function(a, b) { return a.n - b.n; });
+      state.loadedTool = loaded > 0 ? loaded : 0;
+    } catch (e) { state.tools = []; }
+    showBitTool();
+  }
+  function showBitTool() {
+    var sel = $('qc-bit-tool');
+    if (!sel) return;
+    var n = bitToolNumber(), u = state.unitLabel;
+    var opt = function(parent, value, text, disabled) {
+      var o = document.createElement('option');
+      o.value = value;
+      o.textContent = text;
+      o.disabled = !!disabled;
+      parent.appendChild(o);
+    };
+    sel.textContent = '';
+    // Short, to fit the column: "Bit \u00b7 T3" while a tool is picked.
+    opt(sel, '', n ? 'Bit \u00b7 T' + n : 'Bit Diameter');
+    if ((state.tools || []).length) {
+      var group = document.createElement('optgroup');
+      group.label = 'Tool change to';
+      state.tools.forEach(function(t) {
+        var name = t.name.length > 32 ? t.name.slice(0, 31) + '\u2026' : t.name;
+        opt(group, String(t.n), (t.n === n ? '\u2713 ' : '') + 'T' + t.n + (name ? ' ' + name : '') + ', ' +
+          roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ' (in the spindle)' : ''));
+      });
+      sel.appendChild(group);
+    } else if (state.tools) {
+      opt(sel, 'empty', 'No tools with a diameter in the tool table', true);
+    }
+    if (n) opt(sel, 'none', 'No tool change');
+    sel.value = '';
+  }
+  function pickBitTool() {
+    var sel = $('qc-bit-tool'), v = sel.value, bit = $('qc-bit');
+    if (!v) return;
+    var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0];
+    if (t) {
+      bit.value = roundDisplay(mmToDisplay(t.mm));
+      setBitTool(t.n, t.mm);
+      bit.dispatchEvent(new Event('input', { bubbles: true }));
+    } else setBitTool(0, 0);
+    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + '. The program starts with a tool change to T' + t.n + ' (M6).'
+      : 'No tool change: the program cuts with the bit in the spindle.';
+    setTimeout(function() { showTooltip(bit, msg, TOOLTIP_OK, true); }, 0);
+  }
+
+  // Under each Generate button: about how long the program runs and
+  // whether it stays in the machine's travel from the X0 Y0 in use.
+  // Under each Depth card's fields: a side view of the passes.
+  var RUN_VIEWS = {
+    rectangle: [readRectangleForm, 'generateRectangleProgram'], circle: [readCircleForm, 'generateCircleProgram'],
+    polygon: [readPolygonForm, 'generatePolygonProgram'], slot: [readSlotForm, 'generateSlotProgram'],
+    keyhole: [readKeyholeForm, 'generateKeyholeProgram'], drill: [readDrillForm, 'generateDrillProgram'],
+    planer: [readPlanerForm, 'generatePlanerProgram'], jointer: [readJointerForm, 'generateJointerProgram'],
+    cutter: [readCutterForm, 'generateCutterProgram']
+  };
+  var _runTimer = null, _wcoAt = 0;
+  function wireRunNotes() {
+    ROOT.querySelectorAll('.qc-content .qc-panel-footer').forEach(function(f) {
+      if (!f.querySelector('[id$="-generate"]')) return;
+      var note = document.createElement('span');
+      note.className = 'qc-run-note';
+      note.setAttribute('role', 'status');
+      f.insertBefore(note, f.firstChild);
+    });
+    // In a five-column row it takes the columns the tabs' fields leave
+    // free (its own row when they show); beside a two-column row, its side.
+    ['rect', 'circ', 'poly', 'slt', 'plan', 'join'].forEach(function(pre) {
+      var row = $('qc-' + pre + '-step').closest('.qc-row-5, .qc-row-2'), holder = row;
+      if (!row.classList.contains('qc-row-5')) {
+        holder = document.createElement('div');
+        holder.className = 'qc-depth-wrap';
+        row.parentNode.insertBefore(holder, row);
+        holder.appendChild(row);
+      }
+      holder.insertAdjacentHTML('beforeend', '<svg class="qc-depth-pic" id="qc-' + pre + '-depth-pic" viewBox="0 0 270 74" role="img" aria-label="Side view of the cut: its depth and each pass"></svg>');
+    });
+    ROOT.addEventListener('input', scheduleRunNote);
+    ROOT.addEventListener('change', scheduleRunNote);
+    scheduleRunNote();
+  }
+  function scheduleRunNote() {
+    clearTimeout(_runTimer);
+    _runTimer = setTimeout(updateRunNote, 250);
+  }
+  // The fields in view pass their checks (as Generate's, without showing
+  // anything), so the program can be made.
+  function formReady() {
+    var rules = validationRules();
+    for (var id in rules) {
+      var el = document.getElementById(id);
+      if (!el || el.disabled || el.offsetParent === null) continue;
+      if (validateField(id, el.value)) return false;
+    }
+    return !(state.currentTab === 'slot' && slotShapeProblem());
+  }
+  function updateRunNote() {
+    var view = state.currentTab, pv = RUN_VIEWS[view];
+    var section = ROOT.querySelector('.qc-content[data-view="' + view + '"]');
+    var note = section && section.querySelector('.qc-run-note');
+    if (!note) return;
+    var ready = formReady(), text = '', bad = false;
+    updateDepthPicture(TAB_PREFIX[view], ready);
+    if (ready) {
+      try {
+        var params = pv[0]();
+        params.shape = view;
+        var lines = makeQuickCutGenerator(state.isImperial)[pv[1]](params).split('\n');
+        var k = state.isImperial ? 25.4 : 1, min = programMinutes(lines, (state.maxFeedMm || 3000) / k);
+        text = 'About ' + (min < 1.5 ? '1 min' : Math.round(min) + ' min') + (params.toolNumber > 0 ? ' after the tool change' : '');
+        var t = travelCheck(lines, k);
+        if (t) { text += '. ' + t.text; bad = t.bad; }
+        text += '.';
+      } catch (e) { text = ''; }
+    }
+    note.textContent = text;
+    note.classList.toggle('qc-run-bad', bad);
+    if (Date.now() - _wcoAt > 3000) refreshWco();
+  }
+  // Roughly how long a program takes, in minutes: its moves at their feed
+  // (rapids at rapid, in the program's units a minute) and its dwells.
+  // Machine-coordinate (G53) moves count as nothing.
+  function programMinutes(lines, rapid) {
+    var p = null, f = 1000, min = 0;
+    lines.forEach(function(line) {
+      line = line.split(';')[0];
+      var g = /^G([0-4])\b/.exec(line);
+      if (!g) return;
+      var v = function(key, d) { var m = new RegExp('(?:^|\\s)' + key + '(-?[\\d.]+)').exec(line); return m ? +m[1] : d; };
+      if (g[1] === '4') { min += v('P', 0) / 60; return; }
+      var F = v('F', null);
+      if (F) f = F;
+      var from = p || { x: v('X', 0), y: v('Y', 0), z: v('Z', 0) };
+      var q = { x: v('X', from.x), y: v('Y', from.y), z: v('Z', from.z) }, len;
+      if (g[1] === '2' || g[1] === '3') {
+        var cx = from.x + v('I', 0), cy = from.y + v('J', 0), rr = Math.hypot(from.x - cx, from.y - cy);
+        var a = Math.atan2(q.y - cy, q.x - cx) - Math.atan2(from.y - cy, from.x - cx);
+        if (g[1] === '3' && a <= 0) a += 2 * Math.PI;
+        if (g[1] === '2' && a >= 0) a -= 2 * Math.PI;
+        len = Math.hypot(rr * Math.abs(a), q.z - from.z);
+      } else {
+        len = Math.hypot(q.x - from.x, q.y - from.y, q.z - from.z);
+      }
+      min += len / (g[1] === '0' ? rapid : f);
+      p = q;
+    });
+    return min;
+  }
+  // Where the program's moves reach in X and Y (arcs included), in machine
+  // mm from the work offset in use, against the machine's travel. null
+  // when the travel or the offset isn't known (not homed, say).
+  function travelCheck(lines, k) {
+    if (!state.wco || state.machineMinXmm == null || !(state.machineLimitXmm > 0 && state.machineLimitYmm > 0)) return null;
+    var b = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity }, p = null;
+    var add = function(x, y) { b.x0 = Math.min(b.x0, x); b.x1 = Math.max(b.x1, x); b.y0 = Math.min(b.y0, y); b.y1 = Math.max(b.y1, y); };
+    lines.forEach(function(line) {
+      line = line.split(';')[0];
+      var g = /^G([0-3])\b/.exec(line);
+      if (!g) return;
+      var v = function(key, d) { var m = new RegExp('(?:^|\\s)' + key + '(-?[\\d.]+)').exec(line); return m ? +m[1] : d; };
+      var q = { x: v('X', p ? p.x : 0), y: v('Y', p ? p.y : 0) };
+      if (p && (g[1] === '2' || g[1] === '3')) {
+        var cx = p.x + v('I', 0), cy = p.y + v('J', 0), rr = Math.hypot(p.x - cx, p.y - cy);
+        var a0 = Math.atan2(p.y - cy, p.x - cx), a = Math.atan2(q.y - cy, q.x - cx) - a0;
+        if (g[1] === '3' && a <= 0) a += 2 * Math.PI;
+        if (g[1] === '2' && a >= 0) a -= 2 * Math.PI;
+        for (var i = 1; i < 32; i++) add(cx + rr * Math.cos(a0 + a * i / 32), cy + rr * Math.sin(a0 + a * i / 32));
+      }
+      add(q.x, q.y);
+      p = q;
+    });
+    if (!isFinite(b.x0)) return null;
+    var lo = { x: state.machineMinXmm, y: state.machineMinYmm }, hi = { x: lo.x + state.machineLimitXmm, y: lo.y + state.machineLimitYmm };
+    var past = [
+      ['X min', lo.x - (b.x0 * k + state.wco.x)], ['X max', b.x1 * k + state.wco.x - hi.x],
+      ['Y min', lo.y - (b.y0 * k + state.wco.y)], ['Y max', b.y1 * k + state.wco.y - hi.y]
+    ].filter(function(e) { return e[1] > 0.01; }).sort(function(a, c) { return c[1] - a[1]; });
+    var from = ' from ' + state.wco.ws + '\u2019s X0 Y0';
+    if (!past.length) return { text: 'Fits the machine\u2019s travel' + from, bad: false };
+    return { text: 'Runs ' + roundDisplay(mmToDisplay(past[0][1])) + ' ' + state.unitLabel + ' past ' + past[0][0] + from + ': move X0 Y0 or the shape', bad: true };
+  }
+  async function refreshWco() {
+    _wcoAt = Date.now();
+    var was = JSON.stringify(state.wco);
+    try {
+      var ms = ((await (await fetch(BASE_URL + '/api/server-state')).json()) || {}).machineState || {};
+      var w = String(ms.WCO || '').split(',').map(Number);
+      state.wco = ms.homed && w.length >= 2 && isFinite(w[0]) && isFinite(w[1]) ? { x: w[0], y: w[1], ws: String(ms.workspace || 'G54').toUpperCase() } : null;
+    } catch (e) { state.wco = null; }
+    if (JSON.stringify(state.wco) !== was) scheduleRunNote();
+  }
+  // A side view of the cut, true in its proportions down: Z0 on the
+  // stock's top, a line at each pass (the generator's depthLevels, with
+  // the extra pass at the tabs' top), and the tabs left standing.
+  function updateDepthPicture(pre, ready) {
+    var svg = pre && $('qc-' + pre + '-depth-pic');
+    if (!svg) return;
+    var depth = num('qc-' + pre + '-depth', 0), step = num('qc-' + pre + '-step', 0), u = ' ' + state.unitLabel;
+    var tabsOn = $('qc-' + pre + '-tabs-enable') && $('qc-' + pre + '-tabs-enable').checked;
+    var tabH = tabsOn ? num('qc-' + pre + '-tabs-height', 0) : 0;
+    var tabTop = tabH > 0 && tabH < depth ? depth - tabH : null;
+    var levels = [], cur = 0;
+    if (ready && depth > 0 && step > 0 && depth / step <= 200) {
+      while (cur < depth - 1e-6) {
+        var next = Math.min(depth, cur + step);
+        if (tabTop != null && cur < tabTop - 1e-6 && next > tabTop + 1e-6) levels.push(tabTop);
+        levels.push(next);
+        cur = next;
+      }
+    }
+    var out = [], TOP = 16, BOT = 66, X0 = 6, X1 = 100, cx0 = 34, cx1 = 68;
+    var esc = function(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    out.push('<rect class="qc-dp-stock" x="' + X0 + '" y="' + TOP + '" width="' + (X1 - X0) + '" height="' + (BOT - TOP) + '"/>');
+    if (levels.length) {
+      var k = (BOT - 6 - TOP) / depth, end = TOP + depth * k;
+      out.push('<rect class="qc-dp-cut" x="' + cx0 + '" y="' + (TOP - 0.5) + '" width="' + (cx1 - cx0) + '" height="' + (end - TOP + 0.5) + '"/>');
+      if (tabTop != null) out.push('<rect class="qc-dp-tab" x="' + (cx0 + 8) + '" y="' + (TOP + tabTop * k) + '" width="' + (cx1 - cx0 - 16) + '" height="' + (end - TOP - tabTop * k) + '"/>');
+      if (levels.length <= 40) levels.slice(0, -1).forEach(function(d) {
+        out.push('<line class="qc-dp-pass" x1="' + cx0 + '" y1="' + (TOP + d * k) + '" x2="' + cx1 + '" y2="' + (TOP + d * k) + '"/>');
+      });
+      out.push('<line class="qc-dp-dim" x1="' + (cx1 + 8) + '" y1="' + TOP + '" x2="' + (cx1 + 8) + '" y2="' + end + '"/>');
+      out.push('<line class="qc-dp-dim" x1="' + (cx1 + 4) + '" y1="' + end + '" x2="' + (cx1 + 12) + '" y2="' + end + '"/>');
+    }
+    out.push('<line class="qc-dp-z0" x1="' + (X0 - 4) + '" y1="' + TOP + '" x2="' + (X1 + 4) + '" y2="' + TOP + '"/>');
+    out.push('<text class="qc-dp-z0t" x="' + X0 + '" y="' + (TOP - 5) + '">Z0</text>');
+    var tx = 108, say = [];
+    if (levels.length) {
+      var n = levels.length, last = levels[n - 1] - (n > 1 ? levels[n - 2] : 0);
+      say.push(['qc-dp-val', roundDisplay(depth) + u + ' deep']);
+      say.push(['qc-dp-note', n + (n === 1 ? ' pass' : ' passes') + (n > 1 ? ' of up to ' + roundDisplay(step) + u : '')]);
+      if (n > 1 && tabTop == null && Math.abs(last - step) > 1e-6) say.push(['qc-dp-note', 'the last ' + roundDisplay(last) + u]);
+      if (tabTop != null) say.push(['qc-dp-note', 'tabs ' + roundDisplay(tabH) + u + ' high']);
+    } else say.push(['qc-dp-note', 'Total Depth and Depth of Cut']);
+    say.forEach(function(e, i) { out.push('<text class="' + e[0] + '" x="' + tx + '" y="' + (TOP + 10 + i * 15) + '">' + esc(e[1]) + '</text>'); });
+    svg.innerHTML = out.join('');
   }
 
   // Inset only applies to a corner or edge origin (not center, a tapped
@@ -10005,9 +10329,10 @@
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. The <strong>Feed Rate</strong> label is a menu: pick a material for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter, and set how many flutes the bit has in the same menu. They stay within the machine&rsquo;s max feed and spindle range. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. The <strong>Feed Rate</strong> label is a menu: pick a material for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter, and set how many flutes the bit has in the same menu. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover. They stay within the machine&rsquo;s max feed and spindle range. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
-      'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID).',
+      'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
+      'Beside <strong>Generate</strong>: about how long the program runs, and whether it stays inside the machine&rsquo;s travel from the X0 Y0 in use (once the machine is homed). Set X0 Y0 first for a true check. The <strong>Depth</strong> card shows a side view of the cut: each pass, and the tabs.',
       '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.',
       '<strong>Load</strong> fills a tab from a QuickCut program in File Manager: every program records the settings it was made with in a few comment lines after M30. Pick one, check the values, then Generate. Share a program file and someone else can Load its settings too.' ] },
     units: { title: 'Typing units', notes: [
@@ -10420,7 +10745,7 @@
         for (var i = 0; i < opts.extraComments.length; i++) lines.push(comment(opts.extraComments[i]));
       }
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
-      lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + ')');
+      lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
       lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
       lines.push('');
       lines.push(unitsCode + ' ; ' + (isImperial ? 'Imperial' : 'Metric') + ' units');
@@ -10431,6 +10756,12 @@
       var csz = coreSafeZLine(params.safeZHeightMm);
       if (csz) lines.push(csz + ' ; Move to safe Z');
       else lines.push('G53 G0 Z0 ; Move to machine Z0');
+      // A tool changer's machine: change to the bit's tool first, then back
+      // up to safe Z, as the tool change may leave it lower.
+      if (params.toolNumber > 0) {
+        lines.push('M6 T' + params.toolNumber + ' ; Tool change');
+        lines.push((csz || 'G53 G0 Z0') + ' ; Move to safe Z');
+      }
       lines.push('');
       return lines;
     }
