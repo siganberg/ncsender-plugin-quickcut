@@ -325,6 +325,15 @@
     margin-left: -2px;
     cursor: pointer;
   }
+  /* A transparent select's open list takes the browser's white, under
+     the select's light text: give it .qc-select's colors. */
+  .qc-title-select option, .qc-title-select optgroup,
+  .qc-label-select option, .qc-label-select optgroup {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
   /* Unit indicator inline after the panel title — accent-tinted pill
      so the operator sees at-a-glance which units the shape/depth
      fields are in. Sized to sit comfortably next to the title text. */
