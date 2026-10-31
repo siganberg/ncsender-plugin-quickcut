@@ -796,7 +796,8 @@
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
   /* Feed Rate's and Bit Diameter's menus span their column, so the arrow
      sits at its own edge. */
-  #qc-feed-start, #qc-bit-tool { align-self: stretch; height: 14px; line-height: 14px; }
+  #qc-bit-tool { align-self: stretch; height: 14px; line-height: 14px; }
+  .qc-material-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 10px; }
   /* Beside Generate: about how long it runs, and the travel check. */
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
   .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
@@ -1625,30 +1626,37 @@
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-bit" min="0.001" step="0.01" value="3.175" required title="Diameter of the cutting bit. The toolpath is offset by half of it so the cut lands on size.">
               </div>
               <div class="qc-field">
-                <select class="qc-label-select" id="qc-feed-start" aria-label="Feed Rate, or starting feeds for a material" title="Feed Rate. Its menu fills in starting feeds for a material: Spindle RPM, Feed Rate and Plunge Rate for this Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. A start: listen, look at the chips, and adjust.">
-                  <option value="" selected>Feed Rate</option>
-                  <optgroup label="Starting feeds for">
-                    <option value="mdf">MDF / Plywood</option>
-                    <option value="softwood">Softwood</option>
-                    <option value="hardwood">Hardwood</option>
-                    <option value="hdpe">HDPE / UHMW</option>
-                    <option value="acrylic">Acrylic</option>
-                    <option value="polycarbonate">Polycarbonate</option>
-                    <option value="aluminum">Aluminum</option>
-                    <option value="foam">Foam / tooling board</option>
-                  </optgroup>
-                  <optgroup label="The bit has">
-                    <option value="flutes-1">1 flute</option>
-                    <option value="flutes-2">2 flutes</option>
-                    <option value="flutes-3">3 flutes</option>
-                    <option value="flutes-4">4 flutes</option>
-                  </optgroup>
-                </select>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required aria-labelledby="qc-feed-start" title="How fast the bit moves sideways while cutting.">
+                <label for="qc-feed">Feed Rate</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-feed" min="1" step="1" value="2000" required title="How fast the bit moves sideways while cutting.">
               </div>
               <div class="qc-field">
                 <label for="qc-plunge">Plunge Rate</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="feed" id="qc-plunge" min="1" step="1" value="1000" required title="How fast the bit moves down into the material.">
+              </div>
+            </div>
+            <div class="qc-row-2 qc-material-row">
+              <div class="qc-field">
+                <label for="qc-material">Material</label>
+                <select class="qc-select" id="qc-material" title="Fills in starting feeds for the material: Spindle RPM, Feed Rate, Plunge Rate, and this tab's Depth of Cut and Stepover, for the Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. Changing the Bit Diameter or Flutes fills them in again. A start: listen, look at the chips, and adjust.">
+                  <option value="">Pick for starting feeds</option>
+                  <option value="mdf">MDF / Plywood</option>
+                  <option value="softwood">Softwood</option>
+                  <option value="hardwood">Hardwood</option>
+                  <option value="hdpe">HDPE / UHMW</option>
+                  <option value="acrylic">Acrylic</option>
+                  <option value="polycarbonate">Polycarbonate</option>
+                  <option value="aluminum">Aluminum</option>
+                  <option value="foam">Foam / tooling board</option>
+                </select>
+              </div>
+              <div class="qc-field">
+                <label for="qc-flutes">Flutes</label>
+                <select class="qc-select" id="qc-flutes" title="How many cutting edges the bit has. The starting feed is worked out per edge.">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
               </div>
             </div>
           </div>
@@ -2751,7 +2759,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-peck">Peck Depth</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-peck" min="0" step="0.01" value="0" title="Depth of each peck. 0 = one plunge to full depth.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-peck" min="0" step="0.01" value="3" title="Depth of each peck: the bit comes up between pecks to clear the chips, which an end mill can't do on its own. 0 = one plunge to full depth.">
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -3255,6 +3263,9 @@
     spindleMin: null,
     // Flutes on the bit, for the starting feeds.
     flutes: 2,
+    // RPM|Feed|Plunge as last filled in from the Material, so a new bit
+    // refills them only while they haven't been changed by hand.
+    filledFeeds: null,
     // A tool changer is on (ncSender's tool.source and tool.count), so a
     // bit picked from the tool table starts the program with M6 T<n>.
     atc: false,
@@ -6597,6 +6608,14 @@
     if (common.mistM7 != null)         $('qc-mist').checked  = !!common.mistM7;
     if (common.floodM8 != null)        $('qc-flood').checked = !!common.floodM8;
     if (!loaded && common.flutes >= 1 && common.flutes <= 4) state.flutes = Math.round(common.flutes);
+    // Before anything is saved, MDF / Plywood's starting feeds for each
+    // tab's first bit.
+    var fresh = !loaded && common.feedRate == null && common.spindleRpm == null;
+    if (!loaded) $('qc-material').value = common.material != null ? common.material : fresh ? 'mdf' : '';
+    var firstFeeds = function(bitMm) {
+      return startingFeeds(bitMm, state.flutes, 'mdf', { maxFeed: state.maxFeedMm, maxRpm: state.spindleMax, minRpm: state.spindleMin });
+    };
+    if (fresh) $('qc-rpm').value = firstFeeds(3.175).rpm;
     if (!loaded) {
       $('qc-save-files').checked = !!common.saveToFileManager;
       $('qc-save-files').addEventListener('change', function() {
@@ -6612,11 +6631,13 @@
     TOOL_SHAPES.forEach(function(shape) {
       if (loaded && !saved[shape]) return;
       var s = saved[shape] || {};
+      var firstBit = shape === 'keyhole' && !loaded ? keyholeFirstBitMm() : common.bitDiameter;
+      var first = fresh ? firstFeeds(firstBit || 3.175) : {};
       state.toolByShape[shape] = s.tool || {
         // A Keyhole's first bit is a common keyhole bit (keyholeFirstBitMm).
-        bitDiameter:    shape === 'keyhole' && !loaded ? keyholeFirstBitMm() : common.bitDiameter,
-        feedRate:       common.feedRate,
-        plungeFeedRate: common.plungeFeedRate
+        bitDiameter:    firstBit,
+        feedRate:       common.feedRate != null ? common.feedRate : first.feedMm,
+        plungeFeedRate: common.plungeFeedRate != null ? common.plungeFeedRate : first.plungeMm
       };
     });
     writeToolToInputs(state.toolByShape[state.currentTab]);
@@ -7919,9 +7940,8 @@
       showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
     }
   }
-  // Feed Rate's label is a menu: a material fills in starting feeds (RPM,
-  // Feed and Plunge) for the Bit Diameter and the bit's flutes, which the
-  // same menu sets. It goes back to reading "Feed Rate" after each pick.
+  // The Material menu fills in starting feeds (RPM, Feed and Plunge) for
+  // the Bit Diameter and the bit's Flutes.
   function startingFeeds(bitMm, flutes, material, limits) {
     // By material, as ncCAM's (src/core/tools.js) and Spoilboard Toolbox's:
     // the chip each tooth takes grows with the bit up to a cap; feed = RPM x
@@ -7946,25 +7966,13 @@
     return { rpm: rpm, chipMm: chip, feedMm: feed, capped: raw > maxFeed,
              plungeMm: Math.round(Math.max(60, feed * 0.3)), stepMm: Math.max(0.05, bitMm * m.stepdown), stepoverPct: Math.round(m.stepover * 100) };
   }
-  function showFlutes() {
-    $('qc-feed-start').querySelectorAll('option[value^="flutes-"]').forEach(function(o) {
-      var n = +o.value.slice(7);
-      o.textContent = (n === state.flutes ? '\u2713 ' : '') + n + (n === 1 ? ' flute' : ' flutes');
-    });
-  }
-  function pickStartingFeeds() {
-    var sel = $('qc-feed-start'), v = sel.value, feed = $('qc-feed');
-    sel.value = '';
+  // Fill in the starting feeds for the Material (and the Flutes) picked;
+  // quiet when that's from a new Bit Diameter or Flutes rather than a pick.
+  function fillStartingFeeds(quiet) {
+    var v = $('qc-material').value, feed = $('qc-feed');
     if (!v) return;
-    if (/^flutes-/.test(v)) {
-      state.flutes = +v.slice(7);
-      showFlutes();
-      persistSettings({ common: { flutes: state.flutes } });
-      setTimeout(function() { showTooltip(feed, 'Starting feeds are now for a ' + state.flutes + '-flute bit. Pick the material from this menu.', TOOLTIP_OK, true); }, 0);
-      return;
-    }
     var bit = displayToMm(num('qc-bit', 0));
-    if (!(bit > 0)) { setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
+    if (!(bit > 0)) { if (!quiet) setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
     var f = startingFeeds(bit, state.flutes, v, { maxFeed: state.maxFeedMm, maxRpm: state.spindleMax, minRpm: state.spindleMin });
     $('qc-rpm').value = f.rpm;
     writeFeed('qc-feed', f.feedMm);
@@ -7975,18 +7983,34 @@
     if (pre && pre !== 'plan' && $('qc-' + pre + '-step')) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(f.stepMm)); filled.push('qc-' + pre + '-step'); }
     if (pre && $('qc-' + pre + '-stepover') && pre !== 'plan') { $('qc-' + pre + '-stepover').value = f.stepoverPct; filled.push('qc-' + pre + '-stepover'); }
     filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
-    var u = state.unitLabel, chip = roundDisplay(mmToDisplay(f.chipMm));
-    // After the form's own change handler, which takes bubbles down.
-    setTimeout(function() { showTooltip(feed, sel.querySelector('option[value="' + v + '"]').textContent + ', a ' + state.flutes + '-flute ' +
+    state.filledFeeds = feedsShown();
+    if (quiet) return;
+    var u = state.unitLabel, chip = roundDisplay(mmToDisplay(f.chipMm)), sel = $('qc-material');
+    setTimeout(function() { showTooltip(feed, sel.options[sel.selectedIndex].textContent + ', a ' + state.flutes + '-flute ' +
       roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
       (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
       ($('qc-' + pre + '-stepover') && pre !== 'plan' ? ', Stepover ' + f.stepoverPct + '%' : '') + '.' +
-      (v === 'aluminum' ? ' Aluminum: a 1-flute bit, air or mist, and ramp in rather than plunge.' : '') +
+      (v === 'aluminum' ? ' Aluminum: a 1-flute bit, and air or mist.' : '') +
       ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
   }
+  // RPM, Feed and Plunge as shown, to tell whether they're still the
+  // filled-in ones.
+  function feedsShown() { return [$('qc-rpm').value, $('qc-feed').value, $('qc-plunge').value].join('|'); }
   function wireStartingFeeds() {
-    showFlutes();
-    $('qc-feed-start').addEventListener('change', pickStartingFeeds);
+    $('qc-flutes').value = String(state.flutes);
+    $('qc-material').addEventListener('change', function() {
+      persistSettings({ common: { material: $('qc-material').value } });
+      fillStartingFeeds(false);
+    });
+    $('qc-flutes').addEventListener('change', function() {
+      state.flutes = +$('qc-flutes').value;
+      persistSettings({ common: { flutes: state.flutes } });
+      fillStartingFeeds(false);
+    });
+    // A new bit gets its own feeds, unless they've been changed by hand.
+    $('qc-bit').addEventListener('change', function() {
+      if (state.filledFeeds && state.filledFeeds === feedsShown()) setTimeout(function() { fillStartingFeeds(true); }, 0);
+    });
   }
   // The field prefix of each shape tab.
   var TAB_PREFIX = { rectangle: 'rect', circle: 'circ', polygon: 'poly', slot: 'slt', keyhole: 'key', drill: 'drl',
@@ -9982,6 +10006,8 @@
   function updateDrillPreview() {
     schedulePatternPreview();
     updateInsetState('drl');
+    // Peck Retract only means something with pecks.
+    $('qc-drl-peck-mode').closest('.qc-field').style.visibility = num('qc-drl-peck', 0) > 0 ? '' : 'hidden';
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
     var dia = num('qc-bit', 0);
@@ -10040,6 +10066,7 @@
   function wireDrillForm() {
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateDrillPreview);
+    $('qc-drl-peck').addEventListener('input', updateDrillPreview);
     $('qc-drl-pattern-enable').addEventListener('change', function() {
       updatePatternVisibility('drl');
       updateDrillPreview();
@@ -10954,7 +10981,7 @@
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. The <strong>Feed Rate</strong> label is a menu: pick a material for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter, and set how many flutes the bit has in the same menu. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover. They stay within the machine&rsquo;s max feed and spindle range. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
       'Beside <strong>Generate</strong>: about how long the program runs, and whether it stays inside the machine&rsquo;s travel from the X0 Y0 in use (once the machine is homed). Set X0 Y0 first for a true check. The <strong>Depth</strong> card shows a side view of the cut: each pass, and the tabs.',
