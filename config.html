@@ -6235,8 +6235,10 @@
     setBitTool(tool.toolNumber, tool.toolMm);
   }
   // The tool Bit Diameter was picked from (its T number and diameter in
-  // mm), kept on the field. It counts only while the field still shows
-  // that diameter and a tool changer is on.
+  // mm), kept on the field. It counts only while a tool changer is on,
+  // the field still shows that diameter, and the tool table still has
+  // that tool at that diameter (a refilled slot or a program Loaded from
+  // another machine has none).
   function bitTool() {
     var bit = $('qc-bit'), n = Number(bit.getAttribute('data-tool')), mm = Number(bit.getAttribute('data-tool-mm'));
     return n > 0 && mm > 0 ? { n: n, mm: mm } : { n: 0, mm: 0 };
@@ -6249,7 +6251,9 @@
   }
   function bitToolNumber() {
     var t = bitTool();
-    return state.atc && t.n > 0 && Math.abs(displayToMm(num('qc-bit', 0)) - t.mm) < 0.002 ? t.n : 0;
+    var near = function(mm) { return Math.abs(mm - t.mm) < 0.002; };
+    var inTable = (state.tools || []).some(function(x) { return x.n === t.n && near(x.mm); });
+    return state.atc && t.n > 0 && inTable && near(displayToMm(num('qc-bit', 0))) ? t.n : 0;
   }
 
   // Old builds saved origin as bottom-left / top-right / etc. Renamed to
@@ -7219,6 +7223,9 @@
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-top-width', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
+    $('qc-rect-width').addEventListener('input', function() {
+      if (rectKind() === 'trapezoid' && $('qc-rect-top-width').value.trim()) recheckField('qc-rect-top-width');
+    });
     $('qc-rect-top-align').addEventListener('change', updateRectanglePreview);
     $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); });
     showRectKind(false);
@@ -7721,13 +7728,18 @@
     label.parentNode.replaceChild(sel, label);
     $('qc-bit').setAttribute('aria-labelledby', 'qc-bit-tool');
     sel.addEventListener('change', pickBitTool);
-    $('qc-bit').addEventListener('input', showBitTool);
+    $('qc-bit').addEventListener('input', function() {
+      var t = bitTool();
+      if (t.n && Math.abs(displayToMm(num('qc-bit', 0)) - t.mm) >= 0.002) setBitTool(0, 0);
+      else showBitTool();
+    });
     showBitTool();
     try {
       var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
       var st = await (await fetch(BASE_URL + '/api/server-state')).json();
       var loaded = Number(st && st.machineState && st.machineState.tool);
-      state.tools = (tools || []).map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '' }; })
+      state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
+        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '' }; })
         .filter(function(t) { return t.n > 0 && t.mm > 0; })
         .sort(function(a, b) { return a.n - b.n; });
       state.loadedTool = loaded > 0 ? loaded : 0;
@@ -7810,6 +7822,9 @@
     });
     ROOT.addEventListener('input', scheduleRunNote);
     ROOT.addEventListener('change', scheduleRunNote);
+    // X0 Y0 can be set again while the dialog is open.
+    setInterval(function() { if (!document.hidden) refreshWco(); }, 5000);
+    window.addEventListener('focus', refreshWco);
     scheduleRunNote();
   }
   function scheduleRunNote() {
@@ -10762,6 +10777,7 @@
       // up to safe Z, as the tool change may leave it lower.
       if (params.toolNumber > 0) {
         lines.push('M6 T' + params.toolNumber + ' ; Tool change');
+        lines.push(unitsCode + ' G90 ; Units and absolute again after it');
         lines.push((csz || 'G53 G0 Z0') + ' ; Move to safe Z');
       }
       lines.push('');

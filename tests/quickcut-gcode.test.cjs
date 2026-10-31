@@ -2948,13 +2948,15 @@ test('trapezoid: no Corner Relief notch past a top edge too short to keep its co
   assert.ok(top + 3 <= 25 + 1e-3, 'the bit stays below the top edge, reached ' + (top + 3));
 });
 
-test('a tool number starts the program with M6 T and a lift back to safe Z', () => {
+test('a tool number starts the program with M6 T, units and G90 again, and a lift back to safe Z', () => {
   const gen = makeQuickCutGenerator(false);
   const g = gen.generateRectangleProgram(baseParams({ toolNumber: 3, safeZHeightMm: -5 }));
   const lines = g.split('\n');
   const m6 = lines.findIndex(l => /^M6 T3\b/.test(l));
   assert.ok(m6 > 0);
-  assert.match(lines[m6 + 1], /^G53 G0 Z-5\.000/);
+  assert.match(lines[m6 + 1], /^G21 G90 /);
+  assert.match(lines[m6 + 2], /^G53 G0 Z-5\.000/);
+  assert.match(makeQuickCutGenerator(true).generateRectangleProgram(baseParams({ toolNumber: 3 })), /\nM6 T3 .*\nG20 G90 /);
   assert.ok(m6 < lines.findIndex(l => /^M3 /.test(l)));
   assert.match(g, /\(Bit Diameter: [\d.]+mm, T3\)/);
   assert.doesNotMatch(gen.generateRectangleProgram(baseParams({})), /M6/);
