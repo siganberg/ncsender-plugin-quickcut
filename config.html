@@ -97,12 +97,17 @@
   .qc-sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
     /* On a short window the tab list scrolls, so Help and Close stay
        pinned at the bottom. */
     flex: 0 1 auto;
     min-height: 0;
     overflow-y: auto;
+  }
+  /* More tabs below: the list fades out at the bottom. */
+  .qc-sidebar-nav.qc-nav-more {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
   }
   .qc-nav-btn {
     -webkit-appearance: none;
@@ -110,7 +115,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 12px;
+    padding: 7px 12px;
     background: transparent !important;
     border: none !important;
     border-radius: 8px !important;
@@ -3446,6 +3451,11 @@
   }
 
   function wireTabs() {
+    var nav = document.querySelector('.qc-sidebar-nav');
+    var moreBelow = function() { nav.classList.toggle('qc-nav-more', nav.scrollTop + nav.clientHeight < nav.scrollHeight - 2); };
+    nav.addEventListener('scroll', moreBelow);
+    window.addEventListener('resize', moreBelow);
+    setTimeout(moreBelow, 0);
     var btns = document.querySelectorAll('.qc-nav-btn[data-tab]');
     btns.forEach(function(btn) {
       btn.addEventListener('click', function() {
