@@ -310,6 +310,11 @@
     color: var(--color-text-primary);
     margin: 0;
   }
+  /* A Triangle's sides and angles that Defined By worked out, not typed. */
+  .qc-tri-derived { opacity: 0.55; font-style: italic; }
+  .qc-shape-preview-cell .qc-shape-dim-label.qc-tri-angle { font-size: 7px; }
+  .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label.qc-tri-angle { font-size: 2.4px; }
+  .qc-tri-drop { stroke-dasharray: 2 2; }
   /* A dropdown standing in for a panel's title (Rectangle / Trapezoid). */
   .qc-title-select {
     font: inherit;
@@ -1550,9 +1555,10 @@
     <section class="qc-content active" data-view="rectangle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle, or Trapezoid: a different width on top, like a sign with slanted ends. Both share every other setting.">
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; or Triangle, given by its sides, angles or height. They share every other setting.">
             <option value="rectangle" selected>Rectangle</option>
             <option value="trapezoid">Trapezoid</option>
+            <option value="triangle">Triangle</option>
           </select></h2>
           <p class="qc-panel-sub" id="qc-rect-sub">Cut a rectangle by width × height, with optional corner radius.</p>
         </div>
@@ -1662,9 +1668,38 @@
                     </select>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-top-width" min="0.001" step="0.01" value="" required aria-labelledby="qc-rect-top-align" title="The back (top) edge's length. Width is the front (bottom) edge, Height apart.">
                   </div>
+                  <div class="qc-field qc-rect-tri-field" data-by="sss sas" style="display: none;">
+                    <label for="qc-rect-tri-left">Left Side</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tri-left" min="0.001" step="0.01" value="40" title="The side from the base's left end up to the peak.">
+                  </div>
+                  <div class="qc-field qc-rect-tri-field" data-by="sas asa" style="display: none;">
+                    <label for="qc-rect-tri-left-angle">Left Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-rect-tri-left-angle" min="0" max="180" step="1" value="36.87" title="The angle inside the corner at the base's left end, between the base and the left side.">
+                  </div>
+                  <div class="qc-field qc-rect-tri-field" data-by="sss" style="display: none;">
+                    <label for="qc-rect-tri-right">Right Side</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tri-right" min="0.001" step="0.01" value="30" title="The side from the base's right end up to the peak.">
+                  </div>
+                  <div class="qc-field qc-rect-tri-field" data-by="height" style="display: none;">
+                    <label for="qc-rect-tri-height">Height</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tri-height" min="0.001" step="0.01" value="24" title="From the base straight up to the peak.">
+                  </div>
+                  <div class="qc-field qc-rect-tri-field" data-by="asa" style="display: none;">
+                    <label for="qc-rect-tri-right-angle">Right Angle (°)</label>
+                    <input class="qc-input" type="number" id="qc-rect-tri-right-angle" min="0" max="180" step="1" value="53.13" title="The angle inside the corner at the base's right end. With the Left Angle it must leave room for the peak's: under 180° together.">
+                  </div>
                   <div class="qc-field">
                     <label for="qc-rect-height">Height</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required title="Size of the rectangle along Y. Cut Type sets which side of the line the bit runs on.">
+                  </div>
+                  <div class="qc-field qc-rect-tri-field" data-by="height" style="display: none;">
+                    <select class="qc-label-select" id="qc-rect-tri-peak" aria-label="Peak" title="Where the peak is along the base: over its middle (both sides the same), over its left or right end (a right angle there), or a set distance from the left end (past either end for a peak that leans out).">
+                      <option value="center" selected>Peak Centered</option>
+                      <option value="left">Peak at Left End</option>
+                      <option value="right">Peak at Right End</option>
+                      <option value="offset">Peak From Left</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-tri-peak-offset" step="0.01" value="25" aria-labelledby="qc-rect-tri-peak" title="How far along the base the peak is, from its left end. Negative or longer than the base puts it past that end.">
                   </div>
                   <div class="qc-field" id="qc-rect-corner-field">
                     <label for="qc-rect-corner">Corner Radius</label>
@@ -1672,6 +1707,15 @@
                   </div>
                 </div>
                 <div class="qc-row-3 qc-type-row" id="qc-rect-type-row">
+                  <div class="qc-field qc-rect-tri-only" style="display: none;">
+                    <label for="qc-rect-tri-by">Defined By</label>
+                    <select class="qc-select" id="qc-rect-tri-by" title="What you know about the triangle. Switching keeps the triangle and fills the new fields from it; the preview shows every side and angle.">
+                      <option value="sss" selected>3 Sides</option>
+                      <option value="sas">2 Sides + Angle</option>
+                      <option value="asa">Base + 2 Angles</option>
+                      <option value="height">Base + Height</option>
+                    </select>
+                  </div>
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-rect-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
@@ -3542,7 +3586,13 @@
     // (mm/min vs in/min) so its min swings by ~25x between systems.
     if (state.isImperial) {
       return {
-        'qc-rect-width':  { min: 0.004, max: 200,     label: 'Width' },
+        'qc-rect-width':  { min: 0.004, max: 200,     label: rectWidthLabel() },
+        'qc-rect-tri-left': { min: 0.004, max: 200,   label: 'Left Side' },
+        'qc-rect-tri-right': { min: 0.004, max: 200,  label: 'Right Side' },
+        'qc-rect-tri-height': { min: 0.004, max: 200, label: 'Height' },
+        'qc-rect-tri-left-angle': { min: 0.01, max: 179.99, label: 'Left Angle' },
+        'qc-rect-tri-right-angle': { min: 0.01, max: 179.99, label: 'Right Angle' },
+        'qc-rect-tri-peak-offset': { min: -200, max: 200, label: 'Peak From Left' },
         'qc-rect-height': { min: 0.004, max: 200,     label: 'Height' },
         'qc-rect-top-width': { min: 0.004, max: 200,  label: 'Top Width' },
         'qc-rect-corner': { min: 0,     max: 100,     label: 'Corner Radius' },
@@ -3692,7 +3742,13 @@
       };
     }
     return {
-      'qc-rect-width':  { min: 0.1,   max: 5000,   label: 'Width' },
+      'qc-rect-width':  { min: 0.1,   max: 5000,   label: rectWidthLabel() },
+      'qc-rect-tri-left': { min: 0.1, max: 5000,   label: 'Left Side' },
+      'qc-rect-tri-right': { min: 0.1, max: 5000,  label: 'Right Side' },
+      'qc-rect-tri-height': { min: 0.1, max: 5000, label: 'Height' },
+      'qc-rect-tri-left-angle': { min: 0.01, max: 179.99, label: 'Left Angle' },
+      'qc-rect-tri-right-angle': { min: 0.01, max: 179.99, label: 'Right Angle' },
+      'qc-rect-tri-peak-offset': { min: -5000, max: 5000, label: 'Peak From Left' },
       'qc-rect-height': { min: 0.1,   max: 5000,   label: 'Height' },
       'qc-rect-top-width': { min: 0.1, max: 5000,  label: 'Top Width' },
       'qc-rect-corner': { min: 0,     max: 2500,   label: 'Corner Radius' },
@@ -3861,6 +3917,27 @@
     if (/^qc-slt-(width|length|radius|sweep|chord|rise)$/.test(id)) {
       var slotProblem = slotShapeProblem();
       if (slotProblem && slotProblem.field === id) return slotProblem.message;
+    }
+
+    // A triangle's sides must meet: the longest shorter than the other
+    // two together. Given by its base angles, they must leave the peak one.
+    if (rectKind() === 'triangle') {
+      var triBy = $('qc-rect-tri-by').value;
+      if (triBy === 'sss' && /^qc-rect-(width|tri-left|tri-right)$/.test(id)) {
+        var sides = { 'qc-rect-width': num('qc-rect-width', 0), 'qc-rect-tri-left': num('qc-rect-tri-left', 0), 'qc-rect-tri-right': num('qc-rect-tri-right', 0) };
+        sides[id] = n;
+        var others = 0, longest = true;
+        for (var sid in sides) if (sid !== id) { others += sides[sid]; if (sides[sid] > n) longest = false; }
+        if (longest && n >= others - 1e-9) {
+          return 'The longest side must be shorter than the other two together (' + roundDisplay(others) + ')';
+        }
+      }
+      if (triBy === 'asa' && /^qc-rect-tri-(left|right)-angle$/.test(id)) {
+        var otherAngle = num(id === 'qc-rect-tri-left-angle' ? 'qc-rect-tri-right-angle' : 'qc-rect-tri-left-angle', NaN);
+        if (isFinite(otherAngle) && n + otherAngle >= 180 - 1e-9) {
+          return 'Left and Right Angles must add up to less than 180°, to leave the peak its angle';
+        }
+      }
     }
 
     // A trapezoid's top and bottom widths must differ (else it's a rectangle).
@@ -4263,6 +4340,9 @@
       height:       num('qc-rect-height', 0),
       topWidth:     rectKind() === 'trapezoid' ? num('qc-rect-top-width', 0) : 0,
       topAlign:     $('qc-rect-top-align').value,
+      // An object even when the numbers make no triangle, so the program
+      // says so rather than cutting a rectangle.
+      triangle:     rectKind() === 'triangle' ? (triangleSides() || { base: 0, left: 0, right: 0 }) : null,
       cornerRadius: num('qc-rect-corner', 0),
       startAngleDeg: num('qc-rect-start-angle', 0),
       cutType:      $('qc-rect-cut-type').value,
@@ -6399,7 +6479,8 @@
     if (rect.cornerRadius != null)  $('qc-rect-corner').value = roundDisplay(mmToDisplay(rect.cornerRadius));
     if (saved.rectangle)            $('qc-rect-top-width').value = rect.topWidth > 0 ? roundDisplay(mmToDisplay(rect.topWidth)) : '';
     if (rect.topAlign)              $('qc-rect-top-align').value = rect.topAlign;
-    if (saved.rectangle)            $('qc-rect-kind').value = rect.kind === 'trapezoid' ? 'trapezoid' : 'rectangle';
+    if (saved.rectangle)            $('qc-rect-kind').value = rect.kind === 'trapezoid' || rect.kind === 'triangle' ? rect.kind : 'rectangle';
+    hydrateTriangle(rect);
     showRectKind(false);
     if (rect.startAngleDeg != null) $('qc-rect-start-angle').value = rect.startAngleDeg;
     if (rect.cutType)               $('qc-rect-cut-type').value = rect.cutType;
@@ -6643,6 +6724,14 @@
         kind:         rectKind(),
         topWidth:     num('qc-rect-top-width', 0) > 0 ? displayToMm(num('qc-rect-top-width', 0)) : 0,
         topAlign:     params.topAlign,
+        triangleBy:   $('qc-rect-tri-by').value,
+        triLeft:      displayToMm(num('qc-rect-tri-left', 0)),
+        triRight:     displayToMm(num('qc-rect-tri-right', 0)),
+        triHeight:    displayToMm(num('qc-rect-tri-height', 0)),
+        triLeftAngle: num('qc-rect-tri-left-angle', 0),
+        triRightAngle: num('qc-rect-tri-right-angle', 0),
+        triPeak:      $('qc-rect-tri-peak').value,
+        triPeakOffset: displayToMm(num('qc-rect-tri-peak-offset', 0)),
         cornerRadius: displayToMm(params.cornerRadius),
         startAngleDeg: params.startAngleDeg,
         cutType:      params.cutType,
@@ -7130,6 +7219,11 @@
     var pat = params.pattern;
     switch (params.shape) {
       case 'rectangle':
+        if (params.triangle) {
+          tags.push('B-' + n(params.triangle.base), 'L-' + n(params.triangle.left), 'R-' + n(params.triangle.right));
+          if (params.cornerRadius > 0) tags.push('CR-' + n(params.cornerRadius));
+          break;
+        }
         tags.push('W-' + n(params.width));
         if (makeQuickCutGenerator(state.isImperial).isTrapezoid(params)) tags.push('Top-' + n(params.topWidth));
         tags.push('H-' + n(params.height));
@@ -7163,7 +7257,8 @@
       tags.push(/^circular/.test(pat.style) ? 'P-' + pat.count : 'P-' + pat.xCount + 'x' + pat.yCount);
     }
     tags.push(state.isImperial ? 'in' : 'mm');
-    var shapeName = params.shape === 'rectangle' && makeQuickCutGenerator(state.isImperial).isTrapezoid(params) ? 'Trapezoid'
+    var shapeName = params.shape === 'rectangle' && params.triangle ? 'Triangle'
+      : params.shape === 'rectangle' && makeQuickCutGenerator(state.isImperial).isTrapezoid(params) ? 'Trapezoid'
       : params.shape.charAt(0).toUpperCase() + params.shape.slice(1);
     return 'QuickCut-' + shapeName + '_' + tags.join('_') + '.nc';
   }
@@ -7227,6 +7322,7 @@
       if (rectKind() === 'trapezoid' && $('qc-rect-top-width').value.trim()) recheckField('qc-rect-top-width');
     });
     $('qc-rect-top-align').addEventListener('change', updateRectanglePreview);
+    wireTriangle();
     $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); });
     showRectKind(false);
     $('qc-rect-corner-relief').addEventListener('change', updateRectanglePreview);
@@ -8356,18 +8452,120 @@
   // Width is filled with 80% of Width to start from.
   function rectKind() { return $('qc-rect-kind').value; }
   function showRectKind(picked) {
-    var trap = rectKind() === 'trapezoid';
+    var kind = rectKind(), trap = kind === 'trapezoid', tri = kind === 'triangle';
     ROOT.querySelectorAll('.qc-rect-trap-only').forEach(function(el) { el.style.display = trap ? '' : 'none'; });
+    ROOT.querySelectorAll('.qc-rect-tri-only').forEach(function(el) { el.style.display = tri ? '' : 'none'; });
     var corner = $('qc-rect-corner-field');
-    if (trap) $('qc-rect-type-row').insertBefore(corner, $('qc-rect-type-row').children[2]);
+    if (trap || tri) $('qc-rect-type-row').insertBefore(corner, $('qc-rect-stepover').parentNode);
     else $('qc-rect-size-row').appendChild(corner);
-    $('qc-rect-width-label').textContent = trap ? 'Bottom Width' : 'Width';
+    $('qc-rect-width-label').textContent = rectWidthLabel();
     $('qc-rect-sub').textContent = trap
       ? 'Cut a trapezoid: a bottom and a top width, Height apart, with optional corner radius.'
+      : tri ? 'Cut a triangle from its sides, angles or height, with optional corner radius.'
       : 'Cut a rectangle by width × height, with optional corner radius.';
     if (trap && picked && !(num('qc-rect-top-width', 0) > 0) && num('qc-rect-width', 0) > 0) {
       $('qc-rect-top-width').value = roundDisplay(num('qc-rect-width', 0) * 0.8);
     }
+    // A Base too long for the sides there: start from a 3-4-5 triangle on it.
+    if (tri && picked && !triangleSides() && num('qc-rect-width', 0) > 0) {
+      var base = num('qc-rect-width', 0);
+      fillTriangleFields({ base: base, left: base * 0.8, right: base * 0.6 }, true);
+    }
+    showTriangleFields();
+  }
+  function rectWidthLabel() {
+    var kind = rectKind();
+    return kind === 'trapezoid' ? 'Bottom Width' : kind === 'triangle' ? 'Base' : 'Width';
+  }
+
+  // Triangle: Defined By picks the fields (each has the Defined By values
+  // it shows for in data-by). Base is Width's field and Height is
+  // Height's; the generator solves what's typed to the three sides.
+  var TRI_FIELDS = ['qc-rect-width', 'qc-rect-tri-left', 'qc-rect-tri-right', 'qc-rect-tri-left-angle',
+                    'qc-rect-tri-right-angle', 'qc-rect-tri-height', 'qc-rect-tri-peak-offset'];
+  function triangleSpec() {
+    return {
+      by: $('qc-rect-tri-by').value, base: num('qc-rect-width', 0),
+      left: num('qc-rect-tri-left', 0), right: num('qc-rect-tri-right', 0),
+      leftAngle: num('qc-rect-tri-left-angle', 0), rightAngle: num('qc-rect-tri-right-angle', 0),
+      height: num('qc-rect-tri-height', 0), peak: $('qc-rect-tri-peak').value, peakOffset: num('qc-rect-tri-peak-offset', NaN)
+    };
+  }
+  function triangleSides(spec) {
+    return makeQuickCutGenerator(state.isImperial).solveTriangle(spec || triangleSpec());
+  }
+  function showTriangleFields() {
+    var tri = rectKind() === 'triangle', by = $('qc-rect-tri-by').value;
+    ROOT.querySelectorAll('.qc-rect-tri-field').forEach(function(el) {
+      el.style.display = tri && el.getAttribute('data-by').split(' ').indexOf(by) >= 0 ? '' : 'none';
+    });
+    $('qc-rect-height').parentNode.style.display = tri ? 'none' : '';
+    syncPeakOffset();
+  }
+  // Peak From Left is typed only for Peak From Left; otherwise it shows
+  // where the peak menu puts it.
+  function syncPeakOffset() {
+    var peak = $('qc-rect-tri-peak').value, el = $('qc-rect-tri-peak-offset'), base = num('qc-rect-width', 0);
+    el.disabled = peak !== 'offset';
+    if (peak !== 'offset' && base > 0) el.value = roundDisplay(peak === 'left' ? 0 : peak === 'right' ? base : base / 2);
+  }
+  // The fields Defined By shows (all of them with every: true) filled
+  // from the triangle's sides, Base left as typed.
+  function fillTriangleFields(t, every) {
+    var m = makeQuickCutGenerator(state.isImperial).triangleMeasures(t), by = $('qc-rect-tri-by').value;
+    var shown = function(id) {
+      return every || $(id).closest('.qc-rect-tri-field').getAttribute('data-by').split(' ').indexOf(by) >= 0;
+    };
+    var angle = function(v) { return parseFloat(v.toFixed(2)); };
+    if (shown('qc-rect-tri-left')) $('qc-rect-tri-left').value = roundDisplay(t.left);
+    if (shown('qc-rect-tri-right')) $('qc-rect-tri-right').value = roundDisplay(t.right);
+    if (shown('qc-rect-tri-left-angle')) $('qc-rect-tri-left-angle').value = angle(m.leftAngle);
+    if (shown('qc-rect-tri-right-angle')) $('qc-rect-tri-right-angle').value = angle(m.rightAngle);
+    if (shown('qc-rect-tri-height')) $('qc-rect-tri-height').value = roundDisplay(m.height);
+    if (shown('qc-rect-tri-peak-offset')) {
+      var near = function(x) { return Math.abs(m.peakOffset - x) < t.base * 1e-6; };
+      $('qc-rect-tri-peak').value = near(t.base / 2) ? 'center' : near(0) ? 'left' : near(t.base) ? 'right' : 'offset';
+      $('qc-rect-tri-peak-offset').value = roundDisplay(m.peakOffset);
+    }
+  }
+  // Switching Defined By keeps the triangle: it's solved as it was given
+  // and the new fields are filled from it.
+  function switchTriangleBy() {
+    var sel = $('qc-rect-tri-by'), spec = triangleSpec();
+    spec.by = sel.getAttribute('data-was') || 'sss';
+    var sides = triangleSides(spec);
+    sel.setAttribute('data-was', sel.value);
+    if (sides) fillTriangleFields(sides);
+    showTriangleFields();
+    TRI_FIELDS.forEach(function(id) { setFieldError($(id), null); });
+  }
+  function hydrateTriangle(rect) {
+    var len = function(id, mm) { if (mm > 0 || (id === 'qc-rect-tri-peak-offset' && mm != null)) $(id).value = roundDisplay(mmToDisplay(mm)); };
+    if (rect.triangleBy) $('qc-rect-tri-by').value = rect.triangleBy;
+    $('qc-rect-tri-by').setAttribute('data-was', $('qc-rect-tri-by').value);
+    len('qc-rect-tri-left', rect.triLeft);
+    len('qc-rect-tri-right', rect.triRight);
+    len('qc-rect-tri-height', rect.triHeight);
+    if (rect.triLeftAngle > 0) $('qc-rect-tri-left-angle').value = rect.triLeftAngle;
+    if (rect.triRightAngle > 0) $('qc-rect-tri-right-angle').value = rect.triRightAngle;
+    if (rect.triPeak) $('qc-rect-tri-peak').value = rect.triPeak;
+    len('qc-rect-tri-peak-offset', rect.triPeakOffset);
+  }
+  function wireTriangle() {
+    $('qc-rect-tri-by').addEventListener('change', function() { switchTriangleBy(); updateRectanglePreview(); });
+    $('qc-rect-tri-peak').addEventListener('change', function() { syncPeakOffset(); updateRectanglePreview(); });
+    TRI_FIELDS.slice(1).forEach(function(id) { $(id).addEventListener('input', updateRectanglePreview); });
+    // One side or angle can be the problem with another: recheck the rest.
+    TRI_FIELDS.forEach(function(id) {
+      $(id).addEventListener('input', function() {
+        if (rectKind() !== 'triangle') return;
+        if (id === 'qc-rect-width') syncPeakOffset();
+        TRI_FIELDS.forEach(function(other) {
+          var el = $(other);
+          if (other !== id && el.value.trim() && el.offsetParent !== null && !el.disabled) recheckField(other);
+        });
+      });
+    });
   }
 
   function updateRectanglePreview() {
@@ -8379,6 +8577,7 @@
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
     var topW = num('qc-rect-top-width', 0);
+    if (rectKind() === 'triangle') return updateTrapezoidPreview(svg);
     if (rectKind() === 'trapezoid' && W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9) return updateTrapezoidPreview(svg);
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
@@ -8531,13 +8730,19 @@
     }
   }
 
-  // Rectangle with a Top Width: drawn from the generator's own outlines
-  // (the shape, and the bit's far edge on an Inner or Outer cut), to
-  // scale, turned by the Start Angle. Taps on a corner, an edge's middle
-  // or the center pick the Origin, as on the rectangle.
+  // Rectangle with a Top Width, or a Triangle: drawn from the generator's
+  // own outlines (the shape, and the bit's far edge on an Inner or Outer
+  // cut), to scale, turned by the Start Angle. Taps on a corner, an
+  // edge's middle or the center pick the Origin, as on the rectangle.
   function updateTrapezoidPreview(svg) {
     var params = readRectangleForm(), cutType = params.cutType;
     var gen = makeQuickCutGenerator(state.isImperial);
+    var tri = !!params.triangle;
+    if (tri && !gen.isTriangle(params)) {
+      rectPreviewNodes = null;
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not a triangle yet</text>';
+      return;
+    }
     var W = params.width, T = params.topWidth, H = params.height, turn = params.startAngleDeg || 0;
     var geo = gen.computeTrapezoidGeom(params);
     var most = gen.computeTrapezoidGeom(Object.assign({}, params, { cornerRadius: 1e9 })).cornerR;
@@ -8548,10 +8753,15 @@
 
     // Fitted as the rectangle is, a thin shape drawn at least 14 tall (so
     // each axis has its own scale, fx and fy).
+    // A triangle is drawn true, so its angles look as they are.
     var pad = insetPad('rect') + bitEdgePad(cutType), boxW = Math.max(W, T);
-    var fit = Math.min(54 / (boxW + 2 * pad), 52 / (H + 2 * pad));
-    if (turn % 180) fit = Math.min(fit, 60 / Math.hypot(boxW + 2 * pad, H + 2 * pad));
-    var fx = fit, fy = Math.max(fit, Math.min(14, 52 * H / (H + 2 * pad)) / H);
+    if (tri) {
+      boxW = H = 0;
+      geo.part.forEach(function(q) { boxW = Math.max(boxW, 2 * Math.abs(q.x)); H = Math.max(H, 2 * Math.abs(q.y)); });
+    }
+    var fit = tri ? Math.min(60 / (boxW + 2 * pad), 54 / (H + 2 * pad)) : Math.min(54 / (boxW + 2 * pad), 52 / (H + 2 * pad));
+    if (turn % 180) fit = Math.min(fit, (tri ? 64 : 60) / Math.hypot(boxW + 2 * pad, H + 2 * pad));
+    var fx = fit, fy = tri ? fit : Math.max(fit, Math.min(14, 52 * H / (H + 2 * pad)) / H);
     // SVG y points down, so a CCW machine turn is this on screen.
     var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     function T2(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
@@ -8595,9 +8805,57 @@
              '" text-anchor="' + anchor + '" dominant-baseline="' + baseline + '">' + value + '</text>';
     }
     var yB = v[0].y - gap, yT = v[2].y + gap, xH = Math.max(v[1].x, v[2].x) + gapX;
-    var dims = line([v[0].x, yB], [v[1].x, yB]) + text((v[0].x + v[1].x) / 2, yB - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
+    var dims = tri ? triangleDims() : line([v[0].x, yB], [v[1].x, yB]) + text((v[0].x + v[1].x) / 2, yB - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
                line([v[3].x, yT], [v[2].x, yT]) + text((v[2].x + v[3].x) / 2, yT + 3 / fy, 'middle', turn ? 'middle' : 'auto', T) +
                line([xH, v[0].y], [xH, v[2].y]) + text(xH + 2 / fx, 0, 'start', 'middle', H);
+
+    // Each side's length beside it, each angle inside its corner; what
+    // Defined By worked out (not typed) is fainter. Base + Height adds the
+    // height, dashed down from the peak.
+    function triangleDims() {
+      var m = gen.triangleMeasures(params.triangle), by = $('qc-rect-tri-by').value;
+      var sideTyped = { sss: [1, 1, 1], sas: [1, 0, 1], asa: [1, 0, 0], height: [1, 0, 0] }[by];
+      var angleTyped = { sss: [0, 0], sas: [1, 0], asa: [1, 1], height: [0, 0] }[by];
+      var sides = [params.triangle.base, params.triangle.right, params.triangle.left];
+      var angles = [m.leftAngle, m.rightAngle, m.topAngle];
+      var pts = v.map(function(q) { return S(q.x, q.y); });
+      var mid = { x: (pts[0].x + pts[1].x + pts[2].x) / 3, y: (pts[0].y + pts[1].y + pts[2].y) / 3 };
+      // Kept inside the preview's box (100 square about 0), as a label
+      // beside a far corner would run off it.
+      function label(x, y, value, typed, cls) {
+        var half = String(value).length * (cls ? 2.1 : 2.7) + 1;
+        x = Math.max(-50 + half, Math.min(50 - half, x));
+        y = Math.max(-45, Math.min(45, y));
+        return '<text class="qc-shape-dim-label' + (typed ? '' : ' qc-tri-derived') + (cls ? ' ' + cls : '') + '" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
+               '" text-anchor="middle" dominant-baseline="middle">' + value + '</text>';
+      }
+      var out = '';
+      pts.forEach(function(a, i) {
+        var b = pts[(i + 1) % 3], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey) || 1;
+        var nx = -ey / len, ny = ex / len, cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+        if (nx * (cx - mid.x) + ny * (cy - mid.y) < 0) { nx = -nx; ny = -ny; }
+        var text = String(roundDisplay(sides[i])), away = 5 + Math.abs(nx) * text.length * 2.4;
+        out += label(cx + nx * away, cy + ny * away, text, sideTyped[i]);
+      });
+      pts.forEach(function(p, i) {
+        var a = pts[(i + 2) % 3], b = pts[(i + 1) % 3];
+        var ux = (a.x - p.x) / Math.hypot(a.x - p.x, a.y - p.y) + (b.x - p.x) / Math.hypot(b.x - p.x, b.y - p.y);
+        var uy = (a.y - p.y) / Math.hypot(a.x - p.x, a.y - p.y) + (b.y - p.y) / Math.hypot(b.x - p.x, b.y - p.y);
+        // Just outside the corner, along its bisector.
+        var ul = Math.hypot(ux, uy) || 1, text = parseFloat(angles[i].toFixed(1)) + '°';
+        var d = 4 + Math.abs(ux / ul) * text.length * 2.1 + Math.abs(uy / ul) * 3;
+        out += label(p.x - ux / ul * d, p.y - uy / ul * d, text, angleTyped[i], 'qc-tri-angle');
+      });
+      if (by === 'height') {
+        var foot = S(v[2].x, v[0].y), top = pts[2], baseEnd = m.peakOffset < 0 ? pts[0] : pts[1];
+        out += '<line class="qc-shape-dim-line qc-tri-drop" x1="' + top.x.toFixed(2) + '" y1="' + top.y.toFixed(2) + '" x2="' + foot.x.toFixed(2) + '" y2="' + foot.y.toFixed(2) + '"/>';
+        if (m.peakOffset < 0 || m.peakOffset > params.triangle.base) {
+          out += '<line class="qc-shape-dim-line qc-tri-drop" x1="' + baseEnd.x.toFixed(2) + '" y1="' + baseEnd.y.toFixed(2) + '" x2="' + foot.x.toFixed(2) + '" y2="' + foot.y.toFixed(2) + '"/>';
+        }
+        out += label((top.x + foot.x) / 2 + 3 + String(roundDisplay(m.height)).length * 2.2, (top.y + foot.y) / 2, roundDisplay(m.height), true);
+      }
+      return out;
+    }
 
     // Corners in the generator's order, then the edge middles, then the center.
     rectPreviewNodes = ownPreviewNodes('rect', gen.trapezoidCorners(params)(0).map(function(q, i) {
@@ -10288,6 +10546,7 @@
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       'Pick <strong>Trapezoid</strong> from the menu in the title for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Tap a corner or an edge&rsquo;s middle in the preview to put X0 Y0 on the trapezoid itself; the Origin picker&rsquo;s points are the corners and edges of the box around it, so with a top wider or narrower than the bottom, a box corner can sit in the air beside the slanted end.',
+      'Pick <strong>Triangle</strong> from the same menu, then say what you know in <strong>Defined By</strong>: <strong>3 Sides</strong>; <strong>2 Sides + Angle</strong> (the Base, the Left Side and the angle between them); <strong>Base + 2 Angles</strong> (the angles at the base&rsquo;s ends); or <strong>Base + Height</strong>, with the peak centered, over either end (a right angle there), or a set distance from the left end. The Base is the front edge and the peak points to the back; Start Angle turns it. The preview shows every side and angle, the ones worked out fainter, and switching Defined By keeps the triangle. Corner Radius, tabs, Corner Relief, clearing and patterns work as on the rectangle; tap a corner or a side&rsquo;s middle to put X0 Y0 there.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
@@ -11142,7 +11401,7 @@
     }
 
     function rectangleShapeBbox(params) {
-      if (isTrapezoid(params)) return trapezoidShapeBbox(params);
+      if (isConvexShape(params)) return trapezoidShapeBbox(params);
       var W = params.width, H = params.height;
       return { minX: -W / 2, maxX: W / 2, minY: -H / 2, maxY: H / 2 };
     }
@@ -11607,7 +11866,7 @@
     // before turning), then the middles of the front, right, back and left
     // edges (corner:5-8). Polygon: its vertices in cut order.
     function rectangleCorners(params) {
-      if (isTrapezoid(params)) return trapezoidCorners(params);
+      if (isConvexShape(params)) return trapezoidCorners(params);
       return function(rot) {
         var w = params.width / 2, h = params.height / 2;
         return [[-w, -h], [w, -h], [w, h], [-w, h], [0, -h], [w, 0], [0, h], [-w, 0]]
@@ -11695,7 +11954,7 @@
     }
 
     function generateRectangleProgram(params) {
-      if (isTrapezoid(params)) return generateTrapezoidProgram(params);
+      if (params.triangle || isTrapezoid(params)) return generateTrapezoidProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {
         return generateRectangleClearingProgram(params);
       }
@@ -12986,6 +13245,10 @@
     // in cut order front-left, front-right, back-right, back-left, so the
     // origin dots, Start Angle and patterns work as for a rectangle.
     //
+    // A triangle (params.triangle: its base, left and right sides) is cut
+    // the same way: the base is the front edge, the peak toward the back,
+    // corners front-left, front-right, peak, about the center of its box.
+    //
     // The tool path is the outline with each edge moved a bit radius out
     // (Outer) or in (Inner, Clearing) along its normal, so neighboring
     // edges meet again further along their corner's bisector. Corner Radius
@@ -12996,6 +13259,69 @@
     function isTrapezoid(params) {
       var t = Number(params.topWidth);
       return t > 0 && Math.abs(t - params.width) > 1e-9;
+    }
+
+    // Each side shorter than the other two together, so the sides meet.
+    function isTriangle(params) {
+      var t = params.triangle;
+      if (!t || !(t.base > 0 && t.left > 0 && t.right > 0)) return false;
+      var most = Math.max(t.base, t.left, t.right);
+      return most < t.base + t.left + t.right - most - 1e-9;
+    }
+    function isConvexShape(params) { return isTriangle(params) || isTrapezoid(params); }
+
+    // The three sides from what the Triangle was given (spec.by):
+    //   sss     base, left, right: the sides
+    //   sas     base, left and leftAngle, the angle between them
+    //   asa     base, leftAngle and rightAngle, the angles at its ends
+    //   height  base, height and peak: 'center', 'left' or 'right' (over
+    //           that end of the base), or 'offset' (peakOffset from the
+    //           base's left end; past either end for an obtuse triangle)
+    // Angles in degrees. Null when the numbers don't make a triangle.
+    function solveTriangle(spec) {
+      var B = spec.base, rad = Math.PI / 180, L, R;
+      if (!(B > 0)) return null;
+      if (spec.by === 'sas') {
+        var A = spec.leftAngle;
+        if (!(spec.left > 0 && A > 0 && A < 180)) return null;
+        L = spec.left;
+        R = Math.sqrt(Math.max(0, B * B + L * L - 2 * B * L * Math.cos(A * rad)));
+      } else if (spec.by === 'asa') {
+        var a = spec.leftAngle, b = spec.rightAngle, c = 180 - a - b;
+        if (!(a > 0 && b > 0 && c > 1e-9)) return null;
+        L = B * Math.sin(b * rad) / Math.sin(c * rad);
+        R = B * Math.sin(a * rad) / Math.sin(c * rad);
+      } else if (spec.by === 'height') {
+        var H = spec.height, peak = spec.peak || 'center';
+        var x = peak === 'left' ? 0 : peak === 'right' ? B : peak === 'offset' ? Number(spec.peakOffset) : B / 2;
+        if (!(H > 0) || !isFinite(x)) return null;
+        L = Math.hypot(x, H);
+        R = Math.hypot(B - x, H);
+      } else {
+        L = spec.left;
+        R = spec.right;
+      }
+      var sides = { base: B, left: L, right: R };
+      return isTriangle({ triangle: sides }) ? sides : null;
+    }
+
+    // A triangle's angles (degrees: at the base's left and right ends, and
+    // at the peak), its height and how far along the base the peak is from
+    // the left end.
+    function triangleMeasures(t) {
+      var B = t.base, L = t.left, R = t.right, deg = 180 / Math.PI;
+      var x = (B * B + L * L - R * R) / (2 * B), h = Math.sqrt(Math.max(0, L * L - x * x));
+      var left = Math.atan2(h, x) * deg, right = Math.atan2(h, B - x) * deg;
+      return { leftAngle: left, rightAngle: right, topAngle: 180 - left - right, height: h, peakOffset: x };
+    }
+
+    function triangleVertices(params) {
+      var t = params.triangle, m = triangleMeasures(t), B = t.base;
+      var cx = (Math.min(0, m.peakOffset) + Math.max(B, m.peakOffset)) / 2, cy = m.height / 2;
+      return [{ x: -cx, y: -cy }, { x: B - cx, y: -cy }, { x: m.peakOffset - cx, y: m.height - cy }];
+    }
+    function convexVertices(params) {
+      return isTriangle(params) ? triangleVertices(params) : trapezoidVertices(params);
     }
 
     function trapezoidVertices(params) {
@@ -13101,7 +13427,7 @@
     // tool path (null when the bit doesn't fit inside) and the numbers the
     // clearing rings need.
     function computeTrapezoidGeom(params, cx, cy, rot) {
-      var part = trapezoidVertices(params).map(function(v) {
+      var part = convexVertices(params).map(function(v) {
         var p = rotatePoint(0, 0, v.x, v.y, rot || 0);
         return { x: p.x + (cx || 0), y: p.y + (cy || 0) };
       });
@@ -13130,24 +13456,43 @@
 
     // The part's box, about its center (as rectangleShapeBbox).
     function trapezoidShapeBbox(params) {
+      if (isTriangle(params)) {
+        var v = triangleVertices(params);
+        return { minX: v[0].x, maxX: -v[0].x, minY: v[0].y, maxY: -v[0].y };
+      }
       var W = Math.max(params.width, params.topWidth), H = params.height;
       return { minX: -W / 2, maxX: W / 2, minY: -H / 2, maxY: H / 2 };
     }
-    // Corners in cut order, then the middles of the front, right, back and
-    // left edges (corner:5-8), as rectangleCorners.
+    // Corners in cut order, then the middles of the edges each one starts:
+    // a trapezoid's front, right, back and left (corner:5-8, as
+    // rectangleCorners), a triangle's base, right and left (corner:4-6).
     function trapezoidCorners(params) {
       return function(rot) {
-        var v = trapezoidVertices(params);
-        return v.concat([0, 1, 2, 3].map(function(i) {
-          var w = v[(i + 1) % 4];
-          return { x: (v[i].x + w.x) / 2, y: (v[i].y + w.y) / 2 };
+        var v = convexVertices(params), k = v.length;
+        return v.concat(v.map(function(p, i) {
+          var w = v[(i + 1) % k];
+          return { x: (p.x + w.x) / 2, y: (p.y + w.y) / 2 };
         })).map(function(c) { return rotatePoint(0, 0, c.x, c.y, rot); });
       };
+    }
+
+    // The header's size lines for a triangle: its sides, then its angles.
+    function triangleSizeNotes(t, unitsLabel) {
+      var m = triangleMeasures(t), n = function(v) { return parseFloat(v.toFixed(4)); };
+      var a = function(v) { return parseFloat(v.toFixed(2)) + '°'; };
+      return ['Sides: ' + n(t.base) + unitsLabel + ' base, ' + n(t.left) + unitsLabel + ' left, ' + n(t.right) + unitsLabel + ' right',
+              'Angles: ' + a(m.leftAngle) + ' left, ' + a(m.rightAngle) + ' right, ' + a(m.topAngle) + ' top'];
     }
 
     function generateTrapezoidProgram(params) {
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var clearing = (params.cutType || 'inner') === 'clearing';
+      var tri = !!params.triangle, name = tri ? 'Triangle' : 'Trapezoid';
+      if (tri && !isTriangle(params)) {
+        var bad = programHeader(params, { shapeLabel: name });
+        bad.push('(WARNING: the sides don\'t make a triangle; nothing to cut)');
+        return bad.concat(programFooter(params)).join('\n');
+      }
       var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
       var baseGeom = computeTrapezoidGeom(params);
       var stepoverPct = params.stepoverPct || 40;
@@ -13155,15 +13500,15 @@
       var origin = resolveShapeOrigin(params, positions, trapezoidShapeBbox(params), trapezoidCorners(params));
       var typedR = Math.max(0, params.cornerRadius || 0);
 
-      var extras = [
+      var extras = (tri ? triangleSizeNotes(params.triangle, unitsLabel) : [
         'Size: ' + params.width + unitsLabel + ' (bottom), ' + params.topWidth + unitsLabel + ' (top, ' +
-          (params.topAlign || 'center') + ') x ' + params.height + unitsLabel,
+          (params.topAlign || 'center') + ') x ' + params.height + unitsLabel]).concat([
         'Corner Radius: ' + parseFloat(baseGeom.cornerR.toFixed(4)) + unitsLabel +
           (typedR > baseGeom.cornerR + 1e-6 ? ' (' + typedR + unitsLabel + ' typed; the most that fits)' : '') +
           bitCornerNote(params, unitsLabel) +
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel
-      ];
+      ]);
       if (clearing) {
         extras.push('Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')');
         extras.push('Entry: straight plunge at the innermost ring');
@@ -13173,7 +13518,7 @@
       var tabNotes = !clearing && baseGeom.segs ? tabHeaderNotes(params, baseGeom.segs, extras) : [];
 
       var lines = programHeader(params, {
-        shapeLabel: 'Trapezoid' + (clearing ? ' (clearing)' : '') + (positions.length > 1 ? ' × ' + positions.length : ''),
+        shapeLabel: name + (clearing ? ' (clearing)' : '') + (positions.length > 1 ? ' × ' + positions.length : ''),
         extraComments: extras
       });
 
@@ -13806,6 +14151,9 @@
       generateCutterProgram: generateCutterProgram,
       generatePolygonProgram: generatePolygonProgram,
       isTrapezoid: isTrapezoid,
+      isTriangle: isTriangle,
+      solveTriangle: solveTriangle,
+      triangleMeasures: triangleMeasures,
       computeTrapezoidGeom: computeTrapezoidGeom,
       convexOutline: convexOutline,
       trapezoidCorners: trapezoidCorners,

@@ -2961,3 +2961,108 @@ test('a tool number starts the program with M6 T, units and G90 again, and a lif
   assert.match(g, /\(Bit Diameter: [\d.]+mm, T3\)/);
   assert.doesNotMatch(gen.generateRectangleProgram(baseParams({})), /M6/);
 });
+
+// === Triangle ===
+
+function triangleBase(overrides) {
+  return baseParams(Object.assign({ triangle: { base: 100, left: 80, right: 60 }, cornerRadius: 0, bitDiameter: 6.35, depth: 3, depthOfCut: 3 }, overrides));
+}
+
+// The triangle's corners worked out here on their own: base on the front
+// edge, peak toward the back, about the center of its box.
+function triangleCorners(t) {
+  const x = (t.base ** 2 + t.left ** 2 - t.right ** 2) / (2 * t.base), h = Math.sqrt(t.left ** 2 - x ** 2);
+  const cx = (Math.min(0, x) + Math.max(t.base, x)) / 2;
+  return [[-cx, -h / 2], [t.base - cx, -h / 2], [x - cx, h / 2]];
+}
+
+// Signed distance from a convex CCW outline with sharp corners.
+function convexDistance(v) {
+  return (pt) => {
+    let inside = true, toLine = -Infinity, toEdge = Infinity;
+    v.forEach((a, i) => {
+      const b = v[(i + 1) % v.length], ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey);
+      const s = ((pt[0] - a[0]) * ey - (pt[1] - a[1]) * ex) / L;
+      toLine = Math.max(toLine, s); if (s > 0) inside = false;
+      const t = Math.max(0, Math.min(1, ((pt[0] - a[0]) * ex + (pt[1] - a[1]) * ey) / (L * L)));
+      toEdge = Math.min(toEdge, Math.hypot(pt[0] - a[0] - t * ex, pt[1] - a[1] - t * ey));
+    });
+    return inside ? toLine : toEdge;
+  };
+}
+
+test('triangle: every way of giving it comes to the same three sides', () => {
+  const gen = makeQuickCutGenerator(false);
+  const sides = { base: 100, left: 80, right: 60 };
+  const m = gen.triangleMeasures(sides);
+  assert.ok(Math.abs(m.topAngle - 90) < 1e-9);
+  assert.ok(Math.abs(m.height - 48) < 1e-9);
+  assert.ok(Math.abs(m.peakOffset - 64) < 1e-9);
+  const close = (s) => Math.abs(s.base - 100) < 1e-9 && Math.abs(s.left - 80) < 1e-9 && Math.abs(s.right - 60) < 1e-9;
+  assert.ok(close(gen.solveTriangle({ by: 'sss', base: 100, left: 80, right: 60 })));
+  assert.ok(close(gen.solveTriangle({ by: 'sas', base: 100, left: 80, leftAngle: m.leftAngle })));
+  assert.ok(close(gen.solveTriangle({ by: 'asa', base: 100, leftAngle: m.leftAngle, rightAngle: m.rightAngle })));
+  assert.ok(close(gen.solveTriangle({ by: 'height', base: 100, height: 48, peak: 'offset', peakOffset: 64 })));
+  const iso = gen.solveTriangle({ by: 'height', base: 60, height: 40, peak: 'center' });
+  assert.ok(Math.abs(iso.left - 50) < 1e-9 && Math.abs(iso.right - 50) < 1e-9);
+  const right = gen.solveTriangle({ by: 'height', base: 30, height: 40, peak: 'left' });
+  assert.ok(Math.abs(right.left - 40) < 1e-9 && Math.abs(right.right - 50) < 1e-9);
+  // An obtuse triangle: the peak past the right end.
+  const obtuse = gen.triangleMeasures(gen.solveTriangle({ by: 'height', base: 50, height: 20, peak: 'offset', peakOffset: 70 }));
+  assert.ok(obtuse.rightAngle > 90 && Math.abs(obtuse.peakOffset - 70) < 1e-9);
+});
+
+test('triangle: numbers that make no triangle are refused', () => {
+  const gen = makeQuickCutGenerator(false);
+  assert.equal(gen.solveTriangle({ by: 'sss', base: 100, left: 40, right: 60 }), null);
+  assert.equal(gen.solveTriangle({ by: 'asa', base: 100, leftAngle: 100, rightAngle: 80 }), null);
+  assert.equal(gen.solveTriangle({ by: 'sas', base: 100, left: 50, leftAngle: 180 }), null);
+  assert.equal(gen.solveTriangle({ by: 'height', base: 100, height: 0 }), null);
+  const g = gen.generateRectangleProgram(triangleBase({ triangle: { base: 100, left: 40, right: 60 } }));
+  assert.match(g, /\(QuickCut: Triangle\)/);
+  assert.match(g, /WARNING: the sides don't make a triangle; nothing to cut/);
+  assert.doesNotMatch(g, /^G1 /m);
+});
+
+test('triangle: the bit runs a bit radius outside or inside it, and the header gives its sides and angles', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  for (const [o, want] of [[{ cutType: 'outer' }, 3.175], [{ cutType: 'inner' }, -3.175]]) {
+    const p = triangleBase(o), g = gen(p), dist = convexDistance(triangleCorners(p.triangle));
+    assert.match(g, /\(QuickCut: Triangle\)/);
+    assert.match(g, /Sides: 100mm base, 80mm left, 60mm right/);
+    assert.match(g, /Angles: 36\.87° left, 53\.13° right, 90° top/);
+    const pts = cutPoints(g);
+    assert.ok(pts.length > 50);
+    for (const pt of pts) assert.ok(Math.abs(dist(pt) - want) < 0.01, JSON.stringify([o, pt, dist(pt)]));
+  }
+});
+
+test('triangle: clearing reaches all but the corners; origin corners are its own corners and edge middles', () => {
+  const gen = makeQuickCutGenerator(false);
+  const p = triangleBase({ cutType: 'clearing', stepoverPct: 40 }), dist = convexDistance(triangleCorners(p.triangle));
+  const pts = cutPoints(gen.generateRectangleProgram(p));
+  for (const pt of pts) assert.ok(dist(pt) <= -3.175 + 0.01);
+  // Probe the inside: every point a bit radius in is within a bit radius of the path.
+  const v = triangleCorners(p.triangle);
+  for (let i = 0; i < 400; i++) {
+    const a = Math.random(), b = Math.random() * (1 - a), c = 1 - a - b;
+    const q = [a * v[0][0] + b * v[1][0] + c * v[2][0], a * v[0][1] + b * v[1][1] + c * v[2][1]];
+    if (dist(q) > -3.175 - 1) continue;
+    assert.ok(pts.some(s => Math.hypot(s[0] - q[0], s[1] - q[1]) <= 3.175 + 0.3), JSON.stringify(q));
+  }
+  const off = (origin) => gen.shapeOriginOffset('rectangle', triangleBase({ origin }));
+  // The peak (corner 3) of the 100 / 80 / 60 triangle is 14 right of and 24 up from its box's center.
+  const peak = off('corner:3');
+  assert.ok(Math.abs(peak.x - 14) < 1e-9 && Math.abs(peak.y - 24) < 1e-9, JSON.stringify(peak));
+  const baseMid = off('corner:4');
+  assert.ok(Math.abs(baseMid.x - 0) < 1e-9 && Math.abs(baseMid.y + 24) < 1e-9, JSON.stringify(baseMid));
+});
+
+test('triangle: Corner Radius, tabs, dog-bones and a pattern work as on the trapezoid', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  const rounded = gen(triangleBase({ cornerRadius: 5 }));
+  assert.match(rounded, /^G3 /m);
+  assert.match(gen(triangleBase({ depth: 6, depthOfCut: 3, tabs: { count: 3, width: 8, height: 1 } })), /Tabs?:/i);
+  assert.match(gen(triangleBase({ cutType: 'inner', cornerRelief: 'dogbone' })), /dog-bone corners/);
+  assert.match(gen(triangleBase({ pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 120, yDist: 0 } })), /Instance 2\/2/);
+});
