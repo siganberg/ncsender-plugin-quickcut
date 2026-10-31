@@ -3104,12 +3104,23 @@
       state.unitDisplay = state.isImperial ? 'IMPERIAL (in)' : 'METRIC (mm)';
       var safeZRaw = Number(s.safeZHeight);
       state.safeZHeightMm = isFinite(safeZRaw) ? safeZRaw : null;
-      // ncSender Pro's keepout zone, in machine coordinates (mm). Only
-      // Wasteboard Surfacing uses it; Community has none.
-      var kz = s.advanced && s.advanced.keepoutZone;
-      if (kz && kz.enabled && kz.min && kz.max) {
-        state.keepoutZonesMm.push({ name: 'ncSender', minX: Number(kz.min.x), minY: Number(kz.min.y),
-                                    maxX: Number(kz.max.x), maxY: Number(kz.max.y) });
+      // ncSender Pro's keepout zones, in machine coordinates (mm). Only
+      // Wasteboard Surfacing uses them; Community has none. Newer cores keep
+      // a list (`keepout.zones`); older ones a single `advanced.keepoutZone`.
+      var zones = s.keepout && Array.isArray(s.keepout.zones) ? s.keepout.zones : null;
+      if (zones) {
+        zones.forEach(function(z) {
+          if (!z || z.enabled === false) return;
+          var k = { name: z.name || 'ncSender', minX: Number(z.minX), minY: Number(z.minY),
+                    maxX: Number(z.maxX), maxY: Number(z.maxY) };
+          if (k.maxX > k.minX && k.maxY > k.minY) state.keepoutZonesMm.push(k);
+        });
+      } else {
+        var kz = s.advanced && s.advanced.keepoutZone;
+        if (kz && kz.enabled && kz.min && kz.max) {
+          state.keepoutZonesMm.push({ name: 'ncSender', minX: Number(kz.min.x), minY: Number(kz.min.y),
+                                      maxX: Number(kz.max.x), maxY: Number(kz.max.y) });
+        }
       }
     } catch (err) {
       console.warn('[QuickCut] settings fetch failed, using defaults:', err);
