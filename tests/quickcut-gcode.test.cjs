@@ -3190,3 +3190,25 @@ test('a pattern of curved copies reuses one worked-out shape and stays quick', (
   assert.equal((g.match(/Instance/g) || []).length, 16);
   assert.ok(Date.now() - t0 < 4000, 'took ' + (Date.now() - t0) + ' ms');
 });
+
+test('triangle: a peak leaning past the left end widens its box, so a box origin is still on the shape', () => {
+  const gen = makeQuickCutGenerator(false);
+  // 100 / 30 / 125: the peak is past the base's left end.
+  const p = shapeBase({ triangle: { base: 100, left: 30, right: 125 }, origin: 'front-left', cutType: 'outer' });
+  const xs = cutPoints(gen.generateRectangleProgram(p)).map(q => q[0]);
+  assert.ok(Math.abs(Math.min(...xs) + 3.175) < 0.01, String(Math.min(...xs)));
+});
+
+test('arch: Corner Radius is capped by how far in the shape goes, not by its curve\'s short edges', () => {
+  const gen = makeQuickCutGenerator(false).generateRectangleProgram;
+  assert.match(gen(shapeBase({ kind: 'arch', width: 200, height: 100, archRise: 10, cornerRadius: 5 })), /Corner Radius: 5mm/);
+  assert.match(gen(shapeBase({ kind: 'arch', width: 60, height: 80, archRise: 60, archStyle: 'pointed', cornerRadius: 5 })), /Corner Radius: 5mm/);
+});
+
+test('tabs: one on an edge that wraps through the start point is still the tab\'s width', () => {
+  const gen = makeQuickCutGenerator(false);
+  const segs = gen.computeTrapezoidGeom(shapeBase({ kind: 'arch', width: 200, height: 150, archRise: 100 })).segs;
+  for (const iv of gen.tabIntervals(segs, { count: 4, width: 8, height: 1 }, 6.35)) {
+    assert.ok(iv.start >= 0 && iv.end > iv.start && iv.end - iv.start < 14.36 + 1e-6, JSON.stringify(iv));
+  }
+});
