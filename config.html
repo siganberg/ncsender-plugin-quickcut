@@ -801,6 +801,8 @@
   /* Beside Generate: about how long it runs, and the travel check. */
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
   .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
+  /* Still pressable: Generate shows each field's problem. */
+  .qc-primary-btn.qc-gen-blocked { opacity: 0.5; }
   /* The Depth card's fields, with the side view of the passes beside them. */
   .qc-depth-wrap { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .qc-depth-wrap > .qc-row-2 { flex: 1 1 300px; min-width: 0; }
@@ -1311,34 +1313,18 @@
     border-color: #c4c4c4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
-  /* A field's own problem, until it's fixed (setFieldError). */
-  .qc-field-has-error { position: relative; }
+  /* A field's own problem, until it's fixed (setFieldError): a line
+     under the field, in the field's own width. */
   .qc-field-error {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    width: max-content;
-    max-width: 260px;
-    padding: 6px 10px;
-    border-radius: 4px;
-    background: #d32f2f;
-    color: #fff;
-    font-size: 0.8rem;
+    align-self: stretch;
+    margin-top: 4px;
+    color: #ff6b6b;
+    font-size: 0.78rem;
+    font-weight: 500;
     line-height: 1.3;
-    text-align: center;
-    pointer-events: none;
+    text-align: left;
   }
-  .qc-field-error::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: -6px;
-    transform: translateX(-50%);
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid #d32f2f;
-  }
+  body.theme-light .qc-field-error { color: #c62828; }
   .qc-input.qc-input-error { border-color: #d32f2f; }
   .qc-field label {
     font-size: 0.78rem;
@@ -4001,6 +3987,12 @@
     };
   }
 
+  // Another field's number, for a check against it; NaN while that field
+  // has a problem of its own (its own message says what).
+  function okNum(id) {
+    var el = $(id);
+    return el && !validateField(id, el.value) ? num(id, NaN) : NaN;
+  }
   function validateField(id, value) {
     var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE : validationRules()[id];
     if (!rules) return null;
@@ -4013,8 +4005,9 @@
     var n = unitKind ? parseUnitValue(value, state.isImperial, unitKind) : parseFloat(value);
     if (n == null || isNaN(n))                                  return rules.label + ' must be a number';
     if (rules.integer && !Number.isInteger(n))     return rules.label + ' must be a whole number';
-    if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min;
-    if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max;
+    var units = unitKind === 'length' ? ' ' + state.unitLabel : unitKind === 'feed' ? ' ' + state.unitLabel + '/min' : '';
+    if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min + units;
+    if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max + units;
 
     // A Slot shape that can't be cut shows on the field to change.
     if (/^qc-slt-(width|length|radius|sweep|chord|rise)$/.test(id)) {
@@ -4056,47 +4049,47 @@
     }
     // A star's inner diameter is inside its diameter.
     if (id === 'qc-poly-inner' && polyKind() === 'star') {
-      var starD = num('qc-poly-star-dia', NaN);
+      var starD = okNum('qc-poly-star-dia');
       if (n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
       // The bit has to fit its points (Inner) or the corners between them (Outer).
       var starP = Object.assign(readPolygonForm(), { innerDiameter: n });
       var starBit = Math.max(0, num('qc-bit', 0)) / 2;
-      if (starBit > 0 && !makeQuickCutGenerator(state.isImperial).starOutline(starP, starP.cutType === 'outer' ? starBit : -starBit)) {
+      if (isFinite(starD) && starBit > 0 && !makeQuickCutGenerator(state.isImperial).starOutline(starP, starP.cutType === 'outer' ? starBit : -starBit)) {
         return 'The bit is too big for this star: make it bigger, its points blunter, or use a smaller bit';
       }
     }
 
     // A trapezoid's top and bottom widths must differ (else it's a rectangle).
-    if (id === 'qc-rect-top-width' && rectKind() === 'trapezoid' && Math.abs(n - num('qc-rect-width', NaN)) < 1e-9) {
+    if (id === 'qc-rect-top-width' && rectKind() === 'trapezoid' && Math.abs(n - okNum('qc-rect-width')) < 1e-9) {
       return 'Top Width is the same as Bottom Width; pick Rectangle in the title for that';
     }
 
     // Cross-field: Depth of Cut can't be deeper than Total Depth — a
     // single pass to that depth would overshoot the requested total.
     if (id === 'qc-rect-step') {
-      var rTot = num('qc-rect-depth', NaN);
+      var rTot = okNum('qc-rect-depth');
       if (isFinite(rTot) && n > rTot) return 'Depth of Cut must not exceed Total Depth (' + rTot + ')';
     }
     if (id === 'qc-circ-step') {
-      var cTot = num('qc-circ-depth', NaN);
+      var cTot = okNum('qc-circ-depth');
       if (isFinite(cTot) && n > cTot) return 'Depth of Cut must not exceed Total Depth (' + cTot + ')';
     }
     // Target Thickness: Z0 is on the wasteboard, so removing the whole
     // stock or more would cut into it.
     if (id === 'qc-plan-depth' && $('qc-plan-mode').value === 'thickness') {
-      var start = num('qc-plan-start-thickness', NaN);
+      var start = okNum('qc-plan-start-thickness');
       if (isFinite(start) && n >= start - 1e-9) return 'Amount to Remove must be less than the Starting Thickness (' + start + '), or the bit cuts into the wasteboard';
     }
     if (id === 'qc-plan-step') {
-      var pTot = num('qc-plan-depth', NaN);
+      var pTot = okNum('qc-plan-depth');
       if (isFinite(pTot) && n > pTot) return 'Depth of Cut must not exceed Total Depth (' + pTot + ')';
     }
     if (id === 'qc-join-step') {
-      var jTot = num('qc-join-depth', NaN);
+      var jTot = okNum('qc-join-depth');
       if (isFinite(jTot) && n > jTot) return 'Depth of Cut must not exceed Total Depth (' + jTot + ')';
     }
     if (id === 'qc-poly-step') {
-      var pgTot = num('qc-poly-depth', NaN);
+      var pgTot = okNum('qc-poly-depth');
       if (isFinite(pgTot) && n > pgTot) return 'Depth of Cut must not exceed Total Depth (' + pgTot + ')';
     }
     // An Overall size holds at least one copy.
@@ -4130,7 +4123,7 @@
       if (isFinite(polyA) && n > polyA + 1e-9) return 'Corner Radius must not exceed ' + roundDisplay(polyA) + ' (half the size across the flats)';
     }
     if (id === 'qc-slt-step') {
-      var sTot = num('qc-slt-depth', NaN);
+      var sTot = okNum('qc-slt-depth');
       if (isFinite(sTot) && n > sTot) return 'Depth of Cut must not exceed Total Depth (' + sTot + ')';
     }
     if (id === 'qc-slt-sweep' && n === 0) return 'Sweep must not be 0';
@@ -4145,15 +4138,11 @@
     }
     var tabDepth = /^qc-(rect|circ|poly|slt)-tabs-height$/.exec(id);
     if (tabDepth) {
-      var tTot = num('qc-' + tabDepth[1] + '-depth', NaN);
+      var tTot = okNum('qc-' + tabDepth[1] + '-depth');
       if (isFinite(tTot) && n >= tTot) return 'Tab Height must be less than Total Depth (' + tTot + ')';
     }
-    if (id === 'qc-drl-peck') {
-      var dTot = num('qc-drl-depth', NaN);
-      if (isFinite(dTot) && n > dTot) return 'Peck Depth must not exceed Total Depth (' + dTot + ')';
-    }
     if (id === 'qc-cut-step') {
-      var kTot = num('qc-cut-depth', NaN);
+      var kTot = okNum('qc-cut-depth');
       if (isFinite(kTot) && n > kTot) return 'Depth of Cut must not exceed Total Depth (' + kTot + ')';
     }
     return null;
@@ -4190,11 +4179,9 @@
       bubble = document.createElement('div');
       bubble.className = 'qc-field-error';
       bubble.setAttribute('role', 'alert');
-      holder.classList.add('qc-field-has-error');
       holder.appendChild(bubble);
     }
     bubble.textContent = message;
-    bubble.style.bottom = (holder.offsetHeight - el.offsetTop + 8) + 'px';
     el.classList.add('qc-input-error');
   }
   function recheckField(fieldId) {
@@ -4376,14 +4363,21 @@
   // install with nothing saved yet they'd be read as inches, e.g. Plunge
   // Rate 1000 in/min, over the 500 limit. Convert them once, before saved
   // settings (stored in mm, converted on hydrate) are applied on top.
+  // The defaults are in mm; in inches they're snapped to a round size
+  // (0.005 under 1/16, then 1/16 under 1, 1/8 under 4, 1/2 above), not
+  // 0.3937.
   function convertDefaultsToInches() {
     var fields = ROOT.querySelectorAll('[data-unit]');
     for (var i = 0; i < fields.length; i++) {
       var v = parseFloat(fields[i].value);
       if (!isFinite(v)) continue;
       if (fields[i].getAttribute('data-unit') === 'feed') writeFeed(fields[i].id, v);
-      else fields[i].value = roundDisplay(mmToDisplay(v));
+      else fields[i].value = roundDisplay(roundInches(mmToDisplay(v)));
     }
+  }
+  function roundInches(inch) {
+    var a = Math.abs(inch), step = a < 0.0625 ? 0.005 : a < 1 ? 1 / 16 : a < 4 ? 1 / 8 : 1 / 2;
+    return a ? Math.sign(inch) * Math.max(step, Math.round(a / step) * step) : 0;
   }
 
   function wireUnitFields() {
@@ -8139,22 +8133,28 @@
   }
   // The fields in view pass their checks (as Generate's, without showing
   // anything), so the program can be made.
-  function formReady() {
-    var rules = validationRules();
+  // How many of the fields in view fail their checks (the slot's shape
+  // counts as one).
+  function fieldsToFix() {
+    var rules = validationRules(), bad = 0;
     for (var id in rules) {
       var el = document.getElementById(id);
       if (!el || el.disabled || el.offsetParent === null) continue;
-      if (validateField(id, el.value)) return false;
+      if (validateField(id, el.value)) bad++;
     }
-    return !(state.currentTab === 'slot' && slotShapeProblem());
+    return bad + (state.currentTab === 'slot' && slotShapeProblem() ? 1 : 0);
   }
   function updateRunNote() {
     var view = state.currentTab, pv = RUN_VIEWS[view];
     var section = ROOT.querySelector('.qc-content[data-view="' + view + '"]');
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
-    var ready = formReady(), text = '', bad = false;
+    var toFix = fieldsToFix(), ready = toFix === 0, text = '', bad = false;
     updateDepthPicture(TAB_PREFIX[view], ready);
+    if (!ready) {
+      text = 'Fix ' + (toFix === 1 ? 'one field' : toFix + ' fields') + ' to generate; Generate points ' + (toFix === 1 ? 'it' : 'them') + ' out.';
+      bad = true;
+    }
     if (ready) {
       try {
         var params = pv[0]();
@@ -8169,6 +8169,8 @@
     }
     note.textContent = text;
     note.classList.toggle('qc-run-bad', bad);
+    var gen = section.querySelector('.qc-panel-footer [id$="-generate"]');
+    if (gen) gen.classList.toggle('qc-gen-blocked', !ready);
     if (Date.now() - _wcoAt > 3000) refreshWco();
   }
   // Roughly how long a program takes, in minutes: its moves at their feed
@@ -8283,7 +8285,7 @@
       var n = levels.length, last = levels[n - 1] - (n > 1 ? levels[n - 2] : 0);
       say.push(['qc-dp-val', roundDisplay(depth) + u + ' deep']);
       say.push(['qc-dp-note', n + (n === 1 ? ' pass' : ' passes') + (n > 1 ? ' of up to ' + roundDisplay(step) + u : '')]);
-      if (n > 1 && tabTop == null && Math.abs(last - step) > 1e-6) say.push(['qc-dp-note', 'the last ' + roundDisplay(last) + u]);
+      if (n > 1 && tabTop == null && roundDisplay(last) !== roundDisplay(step)) say.push(['qc-dp-note', 'the last ' + roundDisplay(last) + u]);
       if (tabTop != null) say.push(['qc-dp-note', 'tabs ' + roundDisplay(tabH) + u + ' high']);
     } else say.push(['qc-dp-note', 'Total Depth and Depth of Cut']);
     say.forEach(function(e, i) { out.push('<text class="' + e[0] + '" x="' + tx + '" y="' + (TOP + 10 + i * 15) + '">' + esc(e[1]) + '</text>'); });
