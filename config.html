@@ -173,6 +173,31 @@
     opacity: 1;
   }
   .qc-nav-btn.active .qc-nav-label { font-weight: 600; }
+  /* Shapes: a grid of icons, named by their title (and the view's own
+     title once picked); the tools below keep their labels. */
+  .qc-nav-group {
+    padding: 8px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+  .qc-nav-group:first-child { padding-top: 0; }
+  .qc-nav-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .qc-nav-grid .qc-nav-btn {
+    justify-content: center;
+    height: 48px;
+    padding: 0 !important;
+  }
+  .qc-nav-grid .qc-nav-label { display: none; }
+  .qc-nav-grid .qc-nav-icon { width: 26px; height: 26px; }
+  .qc-nav-grid .qc-nav-icon svg { width: 26px; height: 26px; }
   .qc-nav-sup {
     font-size: 8px;
     font-weight: 700;
@@ -1510,46 +1535,50 @@
         <span class="qc-sidebar-unit" data-unit-badge>METRIC (mm)</span>
       </div>
       <nav class="qc-sidebar-nav">
-        <button type="button" class="qc-nav-btn active" data-tab="rectangle" data-kind="rectangle">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></span>
-          <span class="qc-nav-label">Rectangle</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="trapezoid">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6h9L21 18H3Z"/></svg></span>
-          <span class="qc-nav-label">Trapezoid</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="triangle">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19H3Z"/></svg></span>
-          <span class="qc-nav-label">Triangle</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="arch">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
-          <span class="qc-nav-label">Arch</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="rectangle" data-kind="ellipse">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></svg></span>
-          <span class="qc-nav-label">Ellipse</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="circle">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
-          <span class="qc-nav-label">Circle</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="polygon" data-kind="polygon">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
-          <span class="qc-nav-label">Polygon</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="polygon" data-kind="star">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.8L12 16.4l-5.1 2.9 1.1-5.8-4.3-4 5.8-.7Z"/></svg></span>
-          <span class="qc-nav-label">Star</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="slot">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
-          <span class="qc-nav-label">Slot</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="keyhole">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
-          <span class="qc-nav-label">Keyhole</span>
-        </button>
+        <div class="qc-nav-group">Shapes</div>
+        <div class="qc-nav-grid">
+          <button type="button" title="Rectangle" aria-label="Rectangle" class="qc-nav-btn active" data-tab="rectangle" data-kind="rectangle">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></span>
+            <span class="qc-nav-label">Rectangle</span>
+          </button>
+          <button type="button" title="Trapezoid" aria-label="Trapezoid" class="qc-nav-btn" data-tab="rectangle" data-kind="trapezoid">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6h9L21 18H3Z"/></svg></span>
+            <span class="qc-nav-label">Trapezoid</span>
+          </button>
+          <button type="button" title="Triangle" aria-label="Triangle" class="qc-nav-btn" data-tab="rectangle" data-kind="triangle">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19H3Z"/></svg></span>
+            <span class="qc-nav-label">Triangle</span>
+          </button>
+          <button type="button" title="Arch" aria-label="Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
+            <span class="qc-nav-label">Arch</span>
+          </button>
+          <button type="button" title="Ellipse" aria-label="Ellipse" class="qc-nav-btn" data-tab="rectangle" data-kind="ellipse">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></svg></span>
+            <span class="qc-nav-label">Ellipse</span>
+          </button>
+          <button type="button" title="Circle" aria-label="Circle" class="qc-nav-btn" data-tab="circle">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
+            <span class="qc-nav-label">Circle</span>
+          </button>
+          <button type="button" title="Polygon" aria-label="Polygon" class="qc-nav-btn" data-tab="polygon" data-kind="polygon">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
+            <span class="qc-nav-label">Polygon</span>
+          </button>
+          <button type="button" title="Star" aria-label="Star" class="qc-nav-btn" data-tab="polygon" data-kind="star">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.8L12 16.4l-5.1 2.9 1.1-5.8-4.3-4 5.8-.7Z"/></svg></span>
+            <span class="qc-nav-label">Star</span>
+          </button>
+          <button type="button" title="Slot" aria-label="Slot" class="qc-nav-btn" data-tab="slot">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
+            <span class="qc-nav-label">Slot</span>
+          </button>
+          <button type="button" title="Keyhole" aria-label="Keyhole" class="qc-nav-btn" data-tab="keyhole">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
+            <span class="qc-nav-label">Keyhole</span>
+          </button>
+        </div>
+        <div class="qc-nav-group">Tools</div>
         <button type="button" class="qc-nav-btn" data-tab="drill">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span>
           <span class="qc-nav-label">Drill</span>
