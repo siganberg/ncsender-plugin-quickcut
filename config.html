@@ -5025,6 +5025,7 @@
     var common = readCommonParams();
     var diameter = polyKind() === 'star' ? num('qc-poly-star-dia', 0) : polygonCornerDiameter(0);
     return withPatternGaps('poly', Object.assign({}, common, {
+      chamfer:       readChamferForm('poly'),
       sides:         Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6)))),
       diameter:      diameter,
       // What the size field holds (for the header, file name and Load).
@@ -7951,10 +7952,16 @@
   // shape's edge instead, with the V-bit in the spindle: the note says
   // how deep the tip goes and what limits it, or why it can't. One card,
   // moved to the open tab under its Depth card, like the Tool card.
-  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl' };
-  var CHAMFER_SHAPE_NAMES = { circle: 'circle', rectangle: 'rectangle', drill: 'holes' };
+  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl', polygon: 'poly', slot: 'slt' };
+  var CHAMFER_READERS = { circle: function() { return readCircleForm(); }, rectangle: function() { return readRectangleForm(); },
+    drill: function() { return readDrillForm(); }, polygon: function() { return readPolygonForm(); }, slot: function() { return readSlotForm(); } };
   function chamferTab() { return CHAMFER_TABS[state.currentTab] ? state.currentTab : null; }
-  function readChamferShapeForm(tab) { return tab === 'circle' ? readCircleForm() : tab === 'drill' ? readDrillForm() : readRectangleForm(); }
+  function readChamferShapeForm(tab) { return CHAMFER_READERS[tab](); }
+  function chamferShapeName(tab, p) {
+    if (tab === 'drill') return 'holes';
+    if (tab === 'rectangle') return p.triangle ? 'triangle' : p.kind === 'ellipse' || p.kind === 'arch' || p.kind === 'trapezoid' ? p.kind : 'rectangle';
+    return tab;
+  }
   // What only the shape's own cut uses, hidden while chamfering: the Depth
   // card, or on Drill (no Depth card) its depth, peck and dwell.
   function chamferHides(prefix) {
@@ -8001,8 +8008,10 @@
   // Why a chamfer can't be cut, and the field to fix, or null.
   function chamferProblem(p, plan) {
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
-    if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this kind of shape yet: turn Chamfer off to cut it' };
+    if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for a star yet: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
+    if (plan.centerSlot) return { id: 'qc-slt-cut-type', msg: 'A Centre line slot is as wide as the bit that cut it, not the V-bit: set Cut Type to Inner and the slot\u2019s Width' };
+    if (plan.shapeProblem) return { id: 'qc-chamfer-width', msg: 'The shape can\u2019t be drawn (' + plan.shapeProblem + ')' };
     if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit (Bit Diameter) chamfers up to ' + f(p.bitDiameter / 2) + u + ' wide' };
     if (plan.tooDeep) return { id: 'qc-chamfer-cut-depth', msg: 'The chamfer is ' + f(plan.height) + u + ' deep, deeper than the ' + f(plan.floor) + u + ' cut: make it narrower, or the cut deeper' };
     if (plan.noRoom) return { id: 'qc-chamfer-cut-width', msg: 'Cut Width: how wide the slot around the part is' };
@@ -8033,7 +8042,7 @@
     var from = state.chamferSource ? state.chamferSource + ' ' : '';
     var problem = chamferProblem(p, plan);
     if (problem) { note.textContent = from + problem.msg + '.'; return; }
-    note.textContent = from + 'Chamfers the ' + CHAMFER_SHAPE_NAMES[tab] + ' already cut, with the ' + f(p.bitDiameter) + u + ' V-bit in the Tool card' +
+    note.textContent = from + 'Chamfers the ' + chamferShapeName(tab, p) + ' already cut, with the ' + f(p.bitDiameter) + u + ' V-bit in the Tool card' +
       (bitToolNumber() > 0 ? ' (the program starts with a tool change to T' + bitToolNumber() + ')' : '') + ': ' +
       f(plan.width) + u + ' wide, ' + f(plan.height) + u + ' deep. The tip goes ' + f(plan.tipOffset) + u +
       ' lower, into the cut, so the V\u2019s side does the cutting.' + (plan.pastRoom > 0 ? ' Its other side also cuts ' + f(plan.pastRoom) + u + ' past the slot.' : '');
@@ -8119,6 +8128,11 @@
     $('qc-rect-form').addEventListener('input', updateChamferNote);
     $('qc-rect-form').addEventListener('change', updateChamferNote);
     $('qc-drl-form').addEventListener('input', updateChamferNote);
+    ['poly', 'slt'].forEach(function(prefix) {
+      $('qc-' + prefix + '-form').addEventListener('input', updateChamferNote);
+      $('qc-' + prefix + '-form').addEventListener('change', updateChamferNote);
+      $('qc-' + prefix + '-cut-type').addEventListener('change', showChamferFields);
+    });
     $('qc-chamfer-hole').addEventListener('input', function() { if (state.currentTab === 'drill') updateDrillPreview(); });
     $('qc-drl-form').addEventListener('change', updateChamferNote);
     $('qc-bit').addEventListener('input', updateChamferNote);
@@ -10980,6 +10994,7 @@
     $('qc-poly-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
       var params = readPolygonForm();
+      if (chamferRefused('polygon', params)) return;
       params.shape = 'polygon';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generatePolygonProgram(params);
@@ -11001,6 +11016,7 @@
   function readSlotForm() {
     var common = readCommonParams();
     return withPatternGaps('slt', Object.assign({}, common, {
+      chamfer:       readChamferForm('slt'),
       slotType:      $('qc-slt-type').value,
       arcMode:       $('qc-slt-arc-mode').value,
       width:         num('qc-slt-width', 0),
@@ -11462,6 +11478,7 @@
     $('qc-slt-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
       var params = readSlotForm();
+      if (chamferRefused('slot', params)) return;
       params.shape = 'slot';
       var gen = makeQuickCutGenerator(state.isImperial);
       var problem = slotShapeProblem();
@@ -13010,13 +13027,7 @@
 
     function generateRectangleProgram(params) {
       if (params.chamfer && params.chamfer.width > 0) {
-        if (chamferNotYet(params)) {
-          var lines = programHeader(params, { shapeLabel: 'Chamfer' });
-          lines.push('(WARNING: no chamfer for this shape yet; nothing to cut)');
-          lines.push.apply(lines, programFooter(params));
-          return lines.join('\n');
-        }
-        return generateRectangleChamferProgram(params);
+        return isConvexKind(params) ? generateTrapezoidChamferProgram(params) : generateRectangleChamferProgram(params);
       }
       if (params.triangle || isSmoothKind(params) || isTrapezoid(params)) return generateTrapezoidProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {
@@ -13464,15 +13475,47 @@
       return plan;
     }
 
+    function polygonChamferPlan(params) {
+      var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
+      var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
+      return chamferPlan(params, radius * Math.cos(Math.PI / sides));
+    }
+
+    // Trapezoids, triangles, ellipses and arches: how far a pocket's path can
+    // move in, found by halving (their outlines have no one formula for it).
+    function trapezoidChamferPlan(params) {
+      var problem = convexShapeProblem(params);
+      var fits = function(d) { return !!computeTrapezoidGeom(Object.assign({}, params, { bitDiameter: 2 * d })).segs; };
+      var lo = 0, hi = Math.max(params.width || 0, params.topWidth || 0, params.height || 0,
+        params.triangle ? Math.max(params.triangle.base, params.triangle.left, params.triangle.right) : 0);
+      if (!problem && fits(0)) {
+        for (var i = 0; i < 30; i++) { var mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+      }
+      var plan = chamferPlan(params, lo);
+      plan.shapeProblem = problem || (fits(0) ? null : 'the shape has no outline');
+      return plan;
+    }
+
+    // A slot's chamfer runs around its sides at half its width, give or take
+    // the inset. A Centre line slot is as wide as the bit that cut it, which
+    // isn't the V-bit in the Tool card: it takes the Inner cut type and width.
+    function slotChamferPlan(params) {
+      var plan = chamferPlan(params, slotHalfWidth(params));
+      plan.centerSlot = (params.cutType || 'inner') === 'center';
+      return plan;
+    }
+
     // The chamfer plan for a shape's tab, or null where there's no chamfer.
     function chamferPlanFor(shape, params) {
       if (shape === 'circle') return circleChamferPlan(params);
       if (shape === 'drill') return drillChamferPlan(params);
-      if (shape === 'rectangle' && !chamferNotYet(params)) return rectangleChamferPlan(params);
+      if (shape === 'slot') return slotChamferPlan(params);
+      if (shape === 'polygon') return params.kind === 'star' ? null : polygonChamferPlan(params);
+      if (shape === 'rectangle') return isConvexKind(params) ? trapezoidChamferPlan(params) : rectangleChamferPlan(params);
       return null;
     }
-    // Rectangle kinds that don't chamfer yet.
-    function chamferNotYet(params) {
+    // The rectangle tab's kinds drawn by the trapezoid code.
+    function isConvexKind(params) {
       return !!(params.triangle || isSmoothKind(params) || isTrapezoid(params));
     }
 
@@ -13489,7 +13532,9 @@
       ];
     }
     function chamferRefusal(plan) {
-      return plan.noHole ? 'no Hole Diameter'
+      return plan.shapeProblem ? plan.shapeProblem
+        : plan.centerSlot ? 'a Centre line slot: set Cut Type to Inner and the slot\'s Width'
+        : plan.noHole ? 'no Hole Diameter'
         : plan.tooWide ? 'chamfer wider than the V-bit reaches'
         : plan.tooDeep ? 'chamfer deeper than the cut'
         : plan.noRoom ? 'no Cut Width for the slot around the part' : null;
@@ -13599,6 +13644,88 @@
       lines.push('');
       lines.push.apply(lines, programFooter(params));
       return lines.join('\n');
+    }
+
+    // A chamfer program: one copy per pattern position, each along the path
+    // `pathAt(x, y, pos)` gives ({ segs, center }: the shape's path at the
+    // tip's inset, and its middle for a path shrunk to a point).
+    function chamferShapeProgram(params, plan, label, what, positions, placed, pathAt) {
+      var extras = chamferComments(params, plan, what, placed.label);
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var start = chamferProgramStart(params, plan, label + ' chamfer' + (positions.length > 1 ? ' × ' + positions.length : ''), extras);
+      var lines = start.lines;
+      if (start.refused) return lines.join('\n');
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        var mx = pos.x + placed.shift.x;
+        var my = pos.y + placed.shift.y;
+        if (positions.length > 1) {
+          var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
+        }
+        var path = pathAt(mx, my, pos);
+        emitChamferPasses(lines, params, plan, path.segs, path.center);
+      }
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function generatePolygonChamferProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var plan = polygonChamferPlan(params);
+      var inset = Object.assign({}, params, { bitDiameter: 2 * plan.inset });
+      var placed = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params));
+      var sides = computePolygonGeom(params).sides;
+      return chamferShapeProgram(params, plan, 'Polygon', 'the ' + sides + '-sided polygon', positions, placed, function(x, y, pos) {
+        return { segs: polygonSegments(computePolygonGeom(inset, x, y, pos.rotDeg)), center: { x: x, y: y } };
+      });
+    }
+
+    function generateTrapezoidChamferProgram(params) {
+      var name = params.triangle ? 'Triangle' : params.kind === 'ellipse' ? 'Ellipse' : params.kind === 'arch' ? 'Arch' : 'Trapezoid';
+      var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
+      var plan = trapezoidChamferPlan(params);
+      var baseGeom = plan.shapeProblem ? null : computeTrapezoidGeom(Object.assign({}, params, { bitDiameter: 2 * plan.inset }));
+      var placed = resolveShapeOrigin(params, positions, trapezoidShapeBbox(params), trapezoidCorners(params));
+      return chamferShapeProgram(params, plan, name, 'the ' + name.toLowerCase(), positions, placed, function(x, y, pos) {
+        return { segs: placeConvexGeom(baseGeom, x, y, pos.rotDeg).segs || [], center: { x: x, y: y } };
+      });
+    }
+
+    function generateSlotChamferProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var plan = slotChamferPlan(params);
+      var half = slotHalfWidth(params), width = half * 2;
+      var cl = slotCenterline(params);
+      var isArc = (params.slotType || 'straight') === 'arc';
+      var isGrid = !isArc && !!(params.pattern && params.pattern.enabled && params.pattern.style === 'grid');
+      var lineParams = function(pos) {
+        return Object.assign({}, params, { slotType: 'straight', length: (pos.span || 0) + width, angleDeg: 0 });
+      };
+      var clFor = function(pos) { return isGrid ? slotCenterline(lineParams(pos)) : cl; };
+      var problem = plan.centerSlot ? null : isGrid ? slotProblem(lineParams(positions[0]), clFor(positions[0]), half) : slotProblem(params, cl, half);
+      if (problem && !plan.shapeProblem) plan.shapeProblem = problem;
+      var placed = { label: '', shift: { x: 0, y: 0 } };
+      if (!plan.shapeProblem && !plan.centerSlot) {
+        var op = !isGrid ? slotOriginParts(params, cl) : {
+          bbox: function(pos) { return slotOriginParts(lineParams(pos), clFor(pos)).bbox(pos); },
+          corners: slotOriginParts(lineParams(positions[0]), clFor(positions[0])).corners
+        };
+        placed = resolveShapeOrigin(params, positions, op.bbox, op.corners);
+      }
+      var d = (params.cutType || 'inner') === 'outer' ? half + plan.inset : half - plan.inset;
+      return chamferShapeProgram(params, plan, 'Slot', 'the ' + width + unitsLabel + ' slot', positions, placed, function(x, y, pos) {
+        var pc = placeSlot(clFor(pos), x, y, pos.rotDeg);
+        if (d > 1e-6) return { segs: slotOutline(pc, d) };
+        // Shrunk to its centre line: along it and back.
+        var there = pc.type === 'line' ? { type: 'line', x0: pc.x0, y0: pc.y0, x1: pc.x1, y1: pc.y1, len: Math.hypot(pc.x1 - pc.x0, pc.y1 - pc.y0) }
+          : arcSeg(pc.cx, pc.cy, pc.r, pc.a0, pc.a1);
+        return { segs: [there, reverseSeg(there)] };
+      });
     }
 
     // A chamfer along any shape's path: each pass about a Depth of Cut
@@ -14283,6 +14410,15 @@
     }
 
     function generatePolygonProgram(params) {
+      if (params.chamfer && params.chamfer.width > 0) {
+        if (params.kind === 'star') {
+          var lines = programHeader(params, { shapeLabel: 'Chamfer' });
+          lines.push('(WARNING: no chamfer for a star yet; nothing to cut)');
+          lines.push.apply(lines, programFooter(params));
+          return lines.join('\n');
+        }
+        return generatePolygonChamferProgram(params);
+      }
       if (params.kind === 'star') return generateStarProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {
         return generatePolygonClearingProgram(params);
@@ -15391,6 +15527,7 @@
     }
 
     function generateSlotProgram(params) {
+      if (params.chamfer && params.chamfer.width > 0) return generateSlotChamferProgram(params);
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var cutType = params.cutType || 'inner';

@@ -3584,10 +3584,11 @@ test('rectangle chamfer: ramps no faster than the Plunge Rate; refused like the 
   assert.match(point, /^G0 X0\.000 Y0\.000$/m);
   assert.match(point, /^G1 Z-5\.000 F400$/m);
   assert.match(g.generateRectangleProgram(rectChamfer({}, { cutDepth: 0.5 })), /deeper than the cut; nothing to cut/);
-  const tri = g.generateRectangleProgram(rectChamfer({ triangle: { base: 40, left: 30, right: 30 }, kind: 'triangle' }));
-  assert.match(tri, /no chamfer for this shape yet; nothing to cut/);
-  assert.doesNotMatch(tri, /^G[0123] [XYZ]/m);
-  assert.equal(g.chamferPlanFor('rectangle', rectChamfer({ triangle: { base: 40, left: 30, right: 30 } })), null);
+  // A star doesn't chamfer yet.
+  const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 20 });
+  assert.match(star, /no chamfer for a star yet; nothing to cut/);
+  assert.doesNotMatch(star, /^G[0123] [XYZ]/m);
+  assert.equal(g.chamferPlanFor('polygon', { ...rectChamfer(), kind: 'star' }), null);
 });
 
 test('rectangle chamfer: a rotated pattern chamfers each copy, the same in inches', () => {
@@ -3632,4 +3633,65 @@ test('drill chamfer: refused without a Hole Diameter, or wider than the V-bit', 
   assert.match(g.generateDrillProgram(drillParams({ bitDiameter: 4, chamfer: { width: 3, angle: 90, holeDiameter: 5, cutDepth: 10, depthOfCut: 1 } })), /wider than the V-bit reaches/);
   // Width 0: the ordinary drill program.
   assert.equal(g.generateDrillProgram(drillParams({ chamfer: { width: 0, angle: 90, holeDiameter: 5 } })), g.generateDrillProgram(drillParams()));
+});
+
+// The XY moves of a program's laps at depth (the last pass), rounded.
+function lapPoints(gcode) {
+  const lines = gcode.split('\n'), pts = [];
+  let z = 10;
+  for (const l of lines) {
+    const zm = /Z(-?[\d.]+)/.exec(l); if (zm) z = +zm[1];
+    if (/^G[123] X/.test(l) && !zm) pts.push(l.replace(/ F\d+/, '').replace(/^G1 /, 'L ').trim().replace(/-?\d+\.\d+/g, (v) => (+v).toFixed(3)).replace(/-0\.000/g, '0.000'));
+  }
+  return pts;
+}
+const chamferOf = (o, c) => Object.assign({ bitDiameter: 12.7, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, origin: 'center',
+  depth: 6, depthOfCut: 6, chamfer: Object.assign({ width: 1, angle: 90, cutDepth: 6, cutWidth: 6.35, depthOfCut: 2 }, c || {}) }, o);
+
+test('chamfers for the other shapes follow the shape\'s own cut path at the tip\'s inset', () => {
+  const g = makeQuickCutGenerator(false);
+  const cases = [
+    ['polygon', 'generatePolygonProgram', { sides: 6, diameter: 40, startAngleDeg: 15, origin: 'back-right' }],
+    ['rectangle', 'generateRectangleProgram', { kind: 'trapezoid', width: 50, topWidth: 30, height: 25, topAlign: 'center', cornerRadius: 3, startAngleDeg: 25 }],
+    ['rectangle', 'generateRectangleProgram', { kind: 'triangle', triangle: { base: 40, left: 30, right: 30 }, cornerRadius: 2 }],
+    ['rectangle', 'generateRectangleProgram', { kind: 'ellipse', width: 40, height: 24, startAngleDeg: 40 }],
+    ['rectangle', 'generateRectangleProgram', { kind: 'arch', width: 30, height: 40, archRise: 10, archStyle: 'round' }],
+    ['slot', 'generateSlotProgram', { slotType: 'straight', length: 40, width: 10, angleDeg: 20 }],
+    ['slot', 'generateSlotProgram', { slotType: 'arc', arcMode: 'radius', radius: 30, startAngleDeg: 10, sweepDeg: 80, width: 16 }]
+  ];
+  for (const [shape, gen, o] of cases) for (const cutType of ['outer', 'inner']) {
+    const params = chamferOf({ ...o, cutType, pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 90, yDist: 0 } });
+    const plan = g.chamferPlanFor(shape, params);
+    const label = `${o.kind || shape} ${cutType}`;
+    assert.ok(plan && plan.tipOffset > 0, label);
+    const gcode = g[gen](params);
+    assert.doesNotMatch(gcode, /WARNING|NaN/, label);
+    assert.equal((gcode.match(/^\(Instance /gm) || []).length, 2, label);
+    // The same shape cut with a bit as wide as twice the inset, no chamfer, one pass at the chamfer's depth.
+    const cut = g[gen]({ ...params, chamfer: undefined, bitDiameter: 2 * plan.inset, depth: plan.height + plan.tipOffset,
+      depthOfCut: plan.height + plan.tipOffset, cornerRelief: 'none' });
+    assert.deepEqual(lapPoints(gcode).slice(-6), lapPoints(cut).slice(-6), label);
+  }
+});
+
+test('how far each pocket\'s path can move in: a triangle\'s inradius, a hexagon\'s apothem, half a slot', () => {
+  const g = makeQuickCutGenerator(false);
+  const deep = { cutDepth: 100, width: 0.5 }, big = { bitDiameter: 60, cutType: 'inner' };
+  const tri = g.chamferPlanFor('rectangle', chamferOf({ ...big, kind: 'triangle', triangle: { base: 30, left: 30, right: 30 } }, deep));
+  assert.ok(Math.abs(tri.tipOffset - 30 / (2 * Math.sqrt(3))) < 0.01, String(tri.tipOffset));
+  const hex = g.chamferPlanFor('polygon', chamferOf({ ...big, sides: 6, diameter: 40 }, deep));
+  assert.ok(Math.abs(hex.tipOffset - 20 * Math.cos(Math.PI / 6)) < 1e-9, String(hex.tipOffset));
+  const slot = g.chamferPlanFor('slot', chamferOf({ ...big, slotType: 'straight', length: 40, width: 10 }, deep));
+  assert.ok(Math.abs(slot.tipOffset - 5) < 1e-9, String(slot.tipOffset));
+  // A slot the tip reaches the middle of: along its centre line and back.
+  const mid = g.generateSlotProgram(chamferOf({ ...big, slotType: 'straight', length: 40, width: 10 }, deep));
+  assert.doesNotMatch(mid, /WARNING|NaN/);
+  assert.match(mid, /^G1 X15\.00000 Y0\.00000( F\d+)?$/m);
+  assert.match(mid, /^G1 X-15\.00000 Y0\.00000( F\d+)?$/m);
+});
+
+test('a Centre line slot, or a shape that can\'t be drawn, refuses the chamfer', () => {
+  const g = makeQuickCutGenerator(false);
+  assert.match(g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' })), /Centre line slot: set Cut Type to Inner/);
+  assert.match(g.generateRectangleProgram(chamferOf({ kind: 'triangle', triangle: { base: 40, left: 10, right: 10 }, cutType: 'outer' })), /WARNING: .*nothing to cut/);
 });
