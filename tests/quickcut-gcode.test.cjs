@@ -3441,7 +3441,7 @@ test('circle chamfer: refused when too wide for the V-bit, deeper than the cut, 
   const g = makeQuickCutGenerator(false);
   assert.match(g.generateCircleProgram(chamferWith({ width: 3 }, { bitDiameter: 6 })), /wider than the V-bit reaches; nothing to cut/);
   assert.match(g.generateCircleProgram(chamferWith({ cutDepth: 0.5 })), /deeper than the cut; nothing to cut/);
-  assert.match(g.generateCircleProgram(chamferWith({ cutBit: 0 })), /no Cut Width/);
+  assert.match(g.generateCircleProgram(chamferWith({ cutBit: 0 })), /no Cut Bit/);
   assert.doesNotMatch(g.generateCircleProgram(chamferWith({ cutBit: 0 }, { cutType: 'inner' })), /WARNING/);
   assert.doesNotMatch(g.generateCircleProgram(chamferWith({ width: 3 }, { bitDiameter: 6 })), /^G3/m);
   // Settings from before Cut Bit: Cut Width.
@@ -3595,7 +3595,6 @@ test('chamfers for the other shapes follow the shape\'s own cut path at the tip\
   const g = makeQuickCutGenerator(false);
   const cases = [
     ['polygon', 'generatePolygonProgram', { sides: 6, diameter: 40, startAngleDeg: 15, origin: 'back-right' }],
-    ['polygon', 'generatePolygonProgram', { kind: 'star', sides: 5, diameter: 60, innerDiameter: 30, startAngleDeg: 10 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'trapezoid', width: 50, topWidth: 30, height: 25, topAlign: 'center', cornerRadius: 3, startAngleDeg: 25 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'triangle', triangle: { base: 40, left: 30, right: 30 }, cornerRadius: 2 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'ellipse', width: 40, height: 24, startAngleDeg: 40 }],
@@ -3622,18 +3621,29 @@ test('chamfers for the other shapes follow the shape\'s own cut path at the tip\
   }
 });
 
-test('a star\'s sharp corners, and a pointed arch\'s top, keep the tip clear of the cut bit\'s rounding', () => {
+test('a star\'s sharp corners, and a pointed arch\'s top, are rounded as the cut bit left them', () => {
   const g = makeQuickCutGenerator(false);
-  const star = chamferOf({ kind: 'star', sides: 5, diameter: 60, innerDiameter: 30, cutType: 'inner' }, { cutDepth: 20, cutBit: 6.35 });
-  // At least the cut bit's radius in from the edge (90 degrees: as far down).
-  assert.ok(g.chamferPlanFor('polygon', star).inset >= 3.175 - 1e-9);
-  // Too shallow a cut for that: refused, rather than notching the points.
-  assert.match(g.generatePolygonProgram({ ...star, chamfer: { ...star.chamfer, cutDepth: 2 } }), /corners the cut bit rounded need the tip deeper/);
-  // A through cut never sends the tip lower than the chamfer is deep: corners needing more ask for the depth.
-  assert.match(g.generatePolygonProgram({ ...star, chamfer: { ...star.chamfer, cutDepth: 0 } }), /corners the cut bit rounded need the tip deeper/);
-  const arch = chamferOf({ kind: 'arch', width: 30, height: 40, archRise: 20, archStyle: 'pointed', cutType: 'inner' }, { cutDepth: 20, cutBit: 4 });
-  assert.ok(g.chamferPlanFor('rectangle', arch).inset >= 2 - 1e-9);
-  assert.doesNotMatch(g.generateRectangleProgram(arch), /WARNING|NaN/);
+  const arcRadii = (gcode) => gcode.split('\n').filter(l => /^G[23]\b/.test(l) && !/Z/.test(l))
+    .map(l => Math.round(Math.hypot(+/I(-?[\d.]+)/.exec(l)[1], +/J(-?[\d.]+)/.exec(l)[1]) * 1000) / 1000);
+  for (const cutType of ['inner', 'outer']) for (const cutDepth of [0, 20]) {
+    const star = chamferOf({ kind: 'star', sides: 5, diameter: 80, innerDiameter: 35, cutType }, { cutDepth, cutBit: 6.35 });
+    const plan = g.chamferPlanFor('polygon', star);
+    const gcode = g.generatePolygonProgram(star);
+    assert.doesNotMatch(gcode, /WARNING|NaN/, cutType + ' ' + cutDepth);
+    // Five corners rounded to the cut bit's radius less the inset (the tip follows the rounded wall).
+    const rho = Math.round((3.175 - plan.inset) * 1000) / 1000;
+    assert.equal(arcRadii(gcode).filter(r => Math.abs(r - rho) < 2e-3).length, 5, `${cutType} ${cutDepth}: ${arcRadii(gcode)}`);
+  }
+  // Inside a pointed arch, its top is rounded too.
+  const arch = chamferOf({ kind: 'arch', width: 30, height: 40, archRise: 20, archStyle: 'pointed', cutType: 'inner' }, { cutDepth: 0, cutBit: 4 });
+  const archCode = g.generateRectangleProgram(arch);
+  assert.doesNotMatch(archCode, /WARNING|NaN/);
+  const archRho = Math.round((2 - g.chamferPlanFor('rectangle', arch).inset) * 1000) / 1000;
+  assert.ok(arcRadii(archCode).some(r => Math.abs(r - archRho) < 2e-3), String(arcRadii(archCode)));
+  // A tip already past the cut bit's radius: nothing to round (the only arcs are the inner corners', at the inset).
+  const deepStar = chamferOf({ kind: 'star', sides: 5, diameter: 80, innerDiameter: 35, cutType: 'inner' }, { cutDepth: 20, cutBit: 1 });
+  const inset = g.chamferPlanFor('polygon', deepStar).inset;
+  assert.deepEqual([...new Set(arcRadii(g.generatePolygonProgram(deepStar)))], [Math.round(inset * 1000) / 1000]);
 });
 
 test('how far each pocket\'s path can move in: a triangle\'s inradius, a hexagon\'s apothem, half a slot', () => {
