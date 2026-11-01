@@ -13065,8 +13065,8 @@
       radii.reverse();
 
       var helixRadius = toolRadius * 0.6;
-      helixRadius = Math.min(helixRadius, pathRadius - 0.001);
-      var useHelix = helixRadius > toolRadius * 0.1;
+      helixRadius = Math.min(helixRadius, pathRadius - (isImperial ? 0.00004 : 0.001));
+      var useHelix = 2 * Math.PI * helixRadius >= minRamp;
       if (!useHelix) helixRadius = 0;
       var helixStartX = cx + helixRadius;
 
@@ -14658,6 +14658,9 @@
     function slotProblem(params, cl, half) {
       if (!cl) return 'the slot\'s size or angles are missing or zero';
       if (!(half > 0)) return 'the slot width must be more than 0';
+      if (cl.type === 'line' && params.cutType === 'center' && !(Math.hypot(cl.x1 - cl.x0, cl.y1 - cl.y0) > 1e-9)) {
+        return 'the slot is no longer than the bit is wide: make Length more, or use a Drill hole';
+      }
       if (cl.type === 'arc') {
         if (half >= cl.r) return 'the slot is as wide as its radius or wider, so its inner edge would cross the centre';
         // An outer cut runs a bit radius outside the slot, so its inner arc

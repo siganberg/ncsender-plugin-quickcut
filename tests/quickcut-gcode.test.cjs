@@ -3348,3 +3348,21 @@ test('Z never comes down faster than the plunge rate: steep ramps and tight heli
   const tiny = jobs[1].split('\n').filter(l => /^G3/.test(l)).length;
   assert.ok(tiny < 20, String(tiny));
 });
+
+test('a Center slot no longer than the bit is refused; a round Inner slot is still fine', () => {
+  const g = makeQuickCutGenerator(false);
+  const b = { bitDiameter: 6.35, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, origin: 'center', depth: 6, depthOfCut: 6, slotType: 'straight' };
+  assert.match(g.generateSlotProgram({ ...b, length: 2, width: 6.35, cutType: 'center' }), /no longer than the bit is wide/);
+  assert.doesNotMatch(g.generateSlotProgram({ ...b, length: 20, width: 20, cutType: 'inner' }), /WARNING/);
+});
+
+test('circle clearing in a hole a little bigger than the bit helixes the same in mm and inch', () => {
+  const helixes = (imperial) => {
+    const k = imperial ? 1 / 25.4 : 1;
+    const p = makeQuickCutGenerator(imperial).generateCircleProgram({ bitDiameter: 6.35 * k, feedRate: 1500, plungeFeedRate: 400,
+      spindleRpm: 18000, origin: 'center', depth: 6 * k, depthOfCut: 6 * k, diameter: 7 * k, cutType: 'clearing' });
+    return p.split('\n').some(l => /^G3 .*Z-/.test(l));
+  };
+  assert.equal(helixes(false), true);
+  assert.equal(helixes(true), true);
+});
