@@ -875,7 +875,27 @@
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
   /* Feed Rate's and Bit Diameter's menus span their column, so the arrow
      sits at its own edge. */
-  #qc-bit-tool { align-self: stretch; height: 14px; line-height: 14px; }
+  #qc-bit-tool { align-self: stretch; height: 14px; line-height: 14px; text-align: left; }
+  /* A button, so ncSender's dialog button style is undone (it beats a class). */
+  button#qc-bit-tool { min-height: 0 !important; min-width: 0 !important; margin: 0 !important; padding: 0 14px 0 0 !important; border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; color: var(--color-text-secondary) !important; font-size: 0.78rem !important; font-weight: 600 !important; letter-spacing: 0.02em;
+    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 1px center / 9px 6px !important; }
+  button#qc-bit-tool:hover, button#qc-bit-tool[aria-expanded="true"] { color: var(--color-text-primary) !important; }
+  .qc-tool-pop .qc-tool-filter { font-family: inherit; }
+  /* Bit Diameter's tool menu: a filter on top, then the tool table. */
+  .qc-tool-pop { position: absolute; z-index: 30; width: 420px; max-width: calc(100% - 16px); display: flex; flex-direction: column; gap: 6px; padding: 8px;
+    background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38); }
+  .qc-tool-pop[hidden] { display: none; }
+  .qc-tool-pop .qc-tool-filter { width: 100%; text-align: left; }
+  .qc-tool-list { display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; }
+  .qc-tool-head { padding: 4px 10px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
+  .qc-tool-item { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 40px; margin: 0; padding: 8px 10px !important; text-align: left;
+    background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
+    font-family: inherit; font-size: 0.88rem; line-height: 1.3; cursor: pointer; }
+  .qc-tool-item:hover, .qc-tool-item.qc-active { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; }
+  .qc-tool-item[aria-selected="true"] { font-weight: 600; }
+  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); white-space: nowrap; }
+  .qc-tool-empty { padding: 8px 10px; font-size: 0.85rem; color: var(--color-text-secondary); }
   .qc-material-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 10px; }
   /* Beside Generate: about how long it runs, and the travel check. */
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
@@ -8093,11 +8113,12 @@
         showTooltip(bit, 'T' + n + ' has no diameter in ncSender\u2019s tool table.', null, true);
         return;
       }
+      var fl = flutesFromTool({ name: tool.name, notes: tool.metadata && tool.metadata.notes });
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
       var name = (tool.name || '').length > 40 ? tool.name.slice(0, 39) + '\u2026' : tool.name || '';
-      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + ')', TOOLTIP_OK, true);
+      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
     } catch (e) {
       showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
     }
@@ -8187,21 +8208,72 @@
   var TAB_PREFIX = { rectangle: 'rect', circle: 'circ', polygon: 'poly', slot: 'slt', keyhole: 'key', drill: 'drl',
                      planer: 'plan', jointer: 'join', cutter: 'cut' };
 
-  // With a tool changer, Bit Diameter's label is a menu of ncSender's
-  // tool table: picking a tool sets the diameter and starts the program
+  // How many flutes a tool's name or notes say it has: "O flute" or
+  // "single flute" 1, "2 flute", "two-flute", "3FL", "2F"... else null.
+  // ncSender's tool table has no field for it.
+  function flutesFromText(text) {
+    var t = String(text || '').toLowerCase();
+    if (/\b(o|single|one)[\s-]*flutes?\b/.test(t)) return 1;
+    var m = /\b([1-4])[\s-]*(?:flutes?|fl)\b/.exec(t) || /\b([1-4])f\b/.exec(t);
+    if (m) return +m[1];
+    var w = /\b(two|double|three|four)[\s-]*flutes?\b/.exec(t);
+    return w ? { two: 2, double: 2, three: 3, four: 4 }[w[1]] : null;
+  }
+  // Flutes from a tool picked, when its name says; the starting feeds
+  // follow if they're the filled-in ones. Returns the count, or null.
+  function flutesFromTool(t) {
+    var n = flutesFromText((t.name || '') + ' ' + (t.notes || ''));
+    if (!n) return null;
+    if (n !== state.flutes) {
+      $('qc-flutes').value = String(n);
+      state.flutes = n;
+      persistSettings({ common: { flutes: n } });
+      if (state.feedsAuto) fillStartingFeeds(true);
+    }
+    return n;
+  }
+
+  // With a tool changer, Bit Diameter's label opens ncSender's tool table,
+  // a filter on top, the tool in the spindle first: picking a tool sets the
+  // diameter (and the flutes, when its name says) and starts the program
   // with M6 T<n> (T is a slot or a Tool ID, by Settings > Tool Changer >
   // Tool Numbering, as /api/tools/active lists them). Typing another
   // diameter drops the tool change.
+  var toolPop = { open: false, active: 0, items: [] };
   async function wireToolMenu() {
     var label = $('qc-bit').parentNode.querySelector('.qc-bit-label');
-    var sel = document.createElement('select');
-    sel.className = 'qc-label-select';
-    sel.id = 'qc-bit-tool';
-    sel.setAttribute('aria-label', 'Bit Diameter, or a tool from the tool table');
-    sel.title = 'Bit Diameter. Its menu lists ncSender\u2019s tool table: pick the tool to cut with and the program starts with a tool change to it (M6 T). Type a diameter for no tool change.';
-    label.parentNode.replaceChild(sel, label);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'qc-label-select';
+    btn.id = 'qc-bit-tool';
+    btn.setAttribute('aria-haspopup', 'listbox');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.title = 'Bit Diameter. Opens ncSender’s tool table: pick the tool to cut with and the program starts with a tool change to it (M6 T). Type a diameter for no tool change.';
+    label.parentNode.replaceChild(btn, label);
     $('qc-bit').setAttribute('aria-labelledby', 'qc-bit-tool');
-    sel.addEventListener('change', pickBitTool);
+    var pop = document.createElement('div');
+    pop.className = 'qc-tool-pop';
+    pop.id = 'qc-tool-pop';
+    pop.hidden = true;
+    pop.innerHTML = '<input class="qc-input qc-tool-filter" id="qc-tool-filter" type="text" autocomplete="off" spellcheck="false" placeholder="Filter: T number, name or size" aria-label="Filter the tools">' +
+      '<div class="qc-tool-list" id="qc-tool-list" role="listbox" aria-label="Tool table"></div>';
+    ROOT.appendChild(pop);
+    var how = 'mouse';
+    btn.addEventListener('pointerdown', function(e) { how = e.pointerType || 'mouse'; });
+    btn.addEventListener('keydown', function(e) { how = 'keyboard'; if (e.key === 'ArrowDown') { e.preventDefault(); openToolPop(true); } });
+    btn.addEventListener('click', function() { if (toolPop.open) closeToolPop(); else openToolPop(how !== 'touch'); });
+    var filter = $('qc-tool-filter');
+    filter.addEventListener('input', function() { toolPop.active = 0; renderToolList(); });
+    filter.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); moveToolActive(e.key === 'ArrowDown' ? 1 : -1); }
+      else if (e.key === 'Enter') { e.preventDefault(); var it = toolPop.items[toolPop.active]; if (it) pickBitTool(it.value); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeToolPop(); btn.focus(); }
+    });
+    // A tap or click anywhere else closes it.
+    document.addEventListener('pointerdown', function onDown(e) {
+      if (!document.body.contains(ROOT)) { document.removeEventListener('pointerdown', onDown, true); return; }
+      if (toolPop.open && !pop.contains(e.target) && e.target !== btn) closeToolPop();
+    }, true);
     $('qc-bit').addEventListener('input', function() {
       var t = bitTool();
       if (t.n && Math.abs(displayToMm(num('qc-bit', 0)) - t.mm) >= 0.002) setBitTool(0, 0);
@@ -8213,7 +8285,7 @@
       var st = await (await fetch(BASE_URL + '/api/server-state')).json();
       var loaded = Number(st && st.machineState && st.machineState.tool);
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
-        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '' }; })
+        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '' }; })
         .filter(function(t) { return t.n > 0 && t.mm > 0; })
         // The tool in the spindle first, then the rest by number.
         .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
@@ -8221,46 +8293,81 @@
     } catch (e) { state.tools = []; }
     showBitTool();
   }
-  function showBitTool() {
-    var sel = $('qc-bit-tool');
-    if (!sel) return;
-    var n = bitToolNumber(), u = state.unitLabel;
-    var opt = function(parent, value, text, disabled) {
-      var o = document.createElement('option');
-      o.value = value;
-      o.textContent = text;
-      o.disabled = !!disabled;
-      parent.appendChild(o);
-    };
-    sel.textContent = '';
-    // Short, to fit the column: "Bit \u00b7 T3" while a tool is picked.
-    opt(sel, '', n ? 'Bit \u00b7 T' + n : 'Bit Diameter');
-    if ((state.tools || []).length) {
-      var group = document.createElement('optgroup');
-      group.label = 'Tool change to';
-      state.tools.forEach(function(t) {
-        var name = t.name.length > 32 ? t.name.slice(0, 31) + '\u2026' : t.name;
-        opt(group, String(t.n), (t.n === n ? '\u2713 ' : '') + 'T' + t.n + (name ? ' ' + name : '') + ', ' +
-          roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ' (in the spindle)' : ''));
-      });
-      sel.appendChild(group);
-    } else if (state.tools) {
-      opt(sel, 'empty', 'No tools with a diameter in the tool table', true);
-    }
-    if (n) opt(sel, 'none', 'No tool change');
-    sel.value = '';
+  function openToolPop(focusFilter) {
+    var btn = $('qc-bit-tool'), pop = $('qc-tool-pop');
+    toolPop.open = true;
+    toolPop.active = 0;
+    $('qc-tool-filter').value = '';
+    pop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    // Under the label, inside the dialog.
+    var r = btn.getBoundingClientRect(), w = ROOT.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(r.left - w.left, w.width - pop.offsetWidth - 8)) + 'px';
+    var below = r.bottom - w.top + 4, room = w.height - below - 8;
+    pop.style.top = (room >= Math.min(pop.offsetHeight, 240) ? below : Math.max(8, r.top - w.top - pop.offsetHeight - 4)) + 'px';
+    renderToolList();
+    // Not on a touch: the on-screen keyboard shouldn't pop up unasked.
+    if (focusFilter) $('qc-tool-filter').focus();
   }
-  function pickBitTool() {
-    var sel = $('qc-bit-tool'), v = sel.value, bit = $('qc-bit');
+  function closeToolPop() {
+    toolPop.open = false;
+    $('qc-tool-pop').hidden = true;
+    $('qc-bit-tool').setAttribute('aria-expanded', 'false');
+  }
+  function moveToolActive(step) {
+    var n = toolPop.items.length;
+    if (!n) return;
+    toolPop.active = (toolPop.active + step + n) % n;
+    renderToolList();
+    var el = $('qc-tool-list').querySelector('.qc-active');
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+  // The tools matching every word of the filter (T number, name, notes, size).
+  function renderToolList() {
+    var list = $('qc-tool-list'), n = bitToolNumber(), u = state.unitLabel;
+    var words = String($('qc-tool-filter').value).toLowerCase().split(/\s+/).filter(Boolean);
+    var tools = (state.tools || []).filter(function(t) {
+      var hay = ('t' + t.n + ' ' + t.name + ' ' + t.notes + ' ' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ' in the spindle' : '')).toLowerCase();
+      return words.every(function(w) { return hay.indexOf(w) >= 0; });
+    });
+    toolPop.items = tools.map(function(t) { return { value: String(t.n), t: t }; });
+    if (n) toolPop.items.push({ value: 'none' });
+    var esc = function(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var html = '';
+    if (!state.tools) html = '<div class="qc-tool-empty">Reading the tool table…</div>';
+    else if (!state.tools.length) html = '<div class="qc-tool-empty">No tools with a diameter in the tool table.</div>';
+    else if (!tools.length) html = '<div class="qc-tool-empty">No tool matches “' + esc($('qc-tool-filter').value) + '”.</div>';
+    else html = '<div class="qc-tool-head">Tool change to</div>';
+    html += toolPop.items.map(function(it, i) {
+      var t = it.t, text = t ? (t.n === n ? '✓ ' : '') + 'T' + t.n + (t.name ? ' ' + esc(t.name) : '') + ' <span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
+        : 'No tool change';
+      return '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
+    }).join('');
+    list.innerHTML = html;
+    list.querySelectorAll('.qc-tool-item').forEach(function(b) { b.addEventListener('click', function() { pickBitTool(b.getAttribute('data-v')); }); });
+  }
+  function showBitTool() {
+    var btn = $('qc-bit-tool');
+    if (!btn) return;
+    // Short, to fit the column: "Bit · T3" while a tool is picked.
+    var n = bitToolNumber();
+    btn.textContent = n ? 'Bit · T' + n : 'Bit Diameter';
+    if (toolPop.open) renderToolList();
+  }
+  function pickBitTool(v) {
+    var bit = $('qc-bit');
+    closeToolPop();
     if (!v) return;
-    var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0];
+    var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0], fl = null;
     if (t) {
+      // Flutes first, so the bit's new feeds use them.
+      fl = flutesFromTool(t);
       bit.value = roundDisplay(mmToDisplay(t.mm));
       setBitTool(t.n, t.mm);
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
     } else setBitTool(0, 0);
-    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + '. The program starts with a tool change to T' + t.n + ' (M6).'
+    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + (fl ? ' (' + fl + ' flute' + (fl === 1 ? '' : 's') + ', from its name)' : '') + '. The program starts with a tool change to T' + t.n + ' (M6).'
       : 'No tool change: the program cuts with the bit in the spindle.';
     setTimeout(function() { showTooltip(bit, msg, TOOLTIP_OK, true); }, 0);
   }
@@ -8328,7 +8435,7 @@
   // right after the text.
   var labelMeasure = document.createElement('canvas').getContext('2d');
   function fitLabelSelects(root) {
-    root.querySelectorAll('.qc-label-select').forEach(function(sel) {
+    root.querySelectorAll('select.qc-label-select').forEach(function(sel) {
       var opt = sel.options[sel.selectedIndex];
       if (!opt) return;
       var cs = getComputedStyle(sel);
