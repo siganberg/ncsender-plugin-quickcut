@@ -2132,6 +2132,25 @@
             </div>
           </div>
 
+          <div class="qc-card qc-section-card" id="qc-circ-chamfer-card">
+            <h3 class="qc-card-title">Chamfer</h3>
+            <div class="qc-row-5">
+              <div class="qc-field">
+                <label for="qc-circ-chamfer-width">Chamfer Width</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-chamfer-width" step="0.1" value="0" title="0 cuts the circle. A width chamfers the top edge of the circle you've already cut, with a V-bit, instead: inside a hole's edge, outside a part's. It fills in when a V-bit is in the spindle.">
+              </div>
+              <div class="qc-field">
+                <label for="qc-circ-v-angle">V-Bit Angle (&deg;)</label>
+                <input class="qc-input" type="number" id="qc-circ-v-angle" min="20" max="150" step="1" value="90" title="The V-bit's angle, tip to tip across the V: 90 for a 45&deg; chamfer. From the tool table when a V-bit is in the spindle (its taper angle, or its name).">
+              </div>
+              <div class="qc-field">
+                <label for="qc-circ-v-diameter">V-Bit Diameter</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-v-diameter" step="0.1" value="12.7" title="The V-bit's widest diameter: the chamfer can be up to half of it wide.">
+              </div>
+            </div>
+            <p class="qc-mode-hint" id="qc-circ-chamfer-note"></p>
+          </div>
+
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
@@ -3879,6 +3898,9 @@
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
+        'qc-circ-chamfer-width': { min: 0, max: 2,  label: 'Chamfer Width' },
+        'qc-circ-v-angle':  { min: 20,    max: 150, label: 'V-Bit Angle' },
+        'qc-circ-v-diameter': { min: 0.04, max: 4,  label: 'V-Bit Diameter' },
         'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-circ-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
         'qc-circ-pattern-x-count': { min: 1,    max: 200, label: 'X Count', integer: true },
@@ -4038,6 +4060,9 @@
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
+      'qc-circ-chamfer-width': { min: 0, max: 50, label: 'Chamfer Width' },
+      'qc-circ-v-angle':  { min: 20,   max: 150,  label: 'V-Bit Angle' },
+      'qc-circ-v-diameter': { min: 1,  max: 100,  label: 'V-Bit Diameter' },
       'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-circ-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
       'qc-circ-pattern-x-count': { min: 1,     max: 200,  label: 'X Count', integer: true },
@@ -4673,6 +4698,7 @@
       depth:        num('qc-circ-depth', 0),
       depthOfCut:   num('qc-circ-step', 0),
       stepoverPct:  num('qc-circ-stepover', 40),
+      chamfer:      { width: num('qc-circ-chamfer-width', 0), angle: num('qc-circ-v-angle', 90), diameter: num('qc-circ-v-diameter', 0) },
       pattern:      readPatternForm('circ'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
@@ -6853,6 +6879,10 @@
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
+    if (circ.chamferWidth != null)  $('qc-circ-chamfer-width').value = roundDisplay(mmToDisplay(circ.chamferWidth));
+    if (circ.chamferLast > 0)       state.chamferLastMm = circ.chamferLast;
+    if (circ.vAngle != null)        $('qc-circ-v-angle').value = circ.vAngle;
+    if (circ.vDiameter != null)     $('qc-circ-v-diameter').value = roundDisplay(mmToDisplay(circ.vDiameter));
     hydrateTabs('circ', circ.tabs);
     hydratePattern('circ', circ.pattern);
 
@@ -7112,6 +7142,10 @@
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
+        chamferWidth: displayToMm(params.chamfer.width),
+        chamferLast:  state.chamferLastMm,
+        vAngle:       params.chamfer.angle,
+        vDiameter:    displayToMm(params.chamfer.diameter),
         tabs:         packTabsForm('circ'),
         pattern:      packPattern(params.pattern)
       };
@@ -7598,6 +7632,7 @@
         break;
       case 'circle':
         tags.push('Dia-' + n(params.diameter));
+        if (params.chamfer && params.chamfer.width > 0) tags.push('Chamfer-' + n(params.chamfer.width));
         break;
       case 'polygon':
         if (params.kind === 'star') {
@@ -7849,6 +7884,57 @@
     });
   }
 
+  // Chamfer Width 0 is the circle cut. A width makes the program a chamfer
+  // of the circle's edge instead, with the V-bit in the spindle: the note
+  // says how deep the tip goes and what limits it, or why it can't.
+  function updateChamferNote() {
+    var p = readCircleForm(), note = $('qc-circ-chamfer-note'), u = ' ' + state.unitLabel;
+    var on = p.chamfer.width > 0;
+    $('qc-circ-generate').textContent = on ? 'Generate Chamfer' : 'Generate';
+    if (!on) {
+      note.textContent = 'At 0, Generate cuts the circle. Type a width to chamfer the edge of the circle you\u2019ve cut instead, with a V-bit: inside a hole, outside a part. It fills in when a V-bit is in the spindle.';
+      return;
+    }
+    if (!(p.chamfer.angle >= 20 && p.chamfer.angle <= 150) || !(p.chamfer.diameter > 0) || !(p.depthOfCut > 0) || !(p.diameter > 0)) {
+      note.textContent = '';
+      return;
+    }
+    var plan = makeQuickCutGenerator(state.isImperial).circleChamferPlan(p);
+    var f = function(v) { return roundDisplay(v); };
+    var from = state.chamferSource ? state.chamferSource + ' ' : '';
+    if (plan.tooWide) { note.textContent = from + 'A ' + f(p.chamfer.diameter) + u + ' V-bit chamfers up to ' + f(p.chamfer.diameter / 2) + u + ' wide.'; return; }
+    if (plan.tooDeep) { note.textContent = from + 'This chamfer is ' + f(plan.height) + u + ' deep, more than the cut (' + f(plan.floor) + u + (p.tabs && p.cutType !== 'clearing' ? ', to the tabs' : '') + '): make it narrower.'; return; }
+    note.textContent = from + 'Chamfer only: load the V-bit and run this on the circle already cut with the ' + f(p.bitDiameter) + u +
+      ' bit (Bit Diameter; no tool change). ' + f(plan.width) + u + ' wide, ' + f(plan.height) + u + ' deep; the tip goes ' + f(plan.tipOffset) + u +
+      ' lower, into the cut, so the V\u2019s side does the cutting.' + (plan.pastRoom > 0 ? ' Its other side also cuts ' + f(plan.pastRoom) + u + ' past the cut.' : '');
+  }
+
+  // A V-bit in the spindle: the circle's Chamfer Width fills in (the last
+  // one used), with the bit's angle and diameter from the tool table: its
+  // taper angle (the Fusion 360 importer fills it), else its name. Another
+  // bit in the spindle sets it back to 0, the circle cut.
+  function vBitAngle(t) {
+    var half = t.dimensions && t.dimensions.taper_angle;
+    if (half > 0 && half < 90) return Math.round(half * 200) / 100;
+    var m = /(\d{1,3}(?:\.\d+)?)\s*(?:\u00b0|-?\s*deg(?:rees?)?\b)/i.exec(t.name || '');
+    return m ? +m[1] : null;
+  }
+  function chamferFromLoadedTool(t, n) {
+    var isV = t && (t.type === 'v-bit' || /\b(v[\s-]?bit|vee|v[\s-]?groove|chamfer)\b/i.test(t.name || ''));
+    var angle = isV ? vBitAngle(t) : null;
+    // A tapered ball nose is a v-bit to the tool table, but 10\u00b0 or so.
+    if (!isV || (angle != null && angle < 20)) {
+      if (num('qc-circ-chamfer-width', 0) > 0) $('qc-circ-chamfer-width').value = '0';
+      state.chamferSource = '';
+    } else {
+      if (angle != null && angle <= 150) $('qc-circ-v-angle').value = String(angle);
+      if (t.diameter > 0) $('qc-circ-v-diameter').value = roundDisplay(mmToDisplay(t.diameter));
+      if (!(num('qc-circ-chamfer-width', 0) > 0)) $('qc-circ-chamfer-width').value = roundDisplay(mmToDisplay(state.chamferLastMm || (state.isImperial ? 0.79375 : 1)));
+      state.chamferSource = 'T' + n + ', a V-bit, is in the spindle.';
+    }
+    updateChamferNote();
+  }
+
   function wireCircleForm() {
     $('qc-circ-cut-type').addEventListener('change', function() {
       updateClearingVisibility('circ');
@@ -7868,6 +7954,14 @@
     updateClearingVisibility('circ');
     updatePatternVisibility('circ');
     updateCirclePreview();
+    $('qc-circ-form').addEventListener('input', updateChamferNote);
+    $('qc-circ-form').addEventListener('change', updateChamferNote);
+    $('qc-bit').addEventListener('input', updateChamferNote);
+    $('qc-circ-chamfer-width').addEventListener('change', function() {
+      var w = displayToMm(num('qc-circ-chamfer-width', 0));
+      if (w > 0) state.chamferLastMm = w;
+    });
+    updateChamferNote();
 
     $('qc-circ-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
@@ -8288,6 +8382,7 @@
         // The tool in the spindle first, then the rest by number.
         .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
       state.loadedTool = loaded > 0 ? loaded : 0;
+      if (loaded > 0) chamferFromLoadedTool((tools || []).filter(function(t) { return (state.toolById ? t.toolId : t.toolNumber) === loaded; })[0], loaded);
     } catch (e) { state.tools = []; }
     showBitTool();
   }
@@ -13004,6 +13099,9 @@
     }
 
     function generateCircleProgram(params) {
+      if (params.chamfer && params.chamfer.width > 0) {
+        return generateCircleChamferProgram(params);
+      }
       if ((params.cutType || 'inner') === 'clearing') {
         return generateCircleClearingProgram(params);
       }
@@ -13116,6 +13214,132 @@
 
       for (; i < levels.length; i++) {
         emitTabbedLap(lines, segs, intervals, -levels[i], -tabTop, feedRate, plungeFeedRate, i ? -levels[i - 1] : 0);
+      }
+
+      lines.push('G0 Z' + safeHeight);
+    }
+
+    // A chamfer on the top edge of a circle already cut, with a V-bit:
+    // inside a hole's edge, outside a part's. The tip goes below the chamfer
+    // into the cut the bit already made (the tip offset), so the chamfer is
+    // cut by the V's flank, wider and faster than its weak tip: as deep as
+    // keeps the tip off the floor (and the tabs), the V's other side clear
+    // of the cut's far wall, and the chamfer within the V-bit's reach.
+    function circleChamferPlan(params) {
+      var c = params.chamfer;
+      var cutType = params.cutType || 'inner';
+      var slope = Math.tan(c.angle / 2 * Math.PI / 180);
+      var width = c.width, height = width / slope;
+      var R = params.diameter / 2;
+      var margin = isImperial ? 0.008 : 0.2;
+      // Empty space beside the edge: the slot the bit cut, or the whole pocket.
+      var room = cutType === 'clearing' ? R : params.bitDiameter;
+      var tabs = tabSettings(params);
+      var floor = params.depth - (tabs ? tabs.height : 0);
+      var limits = [(room - margin - width) / (2 * slope), floor - margin - height, (c.diameter / 2 - width) / slope];
+      if (cutType !== 'outer') limits.push(R / slope);
+      var tipOffset = Math.max(0, Math.min.apply(null, limits));
+      return {
+        slope: slope, width: width, height: height, tipOffset: tipOffset, floor: floor,
+        pathRadius: cutType === 'outer' ? R + tipOffset * slope : R - tipOffset * slope,
+        tooWide: width > c.diameter / 2,
+        tooDeep: height > floor,
+        // How far the V's other side reaches past the cut, into the waste.
+        pastRoom: Math.max(0, width + 2 * tipOffset * slope - room)
+      };
+    }
+
+    function generateCircleChamferProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var c = params.chamfer;
+      var plan = circleChamferPlan(params);
+      var placed = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params));
+      var f = function(v) { return v.toFixed(isImperial ? 4 : 3); };
+      var extras = [
+        'Chamfer: ' + f(plan.width) + unitsLabel + ' wide, ' + f(plan.height) + unitsLabel + ' deep, ' +
+          ((params.cutType || 'inner') === 'outer' ? 'outside' : 'inside') + ' the ' + params.diameter + unitsLabel + ' circle',
+        'V-bit: ' + c.angle + ' deg, ' + c.diameter + unitsLabel + ' across. Load it before running this',
+        'Tip offset: ' + f(plan.tipOffset) + unitsLabel + ' below the chamfer, into the cut made with the ' + params.bitDiameter + unitsLabel + ' bit',
+        'Origin: ' + placed.label
+      ];
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var vParams = Object.assign({}, params, { bitDiameter: c.diameter, toolNumber: 0 });
+      var lines = programHeader(vParams, {
+        shapeLabel: 'Circle chamfer' + (positions.length > 1 ? ' × ' + positions.length : ''),
+        extraComments: extras
+      });
+
+      var problem = plan.tooWide ? 'chamfer wider than the V-bit reaches'
+        : plan.tooDeep ? 'chamfer deeper than the cut' : null;
+      if (problem) {
+        lines.push('(WARNING: ' + problem + '; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      if (plan.pastRoom > 0) {
+        lines.push(comment('Note: the V-bit\'s other side also cuts ' + f(plan.pastRoom) + unitsLabel + ' past the cut'));
+      }
+
+      lines.push.apply(lines, startupBlock(params));
+
+      var shift = placed.shift;
+      for (var p = 0; p < positions.length; p++) {
+        var pos = positions[p];
+        var mx = pos.x + shift.x;
+        var my = pos.y + shift.y;
+        if (positions.length > 1) {
+          lines.push('(Instance ' + (p + 1) + '/' + positions.length +
+                     ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + ')');
+        }
+        emitOneCircleChamfer(lines, params, plan, mx, my);
+      }
+
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    // Each pass widens the chamfer by about a Depth of Cut, the tip on the
+    // same circle and deeper: a helix down (as many turns as keep it to
+    // rampSlope), then a lap at depth.
+    // A hole too small for a circle is a countersink at its center.
+    function emitOneCircleChamfer(lines, params, plan, cx, cy) {
+      var r = plan.pathRadius;
+      var feedRate = params.feedRate;
+      var plungeFeedRate = params.plungeFeedRate;
+      var lap = 2 * Math.PI * r;
+      var passes = Math.max(1, Math.ceil(plan.height / params.depthOfCut - 1e-9));
+
+      lines.push('G0 X' + (cx + r).toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
+      var safeHeight = safeHopDelta.toFixed(3);
+      lines.push('G0 Z' + safeHeight);
+      var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
+      lines.push('G0 Z' + slowPlungeStart);
+
+      var prevZ = parseFloat(slowPlungeStart);
+      for (var k = 1; k <= passes; k++) {
+        var targetZ = -(plan.height * k / passes + plan.tipOffset);
+        if (lap < minRamp) {
+          lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+          prevZ = targetZ;
+          continue;
+        }
+        var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (lap * rampSlope) - 1e-9)));
+        var helixFeed = ' F' + slopeFeed((prevZ - targetZ) / turns / lap, feedRate, plungeFeedRate);
+        for (var h = 1; h <= turns; h++) {
+          lines.push('G3 X' + (cx - r).toFixed(5) + ' Y' + cy.toFixed(5) +
+                     ' I' + (-r).toFixed(5) + ' J0' +
+                     ' Z' + (prevZ + (targetZ - prevZ) * (h - 0.5) / turns).toFixed(3) + helixFeed);
+          lines.push('G3 X' + (cx + r).toFixed(5) + ' Y' + cy.toFixed(5) +
+                     ' I' + r.toFixed(5) + ' J0' +
+                     ' Z' + (prevZ + (targetZ - prevZ) * h / turns).toFixed(3) + helixFeed);
+        }
+        lines.push('G3 X' + (cx - r).toFixed(5) + ' Y' + cy.toFixed(5) +
+                   ' I' + (-r).toFixed(5) + ' J0 F' + feedRate);
+        lines.push('G3 X' + (cx + r).toFixed(5) + ' Y' + cy.toFixed(5) +
+                   ' I' + r.toFixed(5) + ' J0');
+        prevZ = targetZ;
       }
 
       lines.push('G0 Z' + safeHeight);
@@ -15168,6 +15392,7 @@
     return {
       generateRectangleProgram: generateRectangleProgram,
       generateCircleProgram: generateCircleProgram,
+      circleChamferPlan: circleChamferPlan,
       generatePlanerProgram: generatePlanerProgram,
       generateJointerProgram: generateJointerProgram,
       generateCutterProgram: generateCutterProgram,

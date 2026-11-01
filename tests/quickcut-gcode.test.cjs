@@ -3366,3 +3366,105 @@ test('circle clearing in a hole a little bigger than the bit helixes the same in
   assert.equal(helixes(false), true);
   assert.equal(helixes(true), true);
 });
+
+function chamferParams(overrides) {
+  return Object.assign({
+    bitDiameter: 6.35, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, origin: 'center',
+    diameter: 40, cutType: 'outer', depth: 6, depthOfCut: 2,
+    chamfer: { width: 1, angle: 90, diameter: 12.7 }
+  }, overrides || {});
+}
+function chamferArcs(gcode) {
+  return gcode.split('\n').filter(l => /^G3/.test(l)).map(l => {
+    const a = parseArc(l);
+    return { r: Math.hypot(a.i, a.j), z: /Z(-?[\d.]+)/.test(l) ? parseFloat(l.match(/Z(-?[\d.]+)/)[1]) : null };
+  });
+}
+
+test('circle chamfer: outside a part, the tip goes into the slot as far as the far wall allows', () => {
+  const g = makeQuickCutGenerator(false);
+  const plan = g.circleChamferPlan(chamferParams());
+  // (slot 6.35 - margin 0.2 - width 1) / (2 tan 45) = 2.575
+  assert.ok(Math.abs(plan.tipOffset - 2.575) < 1e-9, String(plan.tipOffset));
+  const gcode = g.generateCircleProgram(chamferParams());
+  assert.doesNotMatch(gcode, /M6|WARNING/);
+  const arcs = chamferArcs(gcode);
+  for (const a of arcs) assert.ok(Math.abs(a.r - (20 + 2.575)) < 1e-4, String(a.r));
+  const lowest = Math.min(...arcs.filter(a => a.z != null).map(a => a.z));
+  assert.equal(lowest, -3.575);
+  // The flank meets the top 1 mm in from the edge, on the part.
+  assert.ok(Math.abs((20 + 2.575) - 3.575 * Math.tan(Math.PI / 4) - 19) < 1e-9);
+});
+
+test('circle chamfer: inside a hole the path is inside the edge, by the same offset', () => {
+  const g = makeQuickCutGenerator(false);
+  for (const cutType of ['inner', 'clearing']) {
+    const plan = g.circleChamferPlan(chamferParams({ cutType }));
+    assert.ok(Math.abs(plan.pathRadius - (20 - plan.tipOffset)) < 1e-9, cutType);
+    for (const a of chamferArcs(g.generateCircleProgram(chamferParams({ cutType })))) {
+      assert.ok(Math.abs(a.r - plan.pathRadius) < 1e-4, cutType);
+    }
+  }
+  // A pocket leaves more room than a perimeter's slot: the floor limits it instead.
+  assert.ok(Math.abs(g.circleChamferPlan(chamferParams({ cutType: 'clearing' })).tipOffset - 4.8) < 1e-9);
+});
+
+test('circle chamfer: a 60 degree V-bit, the tabs and the V-bit\'s reach limit the tip offset', () => {
+  const g = makeQuickCutGenerator(false);
+  const t30 = Math.tan(Math.PI / 6);
+  const v60 = g.circleChamferPlan(chamferParams({ depth: 10, chamfer: { width: 1, angle: 60, diameter: 12.7 } }));
+  assert.ok(Math.abs(v60.height - 1 / t30) < 1e-9);
+  assert.ok(Math.abs(v60.tipOffset - (6.35 - 0.2 - 1) / (2 * t30)) < 1e-9);
+  // In a 6 mm deep cut the floor stops it first.
+  const shallow = g.circleChamferPlan(chamferParams({ chamfer: { width: 1, angle: 60, diameter: 12.7 } }));
+  assert.ok(Math.abs(shallow.tipOffset - (6 - 0.2 - 1 / t30)) < 1e-9);
+  const tabs = g.circleChamferPlan(chamferParams({ tabs: { count: 4, width: 6, height: 4 } }));
+  assert.ok(Math.abs(tabs.tipOffset - (2 - 0.2 - 1)) < 1e-9, String(tabs.tipOffset));
+  const small = g.circleChamferPlan(chamferParams({ chamfer: { width: 1, angle: 90, diameter: 3 } }));
+  assert.ok(Math.abs(small.tipOffset - 0.5) < 1e-9, String(small.tipOffset));
+});
+
+test('circle chamfer: refused when too wide for the V-bit or deeper than the cut', () => {
+  const g = makeQuickCutGenerator(false);
+  assert.match(g.generateCircleProgram(chamferParams({ chamfer: { width: 4, angle: 90, diameter: 6 } })), /wider than the V-bit reaches; nothing to cut/);
+  assert.match(g.generateCircleProgram(chamferParams({ depth: 0.5 })), /deeper than the cut; nothing to cut/);
+  assert.doesNotMatch(g.generateCircleProgram(chamferParams({ chamfer: { width: 4, angle: 90, diameter: 6 } })), /^G3/m);
+});
+
+test('circle chamfer: passes by Depth of Cut, ramped no faster than the Plunge Rate, a lap at each depth', () => {
+  const g = makeQuickCutGenerator(false);
+  const params = chamferParams({ chamfer: { width: 3, angle: 90, diameter: 12.7 }, depthOfCut: 1 });
+  const plan = g.circleChamferPlan(params);
+  const big = g.generateCircleProgram(params);
+  assert.equal(Math.min(...chamferArcs(big).filter(a => a.z != null).map(a => a.z)), -+(3 + plan.tipOffset).toFixed(3));
+  const zs = big.split('\n').filter(l => /^G3 .* J0 F\d+$/.test(l)).length;
+  assert.equal(zs, 3, 'a full lap at each of the 3 depths');
+  // A small hole, where the ramp is steep.
+  const small = g.generateCircleProgram(chamferParams({ diameter: 6, cutType: 'inner', bitDiameter: 3.175, depthOfCut: 3 }));
+  for (const gcode of [big, small]) {
+  let x = 0, y = 0, z = 10, f = 0;
+  for (const l of gcode.split('\n')) {
+    if (!/^G[0-3]\b/.test(l)) continue;
+    const w = (k) => (new RegExp('(?<![A-Z])' + k + '(-?[\\d.]+)').exec(l) || [])[1];
+    if (w('F')) f = +w('F');
+    const nx = w('X') != null ? +w('X') : x, ny = w('Y') != null ? +w('Y') : y, nz = w('Z') != null ? +w('Z') : z;
+    if (/^G[123]/.test(l) && nz < z - 1e-6) {
+      const len = /^G[23]/.test(l) ? Math.PI * Math.hypot(+w('I') || 0, +w('J') || 0) : Math.hypot(nx - x, ny - y);
+      const zSpeed = f * (z - nz) / Math.hypot(len, z - nz);
+      assert.ok(zSpeed <= 400 * 1.02, `Z at ${zSpeed.toFixed(0)} mm/min on ${l}`);
+    }
+    x = nx; y = ny; z = nz;
+  }
+  }
+});
+
+test('circle chamfer: the same in inches, scaled; width 0 is the ordinary cut', () => {
+  const k = 1 / 25.4;
+  const mm = makeQuickCutGenerator(false).circleChamferPlan(chamferParams());
+  const inch = makeQuickCutGenerator(true).circleChamferPlan(chamferParams({
+    bitDiameter: 6.35 * k, diameter: 40 * k, depth: 6 * k, depthOfCut: 2 * k, chamfer: { width: 1 * k, angle: 90, diameter: 12.7 * k } }));
+  assert.ok(Math.abs(inch.tipOffset / k - mm.tipOffset) < 0.01, `${inch.tipOffset / k} vs ${mm.tipOffset}`);
+  const g = makeQuickCutGenerator(false);
+  const plain = chamferParams(); delete plain.chamfer;
+  assert.equal(g.generateCircleProgram(chamferParams({ chamfer: { width: 0, angle: 90, diameter: 12.7 } })), g.generateCircleProgram(plain));
+});
