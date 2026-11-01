@@ -8208,22 +8208,21 @@
   var TAB_PREFIX = { rectangle: 'rect', circle: 'circ', polygon: 'poly', slot: 'slt', keyhole: 'key', drill: 'drl',
                      planer: 'plan', jointer: 'join', cutter: 'cut' };
 
-  // How many flutes a tool's name or notes say it has: "O flute" or
+  // How many flutes a tool's name or notes say it has: "O flute", "0flute" or
   // "single flute" 1, "2 flute", "two-flute", "3FL", "2F"... else null.
   // ncSender's tool table has no field for it.
   function flutesFromText(text) {
     var t = String(text || '').toLowerCase();
-    if (/\b(o|single|one)[\s-]*flutes?\b/.test(t)) return 1;
+    if (/\b(o|0|zero|single|one)[\s-]*flutes?\b/.test(t)) return 1;
     var m = /\b([1-4])[\s-]*(?:flutes?|fl)\b/.exec(t) || /\b([1-4])f\b/.exec(t);
     if (m) return +m[1];
     var w = /\b(two|double|three|four)[\s-]*flutes?\b/.exec(t);
     return w ? { two: 2, double: 2, three: 3, four: 4 }[w[1]] : null;
   }
-  // Flutes from a tool picked, when its name says; the starting feeds
-  // follow if they're the filled-in ones. Returns the count, or null.
+  // Flutes from a tool picked: what its name says, else 2, the usual; the
+  // starting feeds follow if they're the filled-in ones. Returns the count.
   function flutesFromTool(t) {
-    var n = flutesFromText((t.name || '') + ' ' + (t.notes || ''));
-    if (!n) return null;
+    var n = flutesFromText((t.name || '') + ' ' + (t.notes || '')) || 2;
     if (n !== state.flutes) {
       $('qc-flutes').value = String(n);
       state.flutes = n;
@@ -8235,7 +8234,7 @@
 
   // With a tool changer, Bit Diameter's label opens ncSender's tool table,
   // a filter on top, the tool in the spindle first: picking a tool sets the
-  // diameter (and the flutes, when its name says) and starts the program
+  // diameter and the flutes (from its name, else 2) and starts the program
   // with M6 T<n> (T is a slot or a Tool ID, by Settings > Tool Changer >
   // Tool Numbering, as /api/tools/active lists them). Typing another
   // diameter drops the tool change.
@@ -8258,10 +8257,8 @@
     pop.innerHTML = '<input class="qc-input qc-tool-filter" id="qc-tool-filter" type="text" autocomplete="off" spellcheck="false" placeholder="Filter: T number, name or size" aria-label="Filter the tools">' +
       '<div class="qc-tool-list" id="qc-tool-list" role="listbox" aria-label="Tool table"></div>';
     ROOT.appendChild(pop);
-    var how = 'mouse';
-    btn.addEventListener('pointerdown', function(e) { how = e.pointerType || 'mouse'; });
-    btn.addEventListener('keydown', function(e) { how = 'keyboard'; if (e.key === 'ArrowDown') { e.preventDefault(); openToolPop(true); } });
-    btn.addEventListener('click', function() { if (toolPop.open) closeToolPop(); else openToolPop(how !== 'touch'); });
+    btn.addEventListener('keydown', function(e) { if (e.key === 'ArrowDown') { e.preventDefault(); openToolPop(); } });
+    btn.addEventListener('click', function() { if (toolPop.open) closeToolPop(); else openToolPop(); });
     var filter = $('qc-tool-filter');
     filter.addEventListener('input', function() { toolPop.active = 0; renderToolList(); });
     filter.addEventListener('keydown', function(e) {
@@ -8293,7 +8290,7 @@
     } catch (e) { state.tools = []; }
     showBitTool();
   }
-  function openToolPop(focusFilter) {
+  function openToolPop() {
     var btn = $('qc-bit-tool'), pop = $('qc-tool-pop');
     toolPop.open = true;
     toolPop.active = 0;
@@ -8306,8 +8303,7 @@
     var below = r.bottom - w.top + 4, room = w.height - below - 8;
     pop.style.top = (room >= Math.min(pop.offsetHeight, 240) ? below : Math.max(8, r.top - w.top - pop.offsetHeight - 4)) + 'px';
     renderToolList();
-    // Not on a touch: the on-screen keyboard shouldn't pop up unasked.
-    if (focusFilter) $('qc-tool-filter').focus();
+    $('qc-tool-filter').focus();
   }
   function closeToolPop() {
     toolPop.open = false;
@@ -8367,7 +8363,7 @@
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
     } else setBitTool(0, 0);
-    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + (fl ? ' (' + fl + ' flute' + (fl === 1 ? '' : 's') + ', from its name)' : '') + '. The program starts with a tool change to T' + t.n + ' (M6).'
+    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + ' (' + fl + ' flute' + (fl === 1 ? '' : 's') + ')' + '. The program starts with a tool change to T' + t.n + ' (M6).'
       : 'No tool change: the program cuts with the bit in the spindle.';
     setTimeout(function() { showTooltip(bit, msg, TOOLTIP_OK, true); }, 0);
   }
