@@ -2152,6 +2152,10 @@
                 <label for="qc-chamfer-angle">V Angle (tip to tip)</label>
                 <input class="qc-input" type="number" id="qc-chamfer-angle" min="20" max="150" step="1" value="90" title="The V-bit's angle across the V, tip to tip: 90 for a bit that is 45&deg; a side. From the tool table when a V-bit is in the spindle (its taper angle, or its name). The V-bit itself is the Tool card's bit.">
               </div>
+              <div class="qc-field qc-chamfer-drill">
+                <label for="qc-chamfer-hole">Hole Diameter</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-hole" step="0.1" value="5" title="The size of the holes already drilled: the drill's diameter. The Tool card holds the V-bit while chamfering.">
+              </div>
               <div class="qc-field">
                 <label for="qc-chamfer-cut-depth">Cut Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-depth" step="0.1" value="" placeholder="Through" title="How deep the hole or cut you've already made goes; the V-bit's tip stays above its bottom. Blank: it goes right through (the tip then goes at most the chamfer's depth lower).">
@@ -2907,7 +2911,7 @@
                     <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0" title="Seconds to pause at the bottom of each hole to clean up its floor.">
                   </div>
                 </div>
-                <p class="qc-mode-hint">
+                <p class="qc-mode-hint" id="qc-drl-hint">
                   Hole diameter is the <strong>Bit Diameter</strong>. With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview.
                   Every Z move uses the Plunge Rate.
                 </p>
@@ -3922,6 +3926,7 @@
         'qc-chamfer-angle':  { min: 20,    max: 150, label: 'V-Bit Angle' },
         'qc-chamfer-cut-depth': { min: 0.004, max: 20, label: 'Cut Depth', blankOk: true },
         'qc-chamfer-cut-width': { min: 0.004, max: 4, label: 'Cut Width' },
+        'qc-chamfer-hole':  { min: 0.004, max: 4,  label: 'Hole Diameter' },
         'qc-chamfer-step': { min: 0.001, max: 5, label: 'Depth of Cut' },
         'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-circ-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -4086,6 +4091,7 @@
       'qc-chamfer-angle':  { min: 20,   max: 150,  label: 'V-Bit Angle' },
       'qc-chamfer-cut-depth': { min: 0.1, max: 500, label: 'Cut Depth', blankOk: true },
       'qc-chamfer-cut-width': { min: 0.1, max: 100, label: 'Cut Width' },
+      'qc-chamfer-hole':  { min: 0.1,  max: 100,  label: 'Hole Diameter' },
       'qc-chamfer-step': { min: 0.01, max: 100, label: 'Depth of Cut' },
       'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-circ-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -4720,7 +4726,8 @@
       width:      $('qc-chamfer-enable').checked ? num('qc-chamfer-width', 0) : 0,
       angle:      num('qc-chamfer-angle', 90),
       cutDepth:   num('qc-chamfer-cut-depth', 0),
-      cutWidth:   $('qc-' + prefix + '-cut-type').value === 'outer' ? num('qc-chamfer-cut-width', 0) : 0,
+      cutWidth:   $('qc-' + prefix + '-cut-type') && $('qc-' + prefix + '-cut-type').value === 'outer' ? num('qc-chamfer-cut-width', 0) : 0,
+      holeDiameter: num('qc-chamfer-hole', 0),
       depthOfCut: num('qc-chamfer-step', 0)
     };
   }
@@ -4732,6 +4739,7 @@
       angle:    num('qc-chamfer-angle', 90),
       cutDepth: cutDepth > 0 ? displayToMm(cutDepth) : null,
       cutWidth: displayToMm(num('qc-chamfer-cut-width', 0)),
+      hole:     displayToMm(num('qc-chamfer-hole', 0)),
       step:     displayToMm(num('qc-chamfer-step', 0))
     };
   }
@@ -6937,6 +6945,7 @@
       if (ch.cutDepth !== undefined) $('qc-chamfer-cut-depth').value = ch.cutDepth > 0 ? roundDisplay(mmToDisplay(ch.cutDepth)) : '';
       if (ch.cutWidth > 0)          $('qc-chamfer-cut-width').value = roundDisplay(mmToDisplay(ch.cutWidth));
       if (ch.step > 0)              $('qc-chamfer-step').value = roundDisplay(mmToDisplay(ch.step));
+      if (ch.hole > 0)              $('qc-chamfer-hole').value = roundDisplay(mmToDisplay(ch.hole));
     }
     showChamferFields();
     hydrateTabs('circ', circ.tabs);
@@ -7682,11 +7691,9 @@
         if (makeQuickCutGenerator(state.isImperial).isTrapezoid(params)) tags.push('Top-' + n(params.topWidth));
         tags.push('H-' + n(params.height));
         if (params.cornerRadius > 0) tags.push('R-' + n(params.cornerRadius));
-        if (params.chamfer && params.chamfer.width > 0) tags.push('Chamfer-' + n(params.chamfer.width));
         break;
       case 'circle':
         tags.push('Dia-' + n(params.diameter));
-        if (params.chamfer && params.chamfer.width > 0) tags.push('Chamfer-' + n(params.chamfer.width));
         break;
       case 'polygon':
         if (params.kind === 'star') {
@@ -7713,7 +7720,8 @@
       case 'jointer': tags.push('L-' + n(params.length)); break;
       case 'cutter': tags.push('T-' + n(params.targetSize)); break;
     }
-    tags.push('D-' + n(params.depth));
+    if (params.chamfer && params.chamfer.width > 0) tags.push('Chamfer-' + n(params.chamfer.width));
+    else tags.push('D-' + n(params.depth));
     if (CUT_TAGS[params.cutType]) tags.push(CUT_TAGS[params.cutType]);
     if (pat && pat.enabled) {
       tags.push(/^circular/.test(pat.style) ? 'P-' + pat.count : 'P-' + pat.xCount + 'x' + pat.yCount);
@@ -7943,10 +7951,16 @@
   // shape's edge instead, with the V-bit in the spindle: the note says
   // how deep the tip goes and what limits it, or why it can't. One card,
   // moved to the open tab under its Depth card, like the Tool card.
-  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect' };
-  var CHAMFER_SHAPE_NAMES = { circle: 'circle', rectangle: 'rectangle' };
+  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl' };
+  var CHAMFER_SHAPE_NAMES = { circle: 'circle', rectangle: 'rectangle', drill: 'holes' };
   function chamferTab() { return CHAMFER_TABS[state.currentTab] ? state.currentTab : null; }
-  function readChamferShapeForm(tab) { return tab === 'circle' ? readCircleForm() : readRectangleForm(); }
+  function readChamferShapeForm(tab) { return tab === 'circle' ? readCircleForm() : tab === 'drill' ? readDrillForm() : readRectangleForm(); }
+  // What only the shape's own cut uses, hidden while chamfering: the Depth
+  // card, or on Drill (no Depth card) its depth, peck and dwell.
+  function chamferHides(prefix) {
+    if (prefix === 'drl') return ['qc-drl-depth', 'qc-drl-peck', 'qc-drl-peck-mode', 'qc-drl-dwell'].map(function(id) { return $(id).closest('.qc-field'); });
+    return [$('qc-' + prefix + '-depth').closest('.qc-card')];
+  }
   function placeChamferCard(view) {
     var card = $('qc-chamfer-card'), prefix = CHAMFER_TABS[view];
     if (!prefix) { card.style.display = 'none'; return; }
@@ -7961,11 +7975,24 @@
     $('qc-chamfer-body').style.display = on ? '' : 'none';
     // Total Depth and tabs are the shape cut's; the chamfer has its own.
     Object.keys(CHAMFER_TABS).forEach(function(tab) {
-      $('qc-' + CHAMFER_TABS[tab] + '-depth').closest('.qc-card').style.display = on ? 'none' : '';
+      chamferHides(CHAMFER_TABS[tab]).forEach(function(el) { el.style.display = on ? 'none' : ''; });
       $('qc-' + CHAMFER_TABS[tab] + '-generate').textContent = on ? 'Generate Chamfer' : 'Generate';
     });
     var prefix = CHAMFER_TABS[chamferTab()] || 'circ';
-    ROOT.querySelector('.qc-chamfer-outer').style.display = $('qc-' + prefix + '-cut-type').value === 'outer' ? '' : 'none';
+    var cutType = $('qc-' + prefix + '-cut-type');
+    ROOT.querySelector('.qc-chamfer-outer').style.display = cutType && cutType.value === 'outer' ? '' : 'none';
+    ROOT.querySelector('.qc-chamfer-drill').style.display = prefix === 'drl' ? '' : 'none';
+    var hint = $('qc-drl-hint');
+    if (hint.dataset.cut == null) hint.dataset.cut = hint.innerHTML;
+    hint.innerHTML = on ? 'Chamfers holes already drilled: <strong>Hole Diameter</strong> is the drill\u2019s size, and the Tool card\u2019s bit is the V-bit. ' +
+      'Keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' : hint.dataset.cut;
+    if (state.currentTab === 'drill') updateDrillPreview();
+    // Drilling only plunges, at the Plunge Rate; a chamfer's laps use the Feed Rate.
+    if (state.currentTab === 'drill') {
+      var feed = $('qc-feed');
+      feed.disabled = !on;
+      feed.title = on ? feed.dataset.tip : 'Not used for drilling: every move is at the Plunge Rate.';
+    }
   }
   function updateChamferVisibility() {
     showChamferFields();
@@ -7975,6 +8002,7 @@
   function chamferProblem(p, plan) {
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
     if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this kind of shape yet: turn Chamfer off to cut it' };
+    if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit (Bit Diameter) chamfers up to ' + f(p.bitDiameter / 2) + u + ' wide' };
     if (plan.tooDeep) return { id: 'qc-chamfer-cut-depth', msg: 'The chamfer is ' + f(plan.height) + u + ' deep, deeper than the ' + f(plan.floor) + u + ' cut: make it narrower, or the cut deeper' };
     if (plan.noRoom) return { id: 'qc-chamfer-cut-width', msg: 'Cut Width: how wide the slot around the part is' };
@@ -8090,6 +8118,9 @@
     $('qc-circ-form').addEventListener('change', updateChamferNote);
     $('qc-rect-form').addEventListener('input', updateChamferNote);
     $('qc-rect-form').addEventListener('change', updateChamferNote);
+    $('qc-drl-form').addEventListener('input', updateChamferNote);
+    $('qc-chamfer-hole').addEventListener('input', function() { if (state.currentTab === 'drill') updateDrillPreview(); });
+    $('qc-drl-form').addEventListener('change', updateChamferNote);
     $('qc-bit').addEventListener('input', updateChamferNote);
     $('qc-rect-cut-type').addEventListener('change', showChamferFields);
     // Remembered as soon as it's flipped: with no tool changer (or no tool
@@ -10542,6 +10573,7 @@
       dwell:         num('qc-drl-dwell', 0),
       origin:        $('qc-drl-origin').value,
       inset:       readInset('drl'),
+      chamfer:       readChamferForm('drl'),
       pattern:       readPatternForm('drl'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
@@ -10566,7 +10598,8 @@
     $('qc-drl-peck-mode').closest('.qc-field').style.visibility = peck > 0 && peck < num('qc-drl-depth', 0) ? '' : 'hidden';
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
-    var dia = num('qc-bit', 0);
+    // Chamfering, the Tool card holds the V-bit: the holes are the Hole Diameter.
+    var dia = $('qc-chamfer-enable').checked ? num('qc-chamfer-hole', 0) : num('qc-bit', 0);
     var D = dia > 0 ? dia : 1;
     var gen = makeQuickCutGenerator(state.isImperial);
     var pattern = readPatternForm('drl');
@@ -10670,6 +10703,7 @@
     $('qc-drl-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
       var params = readDrillForm();
+      if (chamferRefused('drill', params)) return;
       params.shape = 'drill';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateDrillProgram(params);
@@ -13419,9 +13453,21 @@
       return chamferPlan(params, Math.min(params.width, params.height) / 2);
     }
 
+    // A drilled hole's chamfer is a circle's, inside the Hole Diameter (the
+    // Tool card holds the V-bit, not the drill).
+    function drillChamferParams(params) {
+      return Object.assign({}, params, { diameter: params.chamfer.holeDiameter, cutType: 'inner' });
+    }
+    function drillChamferPlan(params) {
+      var plan = circleChamferPlan(drillChamferParams(params));
+      plan.noHole = !(params.chamfer.holeDiameter > 0);
+      return plan;
+    }
+
     // The chamfer plan for a shape's tab, or null where there's no chamfer.
     function chamferPlanFor(shape, params) {
       if (shape === 'circle') return circleChamferPlan(params);
+      if (shape === 'drill') return drillChamferPlan(params);
       if (shape === 'rectangle' && !chamferNotYet(params)) return rectangleChamferPlan(params);
       return null;
     }
@@ -13443,7 +13489,8 @@
       ];
     }
     function chamferRefusal(plan) {
-      return plan.tooWide ? 'chamfer wider than the V-bit reaches'
+      return plan.noHole ? 'no Hole Diameter'
+        : plan.tooWide ? 'chamfer wider than the V-bit reaches'
         : plan.tooDeep ? 'chamfer deeper than the cut'
         : plan.noRoom ? 'no Cut Width for the slot around the part' : null;
     }
@@ -13518,6 +13565,35 @@
         // The rectangle's own path with the tip's inset for the bit radius.
         var geom = computeRectangleGeom(Object.assign({}, params, { bitDiameter: 2 * plan.inset }), mx, my, pos.rotDeg);
         emitChamferPasses(lines, params, plan, rectangleSegments(geom), { x: mx, y: my });
+      }
+
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
+    function generateDrillChamferProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var positions = computePatternPositions(params.pattern);
+      var hole = drillChamferParams(params);
+      var plan = drillChamferPlan(params);
+      // Where the holes were drilled: placed with the drill's own size.
+      var origin = resolveDrillOrigin(params.origin, params.pattern, positions, params.chamfer.holeDiameter || 0, params.inset);
+      var extras = chamferComments(hole, plan, 'the ' + params.chamfer.holeDiameter + unitsLabel + ' hole' + (positions.length > 1 ? 's' : ''), origin.label);
+      if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var start = chamferProgramStart(params, plan, 'Drill chamfer' + (positions.length > 1 ? ' × ' + positions.length : ''), extras);
+      var lines = start.lines;
+      if (start.refused) return lines.join('\n');
+
+      var shift = origin.shift;
+      for (var p = 0; p < positions.length; p++) {
+        var mx = positions[p].x + shift.x;
+        var my = positions[p].y + shift.y;
+        if (positions.length > 1) {
+          lines.push('(Hole ' + (p + 1) + '/' + positions.length +
+                     ' at X' + fixed(mx, 3) + ' Y' + fixed(my, 3) + ')');
+        }
+        emitOneCircleChamfer(lines, hole, plan, mx, my);
       }
 
       lines.push('');
@@ -15574,6 +15650,7 @@
     //   break: after each peck, back off 0.5mm to snap the chip.
     // An optional dwell at the bottom cleans up the hole floor.
     function generateDrillProgram(params) {
+      if (params.chamfer && params.chamfer.width > 0) return generateDrillChamferProgram(params);
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var peck = params.peckDepth > 0 && params.peckDepth < params.depth ? params.peckDepth : 0;

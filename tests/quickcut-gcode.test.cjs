@@ -3599,3 +3599,37 @@ test('rectangle chamfer: a rotated pattern chamfers each copy, the same in inche
     { width: k, cutDepth: 6 * k, cutWidth: 6.35 * k, depthOfCut: 2 * k }));
   assert.ok(Math.abs(inch.tipOffset / k - 2.575) < 0.01);
 });
+
+const drillParams = (o) => Object.assign({
+  bitDiameter: 5, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, depth: 10, peckDepth: 3, peckMode: 'clear', dwell: 0,
+  origin: 'front-left', inset: { x: 10, y: 8, to: 'edge', both: false },
+  pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 2, xDist: 20, yDist: 15 }
+}, o || {});
+
+test('drill chamfer: each hole the drill program made gets a chamfer, centered on it', () => {
+  const g = makeQuickCutGenerator(false);
+  const drilled = g.generateDrillProgram(drillParams())
+    .split('\n').filter(l => /^G0 X/.test(l)).map(l => l.match(/X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number));
+  const chamfer = drillParams({ bitDiameter: 4, toolNumber: 22, chamfer: { width: 0.5, angle: 90, holeDiameter: 5, cutDepth: 10, depthOfCut: 1 } });
+  const plan = g.chamferPlanFor('drill', chamfer);
+  const gcode = g.generateDrillProgram(chamfer);
+  assert.match(gcode, /^\(QuickCut: Drill chamfer × 6\)/);
+  assert.match(gcode, /^M6 T22/m);
+  const centers = gcode.split('\n').filter(l => /^G0 X/.test(l)).map(l => l.match(/X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number))
+    .map(([x, y]) => [x - plan.pathRadius, y]);
+  assert.equal(centers.length, 6);
+  centers.forEach(([x, y], i) => {
+    assert.ok(Math.abs(x - drilled[i][0]) < 2e-3 && Math.abs(y - drilled[i][1]) < 2e-3, `hole ${i}: ${x},${y} vs ${drilled[i]}`);
+  });
+  // Inside a 5 mm hole with a 4 mm 90 degree bit, 0.5 wide: the reach (2 - 0.5) limits the tip.
+  assert.ok(Math.abs(plan.tipOffset - 1.5) < 1e-9, String(plan.tipOffset));
+  assert.ok(Math.abs(plan.pathRadius - 1) < 1e-9, String(plan.pathRadius));
+});
+
+test('drill chamfer: refused without a Hole Diameter, or wider than the V-bit', () => {
+  const g = makeQuickCutGenerator(false);
+  assert.match(g.generateDrillProgram(drillParams({ bitDiameter: 4, chamfer: { width: 0.5, angle: 90, holeDiameter: 0, cutDepth: 10, depthOfCut: 1 } })), /no Hole Diameter; nothing to cut/);
+  assert.match(g.generateDrillProgram(drillParams({ bitDiameter: 4, chamfer: { width: 3, angle: 90, holeDiameter: 5, cutDepth: 10, depthOfCut: 1 } })), /wider than the V-bit reaches/);
+  // Width 0: the ordinary drill program.
+  assert.equal(g.generateDrillProgram(drillParams({ chamfer: { width: 0, angle: 90, holeDiameter: 5 } })), g.generateDrillProgram(drillParams()));
+});
