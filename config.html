@@ -226,12 +226,16 @@
 
   /* Help page: one card per topic. */
   .qc-help-index li { margin-bottom: 6px; }
-  /* A dropdown standing in for a field's label (Polygon's size measure). */
+  /* A dropdown standing in for a field's label (Polygon's size measure),
+     as wide as the choice it shows (fitLabelSelects) with its own arrow
+     right after it. */
   .qc-label-select {
     align-self: flex-start;
-    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0 14px 0 0;
     border: none;
-    background: transparent;
+    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 1px center / 9px 6px;
     font-family: inherit;
     font-size: 0.78rem;
     font-weight: 600;
@@ -566,10 +570,19 @@
     margin: 0;
   }
 
+  /* A slim scrollbar like ncSender's own, instead of the system's (a wide
+     grey one with arrows on the Pi, none at all on a Mac). */
+  .qc-wrapper ::-webkit-scrollbar { width: 8px; height: 8px; }
+  .qc-wrapper ::-webkit-scrollbar-track { background: transparent; }
+  .qc-wrapper ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+  .qc-wrapper ::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
+  .qc-wrapper ::-webkit-scrollbar-corner { background: transparent; }
   .qc-panel {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    /* The same width whether a tab scrolls or not. */
+    scrollbar-gutter: stable;
     display: flex;
     flex-direction: column;
     gap: var(--qc-section-gap);
@@ -784,13 +797,15 @@
   .qc-row-2, .qc-row-3, .qc-row-4 {
     display: grid;
     gap: 12px;
+    /* Inputs line up even when one label wraps to two lines. */
+    align-items: end;
   }
   .qc-row-2 { grid-template-columns: repeat(2, 1fr); }
   .qc-row-3 { grid-template-columns: repeat(3, 1fr); }
   /* Mode row only ever holds two fields (Starting Thickness is hidden
      outside thickness mode), so a third empty column just squeezed the
      select until "Wasteboard Surfacing" was clipped. */
-  .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .qc-row-3.qc-plan-mode-row { grid-template-columns: minmax(auto, 1.4fr) minmax(auto, 1fr); }
   /* Corner Relief: a menu on its own line under Cut Type. */
   .qc-relief-field { max-width: 160px; }
   /* The keepout switch sits level with the Mode select. */
@@ -798,8 +813,11 @@
   .qc-row-4 { grid-template-columns: repeat(4, 1fr); }
   /* A row led by a wide select (Cut Type, Arc By), or with Cut Type in
      the middle (Circle, Slot). */
-  .qc-row-3.qc-type-row { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); }
-  .qc-row-3.qc-type-mid-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
+  .qc-row-3.qc-type-row { grid-template-columns: minmax(auto, 1.4fr) repeat(2, minmax(auto, 1fr)); }
+  /* Sides (or Points) is a short number; the size label beside it is a
+     menu. */
+  .qc-row-3.qc-poly-size-row { grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr) minmax(0, 1fr); }
+  .qc-row-3.qc-type-mid-row { grid-template-columns: minmax(auto, 1fr) minmax(auto, 1.4fr) minmax(auto, 1fr); }
   /* Depth: Total Depth, Depth of Cut and, with Holding Tabs on (its
      switch is in the card header), Tabs / Tab Width / Tab Height. */
   .qc-row-5 { display: grid; gap: 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -1319,6 +1337,8 @@
     gap: 6px;
     min-width: 0;
   }
+  /* A field with a menu keeps its column at least as wide as the menu. */
+  .qc-field:has(select.qc-select) { min-width: max-content; }
   /* A title tooltip shown on touch / keyboard focus (wireFocusTips), made
      to look like Chrome's own: a system-font box, dark or light with
      ncSender's theme. */
@@ -1374,6 +1394,9 @@
     box-sizing: border-box;
     width: 100%;
   }
+  /* A menu is never narrower than its longest option, so no choice is
+     cut off. */
+  select.qc-select { min-width: max-content; }
   .qc-input {
     text-align: right;
     font-family: 'JetBrains Mono', monospace;
@@ -1718,6 +1741,15 @@
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
+                <div class="qc-field qc-relief-field qc-rect-tri-only qc-tri-by-field" style="display: none;">
+                  <label for="qc-rect-tri-by">Defined By</label>
+                  <select class="qc-select" id="qc-rect-tri-by" title="What you know about the triangle. Switching keeps the triangle and fills the new fields from it; the preview shows every side and angle.">
+                    <option value="sss" selected>3 Sides</option>
+                    <option value="sas">2 Sides + Angle</option>
+                    <option value="asa">Base + 2 Angles</option>
+                    <option value="height">Base + Height</option>
+                  </select>
+                </div>
                 <div class="qc-row-3" id="qc-rect-size-row">
                   <div class="qc-field">
                     <label for="qc-rect-width" id="qc-rect-width-label">Width</label>
@@ -1777,15 +1809,6 @@
                   </div>
                 </div>
                 <div class="qc-row-3 qc-type-row" id="qc-rect-type-row">
-                  <div class="qc-field qc-rect-tri-only" style="display: none;">
-                    <label for="qc-rect-tri-by">Defined By</label>
-                    <select class="qc-select" id="qc-rect-tri-by" title="What you know about the triangle. Switching keeps the triangle and fills the new fields from it; the preview shows every side and angle.">
-                      <option value="sss" selected>3 Sides</option>
-                      <option value="sas">2 Sides + Angle</option>
-                      <option value="asa">Base + 2 Angles</option>
-                      <option value="height">Base + Height</option>
-                    </select>
-                  </div>
                   <div class="qc-field">
                     <label for="qc-rect-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-rect-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
@@ -2158,7 +2181,7 @@
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
-                <div class="qc-row-3">
+                <div class="qc-row-3 qc-poly-size-row">
                   <div class="qc-field">
                     <label for="qc-poly-sides" id="qc-poly-sides-label">Sides</label>
                     <input class="qc-input" type="number" id="qc-poly-sides" min="3" max="12" step="1" value="6" required title="Number of sides: 3 for a triangle, 6 for a hexagon.">
@@ -2376,21 +2399,12 @@
             <h3 class="qc-card-title">Shape</h3>
             <div class="qc-shape-grid qc-shape-grid--origin">
               <div class="qc-shape-fields">
-                <div class="qc-row-3 qc-type-mid-row">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-slt-type">Slot Type</label>
                     <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc.">
                       <option value="straight" selected>Straight</option>
                       <option value="arc">Arc</option>
-                    </select>
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-slt-cut-type">Cut Type</label>
-                    <select class="qc-select" id="qc-slt-cut-type" title="Center line runs the bit once down the middle, so the slot is the bit's width. Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
-                      <option value="center">Center line</option>
-                      <option value="inner" selected>Inner (perimeter)</option>
-                      <option value="clearing">Inner (clearing)</option>
-                      <option value="outer">Outer (part)</option>
                     </select>
                   </div>
                   <div class="qc-field">
@@ -2437,6 +2451,15 @@
                   </div>
                 </div>
                 <div class="qc-row-3 qc-type-row">
+                  <div class="qc-field">
+                    <label for="qc-slt-cut-type">Cut Type</label>
+                    <select class="qc-select" id="qc-slt-cut-type" title="Center line runs the bit once down the middle, so the slot is the bit's width. Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
+                      <option value="center">Center line</option>
+                      <option value="inner" selected>Inner (perimeter)</option>
+                      <option value="clearing">Inner (clearing)</option>
+                      <option value="outer">Outer (part)</option>
+                    </select>
+                  </div>
                   <div class="qc-field qc-slt-arc-only" style="display: none;">
                     <label for="qc-slt-arc-mode">Arc By</label>
                     <select class="qc-select" id="qc-slt-arc-mode" title="Radius: the arc's radius and where it starts and ends. Chord: the straight distance between the slot's end centres and how far the middle bulges out.">
@@ -3369,6 +3392,9 @@
     if (state.atc) wireToolMenu();
     wireRunNotes();
     wireStartingFeeds();
+    ROOT.addEventListener('change', function(e) {
+      if (e.target.classList && e.target.classList.contains('qc-label-select')) fitLabelSelects(e.target.parentNode);
+    });
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -5925,7 +5951,7 @@
     var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160);
     svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx,
                                      patternRadiusRing(tab.prefix, gen, params, trace), outlines ? patternDims(tab.prefix, gen, params, trace) : null) +
-      patternPreviewCaption(caption, 46 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
+      patternPreviewCaption(caption, 44 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
   }
 
   // Circular: the circle the Radius menu measures (Center, Inside or
@@ -6081,7 +6107,7 @@
   function patternPreviewCaption(lines, y) {
     return '<text class="qc-shape-dim-label" x="0" y="' + y + '" text-anchor="middle">' +
       lines.map(function(line, i) {
-        return '<tspan x="0" dy="' + (i ? '1.1em' : 0) + '">' + line + '</tspan>';
+        return '<tspan x="0" dy="' + (i ? PATTERN_PREVIEW_LINE : 0) + '">' + line + '</tspan>';
       }).join('') + '</text>';
   }
 
@@ -8195,9 +8221,23 @@
     var slot = state.currentTab === 'slot' && slotShapeProblem();
     return bad + (slot && !counted[slot.field] ? 1 : 0);
   }
+  // Each label menu as wide as the choice it shows, so its arrow sits
+  // right after the text.
+  var labelMeasure = document.createElement('canvas').getContext('2d');
+  function fitLabelSelects(root) {
+    root.querySelectorAll('.qc-label-select').forEach(function(sel) {
+      var opt = sel.options[sel.selectedIndex];
+      if (!opt) return;
+      var cs = getComputedStyle(sel);
+      labelMeasure.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      var w = labelMeasure.measureText(opt.text).width + (parseFloat(cs.letterSpacing) || 0) * opt.text.length;
+      sel.style.width = Math.ceil(w + 16) + 'px';
+    });
+  }
   function updateRunNote() {
     var view = state.currentTab, pv = RUN_VIEWS[view];
     var section = ROOT.querySelector('.qc-content[data-view="' + view + '"]');
+    if (section) fitLabelSelects(section);
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
     var toFix = fieldsToFix(), ready = toFix === 0, text = '', bad = false;
