@@ -2133,11 +2133,18 @@
           </div>
 
           <div class="qc-card qc-section-card" id="qc-circ-chamfer-card">
-            <h3 class="qc-card-title">Chamfer</h3>
+            <div class="qc-card-header">
+              <h3 class="qc-card-title">Chamfer</h3>
+              <label class="qc-switch" title="Chamfer the edge of the circle you've already cut, with a V-bit, instead of cutting it. On by itself when a V-bit is in the spindle, off for any other bit.">
+                <input type="checkbox" id="qc-circ-chamfer-enable">
+                <span class="qc-switch-track"></span>
+              </label>
+            </div>
+            <div class="qc-chamfer-body" id="qc-circ-chamfer-body" style="display: none;">
             <div class="qc-row-5">
               <div class="qc-field">
                 <label for="qc-circ-chamfer-width">Chamfer Width</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-chamfer-width" step="0.1" value="0" title="0 cuts the circle. A width chamfers the top edge of the circle you've already cut, with a V-bit, instead: inside a hole's edge, outside a part's. It fills in when a V-bit is in the spindle.">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-chamfer-width" step="0.1" value="1" title="How wide the chamfer is across the top: inside a hole's edge, outside a part's.">
               </div>
               <div class="qc-field">
                 <label for="qc-circ-v-angle">V-Bit Angle (&deg;)</label>
@@ -2149,6 +2156,7 @@
               </div>
             </div>
             <p class="qc-mode-hint" id="qc-circ-chamfer-note"></p>
+            </div>
           </div>
 
           <div class="qc-card qc-section-card">
@@ -3898,7 +3906,7 @@
         'qc-circ-depth':    { min: 0.001, max: 20,  label: 'Total Depth' },
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
-        'qc-circ-chamfer-width': { min: 0, max: 2,  label: 'Chamfer Width' },
+        'qc-circ-chamfer-width': { min: 0.004, max: 2, label: 'Chamfer Width' },
         'qc-circ-v-angle':  { min: 20,    max: 150, label: 'V-Bit Angle' },
         'qc-circ-v-diameter': { min: 0.04, max: 4,  label: 'V-Bit Diameter' },
         'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
@@ -4060,7 +4068,7 @@
       'qc-circ-depth':    { min: 0.01, max: 500,  label: 'Total Depth' },
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
-      'qc-circ-chamfer-width': { min: 0, max: 50, label: 'Chamfer Width' },
+      'qc-circ-chamfer-width': { min: 0.1, max: 50, label: 'Chamfer Width' },
       'qc-circ-v-angle':  { min: 20,   max: 150,  label: 'V-Bit Angle' },
       'qc-circ-v-diameter': { min: 1,  max: 100,  label: 'V-Bit Diameter' },
       'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
@@ -4698,7 +4706,7 @@
       depth:        num('qc-circ-depth', 0),
       depthOfCut:   num('qc-circ-step', 0),
       stepoverPct:  num('qc-circ-stepover', 40),
-      chamfer:      { width: num('qc-circ-chamfer-width', 0), angle: num('qc-circ-v-angle', 90), diameter: num('qc-circ-v-diameter', 0) },
+      chamfer:      { width: $('qc-circ-chamfer-enable').checked ? num('qc-circ-chamfer-width', 0) : 0, angle: num('qc-circ-v-angle', 90), diameter: num('qc-circ-v-diameter', 0) },
       pattern:      readPatternForm('circ'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
@@ -6879,8 +6887,9 @@
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
-    if (circ.chamferWidth != null)  $('qc-circ-chamfer-width').value = roundDisplay(mmToDisplay(circ.chamferWidth));
-    if (circ.chamferLast > 0)       state.chamferLastMm = circ.chamferLast;
+    if (circ.chamferEnabled != null) $('qc-circ-chamfer-enable').checked = !!circ.chamferEnabled;
+    if (circ.chamferWidth > 0)      $('qc-circ-chamfer-width').value = roundDisplay(mmToDisplay(circ.chamferWidth));
+    $('qc-circ-chamfer-body').style.display = $('qc-circ-chamfer-enable').checked ? '' : 'none';
     if (circ.vAngle != null)        $('qc-circ-v-angle').value = circ.vAngle;
     if (circ.vDiameter != null)     $('qc-circ-v-diameter').value = roundDisplay(mmToDisplay(circ.vDiameter));
     hydrateTabs('circ', circ.tabs);
@@ -7142,8 +7151,8 @@
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
-        chamferWidth: displayToMm(params.chamfer.width),
-        chamferLast:  state.chamferLastMm,
+        chamferEnabled: $('qc-circ-chamfer-enable').checked,
+        chamferWidth: displayToMm(num('qc-circ-chamfer-width', 0)),
         vAngle:       params.chamfer.angle,
         vDiameter:    displayToMm(params.chamfer.diameter),
         tabs:         packTabsForm('circ'),
@@ -7884,15 +7893,19 @@
     });
   }
 
-  // Chamfer Width 0 is the circle cut. A width makes the program a chamfer
-  // of the circle's edge instead, with the V-bit in the spindle: the note
-  // says how deep the tip goes and what limits it, or why it can't.
+  // Chamfer off is the circle cut. On, the program is a chamfer of the
+  // circle's edge instead, with the V-bit in the spindle: the note says
+  // how deep the tip goes and what limits it, or why it can't.
+  function updateChamferVisibility() {
+    $('qc-circ-chamfer-body').style.display = $('qc-circ-chamfer-enable').checked ? '' : 'none';
+    updateChamferNote();
+  }
   function updateChamferNote() {
     var p = readCircleForm(), note = $('qc-circ-chamfer-note'), u = ' ' + state.unitLabel;
-    var on = p.chamfer.width > 0;
+    var on = $('qc-circ-chamfer-enable').checked;
     $('qc-circ-generate').textContent = on ? 'Generate Chamfer' : 'Generate';
-    if (!on) {
-      note.textContent = 'At 0, Generate cuts the circle. Type a width to chamfer the edge of the circle you\u2019ve cut instead, with a V-bit: inside a hole, outside a part. It fills in when a V-bit is in the spindle.';
+    if (!on || !(p.chamfer.width > 0)) {
+      note.textContent = '';
       return;
     }
     if (!(p.chamfer.angle >= 20 && p.chamfer.angle <= 150) || !(p.chamfer.diameter > 0) || !(p.depthOfCut > 0) || !(p.diameter > 0)) {
@@ -7909,10 +7922,9 @@
       ' lower, into the cut, so the V\u2019s side does the cutting.' + (plan.pastRoom > 0 ? ' Its other side also cuts ' + f(plan.pastRoom) + u + ' past the cut.' : '');
   }
 
-  // A V-bit in the spindle: the circle's Chamfer Width fills in (the last
-  // one used), with the bit's angle and diameter from the tool table: its
-  // taper angle (the Fusion 360 importer fills it), else its name. Another
-  // bit in the spindle sets it back to 0, the circle cut.
+  // A V-bit in the spindle turns the circle's Chamfer on, with the bit's
+  // angle and diameter from the tool table: its taper angle (the Fusion
+  // 360 importer fills it), else its name. Another bit turns it off.
   function vBitAngle(t) {
     var half = t.dimensions && t.dimensions.taper_angle;
     if (half > 0 && half < 90) return Math.round(half * 200) / 100;
@@ -7924,15 +7936,15 @@
     var angle = isV ? vBitAngle(t) : null;
     // A tapered ball nose is a v-bit to the tool table, but 10\u00b0 or so.
     if (!isV || (angle != null && angle < 20)) {
-      if (num('qc-circ-chamfer-width', 0) > 0) $('qc-circ-chamfer-width').value = '0';
+      $('qc-circ-chamfer-enable').checked = false;
       state.chamferSource = '';
     } else {
+      $('qc-circ-chamfer-enable').checked = true;
       if (angle != null && angle <= 150) $('qc-circ-v-angle').value = String(angle);
       if (t.diameter > 0) $('qc-circ-v-diameter').value = roundDisplay(mmToDisplay(t.diameter));
-      if (!(num('qc-circ-chamfer-width', 0) > 0)) $('qc-circ-chamfer-width').value = roundDisplay(mmToDisplay(state.chamferLastMm || (state.isImperial ? 0.79375 : 1)));
       state.chamferSource = 'T' + n + ', a V-bit, is in the spindle.';
     }
-    updateChamferNote();
+    updateChamferVisibility();
   }
 
   function wireCircleForm() {
@@ -7957,11 +7969,13 @@
     $('qc-circ-form').addEventListener('input', updateChamferNote);
     $('qc-circ-form').addEventListener('change', updateChamferNote);
     $('qc-bit').addEventListener('input', updateChamferNote);
-    $('qc-circ-chamfer-width').addEventListener('change', function() {
-      var w = displayToMm(num('qc-circ-chamfer-width', 0));
-      if (w > 0) state.chamferLastMm = w;
+    // Remembered as soon as it's flipped: with no tool changer (or no tool
+    // known) it stays as last set.
+    $('qc-circ-chamfer-enable').addEventListener('change', function() {
+      updateChamferVisibility();
+      persistSettings({ circle: Object.assign({}, (initialConfig || {}).circle || {}, { chamferEnabled: $('qc-circ-chamfer-enable').checked }) });
     });
-    updateChamferNote();
+    updateChamferVisibility();
 
     $('qc-circ-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
