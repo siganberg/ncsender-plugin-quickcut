@@ -547,6 +547,35 @@
   /* Header cards — shared tool + spindle/coolant across all shape tabs.
      Same look as Pneumatic's Machine Coords + Jog header cards so the
      two plugins feel consistent when opened back-to-back. */
+  /* Once the Tool and Spindle cards scroll out of view, one line sums
+     them up over the top of the panel; a tap goes back up to them. */
+  .qc-tool-summary {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 100%;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px 14px;
+    flex-wrap: wrap;
+    padding: 7px 12px !important;
+    margin: 0 !important;
+    background: var(--color-surface-muted) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.5);
+    color: var(--color-text-secondary) !important;
+    font-family: inherit !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+  }
+  .qc-tool-summary[hidden] { display: none; }
+  .qc-tool-summary b { color: var(--color-text-primary); font-weight: 600; }
+  .qc-tool-summary .qc-tool-summary-up { margin-left: auto; color: var(--color-accent); font-weight: 600; }
   .qc-header-cards {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -3449,6 +3478,7 @@
     if (helpBtn) helpBtn.classList.toggle('active', target === 'help');
     panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
     relocateCommonCards(target);
+    setTimeout(updateToolSummary, 0);
     // Load the new tab's tool values into the (now-relocated) inputs.
     if (TOOL_SHAPES.indexOf(target) >= 0) {
       writeToolToInputs(state.toolByShape[target]);
@@ -3550,11 +3580,17 @@
     if (!section) return;
     var header = section.querySelector('.qc-panel-header');
     if (!header) return;
-    header.appendChild(cards);
+    // The measure page generates no g-code, so Tool / Spindle / Save don't
+    // apply; they stay hidden where they are (Help redraws its panel).
+    var noCommon = view === 'measure' || view === 'help';
+    var panel = section.querySelector('.qc-panel');
+    if (!noCommon) {
+      if (panel) panel.insertBefore(cards, panel.firstChild);
+      else header.appendChild(cards);
+    }
     var saveToggle = $('qc-file-actions');
     if (saveToggle) header.appendChild(saveToggle);
-    // The measure page generates no g-code, so Tool / Spindle / Save don't apply.
-    var noCommon = view === 'measure' || view === 'help';
+    if (!noCommon) header.appendChild(toolSummaryButton());
     cards.style.display = noCommon ? 'none' : '';
     if (saveToggle) saveToggle.style.display = noCommon ? 'none' : '';
     // Drilling only moves in Z, at the Plunge Rate.
@@ -3564,6 +3600,45 @@
       feed.disabled = view === 'drill';
       feed.title = view === 'drill' ? 'Not used for drilling: every move is at the Plunge Rate.' : feed.dataset.tip;
     }
+  }
+
+  // The one-line summary of the Tool and Spindle cards, shown over the top
+  // of the panel while they're scrolled out of view.
+  var toolSummary = null;
+  function toolSummaryButton() {
+    if (toolSummary) return toolSummary;
+    toolSummary = document.createElement('button');
+    toolSummary.type = 'button';
+    toolSummary.className = 'qc-tool-summary';
+    toolSummary.id = 'qc-tool-summary';
+    toolSummary.hidden = true;
+    toolSummary.title = 'Back up to the Tool and Spindle settings';
+    toolSummary.addEventListener('click', function() {
+      var panel = toolSummary.parentNode.parentNode.querySelector('.qc-panel');
+      if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    ROOT.querySelectorAll('.qc-panel').forEach(function(p) { p.addEventListener('scroll', updateToolSummary, { passive: true }); });
+    window.addEventListener('resize', updateToolSummary);
+    ROOT.addEventListener('input', function() { if (!toolSummary.hidden) updateToolSummary(); });
+    return toolSummary;
+  }
+  function updateToolSummary() {
+    var cards = $('qc-common-cards');
+    if (!toolSummary || !cards) return;
+    var panel = cards.parentNode;
+    var away = cards.style.display !== 'none' && panel.classList.contains('qc-panel') &&
+      cards.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 60;
+    if (!away) { toolSummary.hidden = true; return; }
+    var esc = function(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var u = state.unitLabel, t = bitTool(), mat = $('qc-material');
+    var parts = [(t.n ? '<b>T' + t.n + '</b> ' : '') + 'Bit <b>' + esc($('qc-bit').value) + ' ' + u + '</b>'];
+    if (!$('qc-feed').disabled) parts.push('Feed <b>' + esc($('qc-feed').value) + '</b>');
+    parts.push('Plunge <b>' + esc($('qc-plunge').value) + '</b> ' + u + '/min');
+    parts.push('<b>' + esc($('qc-rpm').value) + '</b> RPM');
+    if (mat.value) parts.push(esc(mat.options[mat.selectedIndex].textContent));
+    if ($('qc-mist').checked || $('qc-flood').checked) parts.push([$('qc-mist').checked ? 'Mist' : '', $('qc-flood').checked ? 'Flood' : ''].filter(Boolean).join(' + '));
+    toolSummary.innerHTML = parts.map(function(p) { return '<span>' + p + '</span>'; }).join('') + '<span class="qc-tool-summary-up">Edit \u2191</span>';
+    toolSummary.hidden = false;
   }
 
   function wireCloseButton() {
