@@ -7968,20 +7968,36 @@
     var m = /(\d{1,3}(?:\.\d+)?)\s*(?:\u00b0|-?\s*deg(?:rees?)?\b)/i.exec(t.name || '');
     return m ? +m[1] : null;
   }
-  function chamferFromLoadedTool(t, n) {
-    // The tool table's v-bit type alone isn't enough: Fusion's tapered mills
-    // (bowl, cove, tapered ball nose) import as v-bits. It takes an angle,
-    // or a name that says V.
+  // A tool's V angle when it's a V-bit, 0 for a V-bit whose angle isn't
+  // known, null for any other bit. The tool table's v-bit type alone isn't
+  // enough: Fusion's tapered mills (bowl, cove, tapered ball nose) import as
+  // v-bits. It takes an angle, or a name that says V; a tapered ball nose
+  // is 10\u00b0 or so.
+  function vBitOf(t) {
     var angle = t ? vBitAngle(t) : null;
     var isV = t && ((t.type === 'v-bit' && angle != null) || /\b(v[\s-]?bit|vee|v[\s-]?groove|chamfer)\b/i.test(t.name || ''));
-    // A tapered ball nose is a v-bit to the tool table, but 10\u00b0 or so.
-    if (!isV || (angle != null && angle < 20)) {
+    if (!isV || (angle != null && angle < 20)) return null;
+    return angle != null && angle <= 150 ? angle : 0;
+  }
+  // A V-bit picked in the Tool card's menu turns the circle's Chamfer on,
+  // any other bit off.
+  function chamferForPickedTool(t) {
+    var angle = vBitOf(t);
+    $('qc-circ-chamfer-enable').checked = angle != null;
+    if (angle) $('qc-circ-v-angle').value = String(angle);
+    state.chamferSource = '';
+    updateChamferVisibility();
+    persistSettings({ circle: Object.assign({}, (initialConfig || {}).circle || {}, { chamferEnabled: angle != null }) });
+  }
+  function chamferFromLoadedTool(t, n) {
+    var angle = vBitOf(t);
+    if (angle == null) {
       $('qc-circ-chamfer-enable').checked = false;
       state.chamferSource = '';
       state.loadedVBit = 0;
     } else {
       $('qc-circ-chamfer-enable').checked = true;
-      if (angle != null && angle <= 150) $('qc-circ-v-angle').value = String(angle);
+      if (angle) $('qc-circ-v-angle').value = String(angle);
       state.chamferSource = 'T' + n + ', a V-bit, is in the spindle.';
       state.loadedVBit = n;
       useLoadedVBit();
@@ -8448,7 +8464,7 @@
       var st = await (await fetch(BASE_URL + '/api/server-state')).json();
       var loaded = Number(st && st.machineState && st.machineState.tool);
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
-        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0 }; })
+        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0, type: t.type, dimensions: t.dimensions }; })
         .filter(function(t) { return t.n > 0 && t.mm > 0; })
         // The tool in the spindle first, then the rest by number.
         .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
@@ -8533,7 +8549,10 @@
     closeToolPop();
     if (!v) return;
     var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0], fl = null;
-    if (t) fl = applyBitTool(t);
+    if (t) {
+      fl = applyBitTool(t);
+      if (state.currentTab === 'circle') chamferForPickedTool(t);
+    }
     else setBitTool(0, 0);
     var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + ' (' + fl + ' flute' + (fl === 1 ? '' : 's') + ')' + '. The program starts with a tool change to T' + t.n + ' (M6).'
       : 'No tool change: the program cuts with the bit in the spindle.';
