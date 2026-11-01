@@ -12,6 +12,7 @@ Quick g-code for the everyday CNC ops — shapes, surfacing, edge work — strai
 - Circle — Inner (perimeter), Inner (clearing), Outer, with helical entry + final finish pass; tap a corner of the circle's box, a quadrant point or the center on the preview to make it X0 Y0 (the same points as the Origin picker)
 - Polygon — 3 to 12 sides, sized **Across Corners**, **Across Flats** or by **Edge Length** (pick it in the dropdown over the size; switching converts the number), Inner (perimeter), Inner (clearing), Outer; optional **Corner Radius** rounds every corner (up to fully round); twist the preview to change the Start Angle (in half degrees, sticking at miter angles such as 22.5° and 36°; see [Pattern preview](#pattern-preview)), or tap a corner (or the polygon's own center, which on an odd-sided polygon isn't the middle of the Origin box) to make it X0 Y0
 - **Corner Relief** (Rectangle and Polygon, Inner cuts): a round bit can't cut a sharp inside corner, so a square-cornered part won't fit. **Dog-bone** runs the bit diagonally into each corner and back; **T-bone** runs it straight on along one edge, so only the other wall is notched: on a Rectangle along the longer edges (notches in the end walls); on a Polygon each edge runs on past its end in the cut's direction, all the way round like a pinwheel. Either way its edge reaches the corner, or the Corner Radius when that's smaller than the bit, and the preview shows the notches. Applies to every depth pass and the last lap of a clearing; None by default, so existing programs don't change.
+- **Chamfer** (every shape and Drill): a V-bit chamfer of the edge you've already cut, inside a hole or outside a part, in place of the cut; see [Chamfer](#chamfer)
 - Slot — straight or arc (curved) slot with round ends: Center line, Inner (perimeter), Inner (clearing), Outer; an arc is given by radius and sweep, or by chord and rise; see [Slot](#slot)
 - Keyhole — hanging slot cut with a keyhole bit; see [Keyhole](#keyhole)
 - Drill — holes the size of the bit, with optional pecking; see [Drill](#drill)
@@ -54,6 +55,17 @@ Every pass of a profile, slot or pocket ramps down instead of plunging into uncu
 - **Short paths:** a path too short for 5° goes back and forth, up to 8 times, then steeper, with the feed slowed so Z never comes down faster than the **Plunge Rate**. A path under 1 mm (0.04 in), such as a hole barely bigger than the bit, plunges at the Plunge Rate.
 - **Circles** spiral down (a helix), with as many turns as keep it to 5°, and a Rectangle pocket starts with a small helix in its middle.
 - **Drill** and **Keyhole** plunge, by design: a drill bit cuts on its end, and a keyhole bit can only go in through its hole.
+
+## Chamfer
+
+The **Chamfer** card's switch turns a shape's program into a chamfer of the top edge you've already cut, with a V-bit: inside a hole's edge, outside a part's.
+
+- **The V-bit is the Tool card's bit.** With a tool changer, a V-bit in the spindle turns Chamfer on (any other bit turns it off), and picking a tool in the Bit Diameter menu does the same; the program starts with its `M6`. **V Angle** is tip to tip (90 for a bit that is 45° a side), filled from the tool table's taper angle or the tool's name. Without a tool changer, the switch stays as you last set it.
+- **Chamfer Width** is across the top, as in Fusion 360's 2D Chamfer; with a 90° bit it's the C on a drawing (C1 = 1 × 45°). The depth follows from the angle.
+- **The cut already made:** **Cut Depth** (blank: right through) and, around a part, **Cut Width** (the slot the bit cut). On Drill, **Hole Diameter**.
+- **Tip offset, worked out for you:** the tip goes down into that cut, below the chamfer, so the V's side cuts rather than its weak tip: as far as keeps it above the bottom (0.2 mm, 0.008 in, clear; through: at most the chamfer's depth lower), its other side off the slot's far wall, and the chamfer within the V-bit's reach. The note under the card says how far, or why it can't be cut, and Generate won't make a program it can't cut.
+- **Passes** by the card's own **Depth of Cut**, each ramped in along the path like any other pass. Total Depth and the tabs belong to the cut, so they're hidden while chamfering.
+- Inside a star's points, and inside corners tighter than the V-bit, the chamfer comes out rounded. A Centre line slot is as wide as the bit that cut it, so to chamfer one, set Cut Type to Inner and its Width.
 
 ## Slot
 

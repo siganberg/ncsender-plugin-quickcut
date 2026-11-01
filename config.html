@@ -7960,6 +7960,7 @@
   function chamferShapeName(tab, p) {
     if (tab === 'drill') return 'holes';
     if (tab === 'rectangle') return p.triangle ? 'triangle' : p.kind === 'ellipse' || p.kind === 'arch' || p.kind === 'trapezoid' ? p.kind : 'rectangle';
+    if (tab === 'polygon' && p.kind === 'star') return 'star';
     return tab;
   }
   // What only the shape's own cut uses, hidden while chamfering: the Depth
@@ -8008,7 +8009,7 @@
   // Why a chamfer can't be cut, and the field to fix, or null.
   function chamferProblem(p, plan) {
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
-    if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for a star yet: turn Chamfer off to cut it' };
+    if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this shape: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.centerSlot) return { id: 'qc-slt-cut-type', msg: 'A Centre line slot is as wide as the bit that cut it, not the V-bit: set Cut Type to Inner and the slot\u2019s Width' };
     if (plan.shapeProblem) return { id: 'qc-chamfer-width', msg: 'The shape can\u2019t be drawn (' + plan.shapeProblem + ')' };
@@ -11523,6 +11524,7 @@
   var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the wasteboard): sheet goods are seldom exactly their nominal thickness. Each pass ramps down along its own path, at 5&deg; or less, instead of plunging, and Z never comes down faster than the <strong>Plunge Rate</strong>.';
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
+  var HELP_CHAMFER = '<strong>Chamfer</strong> (the switch on its card) chamfers the top edge of the shape you&rsquo;ve already cut, with a V-bit, instead of cutting it: inside a hole&rsquo;s edge, outside a part&rsquo;s. The V-bit is the Tool card&rsquo;s bit: with a tool changer, a V-bit in the spindle turns Chamfer on (and any other bit off) and fills the <strong>V Angle</strong> (tip to tip: 90 for a bit that is 45&deg; a side) from the tool table, or the tool&rsquo;s name. <strong>Chamfer Width</strong> is across the top, as in Fusion 360; at 90&deg; it&rsquo;s the C on a drawing (C1 = 1&nbsp;&times;&nbsp;45&deg;). <strong>Cut Depth</strong> is how deep the cut you already made goes (blank: right through), and <strong>Cut Width</strong> how wide the slot around a part is (Outer). The tip goes down into that cut, as far as stays clear of its bottom and far wall, so the V&rsquo;s side does the cutting rather than its weak tip; the note under the card says how far. Total Depth and the tabs belong to the cut, so they&rsquo;re hidden while chamfering; the chamfer has its own <strong>Depth of Cut</strong>. Inside a star&rsquo;s points, and inside corners tighter than the V-bit, the chamfer comes out rounded.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
@@ -11533,16 +11535,16 @@
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
-      HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+      HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER ] },
     circle: { name: 'Circle', notes: [
       '<strong>Diameter</strong> is the finished size; the bit diameter is allowed for. The bit ramps down in a helix rather than plunging, and finishes with one more lap at full depth.',
       HELP_CUT_TYPES, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS,
-      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.' ] },
+      'Tap the preview at a corner of the circle&rsquo;s box, one of its four quadrant points, or the center to make that the Origin; they&rsquo;re the nine points of the Origin picker.', HELP_CHAMFER ] },
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
       'Pick <strong>Star</strong> from the menu in the title (or its own tab): <strong>Points</strong>, the <strong>Diameter</strong> across them and the <strong>Inner Diameter</strong> the corners between them sit on (smaller for sharper points). Start Angle 0 points the first one to the back. Inner and Outer cuts only; the inside corners of an Outer cut and the points of an Inner one stay as sharp as the bit allows. Tap a point, an inner corner or the center to make it X0 Y0.',
-      HELP_CUT_TYPES, HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+      HELP_CUT_TYPES, HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER ] },
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
       '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
@@ -11552,7 +11554,7 @@
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
       'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, and always in the enlarged preview, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
-      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS ] },
+      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER + ' A Centre line slot is as wide as the bit that cut it, so to chamfer one, set Cut Type to Inner and the slot&rsquo;s Width.' ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head (it starts at a 3/8&quot; bit, 10 mm on a metric install); it starts with <strong>Slot Length</strong> (hole centre to slot-end centre) at 1.5 times that. The menu on its label picks how the slot is set: <strong>Slot Length</strong> is a distance, which changing the bit leaves alone; <strong>Slot Ratio</strong> is a multiple of the Bit Diameter (1.5 to start), so the slot follows the bit. Switching converts the number, so the slot stays the same. In the preview the solid outline is the keyhole at the surface (the plunge hole and the narrow slot the shank leaves, drawn at half the head&rsquo;s width) and the dashed one the head&rsquo;s path under it.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
@@ -11561,7 +11563,8 @@
     drill: { name: 'Drill', notes: [
       'Holes the size of the <strong>Bit Diameter</strong>. Every move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
-      'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.' ] },
+      'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.',
+      HELP_CHAMFER + ' On Drill, the card asks for the <strong>Hole Diameter</strong> (the drill&rsquo;s size, as the Tool card holds the V-bit), and the Feed Rate comes back on for the chamfer&rsquo;s laps; keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' ] },
     planer: { name: 'Planer', notes: [
       '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
@@ -13496,6 +13499,20 @@
       return plan;
     }
 
+    // A star's chamfer follows its own outline at the inset. Inside its
+    // corners the path goes round on an arc, so the chamfer's corners there
+    // are rounded: a V-bit can't reach into a sharp inside corner.
+    function starChamferPlan(params) {
+      var valid = params.innerDiameter > 0 && params.innerDiameter < params.diameter;
+      var lo = 0, hi = (params.diameter || 0) / 2;
+      if (valid && (params.cutType || 'inner') !== 'outer') {
+        for (var i = 0; i < 30; i++) { var mid = (lo + hi) / 2; if (starOutline(params, -mid)) lo = mid; else hi = mid; }
+      }
+      var plan = chamferPlan(params, lo);
+      plan.shapeProblem = valid ? null : 'the inner diameter must be less than the diameter';
+      return plan;
+    }
+
     // A slot's chamfer runs around its sides at half its width, give or take
     // the inset. A Centre line slot is as wide as the bit that cut it, which
     // isn't the V-bit in the Tool card: it takes the Inner cut type and width.
@@ -13510,7 +13527,7 @@
       if (shape === 'circle') return circleChamferPlan(params);
       if (shape === 'drill') return drillChamferPlan(params);
       if (shape === 'slot') return slotChamferPlan(params);
-      if (shape === 'polygon') return params.kind === 'star' ? null : polygonChamferPlan(params);
+      if (shape === 'polygon') return params.kind === 'star' ? starChamferPlan(params) : polygonChamferPlan(params);
       if (shape === 'rectangle') return isConvexKind(params) ? trapezoidChamferPlan(params) : rectangleChamferPlan(params);
       return null;
     }
@@ -13681,6 +13698,18 @@
       var sides = computePolygonGeom(params).sides;
       return chamferShapeProgram(params, plan, 'Polygon', 'the ' + sides + '-sided polygon', positions, placed, function(x, y, pos) {
         return { segs: polygonSegments(computePolygonGeom(inset, x, y, pos.rotDeg)), center: { x: x, y: y } };
+      });
+    }
+
+    function generateStarChamferProgram(params) {
+      var positions = computePatternPositions(params.pattern);
+      var plan = starChamferPlan(params);
+      var outer = (params.cutType || 'inner') === 'outer';
+      var base = plan.shapeProblem ? null : starOutline(params, outer ? plan.inset : -plan.inset);
+      var placed = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params));
+      var n = Math.max(3, Math.min(12, Math.floor(params.sides || 5)));
+      return chamferShapeProgram(params, plan, 'Star', 'the ' + n + '-pointed star', positions, placed, function(x, y, pos) {
+        return { segs: base ? placeSegs(base, x, y, pos.rotDeg) : [], center: { x: x, y: y } };
       });
     }
 
@@ -14411,13 +14440,7 @@
 
     function generatePolygonProgram(params) {
       if (params.chamfer && params.chamfer.width > 0) {
-        if (params.kind === 'star') {
-          var lines = programHeader(params, { shapeLabel: 'Chamfer' });
-          lines.push('(WARNING: no chamfer for a star yet; nothing to cut)');
-          lines.push.apply(lines, programFooter(params));
-          return lines.join('\n');
-        }
-        return generatePolygonChamferProgram(params);
+        return params.kind === 'star' ? generateStarChamferProgram(params) : generatePolygonChamferProgram(params);
       }
       if (params.kind === 'star') return generateStarProgram(params);
       if ((params.cutType || 'inner') === 'clearing') {

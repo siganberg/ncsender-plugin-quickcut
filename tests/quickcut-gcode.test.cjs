@@ -3584,11 +3584,10 @@ test('rectangle chamfer: ramps no faster than the Plunge Rate; refused like the 
   assert.match(point, /^G0 X0\.000 Y0\.000$/m);
   assert.match(point, /^G1 Z-5\.000 F400$/m);
   assert.match(g.generateRectangleProgram(rectChamfer({}, { cutDepth: 0.5 })), /deeper than the cut; nothing to cut/);
-  // A star doesn't chamfer yet.
-  const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 20 });
-  assert.match(star, /no chamfer for a star yet; nothing to cut/);
+  // A star whose inner diameter isn't inside its points refuses.
+  const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 50 });
+  assert.match(star, /inner diameter must be less than the diameter; nothing to cut/);
   assert.doesNotMatch(star, /^G[0123] [XYZ]/m);
-  assert.equal(g.chamferPlanFor('polygon', { ...rectChamfer(), kind: 'star' }), null);
 });
 
 test('rectangle chamfer: a rotated pattern chamfers each copy, the same in inches', () => {
@@ -3656,6 +3655,7 @@ test('chamfers for the other shapes follow the shape\'s own cut path at the tip\
     ['rectangle', 'generateRectangleProgram', { kind: 'triangle', triangle: { base: 40, left: 30, right: 30 }, cornerRadius: 2 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'ellipse', width: 40, height: 24, startAngleDeg: 40 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'arch', width: 30, height: 40, archRise: 10, archStyle: 'round' }],
+    ['polygon', 'generatePolygonProgram', { kind: 'star', sides: 5, diameter: 60, innerDiameter: 30, startAngleDeg: 10 }],
     ['slot', 'generateSlotProgram', { slotType: 'straight', length: 40, width: 10, angleDeg: 20 }],
     ['slot', 'generateSlotProgram', { slotType: 'arc', arcMode: 'radius', radius: 30, startAngleDeg: 10, sweepDeg: 80, width: 16 }]
   ];
