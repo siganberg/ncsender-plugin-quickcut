@@ -888,6 +888,8 @@
   .qc-tool-pop[hidden] { display: none; }
   .qc-tool-pop .qc-tool-filter { width: 100%; text-align: left; }
   .qc-tool-list { display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; }
+  /* Rows keep their height in the scrolling list: a long name wraps, it doesn't overlap the next. */
+  .qc-tool-list > * { flex-shrink: 0; }
   .qc-tool-head { padding: 4px 10px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
   .qc-tool-item { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 40px; margin: 0; padding: 8px 10px !important; text-align: left;
     background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
