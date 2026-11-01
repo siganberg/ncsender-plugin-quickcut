@@ -33,11 +33,27 @@ Every shape preview marks X0 Y0 with a small crosshair. Every shape can be kept 
 - Safe Z — honors ncSender's core `safeZHeight` setting; falls back to machine Z0 when unset
 - Pattern (shapes only) — Linear, Honeycomb, or Circular; see [Patterns](#patterns)
 - Starting feeds — pick the **Material** (MDF / Plywood, Softwood, Hardwood, HDPE / UHMW, Acrylic, Polycarbonate, Aluminum, Foam) and the bit's **Flutes** in the Tool card, and QuickCut fills Spindle RPM, Feed Rate, Plunge Rate, Depth of Cut and Stepover from the Bit Diameter, within the machine's max feed (`$110`/`$111`) and spindle range (`$30`/`$31`). A new Bit Diameter gets its own feeds until you change them by hand, and a new install starts with MDF / Plywood's. A starting point to adjust by ear and chip. Inspired by [ncCAM](https://github.com/siganberg/ncsender-plugin-nccam)'s tool-aware material selector, whose formula it uses
+- Ramped entries — every pass ramps down along its own path instead of plunging; see [Entering the cut](#entering-the-cut)
+- Run time and travel check — beside Generate: "About 3 min. Fits the machine's travel from G54's X0 Y0." When the machine is homed, the program's X/Y reach from the active work offset is checked against the machine's travel (`$130`/`$131`); past an edge the note turns red and says by how much
+- Depth picture — a side view on the Depth card: Z0 at the top of the stock, a line for each pass (the same split the G-code uses) and the tabs. Every program's header also says where Z0 goes
+- Tool changer — with ncSender's tool changer on (Settings › Tool Changer), the **Bit Diameter** label is a menu of the tool table; picking a tool sets the diameter and starts the program with `M6 T<n>`. The M6 is written only while the tool table still has that tool at that diameter
+- Tool summary — the Tool and Spindle cards scroll with the tab; once they're out of view, one line at the top sums them up (tool, bit, feeds, RPM, material, coolant), and tapping it goes back up to them
+- Errors — a field that can't be used gets a red line under it saying why; the note beside Generate says how many fields to fix, and Generate dims until they're fixed
 - Unit entry — type `.25in`, `1/4"`, or `6.35mm` into size and feed fields; see [Typing units](#typing-units)
 - Measure pattern angle — the **Measure** link on a Linear/Honeycomb pattern measures the angle of a line on the workpiece, from a point typed in or grabbed from the machine; see [Measuring an angle](#measuring-an-angle)
 - Multi-session tab persistence, per-shape saved settings
+- Sidebar — the shapes are a grid of icons under **Shapes** (the tab's title names the one picked); Drill, Planer, Jointer and Cutter are under **Tools**
 - Help — the **Help** button at the bottom of the sidebar explains the tab you're on, including the tips that otherwise only show when you hover over a field with a mouse (so touchscreen users can read them too). **Back** returns to the tab with everything as you left it. Every tab has its own help: **All help topics** at the top lists them all, with a line on what each tab does, so you can read about another tab without leaving this one. Each help page and the list end with a link to the [ncSender manual's QuickCut page](https://docs.ncsender.xyz/plugins/quickcut/). The first time QuickCut opens in a browser, it starts on **All help topics**; **Back** goes to Rectangle.
 - Touch tooltips — a field touched (or tabbed to) and left for a second shows its tip just below it, like a mouse hover would. The **Touch Tooltips** switch at the top right of Help turns them off.
+
+## Entering the cut
+
+Every pass of a profile, slot or pocket ramps down instead of plunging into uncut wood, which is easier on the bit and the spindle:
+
+- **Ramps:** from the last pass's floor, down along the pass's own path and back to where it began, at 5° or less. Down off each holding tab too, from the last pass's floor.
+- **Short paths:** a path too short for 5° goes back and forth, up to 8 times, then steeper, with the feed slowed so Z never comes down faster than the **Plunge Rate**. A path under 1 mm (0.04 in), such as a hole barely bigger than the bit, plunges at the Plunge Rate.
+- **Circles** spiral down (a helix), with as many turns as keep it to 5°, and a Rectangle pocket starts with a small helix in its middle.
+- **Drill** and **Keyhole** plunge, by design: a drill bit cuts on its end, and a keyhole bit can only go in through its hole.
 
 ## Slot
 
