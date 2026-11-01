@@ -8215,7 +8215,8 @@
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
         .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '' }; })
         .filter(function(t) { return t.n > 0 && t.mm > 0; })
-        .sort(function(a, b) { return a.n - b.n; });
+        // The tool in the spindle first, then the rest by number.
+        .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
       state.loadedTool = loaded > 0 ? loaded : 0;
     } catch (e) { state.tools = []; }
     showBitTool();
