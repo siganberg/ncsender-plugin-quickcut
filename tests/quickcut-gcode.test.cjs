@@ -3371,125 +3371,102 @@ function chamferParams(overrides) {
   return Object.assign({
     bitDiameter: 12.7, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, origin: 'center',
     diameter: 40, cutType: 'outer', depth: 6, depthOfCut: 2,
-    chamfer: { width: 1, angle: 90, cutDepth: 6, cutWidth: 6.35, depthOfCut: 2 }
+    chamfer: { width: 1, angle: 90, cutDepth: 6, cutBit: 6.35, depthOfCut: 2 }
   }, overrides || {});
 }
 function chamferArcs(gcode) {
-  return gcode.split('\n').filter(l => /^G3/.test(l)).map(l => {
+  return gcode.split('\n').filter(l => /^G[23]\b/.test(l)).map(l => {
     const a = parseArc(l);
     return { r: Math.hypot(a.i, a.j), z: /Z(-?[\d.]+)/.test(l) ? parseFloat(l.match(/Z(-?[\d.]+)/)[1]) : null };
   });
 }
 const chamferWith = (c, o) => chamferParams(Object.assign({ chamfer: Object.assign({}, chamferParams().chamfer, c) }, o || {}));
-
-test('circle chamfer: outside a part, the tip goes into the slot as far as its far wall allows', () => {
-  const g = makeQuickCutGenerator(false);
-  const plan = g.circleChamferPlan(chamferParams());
-  // (Cut Width 6.35 - margin 0.2 - width 1) / (2 tan 45) = 2.575
-  assert.ok(Math.abs(plan.tipOffset - 2.575) < 1e-9, String(plan.tipOffset));
-  const gcode = g.generateCircleProgram(chamferParams());
-  assert.doesNotMatch(gcode, /WARNING/);
-  const arcs = chamferArcs(gcode);
-  for (const a of arcs) assert.ok(Math.abs(a.r - (20 + 2.575)) < 1e-4, String(a.r));
-  assert.equal(Math.min(...arcs.filter(a => a.z != null).map(a => a.z)), -3.575);
-  // The flank meets the top 1 mm in from the edge, on the part.
-  assert.ok(Math.abs((20 + 2.575) - 3.575 * Math.tan(Math.PI / 4) - 19) < 1e-9);
-});
-
-test('circle chamfer: the V-bit is the Bit Diameter, with its tool change', () => {
-  const g = makeQuickCutGenerator(false);
-  const gcode = g.generateCircleProgram(chamferParams({ toolNumber: 22 }));
-  assert.match(gcode, /^M6 T22/m);
-  assert.match(gcode, /\(Bit Diameter: 12\.7mm, T22\)/);
-  assert.match(gcode, /V-bit: 90 deg tip to tip, 12\.7mm across/);
-});
-
-test('circle chamfer: in a hole, the floor, the reach and the center limit the tip, not the far side', () => {
-  const g = makeQuickCutGenerator(false);
-  for (const cutType of ['inner', 'clearing']) {
-    const plan = g.circleChamferPlan(chamferParams({ cutType }));
-    // Floor: 6 - 0.2 - 1 = 4.8; reach (12.7 / 2 - 1) = 5.35; center 20.
-    assert.ok(Math.abs(plan.tipOffset - 4.8) < 1e-9, cutType + ' ' + plan.tipOffset);
-    assert.ok(Math.abs(plan.pathRadius - (20 - 4.8)) < 1e-9, cutType);
-    for (const a of chamferArcs(g.generateCircleProgram(chamferParams({ cutType })))) {
-      assert.ok(Math.abs(a.r - plan.pathRadius) < 1e-4, cutType);
-    }
-  }
-  // A small hole: the tip stops at the center.
-  const small = g.circleChamferPlan(chamferWith({ cutDepth: 20 }, { cutType: 'inner', diameter: 6 }));
-  assert.ok(Math.abs(small.pathRadius) < 1e-9, String(small.pathRadius));
-  // The reach: a 4 mm V-bit, 0.2 mm wide, in a deep 5.1 mm hole.
-  const reach = g.circleChamferPlan(chamferWith({ width: 0.2, cutDepth: 20 }, { cutType: 'inner', diameter: 5.1, bitDiameter: 4 }));
-  assert.ok(Math.abs(reach.tipOffset - 1.8) < 1e-9, String(reach.tipOffset));
-});
-
-test('circle chamfer: a through cut sends the tip at most the chamfer\'s depth lower', () => {
-  const g = makeQuickCutGenerator(false);
-  // The user's holes: 5.1 mm, a 4 mm 90 degree engraving bit, 0.2 mm wide, through.
-  const plan = g.circleChamferPlan(chamferWith({ width: 0.2, cutDepth: 0 }, { cutType: 'inner', diameter: 5.1, bitDiameter: 4 }));
-  assert.ok(Math.abs(plan.height - 0.2) < 1e-9);
-  assert.ok(Math.abs(plan.tipOffset - 0.2) < 1e-9, String(plan.tipOffset));
-  const gcode = g.generateCircleProgram(chamferWith({ width: 0.2, cutDepth: 0 }, { cutType: 'inner', diameter: 5.1, bitDiameter: 4 }));
-  assert.doesNotMatch(gcode, /WARNING/);
-  assert.match(gcode, /into the through cut/);
-  assert.ok(Math.min(...chamferArcs(gcode).filter(a => a.z != null).map(a => a.z)) >= -0.4);
-});
-
-test('circle chamfer: a 60 degree V-bit, and the V-bit\'s reach, limit the tip offset', () => {
-  const g = makeQuickCutGenerator(false);
-  const t30 = Math.tan(Math.PI / 6);
-  const v60 = g.circleChamferPlan(chamferWith({ angle: 60, cutDepth: 10 }));
-  assert.ok(Math.abs(v60.height - 1 / t30) < 1e-9);
-  assert.ok(Math.abs(v60.tipOffset - (6.35 - 0.2 - 1) / (2 * t30)) < 1e-9);
-  // In a 6 mm deep cut the floor stops it first.
-  const shallow = g.circleChamferPlan(chamferWith({ angle: 60 }));
-  assert.ok(Math.abs(shallow.tipOffset - (6 - 0.2 - 1 / t30)) < 1e-9);
-  const small = g.circleChamferPlan(chamferParams({ bitDiameter: 3 }));
-  assert.ok(Math.abs(small.tipOffset - 0.5) < 1e-9, String(small.tipOffset));
-});
-
-test('circle chamfer: refused when too wide for the V-bit, deeper than the cut, or no Cut Width around a part', () => {
-  const g = makeQuickCutGenerator(false);
-  assert.match(g.generateCircleProgram(chamferWith({ width: 4 }, { bitDiameter: 6 })), /wider than the V-bit reaches; nothing to cut/);
-  assert.match(g.generateCircleProgram(chamferWith({ cutDepth: 0.5 })), /deeper than the cut; nothing to cut/);
-  assert.match(g.generateCircleProgram(chamferWith({ cutWidth: 0 })), /no Cut Width/);
-  assert.doesNotMatch(g.generateCircleProgram(chamferWith({ cutWidth: 0 }, { cutType: 'inner' })), /WARNING/);
-  assert.doesNotMatch(g.generateCircleProgram(chamferWith({ width: 4 }, { bitDiameter: 6 })), /^G3/m);
-});
-
-test('circle chamfer: passes by its Depth of Cut, ramped no faster than the Plunge Rate, a lap at each depth', () => {
-  const g = makeQuickCutGenerator(false);
-  const params = chamferWith({ width: 3, depthOfCut: 1 });
-  const plan = g.circleChamferPlan(params);
-  const big = g.generateCircleProgram(params);
-  assert.equal(Math.min(...chamferArcs(big).filter(a => a.z != null).map(a => a.z)), -+(3 + plan.tipOffset).toFixed(3));
-  const zs = big.split('\n').filter(l => /^G3 .* J0 F\d+$/.test(l)).length;
-  assert.equal(zs, 3, 'a full lap at each of the 3 depths');
-  // A small hole, where the ramp is steep.
-  const small = g.generateCircleProgram(chamferWith({ depthOfCut: 3, cutDepth: 20 }, { diameter: 6, cutType: 'inner', bitDiameter: 6.35 }));
-  for (const gcode of [big, small]) {
+const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-9, `${label || ''} ${a} vs ${b}`);
+const lowestZ = (gcode) => Math.min(...gcode.split('\n').filter(l => /^G[0-3]\b/.test(l) && /Z-/.test(l)).map(l => +l.match(/Z(-?[\d.]+)/)[1]));
+// Z speed of every move that goes down while cutting, at most the plunge rate.
+function assertZNoFasterThan(gcode, plunge) {
   let x = 0, y = 0, z = 10, f = 0;
   for (const l of gcode.split('\n')) {
     if (!/^G[0-3]\b/.test(l)) continue;
     const w = (k) => (new RegExp('(?<![A-Z])' + k + '(-?[\\d.]+)').exec(l) || [])[1];
     if (w('F')) f = +w('F');
     const nx = w('X') != null ? +w('X') : x, ny = w('Y') != null ? +w('Y') : y, nz = w('Z') != null ? +w('Z') : z;
-    if (/^G[123]/.test(l) && nz < z - 1e-6) {
-      const len = /^G[23]/.test(l) ? Math.PI * Math.hypot(+w('I') || 0, +w('J') || 0) : Math.hypot(nx - x, ny - y);
-      const zSpeed = f * (z - nz) / Math.hypot(len, z - nz);
-      assert.ok(zSpeed <= 400 * 1.02, `Z at ${zSpeed.toFixed(0)} mm/min on ${l}`);
+    if (/^G[123]/.test(l) && nz < z - 1e-6 && nz < 0) {
+      const len = /^G[23]/.test(l) ? Math.PI * Math.hypot(+w('I') || 0, +w('J') || 0) / 2 : Math.hypot(nx - x, ny - y);
+      assert.ok(f * (z - nz) / Math.hypot(len, z - nz) <= plunge * 1.02, l);
     }
     x = nx; y = ny; z = nz;
   }
-  }
+}
+
+test('chamfer tip offset: at most 1 mm, else the far wall, the bottom, the reach or the room in a hole', () => {
+  const g = makeQuickCutGenerator(false);
+  // Every limit wider than 1 mm: the cap.
+  near(g.circleChamferPlan(chamferParams()).tipOffset, 1, 'cap');
+  // The slot around a part: (Cut Bit 2 - margin 0.2 - width 1) / 2.
+  near(g.circleChamferPlan(chamferWith({ cutBit: 2 })).tipOffset, 0.4, 'far wall');
+  // The bottom: 1.5 deep - 0.2 - 1.
+  near(g.circleChamferPlan(chamferWith({ cutDepth: 1.5 }, { cutType: 'inner' })).tipOffset, 0.3, 'floor');
+  // The reach: 90% of a 2.4 mm V-bit's radius, less the width.
+  near(g.circleChamferPlan(chamferWith({ width: 0.2, cutDepth: 20 }, { cutType: 'inner', bitDiameter: 2.4 })).tipOffset, 0.88, 'reach');
+  // A 1.2 mm hole: the tip stops at its center.
+  const small = g.circleChamferPlan(chamferWith({ width: 0.2, cutDepth: 20 }, { cutType: 'inner', diameter: 1.2 }));
+  near(small.tipOffset, 0.6, 'center'); near(small.pathRadius, 0, 'center path');
+  // Through: no lower than the chamfer is deep, and never more than 1 mm.
+  near(g.circleChamferPlan(chamferWith({ width: 0.2, cutDepth: 0 }, { cutType: 'inner', diameter: 5.1, bitDiameter: 4 })).tipOffset, 0.2, 'through, shallow');
+  const deep60 = g.circleChamferPlan(chamferWith({ width: 2, angle: 60, cutDepth: 0 }, { cutType: 'inner' }));
+  near(deep60.tipOffset, 1, 'through, 60 degrees'); near(deep60.deepest, 2 / Math.tan(Math.PI / 6) + 1);
+  // 60 degrees: the far wall (2 - 0.2 - 1) / (2 tan 30) and a shallow bottom 2.5 - 0.2 - 1.732.
+  near(g.circleChamferPlan(chamferWith({ angle: 60, cutBit: 2 })).tipOffset, 0.8 / (2 * Math.tan(Math.PI / 6)));
+  near(g.circleChamferPlan(chamferWith({ angle: 60, cutDepth: 2.5 }, { cutType: 'inner' })).tipOffset, 2.5 - 0.2 - 1 / Math.tan(Math.PI / 6));
+});
+
+test('circle chamfer: the path is the edge moved out (part) or in (hole) by the tip\'s inset, the flank meeting the chamfer', () => {
+  const g = makeQuickCutGenerator(false);
+  const outer = g.generateCircleProgram(chamferParams({ toolNumber: 22 }));
+  assert.match(outer, /^M6 T22/m);
+  assert.match(outer, /\(V-bit: 90 deg tip to tip, 12\.7mm across\)/);
+  assert.match(outer, /\(Deepest: Z-2\.000\)/);
+  assert.match(outer, /\(Run it after the part is cut out, its slot clear\)/);
+  for (const a of chamferArcs(outer)) near(Math.round(a.r * 1e4) / 1e4, 21, 'outer radius');
+  assert.equal(lowestZ(outer), -2);
+  // The flank, from the tip at radius 21 and Z-2, meets the top 1 mm in from the 20 mm edge.
+  near(21 - 2 * Math.tan(Math.PI / 4), 19);
+  const inner = g.generateCircleProgram(chamferParams({ cutType: 'inner' }));
+  assert.match(inner, /with the hole cleared out/);
+  for (const a of chamferArcs(inner)) near(Math.round(a.r * 1e4) / 1e4, 19, 'inner radius');
+});
+
+test('circle chamfer: refused when too wide for the V-bit, deeper than the cut, or no Cut Bit around a part', () => {
+  const g = makeQuickCutGenerator(false);
+  assert.match(g.generateCircleProgram(chamferWith({ width: 3 }, { bitDiameter: 6 })), /wider than the V-bit reaches; nothing to cut/);
+  assert.match(g.generateCircleProgram(chamferWith({ cutDepth: 0.5 })), /deeper than the cut; nothing to cut/);
+  assert.match(g.generateCircleProgram(chamferWith({ cutBit: 0 })), /no Cut Width/);
+  assert.doesNotMatch(g.generateCircleProgram(chamferWith({ cutBit: 0 }, { cutType: 'inner' })), /WARNING/);
+  assert.doesNotMatch(g.generateCircleProgram(chamferWith({ width: 3 }, { bitDiameter: 6 })), /^G3/m);
+  // Settings from before Cut Bit: Cut Width.
+  near(g.circleChamferPlan(chamferWith({ cutBit: undefined, cutWidth: 2 })).tipOffset, 0.4);
+});
+
+test('chamfer passes: about the same material each, ramped no faster than the Plunge Rate, a lap at each depth', () => {
+  const g = makeQuickCutGenerator(false);
+  const params = chamferWith({ width: 3, depthOfCut: 1 });
+  const big = g.generateCircleProgram(params);
+  const laps = big.split('\n').filter(l => /^G3 .* J0 F\d+$/.test(l));
+  assert.equal(laps.length, 3, 'a full lap at each of the 3 depths');
+  // The chamfer's area grows with the square of its depth: 3 * sqrt(k / 3), then the 1 mm tip offset.
+  const zs = [...new Set(big.split('\n').filter(l => /^G3 .*Z-/.test(l)).map(l => +l.match(/Z(-?[\d.]+)/)[1]))];
+  for (const k of [1, 2, 3]) assert.ok(zs.includes(-+(3 * Math.sqrt(k / 3) + 1).toFixed(3)), `pass ${k}: ${zs}`);
+  assertZNoFasterThan(big, 400);
+  assertZNoFasterThan(g.generateCircleProgram(chamferWith({ depthOfCut: 3, cutDepth: 20 }, { diameter: 6, cutType: 'inner', bitDiameter: 6.35 })), 400);
 });
 
 test('circle chamfer: the same in inches, scaled; width 0 is the ordinary cut', () => {
   const k = 1 / 25.4;
-  const mm = makeQuickCutGenerator(false).circleChamferPlan(chamferParams());
+  const mm = makeQuickCutGenerator(false).circleChamferPlan(chamferWith({ cutBit: 2 }));
   const inch = makeQuickCutGenerator(true).circleChamferPlan(chamferParams({
     bitDiameter: 12.7 * k, diameter: 40 * k, depth: 6 * k, depthOfCut: 2 * k,
-    chamfer: { width: 1 * k, angle: 90, cutDepth: 6 * k, cutWidth: 6.35 * k, depthOfCut: 2 * k } }));
+    chamfer: { width: 1 * k, angle: 90, cutDepth: 6 * k, cutBit: 2 * k, depthOfCut: 2 * k } }));
   assert.ok(Math.abs(inch.tipOffset / k - mm.tipOffset) < 0.01, `${inch.tipOffset / k} vs ${mm.tipOffset}`);
   const g = makeQuickCutGenerator(false);
   const plain = chamferParams(); delete plain.chamfer;
@@ -3521,73 +3498,45 @@ function reach(gcode, z) {
 const rectChamfer = (o, c) => Object.assign({
   bitDiameter: 12.7, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, origin: 'center',
   width: 50, height: 30, cornerRadius: 0, cutType: 'outer', depth: 6, depthOfCut: 2,
-  chamfer: Object.assign({ width: 1, angle: 90, cutDepth: 6, cutWidth: 6.35, depthOfCut: 2 }, c || {})
+  chamfer: Object.assign({ width: 1, angle: 90, cutDepth: 6, cutBit: 6.35, depthOfCut: 2 }, c || {})
 }, o || {});
 
 test('rectangle chamfer: outside a part, its path is the outline pushed out by the tip offset', () => {
   const g = makeQuickCutGenerator(false);
-  const plan = g.chamferPlanFor('rectangle', rectChamfer());
-  assert.ok(Math.abs(plan.tipOffset - 2.575) < 1e-9, String(plan.tipOffset));
   const gcode = g.generateRectangleProgram(rectChamfer({ toolNumber: 22 }));
   assert.match(gcode, /^\(QuickCut: Rectangle chamfer\)/);
   assert.match(gcode, /^M6 T22/m);
   assert.doesNotMatch(gcode, /WARNING/);
   const r = reach(gcode, -0.001);
-  assert.ok(Math.abs(r.maxX - (25 + 2.575)) < 1e-3, String(r.maxX));
-  assert.ok(Math.abs(r.maxY - (15 + 2.575)) < 1e-3, String(r.maxY));
-  assert.equal(r.minZ, -3.575);
+  assert.ok(Math.abs(r.maxX - 26) < 1e-3, String(r.maxX));
+  assert.ok(Math.abs(r.maxY - 16) < 1e-3, String(r.maxY));
+  assert.equal(r.minZ, -2);
+  // Rounded corners grow by the offset.
+  for (const l of g.generateRectangleProgram(rectChamfer({ cornerRadius: 5 })).split('\n').filter(l => /^G[23]\b/.test(l) && !/Z/.test(l))) {
+    assert.ok(Math.abs(Math.hypot(+/I(-?[\d.]+)/.exec(l)[1], +/J(-?[\d.]+)/.exec(l)[1]) - 6) < 1e-3, l);
+  }
 });
 
-test('rectangle chamfer: inside a pocket the path is inset; the narrow side limits the tip', () => {
+test('rectangle chamfer: a pocket\'s corners follow the cut bit\'s rounding, so the tip never runs into it', () => {
   const g = makeQuickCutGenerator(false);
-  const inner = g.generateRectangleProgram(rectChamfer({ cutType: 'inner' }));
-  const plan = g.chamferPlanFor('rectangle', rectChamfer({ cutType: 'inner' }));
-  // The floor: 6 - 0.2 - 1 = 4.8.
-  assert.ok(Math.abs(plan.tipOffset - 4.8) < 1e-9);
-  assert.ok(Math.abs(reach(inner, -0.001).maxX - (25 - 4.8)) < 1e-3);
-  // A slot-like pocket 4 mm wide: the tip stops at its middle.
-  const narrow = g.chamferPlanFor('rectangle', rectChamfer({ cutType: 'inner', height: 4 }, { cutDepth: 20 }));
-  assert.ok(Math.abs(narrow.tipOffset - 2) < 1e-9, String(narrow.tipOffset));
-  assert.doesNotMatch(g.generateRectangleProgram(rectChamfer({ cutType: 'inner', height: 4 }, { cutDepth: 20 })), /WARNING|NaN/);
-});
-
-test('rectangle chamfer: rounded corners stay rounded, by the corner radius plus the offset outside', () => {
-  const g = makeQuickCutGenerator(false);
-  const gcode = g.generateRectangleProgram(rectChamfer({ cornerRadius: 5 }));
+  const gcode = g.generateRectangleProgram(rectChamfer({ cutType: 'inner' }));
+  assert.ok(Math.abs(reach(gcode, -0.001).maxX - 24) < 1e-3);
+  // The pocket's corners are the 6.35 mm cut bit's radius: the path's are that less the 1 mm inset.
   const arcs = gcode.split('\n').filter(l => /^G[23]\b/.test(l) && !/Z/.test(l));
-  assert.ok(arcs.length >= 4);
-  for (const l of arcs) {
-    const i = +/I(-?[\d.]+)/.exec(l)[1], j = +/J(-?[\d.]+)/.exec(l)[1];
-    assert.ok(Math.abs(Math.hypot(i, j) - (5 + 2.575)) < 1e-3, l);
-  }
+  assert.equal(arcs.length, 4);
+  for (const l of arcs) assert.ok(Math.abs(Math.hypot(+/I(-?[\d.]+)/.exec(l)[1], +/J(-?[\d.]+)/.exec(l)[1]) - 2.175) < 1e-3, l);
+  // A tip inset past the cut bit's radius: sharp corners, as the real wall's offset is.
+  assert.equal(g.generateRectangleProgram(rectChamfer({ cutType: 'inner' }, { cutBit: 1.5 })).split('\n').filter(l => /^G[23]\b/.test(l)).length, 0);
 });
 
-test('rectangle chamfer: ramps no faster than the Plunge Rate; refused like the circle; other kinds refused', () => {
+test('rectangle chamfer: a narrow pocket limits the tip; a square one shrinks to a plunge at its center', () => {
   const g = makeQuickCutGenerator(false);
-  for (const gcode of [g.generateRectangleProgram(rectChamfer({}, { width: 3, depthOfCut: 1 })),
-                       g.generateRectangleProgram(rectChamfer({ cutType: 'inner', width: 6, height: 6 }, { width: 2, cutDepth: 20 }))]) {
-    let x = 0, y = 0, z = 10, f = 0;
-    for (const l of gcode.split('\n')) {
-      if (!/^G[0-3]\b/.test(l)) continue;
-      const w = (k) => (new RegExp('(?<![A-Z])' + k + '(-?[\\d.]+)').exec(l) || [])[1];
-      if (w('F')) f = +w('F');
-      const nx = w('X') != null ? +w('X') : x, ny = w('Y') != null ? +w('Y') : y, nz = w('Z') != null ? +w('Z') : z;
-      if (/^G[123]/.test(l) && nz < z - 1e-6 && nz < 0) {
-        const len = /^G[23]/.test(l) ? Math.PI * Math.hypot(+w('I') || 0, +w('J') || 0) / 2 : Math.hypot(nx - x, ny - y);
-        assert.ok(f * (z - nz) / Math.hypot(len, z - nz) <= 400 * 1.02, l);
-      }
-      x = nx; y = ny; z = nz;
-    }
-  }
-  // A square pocket the tip reaches the middle of: a plunge at its center, like a countersink.
-  const point = g.generateRectangleProgram(rectChamfer({ cutType: 'inner', width: 6, height: 6 }, { width: 2, cutDepth: 20 }));
+  near(g.chamferPlanFor('rectangle', rectChamfer({ cutType: 'inner', height: 1.6 }, { width: 0.2, cutDepth: 20 })).tipOffset, 0.8);
+  const point = g.generateRectangleProgram(rectChamfer({ cutType: 'inner', width: 1.6, height: 1.6 }, { width: 0.5, cutDepth: 20, cutBit: 1 }));
   assert.match(point, /^G0 X0\.000 Y0\.000$/m);
-  assert.match(point, /^G1 Z-5\.000 F400$/m);
+  assert.match(point, /^G1 Z-1\.300 F400$/m);
+  assertZNoFasterThan(g.generateRectangleProgram(rectChamfer({}, { width: 3, depthOfCut: 1 })), 400);
   assert.match(g.generateRectangleProgram(rectChamfer({}, { cutDepth: 0.5 })), /deeper than the cut; nothing to cut/);
-  // A star whose inner diameter isn't inside its points refuses.
-  const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 50 });
-  assert.match(star, /inner diameter must be less than the diameter; nothing to cut/);
-  assert.doesNotMatch(star, /^G[0123] [XYZ]/m);
 });
 
 test('rectangle chamfer: a rotated pattern chamfers each copy, the same in inches', () => {
@@ -3596,8 +3545,8 @@ test('rectangle chamfer: a rotated pattern chamfers each copy, the same in inche
   assert.equal((gcode.match(/^\(Instance /gm) || []).length, 3);
   const k = 1 / 25.4;
   const inch = makeQuickCutGenerator(true).chamferPlanFor('rectangle', rectChamfer({ bitDiameter: 12.7 * k, width: 50 * k, height: 30 * k, depth: 6 * k, depthOfCut: 2 * k },
-    { width: k, cutDepth: 6 * k, cutWidth: 6.35 * k, depthOfCut: 2 * k }));
-  assert.ok(Math.abs(inch.tipOffset / k - 2.575) < 0.01);
+    { width: k, cutDepth: 6 * k, cutBit: 2 * k, depthOfCut: 2 * k }));
+  assert.ok(Math.abs(inch.tipOffset / k - 0.4) < 0.01);
 });
 
 const drillParams = (o) => Object.assign({
@@ -3621,77 +3570,93 @@ test('drill chamfer: each hole the drill program made gets a chamfer, centered o
   centers.forEach(([x, y], i) => {
     assert.ok(Math.abs(x - drilled[i][0]) < 2e-3 && Math.abs(y - drilled[i][1]) < 2e-3, `hole ${i}: ${x},${y} vs ${drilled[i]}`);
   });
-  // Inside a 5 mm hole with a 4 mm 90 degree bit, 0.5 wide: the reach (2 - 0.5) limits the tip.
-  assert.ok(Math.abs(plan.tipOffset - 1.5) < 1e-9, String(plan.tipOffset));
-  assert.ok(Math.abs(plan.pathRadius - 1) < 1e-9, String(plan.pathRadius));
+  near(plan.tipOffset, 1); near(plan.pathRadius, 1.5);
 });
 
 test('drill chamfer: refused without a Hole Diameter, or wider than the V-bit', () => {
   const g = makeQuickCutGenerator(false);
   assert.match(g.generateDrillProgram(drillParams({ bitDiameter: 4, chamfer: { width: 0.5, angle: 90, holeDiameter: 0, cutDepth: 10, depthOfCut: 1 } })), /no Hole Diameter; nothing to cut/);
-  assert.match(g.generateDrillProgram(drillParams({ bitDiameter: 4, chamfer: { width: 3, angle: 90, holeDiameter: 5, cutDepth: 10, depthOfCut: 1 } })), /wider than the V-bit reaches/);
-  // Width 0: the ordinary drill program.
+  assert.match(g.generateDrillProgram(drillParams({ bitDiameter: 4, chamfer: { width: 1.9, angle: 90, holeDiameter: 5, cutDepth: 10, depthOfCut: 1 } })), /wider than the V-bit reaches/);
   assert.equal(g.generateDrillProgram(drillParams({ chamfer: { width: 0, angle: 90, holeDiameter: 5 } })), g.generateDrillProgram(drillParams()));
 });
 
-// The XY moves of a program's laps at depth (the last pass), rounded.
+// The XY moves of a program's laps (no Z), rounded.
 function lapPoints(gcode) {
-  const lines = gcode.split('\n'), pts = [];
-  let z = 10;
-  for (const l of lines) {
-    const zm = /Z(-?[\d.]+)/.exec(l); if (zm) z = +zm[1];
-    if (/^G[123] X/.test(l) && !zm) pts.push(l.replace(/ F\d+/, '').replace(/^G1 /, 'L ').trim().replace(/-?\d+\.\d+/g, (v) => (+v).toFixed(3)).replace(/-0\.000/g, '0.000'));
+  const pts = [];
+  for (const l of gcode.split('\n')) {
+    if (/^G[123] X/.test(l) && !/Z/.test(l)) pts.push(l.replace(/ F\d+/, '').replace(/^G1 /, 'L ').trim().replace(/-?\d+\.\d+/g, (v) => (+v).toFixed(3)).replace(/-0\.000/g, '0.000'));
   }
   return pts;
 }
 const chamferOf = (o, c) => Object.assign({ bitDiameter: 12.7, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, origin: 'center',
-  depth: 6, depthOfCut: 6, chamfer: Object.assign({ width: 1, angle: 90, cutDepth: 6, cutWidth: 6.35, depthOfCut: 2 }, c || {}) }, o);
+  depth: 6, depthOfCut: 6, chamfer: Object.assign({ width: 1, angle: 90, cutDepth: 6, cutBit: 6.35, depthOfCut: 2 }, c || {}) }, o);
 
-test('chamfers for the other shapes follow the shape\'s own cut path at the tip\'s inset', () => {
+test('chamfers for the other shapes follow the shape\'s own cut path at the tip\'s inset, corners rounded by the cut bit inside', () => {
   const g = makeQuickCutGenerator(false);
   const cases = [
     ['polygon', 'generatePolygonProgram', { sides: 6, diameter: 40, startAngleDeg: 15, origin: 'back-right' }],
+    ['polygon', 'generatePolygonProgram', { kind: 'star', sides: 5, diameter: 60, innerDiameter: 30, startAngleDeg: 10 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'trapezoid', width: 50, topWidth: 30, height: 25, topAlign: 'center', cornerRadius: 3, startAngleDeg: 25 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'triangle', triangle: { base: 40, left: 30, right: 30 }, cornerRadius: 2 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'ellipse', width: 40, height: 24, startAngleDeg: 40 }],
     ['rectangle', 'generateRectangleProgram', { kind: 'arch', width: 30, height: 40, archRise: 10, archStyle: 'round' }],
-    ['polygon', 'generatePolygonProgram', { kind: 'star', sides: 5, diameter: 60, innerDiameter: 30, startAngleDeg: 10 }],
     ['slot', 'generateSlotProgram', { slotType: 'straight', length: 40, width: 10, angleDeg: 20 }],
     ['slot', 'generateSlotProgram', { slotType: 'arc', arcMode: 'radius', radius: 30, startAngleDeg: 10, sweepDeg: 80, width: 16 }]
   ];
   for (const [shape, gen, o] of cases) for (const cutType of ['outer', 'inner']) {
-    const params = chamferOf({ ...o, cutType, pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 90, yDist: 0 } });
+    // Inside, a corner origin would move with the corners rounded for the comparison: centered.
+    const origin = cutType === 'inner' ? 'center' : o.origin || 'center';
+    const params = chamferOf({ ...o, origin, cutType, pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 90, yDist: 0 } }, { cutDepth: 20 });
     const plan = g.chamferPlanFor(shape, params);
     const label = `${o.kind || shape} ${cutType}`;
     assert.ok(plan && plan.tipOffset > 0, label);
     const gcode = g[gen](params);
     assert.doesNotMatch(gcode, /WARNING|NaN/, label);
     assert.equal((gcode.match(/^\(Instance /gm) || []).length, 2, label);
-    // The same shape cut with a bit as wide as twice the inset, no chamfer, one pass at the chamfer's depth.
-    const cut = g[gen]({ ...params, chamfer: undefined, bitDiameter: 2 * plan.inset, depth: plan.height + plan.tipOffset,
-      depthOfCut: plan.height + plan.tipOffset, cornerRelief: 'none' });
+    // The same shape cut with a bit twice the inset, no chamfer, one pass at the chamfer's depth, its
+    // corners (inside) no tighter than the cut bit left them.
+    const cornerRadius = cutType === 'inner' && 'cornerRadius' in o || cutType === 'inner' && shape !== 'slot' && o.kind !== 'ellipse' && o.kind !== 'star'
+      ? Math.max(o.cornerRadius || 0, 6.35 / 2) : o.cornerRadius;
+    const cut = g[gen]({ ...params, cornerRadius, chamfer: undefined, bitDiameter: 2 * plan.inset, depth: plan.deepest, depthOfCut: plan.deepest, cornerRelief: 'none' });
     assert.deepEqual(lapPoints(gcode).slice(-6), lapPoints(cut).slice(-6), label);
   }
 });
 
+test('a star\'s sharp corners, and a pointed arch\'s top, keep the tip clear of the cut bit\'s rounding', () => {
+  const g = makeQuickCutGenerator(false);
+  const star = chamferOf({ kind: 'star', sides: 5, diameter: 60, innerDiameter: 30, cutType: 'inner' }, { cutDepth: 20, cutBit: 6.35 });
+  // At least the cut bit's radius in from the edge (90 degrees: as far down).
+  assert.ok(g.chamferPlanFor('polygon', star).inset >= 3.175 - 1e-9);
+  // Too shallow a cut for that: refused, rather than notching the points.
+  assert.match(g.generatePolygonProgram({ ...star, chamfer: { ...star.chamfer, cutDepth: 2 } }), /corners the cut bit rounded need the tip deeper/);
+  // A through cut never sends the tip lower than the chamfer is deep: corners needing more ask for the depth.
+  assert.match(g.generatePolygonProgram({ ...star, chamfer: { ...star.chamfer, cutDepth: 0 } }), /corners the cut bit rounded need the tip deeper/);
+  const arch = chamferOf({ kind: 'arch', width: 30, height: 40, archRise: 20, archStyle: 'pointed', cutType: 'inner' }, { cutDepth: 20, cutBit: 4 });
+  assert.ok(g.chamferPlanFor('rectangle', arch).inset >= 2 - 1e-9);
+  assert.doesNotMatch(g.generateRectangleProgram(arch), /WARNING|NaN/);
+});
+
 test('how far each pocket\'s path can move in: a triangle\'s inradius, a hexagon\'s apothem, half a slot', () => {
   const g = makeQuickCutGenerator(false);
-  const deep = { cutDepth: 100, width: 0.5 }, big = { bitDiameter: 60, cutType: 'inner' };
-  const tri = g.chamferPlanFor('rectangle', chamferOf({ ...big, kind: 'triangle', triangle: { base: 30, left: 30, right: 30 } }, deep));
-  assert.ok(Math.abs(tri.tipOffset - 30 / (2 * Math.sqrt(3))) < 0.01, String(tri.tipOffset));
-  const hex = g.chamferPlanFor('polygon', chamferOf({ ...big, sides: 6, diameter: 40 }, deep));
-  assert.ok(Math.abs(hex.tipOffset - 20 * Math.cos(Math.PI / 6)) < 1e-9, String(hex.tipOffset));
-  const slot = g.chamferPlanFor('slot', chamferOf({ ...big, slotType: 'straight', length: 40, width: 10 }, deep));
-  assert.ok(Math.abs(slot.tipOffset - 5) < 1e-9, String(slot.tipOffset));
+  const deep = { cutDepth: 100, width: 0.1, cutBit: 0.2 }, big = { bitDiameter: 60, cutType: 'inner' };
+  const tri = g.chamferPlanFor('rectangle', chamferOf({ ...big, kind: 'triangle', triangle: { base: 3, left: 3, right: 3 } }, deep));
+  assert.ok(Math.abs(tri.tipOffset - 3 / (2 * Math.sqrt(3))) < 0.01, String(tri.tipOffset));
+  const hex = g.chamferPlanFor('polygon', chamferOf({ ...big, sides: 6, diameter: 1.8 }, deep));
+  near(hex.tipOffset, 0.9 * Math.cos(Math.PI / 6));
+  const slot = g.chamferPlanFor('slot', chamferOf({ ...big, slotType: 'straight', length: 40, width: 1.6 }, deep));
+  near(slot.tipOffset, 0.8);
   // A slot the tip reaches the middle of: along its centre line and back.
-  const mid = g.generateSlotProgram(chamferOf({ ...big, slotType: 'straight', length: 40, width: 10 }, deep));
+  const mid = g.generateSlotProgram(chamferOf({ ...big, slotType: 'straight', length: 40, width: 1.6 }, deep));
   assert.doesNotMatch(mid, /WARNING|NaN/);
-  assert.match(mid, /^G1 X15\.00000 Y0\.00000( F\d+)?$/m);
-  assert.match(mid, /^G1 X-15\.00000 Y0\.00000( F\d+)?$/m);
+  assert.match(mid, /^G1 X19\.20000 Y0\.00000( F\d+)?$/m);
+  assert.match(mid, /^G1 X-19\.20000 Y0\.00000( F\d+)?$/m);
 });
 
 test('a Centre line slot, or a shape that can\'t be drawn, refuses the chamfer', () => {
   const g = makeQuickCutGenerator(false);
   assert.match(g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' })), /Centre line slot: set Cut Type to Inner/);
   assert.match(g.generateRectangleProgram(chamferOf({ kind: 'triangle', triangle: { base: 40, left: 10, right: 10 }, cutType: 'outer' })), /WARNING: .*nothing to cut/);
+  const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 50 });
+  assert.match(star, /inner diameter must be less than the diameter; nothing to cut/);
+  assert.doesNotMatch(star, /^G[0123] [XYZ]/m);
 });

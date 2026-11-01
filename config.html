@@ -891,7 +891,7 @@
   /* Rows keep their height in the scrolling list: a long name wraps, it doesn't overlap the next. */
   .qc-tool-list > * { flex-shrink: 0; }
   .qc-tool-head { padding: 4px 10px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
-  .qc-tool-item { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 40px; margin: 0; padding: 8px 10px !important; text-align: left;
+  .qc-tool-item { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
     background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
     font-family: inherit; font-size: 0.88rem; line-height: 1.3; cursor: pointer; }
   .qc-tool-item:hover, .qc-tool-item.qc-active { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; }
@@ -2142,6 +2142,7 @@
                 <span class="qc-switch-track"></span>
               </label>
             </div>
+            <p class="qc-mode-hint qc-chamfer-intro">Chamfers an edge you&rsquo;ve already cut, with a V-bit. The program makes only the chamfer: run the cut first.</p>
             <div class="qc-chamfer-body" id="qc-chamfer-body" style="display: none;">
             <div class="qc-row-5">
               <div class="qc-field">
@@ -2149,20 +2150,20 @@
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-width" step="0.1" value="1" title="How wide the chamfer is across the top: inside a hole's edge, outside a part's.">
               </div>
               <div class="qc-field">
-                <label for="qc-chamfer-angle">V Angle (tip to tip)</label>
-                <input class="qc-input" type="number" id="qc-chamfer-angle" min="20" max="150" step="1" value="90" title="The V-bit's angle across the V, tip to tip: 90 for a bit that is 45&deg; a side. From the tool table when a V-bit is in the spindle (its taper angle, or its name). The V-bit itself is the Tool card's bit.">
+                <label for="qc-chamfer-angle">Included Angle</label>
+                <input class="qc-input" type="number" id="qc-chamfer-angle" min="20" max="150" step="1" value="90" title="The V-bit's angle across the whole V: 90 for a bit that is 45&deg; a side. From the tool table when a V-bit is in the spindle (its taper angle, or its name). The V-bit itself is the Tool card's bit.">
               </div>
               <div class="qc-field qc-chamfer-drill">
                 <label for="qc-chamfer-hole">Hole Diameter</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-hole" step="0.1" value="5" title="The size of the holes already drilled: the drill's diameter. The Tool card holds the V-bit while chamfering.">
               </div>
               <div class="qc-field">
-                <label for="qc-chamfer-cut-depth">Cut Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-depth" step="0.1" value="" placeholder="Through" title="How deep the hole or cut you've already made goes; the V-bit's tip stays above its bottom. Blank: it goes right through (the tip then goes at most the chamfer's depth lower).">
+                <label for="qc-chamfer-cut-depth">Existing Depth</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-depth" step="0.1" value="" placeholder="Blank: through" title="How deep the hole or cut you've already made goes; the V-bit's tip stays above its bottom. Blank: it goes right through (the tip then goes at most the chamfer's depth lower, and no more than 1 mm).">
               </div>
-              <div class="qc-field qc-chamfer-outer">
-                <label for="qc-chamfer-cut-width">Cut Width</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-width" step="0.1" value="6.35" title="How wide the slot around the part is: the bit that cut it. The V-bit's other side stays off its far wall.">
+              <div class="qc-field qc-chamfer-cut">
+                <label for="qc-chamfer-cut-bit">Cut Bit</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-bit" step="0.1" value="6.35" title="The diameter of the bit the cut was made with. Inside a pocket it rounded the corners, and the chamfer follows that rounding; around a part it's the slot's width, and the V-bit's other side stays off its far wall.">
               </div>
               <div class="qc-field">
                 <label for="qc-chamfer-step">Depth of Cut</label>
@@ -3923,9 +3924,9 @@
         'qc-circ-step':     { min: 0.001, max: 5,   label: 'Depth of Cut' },
         'qc-circ-stepover': { min: 1,     max: 90,  label: 'Stepover', integer: true },
         'qc-chamfer-width': { min: 0.004, max: 2, label: 'Chamfer Width' },
-        'qc-chamfer-angle':  { min: 20,    max: 150, label: 'V-Bit Angle' },
-        'qc-chamfer-cut-depth': { min: 0.004, max: 20, label: 'Cut Depth', blankOk: true },
-        'qc-chamfer-cut-width': { min: 0.004, max: 4, label: 'Cut Width' },
+        'qc-chamfer-angle':  { min: 20,    max: 150, label: 'Included Angle' },
+        'qc-chamfer-cut-depth': { min: 0.004, max: 20, label: 'Existing Depth', blankOk: true },
+        'qc-chamfer-cut-bit': { min: 0.004, max: 4, label: 'Cut Bit' },
         'qc-chamfer-hole':  { min: 0.004, max: 4,  label: 'Hole Diameter' },
         'qc-chamfer-step': { min: 0.001, max: 5, label: 'Depth of Cut' },
         'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
@@ -4088,9 +4089,9 @@
       'qc-circ-step':     { min: 0.01, max: 100,  label: 'Depth of Cut' },
       'qc-circ-stepover': { min: 1,    max: 90,   label: 'Stepover', integer: true },
       'qc-chamfer-width': { min: 0.1, max: 50, label: 'Chamfer Width' },
-      'qc-chamfer-angle':  { min: 20,   max: 150,  label: 'V-Bit Angle' },
-      'qc-chamfer-cut-depth': { min: 0.1, max: 500, label: 'Cut Depth', blankOk: true },
-      'qc-chamfer-cut-width': { min: 0.1, max: 100, label: 'Cut Width' },
+      'qc-chamfer-angle':  { min: 20,   max: 150,  label: 'Included Angle' },
+      'qc-chamfer-cut-depth': { min: 0.1, max: 500, label: 'Existing Depth', blankOk: true },
+      'qc-chamfer-cut-bit': { min: 0.1, max: 100, label: 'Cut Bit' },
       'qc-chamfer-hole':  { min: 0.1,  max: 100,  label: 'Hole Diameter' },
       'qc-chamfer-step': { min: 0.01, max: 100, label: 'Depth of Cut' },
       'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
@@ -4726,7 +4727,7 @@
       width:      $('qc-chamfer-enable').checked ? num('qc-chamfer-width', 0) : 0,
       angle:      num('qc-chamfer-angle', 90),
       cutDepth:   num('qc-chamfer-cut-depth', 0),
-      cutWidth:   $('qc-' + prefix + '-cut-type') && $('qc-' + prefix + '-cut-type').value === 'outer' ? num('qc-chamfer-cut-width', 0) : 0,
+      cutBit:     prefix === 'drl' ? 0 : num('qc-chamfer-cut-bit', 0),
       holeDiameter: num('qc-chamfer-hole', 0),
       depthOfCut: num('qc-chamfer-step', 0)
     };
@@ -4738,7 +4739,7 @@
       width:    displayToMm(num('qc-chamfer-width', 0)),
       angle:    num('qc-chamfer-angle', 90),
       cutDepth: cutDepth > 0 ? displayToMm(cutDepth) : null,
-      cutWidth: displayToMm(num('qc-chamfer-cut-width', 0)),
+      cutBit:   displayToMm(num('qc-chamfer-cut-bit', 0)),
       hole:     displayToMm(num('qc-chamfer-hole', 0)),
       step:     displayToMm(num('qc-chamfer-step', 0))
     };
@@ -6937,6 +6938,7 @@
     if (circ.depth != null)         $('qc-circ-depth').value  = roundDisplay(mmToDisplay(circ.depth));
     if (circ.depthOfCut != null)    $('qc-circ-step').value   = roundDisplay(mmToDisplay(circ.depthOfCut));
     if (circ.stepoverPct != null)   $('qc-circ-stepover').value = circ.stepoverPct;
+    if (loaded && !common.chamfer) $('qc-chamfer-enable').checked = false;
     var ch = common.chamfer || (circ.chamferEnabled != null ? { enabled: circ.chamferEnabled, width: circ.chamferWidth, angle: circ.vAngle,
       cutDepth: circ.chamferCutDepth, cutWidth: circ.chamferCutWidth, step: circ.chamferStep } : null);
     if (ch) {
@@ -6944,7 +6946,8 @@
       if (ch.width > 0)             $('qc-chamfer-width').value = roundDisplay(mmToDisplay(ch.width));
       if (ch.angle != null)         $('qc-chamfer-angle').value = ch.angle;
       if (ch.cutDepth !== undefined) $('qc-chamfer-cut-depth').value = ch.cutDepth > 0 ? roundDisplay(mmToDisplay(ch.cutDepth)) : '';
-      if (ch.cutWidth > 0)          $('qc-chamfer-cut-width').value = roundDisplay(mmToDisplay(ch.cutWidth));
+      var cutBit = ch.cutBit > 0 ? ch.cutBit : ch.cutWidth;
+      if (cutBit > 0)               $('qc-chamfer-cut-bit').value = roundDisplay(mmToDisplay(cutBit));
       if (ch.step > 0)              $('qc-chamfer-step').value = roundDisplay(mmToDisplay(ch.step));
       if (ch.hole > 0)              $('qc-chamfer-hole').value = roundDisplay(mmToDisplay(ch.hole));
     }
@@ -7987,9 +7990,14 @@
       $('qc-' + CHAMFER_TABS[tab] + '-generate').textContent = on ? 'Generate Chamfer' : 'Generate';
     });
     var prefix = CHAMFER_TABS[chamferTab()] || 'circ';
-    var cutType = $('qc-' + prefix + '-cut-type');
-    ROOT.querySelector('.qc-chamfer-outer').style.display = cutType && cutType.value === 'outer' ? '' : 'none';
+    ROOT.querySelector('.qc-chamfer-cut').style.display = prefix === 'drl' ? 'none' : '';
     ROOT.querySelector('.qc-chamfer-drill').style.display = prefix === 'drl' ? '' : 'none';
+    // Without a tool changer, the Tool card's label says which bit it is.
+    var bitLabel = ROOT.querySelector('.qc-bit-label');
+    if (bitLabel) {
+      if (bitLabel.dataset.text == null) bitLabel.dataset.text = bitLabel.textContent;
+      bitLabel.textContent = on && chamferTab() ? 'V-Bit Diameter' : bitLabel.dataset.text;
+    }
     var hint = $('qc-drl-hint');
     if (hint.dataset.cut == null) hint.dataset.cut = hint.innerHTML;
     hint.innerHTML = on ? 'Chamfers holes already drilled: <strong>Hole Diameter</strong> is the drill\u2019s size, and the Tool card\u2019s bit is the V-bit. ' +
@@ -8013,9 +8021,10 @@
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.centerSlot) return { id: 'qc-slt-cut-type', msg: 'A Centre line slot is as wide as the bit that cut it, not the V-bit: set Cut Type to Inner and the slot\u2019s Width' };
     if (plan.shapeProblem) return { id: 'qc-chamfer-width', msg: 'The shape can\u2019t be drawn (' + plan.shapeProblem + ')' };
-    if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit (Bit Diameter) chamfers up to ' + f(p.bitDiameter / 2) + u + ' wide' };
-    if (plan.tooDeep) return { id: 'qc-chamfer-cut-depth', msg: 'The chamfer is ' + f(plan.height) + u + ' deep, deeper than the ' + f(plan.floor) + u + ' cut: make it narrower, or the cut deeper' };
-    if (plan.noRoom) return { id: 'qc-chamfer-cut-width', msg: 'Cut Width: how wide the slot around the part is' };
+    if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit chamfers up to ' + f(p.bitDiameter * 0.45) + u + ' wide (its edge is weakest)' };
+    if (plan.tooDeep) return { id: 'qc-chamfer-width', msg: 'The chamfer is ' + f(plan.height) + u + ' deep, deeper than the ' + f(plan.floor) + u + ' cut: make it narrower, or the Existing Depth deeper' };
+    if (plan.noRoom) return { id: 'qc-chamfer-cut-bit', msg: 'Cut Bit: the bit the slot around the part was cut with' };
+    if (plan.cornerConflict) return { id: 'qc-chamfer-cut-depth', msg: 'The corners the Cut Bit rounded need the tip deeper than the Existing Depth lets it go: a narrower chamfer, a smaller Cut Bit or a deeper cut' };
     return null;
   }
   // Generate's check: a chamfer that can't be cut stops it, at the field.
@@ -8043,10 +8052,11 @@
     var from = state.chamferSource ? state.chamferSource + ' ' : '';
     var problem = chamferProblem(p, plan);
     if (problem) { note.textContent = from + problem.msg + '.'; return; }
-    note.textContent = from + 'Chamfers the ' + chamferShapeName(tab, p) + ' already cut, with the ' + f(p.bitDiameter) + u + ' V-bit in the Tool card' +
+    note.textContent = from + 'Chamfers the ' + chamferShapeName(tab, p) + ' already ' + (tab === 'drill' ? 'drilled' : 'cut') + ', with the ' + f(p.bitDiameter) + u + ' V-bit in the Tool card' +
       (bitToolNumber() > 0 ? ' (the program starts with a tool change to T' + bitToolNumber() + ')' : '') + ': ' +
       f(plan.width) + u + ' wide, ' + f(plan.height) + u + ' deep. The tip goes ' + f(plan.tipOffset) + u +
-      ' lower, into the cut, so the V\u2019s side does the cutting.' + (plan.pastRoom > 0 ? ' Its other side also cuts ' + f(plan.pastRoom) + u + ' past the slot.' : '');
+      ' below the chamfer, into the cut already made, so the V\u2019s side does the cutting (deepest Z\u2212' + f(plan.deepest) + ').' +
+      (plan.pastRoom > 0 ? ' Its other side also widens the slot ' + f(plan.pastRoom) + u + ' into the waste.' : '');
   }
 
   // A V-bit in the spindle turns the circle's Chamfer on, with the bit's
@@ -8567,7 +8577,9 @@
         // The tool in the spindle first, then the rest by number.
         .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
       state.loadedTool = loaded > 0 ? loaded : 0;
-      if (loaded > 0) chamferFromLoadedTool((tools || []).filter(function(t) { return (state.toolById ? t.toolId : t.toolNumber) === loaded; })[0], loaded);
+      var inSpindle = loaded > 0 && (tools || []).filter(function(t) { return (state.toolById ? t.toolId : t.toolNumber) === loaded; })[0];
+      // A tool the table doesn't have says nothing about the chamfer.
+      if (inSpindle) chamferFromLoadedTool(inSpindle, loaded);
     } catch (e) { state.tools = []; }
     showBitTool();
   }
@@ -8647,12 +8659,18 @@
     closeToolPop();
     if (!v) return;
     var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0], fl = null;
+    var chamferMsg = '';
     if (t) {
       fl = applyBitTool(t);
-      if (chamferTab()) chamferForPickedTool(t);
+      if (chamferTab()) {
+        var was = $('qc-chamfer-enable').checked;
+        chamferForPickedTool(t);
+        var now = $('qc-chamfer-enable').checked;
+        if (now !== was) chamferMsg = now ? ' A V-bit: Chamfer on.' : ' Not a V-bit: Chamfer off.';
+      }
     }
     else setBitTool(0, 0);
-    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + ' (' + fl + ' flute' + (fl === 1 ? '' : 's') + ')' + '. The program starts with a tool change to T' + t.n + ' (M6).'
+    var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + ' (' + fl + ' flute' + (fl === 1 ? '' : 's') + ')' + '. The program starts with a tool change to T' + t.n + ' (M6).' + chamferMsg
       : 'No tool change: the program cuts with the bit in the spindle.';
     setTimeout(function() { showTooltip(bit, msg, TOOLTIP_OK, true); }, 0);
   }
@@ -8714,7 +8732,12 @@
       if (validateField(id, el.value)) { bad++; counted[id] = true; }
     }
     var slot = state.currentTab === 'slot' && slotShapeProblem();
-    return bad + (slot && !counted[slot.field] ? 1 : 0);
+    var tab = chamferTab(), chamfer = null;
+    if (tab && $('qc-chamfer-enable').checked && !bad) {
+      var p = readChamferShapeForm(tab);
+      if (p.chamfer.width > 0) chamfer = chamferProblem(p, makeQuickCutGenerator(state.isImperial).chamferPlanFor(tab, p));
+    }
+    return bad + (slot && !counted[slot.field] ? 1 : 0) + (chamfer ? 1 : 0);
   }
   // Each label menu as wide as the choice it shows, so its arrow sits
   // right after the text.
@@ -11524,7 +11547,7 @@
   var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the wasteboard): sheet goods are seldom exactly their nominal thickness. Each pass ramps down along its own path, at 5&deg; or less, instead of plunging, and Z never comes down faster than the <strong>Plunge Rate</strong>.';
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
-  var HELP_CHAMFER = '<strong>Chamfer</strong> (the switch on its card) chamfers the top edge of the shape you&rsquo;ve already cut, with a V-bit, instead of cutting it: inside a hole&rsquo;s edge, outside a part&rsquo;s. The V-bit is the Tool card&rsquo;s bit: with a tool changer, a V-bit in the spindle turns Chamfer on (and any other bit off) and fills the <strong>V Angle</strong> (tip to tip: 90 for a bit that is 45&deg; a side) from the tool table, or the tool&rsquo;s name. <strong>Chamfer Width</strong> is across the top, as in Fusion 360; at 90&deg; it&rsquo;s the C on a drawing (C1 = 1&nbsp;&times;&nbsp;45&deg;). <strong>Cut Depth</strong> is how deep the cut you already made goes (blank: right through), and <strong>Cut Width</strong> how wide the slot around a part is (Outer). The tip goes down into that cut, as far as stays clear of its bottom and far wall, so the V&rsquo;s side does the cutting rather than its weak tip; the note under the card says how far. Total Depth and the tabs belong to the cut, so they&rsquo;re hidden while chamfering; the chamfer has its own <strong>Depth of Cut</strong>. Inside a star&rsquo;s points, and inside corners tighter than the V-bit, the chamfer comes out rounded.';
+  var HELP_CHAMFER = '<strong>Chamfer</strong> (the switch on its card) makes only a chamfer of the top edge of the shape you&rsquo;ve already cut, with a V-bit, in place of the cut: inside a hole&rsquo;s edge, outside a part&rsquo;s. Run the cut first, and clear the hole or slot out. The V-bit is the Tool card&rsquo;s bit: with a tool changer, a V-bit in the spindle (or picked in the Bit Diameter menu) turns Chamfer on, any other bit off, and fills the <strong>Included Angle</strong> (the whole V: 90 for a bit that is 45&deg; a side) from the tool table or the tool&rsquo;s name. <strong>Chamfer Width</strong> is across the top, as in Fusion 360; at 90&deg; it&rsquo;s the C on a drawing (C1 = 1&nbsp;&times;&nbsp;45&deg;), up to 90% of the V-bit&rsquo;s radius. <strong>Existing Depth</strong> is how deep the cut you already made goes (blank: right through), and <strong>Cut Bit</strong> the bit it was made with: a pocket&rsquo;s inside corners are as round as that bit, and the chamfer follows them; around a part it&rsquo;s the slot&rsquo;s width. The tip goes up to 1&nbsp;mm (0.04&nbsp;in) below the chamfer, into that cut, clear of its bottom, so the V&rsquo;s side does the cutting rather than its weak tip; the note under the card gives the deepest Z. Total Depth and the tabs belong to the cut, so they&rsquo;re hidden while chamfering; the chamfer has its own <strong>Depth of Cut</strong>, each pass taking about as much as the last. Inside a star&rsquo;s points and a pointed arch&rsquo;s top, the tip goes at least the Cut Bit&rsquo;s radius in, so it clears the rounding there; if the cut isn&rsquo;t deep enough for that, Generate says so.';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
@@ -13427,33 +13450,59 @@
     // Bit Diameter): inside a hole's edge, outside a part's. The tip goes
     // below the chamfer into the cut already made (the tip offset), so the
     // chamfer is cut by the V's flank, wider and faster than its weak tip:
-    // as deep as keeps the tip above the cut's bottom (Cut Depth), within
-    // the V-bit's reach, and in a hole no farther in than its path can go
-    // (`inwardRoom`: a circle's radius, half a rectangle's narrower side);
-    // around a part, the V's other side off the slot's far wall (Cut
-    // Width). A through cut (Cut Depth 0) has no bottom to go by, so the
-    // tip goes at most the chamfer's depth lower, clear of the spoilboard.
-    // `inset` is how far the tip's path sits from the shape's edge.
-    function chamferPlan(params, inwardRoom) {
+    // up to 1 mm (0.04 in) lower, as far as keeps the tip above the cut's
+    // bottom (Cut Depth; 0 is through: never lower than the chamfer is deep,
+    // as the stock's bottom isn't known),
+    // the chamfer within 90% of the V-bit's radius (its edge is weakest),
+    // in a hole no farther in than its path can go (`inwardRoom`: a
+    // circle's radius, half a rectangle's narrower side), and around a
+    // part the V's other side off the slot's far wall (the Cut Bit made
+    // it) unless a corner needs it lower. `minInset` is the least the path
+    // must sit in from the edge: at
+    // a sharp inside corner the cut bit left rounded, the tip clears the
+    // rounding only from its radius in. `inset` is how far the tip's path
+    // sits from the shape's edge.
+    function chamferPlan(params, inwardRoom, minInset) {
       var c = params.chamfer;
       var cutType = params.cutType || 'inner';
       var slope = Math.tan(c.angle / 2 * Math.PI / 180);
       var width = c.width, height = width / slope;
       var margin = isImperial ? 0.008 : 0.2;
       var outer = cutType === 'outer';
+      var cutBit = chamferCutBit(params);
       var floor = c.cutDepth > 0 ? c.cutDepth : Infinity;
-      var limits = [(params.bitDiameter / 2 - width) / slope, floor < Infinity ? floor - margin - height : height];
-      limits.push(outer ? (c.cutWidth - margin - width) / (2 * slope) : inwardRoom / slope);
-      var tipOffset = Math.max(0, Math.min.apply(null, limits));
+      var reach = params.bitDiameter / 2 * 0.9;
+      // Hard limits; the slot's far wall around a part is waste, so it gives
+      // way to clearing a corner (the part) when they can't both be kept.
+      var most = Math.min((reach - width) / slope, floor < Infinity ? floor - margin - height : height, outer ? Infinity : inwardRoom / slope);
+      var farWall = outer ? (cutBit - margin - width) / (2 * slope) : Infinity;
+      var cap = isImperial ? 0.04 : 1;
+      var least = (minInset || 0) / slope;
+      var tipOffset = Math.max(0, least, Math.min(most, farWall, cap));
       return {
         slope: slope, width: width, height: height, tipOffset: tipOffset, floor: floor,
-        inset: tipOffset * slope,
-        tooWide: width > params.bitDiameter / 2,
+        inset: tipOffset * slope, deepest: height + tipOffset,
+        tooWide: width > reach,
         tooDeep: height > floor,
-        noRoom: outer && !(c.cutWidth > 0),
+        noRoom: outer && !(cutBit > 0),
+        // The cut bit's rounding needs the tip lower than the cut lets it go.
+        cornerConflict: least > Math.max(0, most) + 1e-9,
         // How far the V's other side reaches past the slot, into the waste.
-        pastRoom: outer && c.cutWidth > 0 ? Math.max(0, width + 2 * tipOffset * slope - c.cutWidth) : 0
+        pastRoom: outer && cutBit > 0 ? Math.max(0, width + 2 * tipOffset * slope - cutBit) : 0
       };
+    }
+
+    // The bit the cut was made with (older settings called it Cut Width).
+    function chamferCutBit(params) {
+      var c = params.chamfer;
+      return c.cutBit != null ? c.cutBit : (c.cutWidth || 0);
+    }
+    // A pocket's inside corners are as round as the bit that cut it, at
+    // least: its path takes that radius, so the tip follows the real wall.
+    // An ellipse has no corners.
+    function chamferCorners(params) {
+      if ((params.cutType || 'inner') === 'outer' || params.kind === 'ellipse') return params;
+      return Object.assign({}, params, { cornerRadius: Math.max(params.cornerRadius || 0, chamferCutBit(params) / 2) });
     }
 
     function circleChamferPlan(params) {
@@ -13464,7 +13513,7 @@
     }
 
     function rectangleChamferPlan(params) {
-      return chamferPlan(params, Math.min(params.width, params.height) / 2);
+      return chamferPlan(chamferCorners(params), Math.min(params.width, params.height) / 2);
     }
 
     // A drilled hole's chamfer is a circle's, inside the Hole Diameter (the
@@ -13481,12 +13530,13 @@
     function polygonChamferPlan(params) {
       var radius = params.radius != null ? params.radius : (params.diameter || 0) / 2;
       var sides = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
-      return chamferPlan(params, radius * Math.cos(Math.PI / sides));
+      return chamferPlan(chamferCorners(params), radius * Math.cos(Math.PI / sides));
     }
 
     // Trapezoids, triangles, ellipses and arches: how far a pocket's path can
     // move in, found by halving (their outlines have no one formula for it).
     function trapezoidChamferPlan(params) {
+      params = chamferCorners(params);
       var problem = convexShapeProblem(params);
       var fits = function(d) { return !!computeTrapezoidGeom(Object.assign({}, params, { bitDiameter: 2 * d })).segs; };
       var lo = 0, hi = Math.max(params.width || 0, params.topWidth || 0, params.height || 0,
@@ -13494,7 +13544,10 @@
       if (!problem && fits(0)) {
         for (var i = 0; i < 30; i++) { var mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
       }
-      var plan = chamferPlan(params, lo);
+      // A pointed arch's top inside a pocket is a sharp corner its Corner
+      // Radius doesn't round.
+      var pointed = params.kind === 'arch' && params.archStyle === 'pointed' && (params.cutType || 'inner') !== 'outer';
+      var plan = chamferPlan(params, lo, pointed ? chamferCutBit(params) / 2 : 0);
       plan.shapeProblem = problem || (fits(0) ? null : 'the shape has no outline');
       return plan;
     }
@@ -13508,7 +13561,9 @@
       if (valid && (params.cutType || 'inner') !== 'outer') {
         for (var i = 0; i < 30; i++) { var mid = (lo + hi) / 2; if (starOutline(params, -mid)) lo = mid; else hi = mid; }
       }
-      var plan = chamferPlan(params, lo);
+      // Its points (inside) and the corners between them (outside) are
+      // sharp corners the cut bit left round.
+      var plan = chamferPlan(params, lo, chamferCutBit(params) / 2);
       plan.shapeProblem = valid ? null : 'the inner diameter must be less than the diameter';
       return plan;
     }
@@ -13545,11 +13600,14 @@
           ((params.cutType || 'inner') === 'outer' ? 'outside' : 'inside') + ' ' + what,
         'V-bit: ' + params.chamfer.angle + ' deg tip to tip, ' + params.bitDiameter + unitsLabel + ' across',
         'Tip offset: ' + f(plan.tipOffset) + unitsLabel + ' below the chamfer, into the ' + (plan.floor < Infinity ? f(plan.floor) + unitsLabel + ' deep' : 'through') + ' cut already made',
+        'Deepest: Z-' + f(plan.deepest),
+        (params.cutType || 'inner') === 'outer' ? 'Run it after the part is cut out, its slot clear' : 'Run it after the cut, with the hole cleared out: the V-bit reaches into it',
         'Origin: ' + originLabel
       ];
     }
     function chamferRefusal(plan) {
       return plan.shapeProblem ? plan.shapeProblem
+        : plan.cornerConflict ? 'the corners the cut bit rounded need the tip deeper than the cut lets it go'
         : plan.centerSlot ? 'a Centre line slot: set Cut Type to Inner and the slot\'s Width'
         : plan.noHole ? 'no Hole Diameter'
         : plan.tooWide ? 'chamfer wider than the V-bit reaches'
@@ -13625,7 +13683,7 @@
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
         // The rectangle's own path with the tip's inset for the bit radius.
-        var geom = computeRectangleGeom(Object.assign({}, params, { bitDiameter: 2 * plan.inset }), mx, my, pos.rotDeg);
+        var geom = computeRectangleGeom(Object.assign({}, chamferCorners(params), { bitDiameter: 2 * plan.inset }), mx, my, pos.rotDeg);
         emitChamferPasses(lines, params, plan, rectangleSegments(geom), { x: mx, y: my });
       }
 
@@ -13693,7 +13751,7 @@
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var plan = polygonChamferPlan(params);
-      var inset = Object.assign({}, params, { bitDiameter: 2 * plan.inset });
+      var inset = Object.assign({}, chamferCorners(params), { bitDiameter: 2 * plan.inset });
       var placed = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params));
       var sides = computePolygonGeom(params).sides;
       return chamferShapeProgram(params, plan, 'Polygon', 'the ' + sides + '-sided polygon', positions, placed, function(x, y, pos) {
@@ -13717,7 +13775,7 @@
       var name = params.triangle ? 'Triangle' : params.kind === 'ellipse' ? 'Ellipse' : params.kind === 'arch' ? 'Arch' : 'Trapezoid';
       var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
       var plan = trapezoidChamferPlan(params);
-      var baseGeom = plan.shapeProblem ? null : computeTrapezoidGeom(Object.assign({}, params, { bitDiameter: 2 * plan.inset }));
+      var baseGeom = plan.shapeProblem ? null : computeTrapezoidGeom(Object.assign({}, chamferCorners(params), { bitDiameter: 2 * plan.inset }));
       var placed = resolveShapeOrigin(params, positions, trapezoidShapeBbox(params), trapezoidCorners(params));
       return chamferShapeProgram(params, plan, name, 'the ' + name.toLowerCase(), positions, placed, function(x, y, pos) {
         return { segs: placeConvexGeom(baseGeom, x, y, pos.rotDeg).segs || [], center: { x: x, y: y } };
@@ -13757,8 +13815,10 @@
       });
     }
 
-    // A chamfer along any shape's path: each pass about a Depth of Cut
-    // deeper, ramped in along the path, then a lap. A path shrunk to a
+    // A chamfer along any shape's path: passes about a Depth of Cut apart
+    // overall, each removing about as much as the last (the chamfer grows
+    // with the square of its depth), ramped in along the path, then a lap.
+    // A path shrunk to a
     // point (a square pocket the tip reaches the middle of) is a plunge
     // there, like a countersink.
     function emitChamferPasses(lines, params, plan, segs, center) {
@@ -13772,7 +13832,7 @@
       var passes = Math.max(1, Math.ceil(plan.height / (params.chamfer.depthOfCut || params.depthOfCut) - 1e-9));
       var prevZ = 0;
       for (var k = 1; k <= passes; k++) {
-        var targetZ = -(plan.height * k / passes + plan.tipOffset);
+        var targetZ = -(plan.height * Math.sqrt(k / passes) + plan.tipOffset);
         if (!first) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + params.plungeFeedRate);
           prevZ = targetZ;
@@ -13804,7 +13864,7 @@
 
       var prevZ = parseFloat(slowPlungeStart);
       for (var k = 1; k <= passes; k++) {
-        var targetZ = -(plan.height * k / passes + plan.tipOffset);
+        var targetZ = -(plan.height * Math.sqrt(k / passes) + plan.tipOffset);
         if (lap < minRamp) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
           prevZ = targetZ;

@@ -58,14 +58,14 @@ Every pass of a profile, slot or pocket ramps down instead of plunging into uncu
 
 ## Chamfer
 
-The **Chamfer** card's switch turns a shape's program into a chamfer of the top edge you've already cut, with a V-bit: inside a hole's edge, outside a part's.
+The **Chamfer** card's switch turns a shape's program into a chamfer of the top edge you've already cut, with a V-bit, in place of the cut: inside a hole's edge, outside a part's. Run the cut first, and clear the hole or slot out.
 
-- **The V-bit is the Tool card's bit.** With a tool changer, a V-bit in the spindle turns Chamfer on (any other bit turns it off), and picking a tool in the Bit Diameter menu does the same; the program starts with its `M6`. **V Angle** is tip to tip (90 for a bit that is 45° a side), filled from the tool table's taper angle or the tool's name. Without a tool changer, the switch stays as you last set it.
-- **Chamfer Width** is across the top, as in Fusion 360's 2D Chamfer; with a 90° bit it's the C on a drawing (C1 = 1 × 45°). The depth follows from the angle.
-- **The cut already made:** **Cut Depth** (blank: right through) and, around a part, **Cut Width** (the slot the bit cut). On Drill, **Hole Diameter**.
-- **Tip offset, worked out for you:** the tip goes down into that cut, below the chamfer, so the V's side cuts rather than its weak tip: as far as keeps it above the bottom (0.2 mm, 0.008 in, clear; through: at most the chamfer's depth lower), its other side off the slot's far wall, and the chamfer within the V-bit's reach. The note under the card says how far, or why it can't be cut, and Generate won't make a program it can't cut.
-- **Passes** by the card's own **Depth of Cut**, each ramped in along the path like any other pass. Total Depth and the tabs belong to the cut, so they're hidden while chamfering.
-- Inside a star's points, and inside corners tighter than the V-bit, the chamfer comes out rounded. A Centre line slot is as wide as the bit that cut it, so to chamfer one, set Cut Type to Inner and its Width.
+- **The V-bit is the Tool card's bit.** With a tool changer, a V-bit in the spindle turns Chamfer on (any other bit turns it off), and picking a tool in the Bit Diameter menu does the same, saying so; the program starts with its `M6`. **Included Angle** is the whole V (90 for a bit that is 45° a side), filled from the tool table's taper angle or the tool's name. Without a tool changer, the switch stays as you last set it and the Tool card's label reads **V-Bit Diameter**.
+- **Chamfer Width** is across the top, as in Fusion 360's 2D Chamfer; with a 90° bit it's the C on a drawing (C1 = 1 × 45°). Up to 90% of the V-bit's radius: the very edge of the V is its weakest.
+- **The cut already made:** **Existing Depth** (blank: right through) and **Cut Bit**, the bit it was made with. A pocket's inside corners are as round as that bit, and the chamfer follows them, so the tip never runs into them; around a part it's the slot's width. On Drill, **Hole Diameter** instead.
+- **Tip offset, worked out for you:** the tip goes below the chamfer, into that cut, so the V's side cuts rather than its weak tip: up to 1 mm (0.04 in), clear of the bottom by 0.2 mm (0.008 in), no lower than the chamfer is deep on a through cut, and in a pocket no farther in than its narrowest part allows. Around a part the V's other side stays off the slot's far wall, unless a sharp corner needs it lower (the far wall is waste). The header and the note give the deepest Z. Generate won't make a program it can't cut, and the note under Generate says so first.
+- **Passes** by the card's own **Depth of Cut**, each taking about as much material as the last, ramped in along the path like any other pass. Total Depth and the tabs belong to the cut, so they're hidden while chamfering.
+- Inside a star's points and a pointed arch's top, the tip goes at least the Cut Bit's radius in, clear of the rounding the cut left; a cut too shallow for that is refused. A Centre line slot is as wide as the bit that cut it, so to chamfer one, set Cut Type to Inner and its Width.
 
 ## Slot
 
