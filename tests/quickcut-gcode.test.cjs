@@ -3226,14 +3226,22 @@ test('no straight plunges into the stock: every pass ramps in, and off each tab,
       ['arch', g.generateRectangleProgram(s({ kind: 'arch', width: 100, height: 120, archRise: 50, cutType: 'outer', tabs }))],
       ['slot centre line', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 6.35, cutType: 'center', depth: 6, depthOfCut: 2 }))],
       ['slot clearing', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'clearing', depth: 6, depthOfCut: 2 }))],
-      ['slot outline', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'outer', depth: 6, depthOfCut: 2, tabs }))]
+      ['slot outline', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'outer', depth: 6, depthOfCut: 2, tabs }))],
+      ['small circle helix', g.generateCircleProgram(s({ diameter: 7, cutType: 'inner', depth: 6, depthOfCut: 6 }))],
+      // Too short for 5°: 8 trips, steeper, still not a plunge.
+      ['short slot', g.generateSlotProgram(s({ slotType: 'straight', length: 8, width: 6.35, cutType: 'center', depth: 18, depthOfCut: 6 })), 25],
+      ['two rectangles', g.generateRectangleProgram(s({ width: 50, height: 30, cutType: 'outer', tabs,
+        pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 80, yDist: 0 } }))]
     ];
-    for (const [name, gcode] of jobs) {
+    for (const [name, gcode, maxDeg = 5.1] of jobs) {
       // Slope over each whole ramp: Z is to 0.001, too coarse for one short move.
-      // A straight drop is fine back down to a floor already cut (floor).
+      // A straight drop is fine back down to a floor already cut: the
+      // deepest Z reached at that point, or on this copy (floor; a rapid
+      // to a point not yet visited starts the next copy).
       let x = 0, y = 0, z = 10, ramps = 0, run = null, floor = 0;
+      const floors = new Map(), at = (px, py) => px.toFixed(3) + ',' + py.toFixed(3);
       const endRun = () => {
-        if (run) assert.ok(run.drop / run.len <= Math.tan(5.1 * Math.PI / 180), `${name}: ramp too steep near ${run.at}`);
+        if (run) assert.ok(run.drop / run.len <= Math.tan(maxDeg * Math.PI / 180), `${name}: ramp too steep near ${run.at}`);
         run = null;
       };
       for (const raw of gcode.split('\n')) {
@@ -3249,15 +3257,57 @@ test('no straight plunges into the stock: every pass ramps in, and off each tab,
           while (sweep <= 1e-9) sweep += 2 * Math.PI;
           len = Math.hypot(v('I'), v('J')) * sweep;
         }
-        if (nz < z - 1e-6 && nz < floor - 1e-6) {
+        if (nz < z - 1e-6 && nz < Math.min(floor, floors.get(at(nx, ny)) ?? 0) - 1e-6) {
           assert.ok(len > 1e-6, `${name}${imperial ? ' (inch)' : ''}: straight plunge ${l} from Z${z}`);
           if (!run) { run = { drop: 0, len: 0, at: l }; ramps++; }
           run.drop += z - nz; run.len += len;
         } else endRun();
+        if (/^G0/.test(l) && (nx !== x || ny !== y) && !floors.has(at(nx, ny))) floor = 0;
+        if (!/^G0/.test(l)) for (const k of [at(x, y), at(nx, ny)]) floors.set(k, Math.min(floors.get(k) ?? 0, Math.max(z, nz)));
         x = nx; y = ny; z = nz; floor = Math.min(floor, z);
       }
       endRun();
       assert.ok(ramps > 0, name);
+    }
+  }
+});
+
+test('ramps stay out of the tabs: nothing below a tab\'s top cuts where a tab stands', () => {
+  const g = makeQuickCutGenerator(false);
+  const tabsOf = (count, width, height) => ({ count, width, height });
+  const jobs = [
+    g.generateRectangleProgram(shapeBase({ width: 30, height: 20, cutType: 'outer', depth: 18.5, depthOfCut: 3, tabs: tabsOf(8, 6, 10) })),
+    g.generateRectangleProgram(shapeBase({ width: 120, height: 60, cutType: 'outer', depth: 12, depthOfCut: 2, tabs: tabsOf(6, 10, 4) })),
+    g.generatePolygonProgram(shapeBase({ diameter: 80, sides: 6, cutType: 'inner', depth: 12, depthOfCut: 2, tabs: tabsOf(6, 8, 3) }))
+  ];
+  for (const gcode of jobs) {
+    // The tab tops, as the moves made at a tab's Z, then every straight
+    // move below them, sampled along its length.
+    const tabRuns = [], deep = [];
+    let x = 0, y = 0, z = 10, tabZ = null, onTab = false;
+    for (const raw of gcode.split('\n')) {
+      const isTab = /; Tab/.test(raw), l = raw.replace(/;.*$/, '').trim();
+      if (!/^G[0123]\b/.test(l)) continue;
+      const v = (a) => { const m = l.match(new RegExp(a + '(-?[\\d.]+)')); return m ? +m[1] : null; };
+      const nx = v('X') ?? x, ny = v('Y') ?? y, nz = v('Z') ?? z;
+      if (isTab) { tabZ = nz; onTab = true; } else if (nz !== z) onTab = false;
+      if (onTab && nz === z && /^G1/.test(l)) tabRuns.push([x, y, nx, ny]);
+      if (!onTab && /^G1/.test(l) && tabZ != null && Math.max(z, nz) < tabZ - 1e-3) deep.push([x, y, nx, ny]);
+      x = nx; y = ny; z = nz;
+    }
+    assert.ok(tabRuns.length > 0 && deep.length > 0);
+    const inside = (p, [ax, ay, bx, by]) => {
+      const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy);
+      if (L < 0.1) return false;
+      const t = ((p[0] - ax) * dx + (p[1] - ay) * dy) / (L * L);
+      if (t * L < 0.05 || (1 - t) * L < 0.05) return false;
+      return Math.hypot(ax + t * dx - p[0], ay + t * dy - p[1]) < 1e-3;
+    };
+    for (const [ax, ay, bx, by] of deep) {
+      for (let i = 0; i <= 20; i++) {
+        const p = [ax + (bx - ax) * i / 20, ay + (by - ay) * i / 20];
+        for (const run of tabRuns) assert.ok(!inside(p, run), 'cut below a tab at ' + p.map(n => n.toFixed(3)));
+      }
     }
   }
 });

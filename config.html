@@ -2750,7 +2750,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-drl-peck">Peck Depth</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-peck" min="0" step="0.01" value="3" title="Depth of each peck: the bit comes up between pecks to clear the chips, which an end mill can't do on its own. 0 = one plunge to full depth.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-peck" min="0" step="0.01" value="3" title="Depth of each peck: the bit comes up between pecks to clear the chips, which an end mill can't do on its own. 0, or the hole's depth or more: one plunge to full depth.">
                   </div>
                 </div>
                 <div class="qc-row-2">
@@ -3256,7 +3256,7 @@
     flutes: 2,
     // RPM|Feed|Plunge as last filled in from the Material, so a new bit
     // refills them only while they haven't been changed by hand.
-    filledFeeds: null,
+    feedsAuto: false,
     // A tool changer is on (ncSender's tool.source and tool.count), so a
     // bit picked from the tool table starts the program with M6 T<n>.
     atc: false,
@@ -4275,15 +4275,17 @@
 
   function wireDepthCrossCheck(prefix) {
     var depthEl = $('qc-' + prefix + '-depth');
-    var stepId = 'qc-' + prefix + '-step';
-    if (!depthEl || !$(stepId)) return;
-    // On change (when the edit is done), not on each keystroke: "0.25"
-    // starts as "0", which would flag Depth of Cut mid-typing.
-    depthEl.addEventListener('change', function() { recheckField(stepId); });
-    // A flagged Depth of Cut that only fails because of Total Depth clears
-    // as soon as Total Depth allows it.
-    depthEl.addEventListener('input', function() {
-      if ($(stepId).classList.contains('qc-input-error')) recheckField(stepId);
+    var ids = ['qc-' + prefix + '-step', 'qc-' + prefix + '-tabs-height'].filter(function(id) { return $(id); });
+    if (!depthEl) return;
+    ids.forEach(function(id) { wireCrossCheck(depthEl, id); });
+  }
+  // Recheck a field that depends on another on change (when the edit is
+  // done), not on each keystroke: "0.25" starts as "0", which would flag it
+  // mid-typing. A flagged field clears as soon as the other one allows it.
+  function wireCrossCheck(otherEl, id) {
+    otherEl.addEventListener('change', function() { recheckField(id); });
+    otherEl.addEventListener('input', function() {
+      if ($(id).classList.contains('qc-input-error')) recheckField(id);
     });
   }
 
@@ -6523,7 +6525,7 @@
   };
   function originSay(value) {
     var m = /^(corner|hole):(\d+)$/.exec(value || '');
-    var where = m ? (m[1] === 'corner' ? 'corner ' : 'hole ') + m[2] : ORIGIN_SAY[value];
+    var where = m ? 'the ' + m[1] + ' tapped on the preview' : ORIGIN_SAY[value];
     return where ? 'Zero X and Y at ' + where : '';
   }
   function updateOriginSay(inputId) {
@@ -6616,6 +6618,9 @@
     // tab's first bit.
     var fresh = !loaded && common.feedRate == null && common.spindleRpm == null;
     if (!loaded) $('qc-material').value = common.material != null ? common.material : fresh ? 'mdf' : '';
+    if (!loaded) state.feedsAuto = fresh || !!common.feedsAuto;
+    // Kept with the next save, so the menu still reads MDF / Plywood.
+    if (fresh) initialConfig = Object.assign(initialConfig || {}, { common: Object.assign({}, common, { material: 'mdf', feedsAuto: true }) });
     var firstFeeds = function(bitMm) {
       return startingFeeds(bitMm, state.flutes, 'mdf', { maxFeed: state.maxFeedMm, maxRpm: state.spindleMax, minRpm: state.spindleMin });
     };
@@ -7561,7 +7566,7 @@
       updatePlanerPreview();
       recheckField('qc-plan-depth');
     });
-    $('qc-plan-start-thickness').addEventListener('input', function() { recheckField('qc-plan-depth'); });
+    wireCrossCheck($('qc-plan-start-thickness'), 'qc-plan-depth');
     $('qc-plan-keepout').addEventListener('change', updatePlanerModeVisibility);
     ['qc-plan-depth', 'qc-plan-start-thickness'].forEach(function(id) {
       var el = $(id);
@@ -7987,8 +7992,8 @@
     if (pre && pre !== 'plan' && $('qc-' + pre + '-step')) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(f.stepMm)); filled.push('qc-' + pre + '-step'); }
     if (pre && $('qc-' + pre + '-stepover') && pre !== 'plan') { $('qc-' + pre + '-stepover').value = f.stepoverPct; filled.push('qc-' + pre + '-stepover'); }
     filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
-    state.filledFeeds = feedsShown();
     if (quiet) return;
+    setFeedsAuto(true);
     var u = state.unitLabel, chip = roundDisplay(mmToDisplay(f.chipMm)), sel = $('qc-material');
     setTimeout(function() { showTooltip(feed, sel.options[sel.selectedIndex].textContent + ', a ' + state.flutes + '-flute ' +
       roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
@@ -7997,9 +8002,12 @@
       (v === 'aluminum' ? ' Aluminum: a 1-flute bit, and air or mist.' : '') +
       ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
   }
-  // RPM, Feed and Plunge as shown, to tell whether they're still the
-  // filled-in ones.
-  function feedsShown() { return [$('qc-rpm').value, $('qc-feed').value, $('qc-plunge').value].join('|'); }
+  // Whether the feeds are still the filled-in ones, not typed by hand.
+  function setFeedsAuto(on) {
+    if (state.feedsAuto === on) return;
+    state.feedsAuto = on;
+    persistSettings({ common: { feedsAuto: on } });
+  }
   function wireStartingFeeds() {
     $('qc-flutes').value = String(state.flutes);
     $('qc-material').addEventListener('change', function() {
@@ -8013,7 +8021,10 @@
     });
     // A new bit gets its own feeds, unless they've been changed by hand.
     $('qc-bit').addEventListener('change', function() {
-      if (state.filledFeeds && state.filledFeeds === feedsShown()) setTimeout(function() { fillStartingFeeds(true); }, 0);
+      if (state.feedsAuto) setTimeout(function() { fillStartingFeeds(true); }, 0);
+    });
+    ROOT.addEventListener('input', function(e) {
+      if (e.isTrusted && /^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(e.target.id)) setFeedsAuto(false);
     });
   }
   // The field prefix of each shape tab.
@@ -8146,13 +8157,14 @@
   // How many of the fields in view fail their checks (the slot's shape
   // counts as one).
   function fieldsToFix() {
-    var rules = validationRules(), bad = 0;
+    var rules = validationRules(), bad = 0, counted = {};
     for (var id in rules) {
       var el = document.getElementById(id);
       if (!el || el.disabled || el.offsetParent === null) continue;
-      if (validateField(id, el.value)) bad++;
+      if (validateField(id, el.value)) { bad++; counted[id] = true; }
     }
-    return bad + (state.currentTab === 'slot' && slotShapeProblem() ? 1 : 0);
+    var slot = state.currentTab === 'slot' && slotShapeProblem();
+    return bad + (slot && !counted[slot.field] ? 1 : 0);
   }
   function updateRunNote() {
     var view = state.currentTab, pv = RUN_VIEWS[view];
@@ -8288,8 +8300,9 @@
       out.push('<line class="qc-dp-dim" x1="' + (cx1 + 4) + '" y1="' + end + '" x2="' + (cx1 + 12) + '" y2="' + end + '"/>');
     }
     out.push('<line class="qc-dp-z0" x1="' + (X0 - 4) + '" y1="' + TOP + '" x2="' + (X1 + 4) + '" y2="' + TOP + '"/>');
-    var z0Top = !(pre === 'plan' && $('qc-plan-mode').value === 'thickness');
-    out.push('<text class="qc-dp-z0t" x="' + X0 + '" y="' + (TOP - 5) + '">' + (z0Top ? 'Z0 = top of stock' : 'Top of stock') + '</text>');
+    var planMode = pre === 'plan' && $('qc-plan-mode').value;
+    var topSay = planMode === 'thickness' ? 'Top of stock' : planMode === 'wasteboard' ? 'Z0 = top of wasteboard' : 'Z0 = top of stock';
+    out.push('<text class="qc-dp-z0t" x="' + X0 + '" y="' + (TOP - 5) + '">' + topSay + '</text>');
     var tx = 108, say = [];
     if (levels.length) {
       var n = levels.length, last = levels[n - 1] - (n > 1 ? levels[n - 2] : 0);
@@ -8313,7 +8326,7 @@
     hint.hidden = !show;
     if (show) {
       hint.innerHTML = 'Cutting right through? Make Total Depth a little more than the stock (about ' +
-        (state.isImperial ? '0.02 in' : '0.5 mm') + ' into the spoilboard), and turn on <strong>Holding Tabs</strong> so ' +
+        (state.isImperial ? '0.02 in' : '0.5 mm') + ' into the wasteboard), and turn on <strong>Holding Tabs</strong> so ' +
         (cut === 'outer' ? 'the part can&rsquo;t come loose.' : 'the piece in the middle can&rsquo;t come loose and be thrown.');
     }
   }
@@ -10018,8 +10031,10 @@
   function updateDrillPreview() {
     schedulePatternPreview();
     updateInsetState('drl');
-    // Peck Retract only means something with pecks.
-    $('qc-drl-peck-mode').closest('.qc-field').style.visibility = num('qc-drl-peck', 0) > 0 ? '' : 'hidden';
+    // Peck Retract only means something with pecks: a Peck Depth of 0, or
+    // the whole hole or more, is one plunge.
+    var peck = num('qc-drl-peck', 0);
+    $('qc-drl-peck-mode').closest('.qc-field').style.visibility = peck > 0 && peck < num('qc-drl-depth', 0) ? '' : 'hidden';
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
     var dia = num('qc-bit', 0);
@@ -10079,6 +10094,7 @@
     // Bit Diameter lives in the shared Tool card; it sets the hole size.
     $('qc-bit').addEventListener('input', updateDrillPreview);
     $('qc-drl-peck').addEventListener('input', updateDrillPreview);
+    $('qc-drl-depth').addEventListener('input', updateDrillPreview);
     $('qc-drl-pattern-enable').addEventListener('change', function() {
       updatePatternVisibility('drl');
       updateDrillPreview();
@@ -10924,7 +10940,7 @@
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu. <strong>Edge Inset</strong> is to the edge of the cut; <strong>Center Inset</strong> is to the copies&rsquo; centers instead, e.g. the first of a row of holes 10&nbsp;mm in from the corner, whatever the bit (Drill starts there). An arc slot&rsquo;s center is its arc&rsquo;s center, so Center Inset suits holes and shapes centered on themselves best. The <strong>XY</strong> choices split it into two boxes, X from a left or right origin point and Y from a front or back one. Changing it converts the numbers so nothing moves.';
-  var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the spoilboard): sheet goods are seldom exactly their nominal thickness.';
+  var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the wasteboard): sheet goods are seldom exactly their nominal thickness.';
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
@@ -12125,7 +12141,8 @@
     // Down from fromZ to toZ along the path from distance `at` (at most
     // maxLen of it) and back to where it began, no steeper than rampSlope,
     // in place of a plunge. Back and forth more than once when that's too
-    // short; a plunge when there's hardly any room.
+    // short, up to 8 times and steeper after that; a plunge when there's
+    // hardly any room.
     var rampSlope = Math.tan(5 * Math.PI / 180);
     var minRamp = isImperial ? 0.04 : 1;
     function rampIn(lines, segs, fromZ, toZ, maxLen, feedRate, plungeFeedRate, at) {
@@ -12135,10 +12152,10 @@
       for (var i = 0; i < segs.length; i++) room += segs[i].len;
       room = Math.min(room, maxLen);
       var len = Math.min(room, drop / (2 * rampSlope));
-      var trips = Math.ceil(drop / (2 * len * rampSlope) - 1e-9);
+      var trips = Math.min(8, Math.ceil(drop / (2 * len * rampSlope) - 1e-9));
       lines.push('G1 Z' + fromZ.toFixed(3) + ' F' + plungeFeedRate);
       if (drop <= 1e-9) return;
-      if (room < minRamp || trips > 8) {
+      if (room < minRamp) {
         lines.push('G1 Z' + toZ.toFixed(3) + ' F' + plungeFeedRate);
         return;
       }
@@ -12223,7 +12240,7 @@
               for (var u = 0; u < intervals.length; u++) {
                 if (intervals[u].start > mid + 1e-9) { nextTab = intervals[u].start; break; }
               }
-              rampIn(lines, segs, tabZ, cutZ, nextTab - (dist + tabLen(seg) * s / seg.len), feedRate, plungeFeedRate, real + s);
+              rampIn(lines, segs, fromZ != null ? Math.min(tabZ, fromZ) : tabZ, cutZ, nextTab - (dist + tabLen(seg) * s / seg.len), feedRate, plungeFeedRate, real + s);
             } else {
               lines.push('G1 Z' + (tab ? tabZ : cutZ).toFixed(3) + ' F' + plungeFeedRate + (tab ? ' ; Tab' : ''));
             }
@@ -12691,7 +12708,7 @@
     }
 
     function generateCircleProgram(params) {
-        if ((params.cutType || 'inner') === 'clearing') {
+      if ((params.cutType || 'inner') === 'clearing') {
         return generateCircleClearingProgram(params);
       }
       var unitsLabel = isImperial ? 'inch' : 'mm';
@@ -12753,8 +12770,8 @@
       var slowPlungeStart = (isImperial ? (2 * 0.0393701) : 2).toFixed(3);
       lines.push('G0 Z' + slowPlungeStart);
 
-      // Helical descent: each revolution = two semicircles descending by
-      // DOC/2 each. This is a CUTTING motion (spiraling around the
+      // Helical descent: each revolution = two semicircles, one depth of
+      // cut over one or more of them. This is a CUTTING motion (spiraling around the
       // perimeter while descending) so it uses the cutting feed rate, not
       // plunge rate — plunge rate is reserved for straight-Z entries.
       // With tabs, the helix stops at the top of the tabs; the passes
@@ -12769,15 +12786,21 @@
       for (var i = 0; i < levels.length; i++) {
         if (tabTop != null && levels[i] > tabTop + 1e-6) break;
         var targetZ = -levels[i];
-        var midZ = (prevZ + targetZ) / 2;
-        // Top-half semicircle: (right, cy) → (left, cy), CCW.
-        lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
-                   ' I' + (-pathRadius).toFixed(5) + ' J0' +
-                   ' Z' + midZ.toFixed(3) + ' F' + feedRate);
-        // Bottom-half semicircle: (left, cy) → (right, cy), CCW.
-        lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
-                   ' I' + pathRadius.toFixed(5) + ' J0' +
-                   ' Z' + targetZ.toFixed(3) + ' F' + feedRate);
+        // As many turns as keep it to rampSlope (a small hole has a short
+        // lap), up to 64.
+        var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (2 * Math.PI * pathRadius * rampSlope) - 1e-9)));
+        for (var h = 1; h <= turns; h++) {
+          var endZ = prevZ + (targetZ - prevZ) * h / turns;
+          var midZ = prevZ + (targetZ - prevZ) * (h - 0.5) / turns;
+          // Top-half semicircle: (right, cy) → (left, cy), CCW.
+          lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                     ' I' + (-pathRadius).toFixed(5) + ' J0' +
+                     ' Z' + midZ.toFixed(3) + ' F' + feedRate);
+          // Bottom-half semicircle: (left, cy) → (right, cy), CCW.
+          lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                     ' I' + pathRadius.toFixed(5) + ' J0' +
+                     ' Z' + (h === turns ? targetZ : endZ).toFixed(3) + ' F' + feedRate);
+        }
         prevZ = targetZ;
       }
 
