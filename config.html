@@ -3412,7 +3412,8 @@
     updateUnitBadges();
     wireUnitFields();
     wireArrowKeySteps();
-    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(updatePatternAngleLabels);
+    // The tab in view only; each other one as it's opened (switchTab).
+    if (PATTERN_LABEL_TABS.indexOf(TAB_PREFIX[state.currentTab]) >= 0) updatePatternAngleLabels(TAB_PREFIX[state.currentTab]);
     wireTabs();
     wireValidation();
     wireFocusTips();
@@ -3490,6 +3491,7 @@
       writeToolToInputs(state.toolByShape[target]);
     }
     // Previews that depend on the tab's own bit (just loaded above).
+    if (PATTERN_LABEL_TABS.indexOf(TAB_PREFIX[target]) >= 0) updatePatternAngleLabels(TAB_PREFIX[target]);
     if (target === 'keyhole') updateKeyholePreview();
     if (target === 'drill') updateDrillPreview();
     if (target === 'rectangle') updateRectanglePreview();
@@ -5250,7 +5252,7 @@
   function patternSpacingFor(geom, honeycomb, axis, gap, sx) {
     var lo = 0, hi = (axis === 'x' ? geom.box.u1 - geom.box.u0 : geom.box.v1 - geom.box.v0) + 2 * geom.r + gap;
     for (var n = 0; n < 8 && patternGapAt(geom, honeycomb, axis, hi, sx) < gap; n++) hi *= 2;
-    for (var k = 0; k < 40; k++) {
+    for (var k = 0; k < 40 && hi - lo > 1e-6; k++) {
       var mid = (lo + hi) / 2;
       if (patternGapAt(geom, honeycomb, axis, mid, sx) < gap) lo = mid; else hi = mid;
     }
@@ -5303,12 +5305,23 @@
     var geom = patternCopyGeom(prefix, params);
     if (!geom) return params;
     var honeycomb = pat.style === 'honeycomb';
+    // The form is read several times a change (preview, run note,
+    // checks): the last spacings are kept while the shape and pattern
+    // stay the same.
+    var key = patternGeomKey(prefix, params) + JSON.stringify(pat);
+    if (patternGapCache.key === key) {
+      if (pat.xGap != null) pat.xDist = patternGapCache.x;
+      if (pat.yGap != null) pat.yDist = patternGapCache.y;
+      return params;
+    }
     // Rounded up to 4 decimals: a readable header, and never less gap.
     var up = function(v) { return Math.ceil(v * 1e4 - 1e-3) / 1e4; };
     if (pat.xGap != null) pat.xDist = pat.xSign * up(patternSpacingFor(geom, honeycomb, 'x', pat.xGap));
     if (pat.yGap != null) pat.yDist = pat.ySign * up(patternSpacingFor(geom, honeycomb, 'y', pat.yGap, patternRowStep(pat)));
+    patternGapCache = { key: key, x: pat.xDist, y: pat.yDist };
     return params;
   }
+  var patternGapCache = { key: null };
   // Switches an axis's mode, converting the number through the spacing it
   // stands for so the copies stay put. Copies that overlap have no gap to
   // show; they go to the least gap (patternGapLeast). The sign (direction)
@@ -6501,6 +6514,7 @@
   // labels and previews follow. A count of 1 has no spacing to convert,
   // so its field is left alone. Any edit to a count or distance keeps
   // the extent tooltip's worked-out spacing current.
+  var PATTERN_LABEL_TABS = ['rect', 'circ', 'poly', 'slt', 'key', 'drl'];
   function updatePatternAngleLabels(prefix) {
     var body = $('qc-' + prefix + '-pattern-body');
     var angle = num('qc-' + prefix + '-pattern-angle', 0);
@@ -8356,13 +8370,21 @@
   // Roughly how long a program takes, in minutes: its moves at their feed
   // (rapids at rapid, in the program's units a minute) and its dwells.
   // Machine-coordinate (G53) moves count as nothing.
+  // A line's words (X, Y, F...), each its first value, in one pass.
+  var WORD_RE = /(?:^|\s)([A-Z])(-?[\d.]+)/g;
+  function lineWords(line) {
+    var w = {}, m;
+    WORD_RE.lastIndex = 0;
+    while ((m = WORD_RE.exec(line))) if (!(m[1] in w)) w[m[1]] = +m[2];
+    return w;
+  }
   function programMinutes(lines, rapid) {
     var p = null, f = 1000, min = 0;
     lines.forEach(function(line) {
       line = line.split(';')[0];
       var g = /^G([0-4])\b/.exec(line);
       if (!g) return;
-      var v = function(key, d) { var m = new RegExp('(?:^|\\s)' + key + '(-?[\\d.]+)').exec(line); return m ? +m[1] : d; };
+      var w = lineWords(line), v = function(key, d) { return key in w ? w[key] : d; };
       if (g[1] === '4') { min += v('P', 0) / 60; return; }
       var F = v('F', null);
       if (F) f = F;
@@ -8393,7 +8415,7 @@
       line = line.split(';')[0];
       var g = /^G([0-3])\b/.exec(line);
       if (!g) return;
-      var v = function(key, d) { var m = new RegExp('(?:^|\\s)' + key + '(-?[\\d.]+)').exec(line); return m ? +m[1] : d; };
+      var w = lineWords(line), v = function(key, d) { return key in w ? w[key] : d; };
       var q = { x: v('X', p ? p.x : 0), y: v('Y', p ? p.y : 0) };
       if (p && (g[1] === '2' || g[1] === '3')) {
         var cx = p.x + v('I', 0), cy = p.y + v('J', 0), rr = Math.hypot(p.x - cx, p.y - cy);
@@ -10187,6 +10209,8 @@
   var drillPreviewMap = null;
   var DRILL_PREVIEW_MAX = 2500;
   function updateDrillPreview() {
+    // Drawn when Drill is in view (switchTab draws it on the way in).
+    if (!$('qc-drl-preview') || !$('qc-drl-preview').closest('.qc-content.active')) return;
     schedulePatternPreview();
     updateInsetState('drl');
     // Peck Retract only means something with pecks: a Peck Depth of 0, or
