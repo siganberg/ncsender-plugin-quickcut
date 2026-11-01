@@ -8113,7 +8113,7 @@
         showTooltip(bit, 'T' + n + ' has no diameter in ncSender\u2019s tool table.', null, true);
         return;
       }
-      var fl = flutesFromTool({ name: tool.name, notes: tool.metadata && tool.metadata.notes });
+      var fl = flutesFromTool({ name: tool.name, notes: tool.metadata && tool.metadata.notes, flutes: tool.metadata && tool.metadata.flutes });
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
@@ -8219,10 +8219,11 @@
     var w = /\b(two|double|three|four)[\s-]*flutes?\b/.exec(t);
     return w ? { two: 2, double: 2, three: 3, four: 4 }[w[1]] : null;
   }
-  // Flutes from a tool picked: what its name says, else 2, the usual; the
+  // Flutes from a tool picked: the tool table's count (the Fusion 360 importer
+  // fills it), else what its name says, else 2, the usual; the
   // starting feeds follow if they're the filled-in ones. Returns the count.
   function flutesFromTool(t) {
-    var n = flutesFromText((t.name || '') + ' ' + (t.notes || '')) || 2;
+    var n = (t.flutes > 0 ? Math.min(4, Math.round(t.flutes)) : 0) || flutesFromText((t.name || '') + ' ' + (t.notes || '')) || 2;
     if (n !== state.flutes) {
       $('qc-flutes').value = String(n);
       state.flutes = n;
@@ -8282,7 +8283,7 @@
       var st = await (await fetch(BASE_URL + '/api/server-state')).json();
       var loaded = Number(st && st.machineState && st.machineState.tool);
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
-        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '' }; })
+        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0 }; })
         .filter(function(t) { return t.n > 0 && t.mm > 0; })
         // The tool in the spindle first, then the rest by number.
         .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
