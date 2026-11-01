@@ -7969,8 +7969,11 @@
     return m ? +m[1] : null;
   }
   function chamferFromLoadedTool(t, n) {
-    var isV = t && (t.type === 'v-bit' || /\b(v[\s-]?bit|vee|v[\s-]?groove|chamfer)\b/i.test(t.name || ''));
-    var angle = isV ? vBitAngle(t) : null;
+    // The tool table's v-bit type alone isn't enough: Fusion's tapered mills
+    // (bowl, cove, tapered ball nose) import as v-bits. It takes an angle,
+    // or a name that says V.
+    var angle = t ? vBitAngle(t) : null;
+    var isV = t && ((t.type === 'v-bit' && angle != null) || /\b(v[\s-]?bit|vee|v[\s-]?groove|chamfer)\b/i.test(t.name || ''));
     // A tapered ball nose is a v-bit to the tool table, but 10\u00b0 or so.
     if (!isV || (angle != null && angle < 20)) {
       $('qc-circ-chamfer-enable').checked = false;
