@@ -552,7 +552,7 @@
   .qc-tool-summary {
     position: absolute;
     left: 20px;
-    right: 20px;
+    right: 28px;
     top: 100%;
     z-index: 3;
     display: flex;
@@ -603,7 +603,7 @@
      grey one with arrows on the Pi, none at all on a Mac). */
   .qc-wrapper ::-webkit-scrollbar { width: 8px; height: 8px; }
   .qc-wrapper ::-webkit-scrollbar-track { background: transparent; }
-  .qc-wrapper ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+  .qc-wrapper ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-secondary) 45%, transparent); border-radius: 4px; }
   .qc-wrapper ::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
   .qc-wrapper ::-webkit-scrollbar-corner { background: transparent; }
   .qc-panel {
@@ -612,10 +612,12 @@
     overflow-y: auto;
     /* The same width whether a tab scrolls or not. */
     scrollbar-gutter: stable;
+    /* A field scrolled into view stays clear of the summary line. */
+    scroll-padding-top: 44px;
     display: flex;
     flex-direction: column;
     gap: var(--qc-section-gap);
-    padding: calc(var(--qc-section-gap) / 2) 20px 20px;
+    padding: calc(var(--qc-section-gap) / 2) 20px 16px;
   }
   /* Forms inside the panel need the same column-gap so cards stacked
      inside them get the same breathing room as direct panel children.
@@ -845,7 +847,7 @@
   .qc-row-3.qc-type-row { grid-template-columns: minmax(auto, 1.4fr) repeat(2, minmax(auto, 1fr)); }
   /* Sides (or Points) is a short number; the size label beside it is a
      menu. */
-  .qc-row-3.qc-poly-size-row { grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr) minmax(0, 1fr); }
+  .qc-row-3.qc-poly-size-row { grid-template-columns: minmax(0, 0.7fr) minmax(auto, 1.3fr) minmax(0, 1fr); }
   .qc-row-3.qc-type-mid-row { grid-template-columns: minmax(auto, 1fr) minmax(auto, 1.4fr) minmax(auto, 1fr); }
   /* Depth: Total Depth, Depth of Cut and, with Holding Tabs on (its
      switch is in the card header), Tabs / Tab Width / Tab Height. */
@@ -1367,7 +1369,8 @@
     min-width: 0;
   }
   /* A field with a menu keeps its column at least as wide as the menu. */
-  .qc-field:has(select.qc-select) { min-width: max-content; }
+  .qc-field:has(select.qc-select),
+  .qc-shape-fields > .qc-row-3 > .qc-field:has(> .qc-label-select) { min-width: max-content; }
   /* A title tooltip shown on touch / keyboard focus (wireFocusTips), made
      to look like Chrome's own: a system-font box, dark or light with
      ncSender's theme. */
@@ -2440,6 +2443,10 @@
                     <label for="qc-slt-width">Width</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-width" min="0.001" step="0.01" value="10" required title="Width of the finished slot. A Center line cut is always the bit's width.">
                   </div>
+                  <div class="qc-field qc-slt-clearing-only" style="display: none;">
+                    <label for="qc-slt-stepover">Stepover (%)</label>
+                    <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
+                  </div>
                 </div>
                 <div class="qc-row-3 qc-slt-straight-only">
                   <div class="qc-field">
@@ -2495,10 +2502,6 @@
                       <option value="radius" selected>Radius &amp; Sweep</option>
                       <option value="chord">Chord &amp; Rise</option>
                     </select>
-                  </div>
-                  <div class="qc-field qc-slt-clearing-only" style="display: none;">
-                    <label for="qc-slt-stepover">Stepover (%)</label>
-                    <input class="qc-input" type="number" id="qc-slt-stepover" min="1" max="90" step="1" value="40" title="Distance between neighbouring clearing passes, as a % of the bit diameter. Lower overlaps more for a smoother floor.">
                   </div>
                 </div>
               </div>
@@ -3424,6 +3427,7 @@
     ROOT.addEventListener('change', function(e) {
       if (e.target.classList && e.target.classList.contains('qc-label-select')) fitLabelSelects(e.target.parentNode);
     });
+    if (document.fonts) document.fonts.ready.then(function() { fitLabelSelects(ROOT); });
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -3478,6 +3482,8 @@
     if (helpBtn) helpBtn.classList.toggle('active', target === 'help');
     panels.forEach(function(p) { p.classList.toggle('active', p.getAttribute('data-view') === target); });
     relocateCommonCards(target);
+    var shown = document.querySelector('.qc-content[data-view="' + target + '"]');
+    if (shown) fitLabelSelects(shown);
     setTimeout(updateToolSummary, 0);
     // Load the new tab's tool values into the (now-relocated) inputs.
     if (TOOL_SHAPES.indexOf(target) >= 0) {
@@ -3616,6 +3622,7 @@
     toolSummary.addEventListener('click', function() {
       var panel = toolSummary.parentNode.parentNode.querySelector('.qc-panel');
       if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' });
+      $('qc-bit').focus({ preventScroll: true });
     });
     ROOT.querySelectorAll('.qc-panel').forEach(function(p) { p.addEventListener('scroll', updateToolSummary, { passive: true }); });
     window.addEventListener('resize', updateToolSummary);
@@ -3632,7 +3639,7 @@
     var esc = function(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
     var u = state.unitLabel, t = bitTool(), mat = $('qc-material');
     var parts = [(t.n ? '<b>T' + t.n + '</b> ' : '') + 'Bit <b>' + esc($('qc-bit').value) + ' ' + u + '</b>'];
-    if (!$('qc-feed').disabled) parts.push('Feed <b>' + esc($('qc-feed').value) + '</b>');
+    if (!$('qc-feed').disabled) parts.push('Feed <b>' + esc($('qc-feed').value) + '</b> ' + u + '/min');
     parts.push('Plunge <b>' + esc($('qc-plunge').value) + '</b> ' + u + '/min');
     parts.push('<b>' + esc($('qc-rpm').value) + '</b> RPM');
     if (mat.value) parts.push(esc(mat.options[mat.selectedIndex].textContent));
@@ -4564,6 +4571,7 @@
       if (String(next) === el.value) return;
       el.value = next;
       el.dispatchEvent(new Event('input', { bubbles: true }));
+      noteHandEdit(el);
     });
   }
 
@@ -8073,6 +8081,7 @@
       }
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
       bit.dispatchEvent(new Event('input', { bubbles: true }));
+      bit.dispatchEvent(new Event('change', { bubbles: true }));
       var name = (tool.name || '').length > 40 ? tool.name.slice(0, 39) + '\u2026' : tool.name || '';
       showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + ')', TOOLTIP_OK, true);
     } catch (e) {
@@ -8132,6 +8141,11 @@
       (v === 'aluminum' ? ' Aluminum: a 1-flute bit, and air or mist.' : '') +
       ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
   }
+  // Typing (or arrow-stepping) a feed, the RPM, a Depth of Cut or a
+  // Stepover keeps the feeds from being filled in again.
+  function noteHandEdit(el) {
+    if (/^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(el.id)) setFeedsAuto(false);
+  }
   // Whether the feeds are still the filled-in ones, not typed by hand.
   function setFeedsAuto(on) {
     if (state.feedsAuto === on) return;
@@ -8153,9 +8167,7 @@
     $('qc-bit').addEventListener('change', function() {
       if (state.feedsAuto) setTimeout(function() { fillStartingFeeds(true); }, 0);
     });
-    ROOT.addEventListener('input', function(e) {
-      if (e.isTrusted && /^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(e.target.id)) setFeedsAuto(false);
-    });
+    ROOT.addEventListener('input', function(e) { if (e.isTrusted) noteHandEdit(e.target); });
   }
   // The field prefix of each shape tab.
   var TAB_PREFIX = { rectangle: 'rect', circle: 'circ', polygon: 'poly', slot: 'slt', keyhole: 'key', drill: 'drl',
@@ -8231,6 +8243,7 @@
       bit.value = roundDisplay(mmToDisplay(t.mm));
       setBitTool(t.n, t.mm);
       bit.dispatchEvent(new Event('input', { bubbles: true }));
+      bit.dispatchEvent(new Event('change', { bubbles: true }));
     } else setBitTool(0, 0);
     var msg = t ? 'T' + t.n + (t.name ? ': ' + t.name : '') + '. The program starts with a tool change to T' + t.n + ' (M6).'
       : 'No tool change: the program cuts with the bit in the spindle.';
@@ -8313,6 +8326,7 @@
     var view = state.currentTab, pv = RUN_VIEWS[view];
     var section = ROOT.querySelector('.qc-content[data-view="' + view + '"]');
     if (section) fitLabelSelects(section);
+    updateToolSummary();
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
     var toFix = fieldsToFix(), ready = toFix === 0, text = '', bad = false;
@@ -12311,7 +12325,7 @@
         out.push({ seg: segs[k], s: s, e: e });
         back.unshift({ seg: reverseSeg(segs[k]), s: segs[k].len - e, e: segs[k].len - s });
       }
-      var z = fromZ, perLen = drop / (2 * trips * len), feed = ' F' + feedRate;
+      var z = fromZ, perLen = drop / (2 * trips * len), rampFeed = slopeFeed(perLen, feedRate, plungeFeedRate), feed = ' F' + rampFeed;
       for (var t = 0; t < trips; t++) {
         [out, back].forEach(function(pieces, half) {
           pieces.forEach(function(p, j) {
@@ -12322,6 +12336,14 @@
           });
         });
       }
+      if (rampFeed !== feedRate) lines.push('F' + feedRate);
+    }
+
+    // The feed along a ramp of this slope (drop per length) that lowers Z
+    // no faster than the plunge rate.
+    function slopeFeed(slope, feedRate, plungeFeedRate) {
+      if (slope <= rampSlope * 1.001) return feedRate;
+      return Math.max(1, Math.min(feedRate, Math.round(plungeFeedRate * Math.sqrt(1 + slope * slope) / slope)));
     }
 
     function reverseSeg(seg) {
@@ -12932,18 +12954,25 @@
         var targetZ = -levels[i];
         // As many turns as keep it to rampSlope (a small hole has a short
         // lap), up to 64.
-        var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (2 * Math.PI * pathRadius * rampSlope) - 1e-9)));
+        var lap = 2 * Math.PI * pathRadius;
+        if (lap < minRamp) {
+          lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+          prevZ = targetZ;
+          continue;
+        }
+        var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (lap * rampSlope) - 1e-9)));
+        var helixFeed = ' F' + slopeFeed((prevZ - targetZ) / turns / lap, feedRate, plungeFeedRate);
         for (var h = 1; h <= turns; h++) {
           var endZ = prevZ + (targetZ - prevZ) * h / turns;
           var midZ = prevZ + (targetZ - prevZ) * (h - 0.5) / turns;
           // Top-half semicircle: (right, cy) → (left, cy), CCW.
           lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                      ' I' + (-pathRadius).toFixed(5) + ' J0' +
-                     ' Z' + midZ.toFixed(3) + ' F' + feedRate);
+                     ' Z' + midZ.toFixed(3) + helixFeed);
           // Bottom-half semicircle: (left, cy) → (right, cy), CCW.
           lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                      ' I' + pathRadius.toFixed(5) + ' J0' +
-                     ' Z' + (h === turns ? targetZ : endZ).toFixed(3) + ' F' + feedRate);
+                     ' Z' + (h === turns ? targetZ : endZ).toFixed(3) + helixFeed);
         }
         prevZ = targetZ;
       }

@@ -3311,3 +3311,40 @@ test('ramps stay out of the tabs: nothing below a tab\'s top cuts where a tab st
     }
   }
 });
+
+test('Z never comes down faster than the plunge rate: steep ramps and tight helixes slow their feed', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { bitDiameter: 6.35, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, spindleDelay: 1, origin: 'center' };
+  const jobs = [
+    g.generateSlotProgram({ ...base, slotType: 'straight', length: 7.5, width: 6.35, cutType: 'center', depth: 18, depthOfCut: 6 }),
+    g.generateCircleProgram({ ...base, diameter: 6.4, cutType: 'inner', depth: 18, depthOfCut: 6 }),
+    g.generateCircleProgram({ ...base, diameter: 7, cutType: 'inner', depth: 18, depthOfCut: 6 }),
+    g.generateCircleProgram({ ...base, diameter: 40, cutType: 'inner', depth: 18, depthOfCut: 6 })
+  ];
+  for (const gcode of jobs) {
+    let x = 0, y = 0, z = 10, f = 0;
+    for (const raw of gcode.split('\n')) {
+      const l = raw.replace(/;.*$/, '').replace(/\(.*\)/, '').trim();
+      const v = (a) => { const m = l.match(new RegExp('\\b' + a + '(-?[\\d.]+)')); return m ? +m[1] : null; };
+      if (v('F') != null) f = v('F');
+      if (!/^G[0123]\b/.test(l)) continue;
+      const nx = v('X') ?? x, ny = v('Y') ?? y, nz = v('Z') ?? z;
+      let len = Math.hypot(nx - x, ny - y);
+      if (/^G[23]/.test(l)) {
+        const cx = x + v('I'), cy = y + v('J');
+        let sweep = Math.atan2(ny - cy, nx - cx) - Math.atan2(y - cy, x - cx);
+        if (/^G2/.test(l)) sweep = -sweep;
+        while (sweep <= 1e-9) sweep += 2 * Math.PI;
+        len = Math.hypot(v('I'), v('J')) * sweep;
+      }
+      if (/^G[123]/.test(l) && nz < z - 1e-6 && nz < 0) {
+        const zSpeed = f * (z - nz) / Math.hypot(len, z - nz);
+        assert.ok(zSpeed <= 400 * 1.02, `Z at ${zSpeed.toFixed(0)} mm/min on ${l}`);
+      }
+      x = nx; y = ny; z = nz;
+    }
+  }
+  // A hole barely bigger than the bit plunges once a pass instead of 64 tiny turns.
+  const tiny = jobs[1].split('\n').filter(l => /^G3/.test(l)).length;
+  assert.ok(tiny < 20, String(tiny));
+});
