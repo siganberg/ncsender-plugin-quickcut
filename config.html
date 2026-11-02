@@ -8048,6 +8048,9 @@
     wireTriangle();
     $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); kindPicked('rectangle'); });
     $('qc-rect-arch-style').addEventListener('change', function() { recheckField('qc-rect-arch-rise'); updateRectanglePreview(); });
+    // Reopening on Pointed Arch sets the top before this listener exists:
+    // its Rise is checked here, so a too-low Rise is flagged as on a click.
+    if (rectKind() === 'arch' && $('qc-rect-arch-style').value === 'pointed' && $('qc-rect-arch-rise').value.trim()) recheckField('qc-rect-arch-rise');
     ['qc-rect-arch-rise', 'qc-rect-width', 'qc-rect-height'].forEach(function(id) {
       $(id).addEventListener('input', function() {
         if (rectKind() !== 'arch') return;
