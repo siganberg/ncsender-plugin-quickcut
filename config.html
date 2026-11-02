@@ -5265,6 +5265,13 @@
         });
         bitR = 0;
       }
+      // A part repeated exactly (each depth pass) can't change the gap:
+      // measured once.
+      var seenPart = {};
+      parts = parts.filter(function(q) {
+        var k = q.r === undefined ? q.u0 + ',' + q.v0 + ',' + q.u1 + ',' + q.v1 : q.cu + ',' + q.cv + ',' + q.r + ',' + q.t0 + ',' + q.sweep;
+        return seenPart[k] ? false : (seenPart[k] = true);
+      });
       if (parts.length) {
         var box = [Infinity, Infinity, -Infinity, -Infinity];
         parts.forEach(function(q) {
@@ -5279,18 +5286,58 @@
   // The gap between a copy and the same copy moved (du, dv): the closest
   // its toolpath comes to the moved one's, less the bit diameter. 0 or less
   // where they touch.
+  // The parts are indexed by their boxes (once a copy), and the side
+  // facing the moved copy goes first: no part is farther from its moved
+  // self than the move, so only parts within that, then within the
+  // closest found so far, are measured. The same least distance as
+  // measuring every pair.
   function patternCopyGap(geom, du, dv) {
-    var best = Infinity, parts = geom.parts;
-    for (var i = 0; i < parts.length; i++) {
-      var p = parts[i];
-      for (var j = 0; j < parts.length; j++) {
-        var q = parts[j];
-        if (p.box[0] - q.box[2] - du > best || q.box[0] + du - p.box[2] > best ||
-            p.box[1] - q.box[3] - dv > best || q.box[1] + dv - p.box[3] > best) continue;
-        var d = pathPartDistance(p, q, du, dv);
+    var best = Infinity, parts = geom.parts, ix = geom.gapIndex;
+    if (!ix) {
+      var span = Math.max(geom.box.u1 - geom.box.u0, geom.box.v1 - geom.box.v0);
+      ix = geom.gapIndex = { u0: geom.box.u0, v0: geom.box.v0, size: Math.max(span / 32, 1e-9), cells: [], stamp: [], seen: 0 };
+      ix.nu = Math.floor((geom.box.u1 - geom.box.u0) / ix.size) + 1;
+      ix.nv = Math.floor((geom.box.v1 - geom.box.v0) / ix.size) + 1;
+      ix.ok = isFinite(span) && parts.every(function(q) { return q.box.every(isFinite); });
+      if (ix.ok) parts.forEach(function(q, k) {
+        var r = patternCellRange(ix, q.box[0], q.box[1], q.box[2], q.box[3]);
+        for (var i = r[0]; i <= r[2]; i++) for (var j = r[1]; j <= r[3]; j++) (ix.cells[i * ix.nv + j] = ix.cells[i * ix.nv + j] || []).push(k);
+      });
+    }
+    var far = function(p, q) {
+      return p.box[0] - q.box[2] - du > best || q.box[0] + du - p.box[2] > best ||
+        p.box[1] - q.box[3] - dv > best || q.box[1] + dv - p.box[3] > best;
+    };
+    if (!ix.ok) {
+      for (var i = 0; i < parts.length; i++) for (var j = 0; j < parts.length; j++) {
+        if (far(parts[i], parts[j])) continue;
+        var d = pathPartDistance(parts[i], parts[j], du, dv);
         if (d < best) best = d;
       }
+      return best - 2 * geom.r;
     }
+    var limit = Math.hypot(du, dv) * (1 + 1e-9) + 1e-9 * (1 + Math.abs(du) + Math.abs(dv));
+    var order = parts.map(function(p, k) { return k; });
+    var toward = function(p) { return (du > 0 ? p.box[2] : p.box[0]) * du + (dv > 0 ? p.box[3] : p.box[1]) * dv; };
+    order.sort(function(a, b) { return toward(parts[b]) - toward(parts[a]); });
+    order.forEach(function(i) {
+      var p = parts[i], reach = Math.min(best, limit) + 1e-9 * (1 + ix.size);
+      var r = patternCellRange(ix, p.box[0] - du - reach, p.box[1] - dv - reach, p.box[2] - du + reach, p.box[3] - dv + reach);
+      var seen = ++ix.seen;
+      for (var a = r[0]; a <= r[2]; a++) for (var b = r[1]; b <= r[3]; b++) {
+        var cell = ix.cells[a * ix.nv + b];
+        if (!cell) continue;
+        for (var n = 0; n < cell.length; n++) {
+          var k = cell[n];
+          if (ix.stamp[k] === seen) continue;
+          ix.stamp[k] = seen;
+          var q = parts[k];
+          if (far(p, q)) continue;
+          var d = pathPartDistance(p, q, du, dv);
+          if (d < best) best = d;
+        }
+      }
+    });
     return best - 2 * geom.r;
   }
   // The closest two toolpath parts come, the second moved (du, dv). It is
@@ -5637,7 +5684,21 @@
   // halving between samples.
   function patternRadiusPartEdges(geom, loopMoves) {
     var edges = [], r = geom.r;
+    // Each point is tested against the whole path (an ellipse or an arch
+    // is hundreds of moves, tested at thousands of points): indexed, so it
+    // only meets the moves that could matter. Same answers as the plain
+    // patternRadiusNear and patternRadiusInLoop.
+    // Each depth pass laps the same path again, so the same loop is found
+    // over and over (hundreds of times, starting at each move): a move's
+    // edges depend only on the move, the side and the loop's moves, in any
+    // order, so they're worked out once and repeated.
+    var nearIx = patternPartIndex(geom.parts, r), loopIx = geom.loops.map(patternLoopIndex), memo = {}, samples = {}, ids = {}, nid = 0;
+    // Short names for long keys (a loop's key is all its moves).
+    var idOf = function(k) { return k in ids ? ids[k] : (ids[k] = nid++); };
+    var clearOf = function(pt) { return patternRadiusClear(nearIx, pt.u, pt.v, r - 1e-9); };
     loopMoves.forEach(function(moves, li) {
+      var sigs = moves.map(function(m) { return idOf(JSON.stringify(m)); });
+      var loopKey = idOf(sigs.slice().sort(function(a, b) { return a - b; }).join(','));
       var area = 0;
       moves.forEach(function(m) {
         var q = patternRadiusPart(m);
@@ -5647,14 +5708,23 @@
         }
       });
       var side = area > 0 ? 1 : -1;
-      var keep = function(pt) {
-        return patternRadiusNear(geom.parts, pt.u, pt.v) >= r - 1e-9 && patternRadiusInLoop(geom.loops[li], pt.u, pt.v);
-      };
-      moves.forEach(function(m) {
+      var inLoop = function(pt) { return patternRadiusInLoop(patternLoopNear(loopIx[li], pt.u, pt.v), pt.u, pt.v); };
+      var keep = function(pt) { return clearOf(pt) && inLoop(pt); };
+      moves.forEach(function(m, mi) {
+        var key = side + '|' + sigs[mi] + '|' + loopKey;
+        if (memo[key]) { memo[key].forEach(function(e) { edges.push(Object.assign({}, e)); }); return; }
+        var mine = memo[key] = [];
         var o = offsetMove(m, side * r);
         if (!o) return;
         var q = patternRadiusPart(o), N = 64, ok = [];
-        for (var k = 0; k <= N; k++) ok.push(keep(patternRadiusPoint(q, k / N)));
+        // The samples and how far they are from the path don't depend on
+        // the loop: kept for the move's next loop.
+        var sk = side + '|' + sigs[mi], sm = samples[sk];
+        if (!sm) {
+          sm = samples[sk] = [];
+          for (var k = 0; k <= N; k++) { var pt = patternRadiusPoint(q, k / N); sm.push({ pt: pt, clear: clearOf(pt) }); }
+        }
+        for (var k = 0; k <= N; k++) ok.push(sm[k].clear && inLoop(sm[k].pt));
         var edgeOf = function(tIn, tOut) {
           for (var n = 0; n < 40; n++) {
             var mid = (tIn + tOut) / 2;
@@ -5667,12 +5737,90 @@
           var j = i;
           while (j < N && ok[j + 1]) j++;
           var from = i > 0 ? edgeOf(i / N, (i - 1) / N) : 0, to = j < N ? edgeOf(j / N, (j + 1) / N) : 1;
-          edges.push(patternRadiusSub(q, from, to));
+          var e = patternRadiusSub(q, from, to);
+          edges.push(e);
+          mine.push(Object.assign({}, e));
           i = j;
         }
       });
     });
     return edges;
+  }
+  // A move's box: an arc's whole circle's (its arc is inside it).
+  function patternPartBox(q) {
+    return q.r === undefined ? [Math.min(q.u0, q.u1), Math.min(q.v0, q.v1), Math.max(q.u0, q.u1), Math.max(q.v0, q.v1)]
+      : [q.cu - q.r, q.cv - q.r, q.cu + q.r, q.cv + q.r];
+  }
+  // The parts in a grid of their boxes, for patternRadiusClear: a part
+  // whose box is more than `reach` from a point is farther than that.
+  function patternPartIndex(parts, reach) {
+    // A part repeated exactly (each depth pass) is measured once.
+    var seen = {};
+    parts = parts.filter(function(q) {
+      var k = q.r === undefined ? q.u0 + ',' + q.v0 + ',' + q.u1 + ',' + q.v1 : q.cu + ',' + q.cv + ',' + q.r + ',' + q.t0 + ',' + q.sweep;
+      return seen[k] ? false : (seen[k] = true);
+    });
+    var boxes = parts.map(patternPartBox), b = [Infinity, Infinity, -Infinity, -Infinity];
+    boxes.forEach(function(x) { b = [Math.min(b[0], x[0]), Math.min(b[1], x[1]), Math.max(b[2], x[2]), Math.max(b[3], x[3])]; });
+    if (!boxes.every(function(x) { return x.every(isFinite); })) return { parts: parts, all: true };
+    var span = Math.max(b[2] - b[0], b[3] - b[1]), size = Math.max(reach, span / 64, 1e-9);
+    var nu = Math.floor((b[2] - b[0]) / size) + 1, nv = Math.floor((b[3] - b[1]) / size) + 1, cells = [];
+    var ix = { parts: parts, u0: b[0], v0: b[1], size: size, nu: nu, nv: nv, cells: cells, pad: 1e-9 * (1 + span), stamp: [], seen: 0 };
+    boxes.forEach(function(x, k) {
+      var r = patternCellRange(ix, x[0], x[1], x[2], x[3]);
+      for (var i = r[0]; i <= r[2]; i++) for (var j = r[1]; j <= r[3]; j++) (cells[i * nv + j] = cells[i * nv + j] || []).push(k);
+    });
+    return ix;
+  }
+  function patternCellRange(ix, u0, v0, u1, v1) {
+    var c = function(x, o, n) { return Math.max(0, Math.min(n - 1, Math.floor((x - o) / ix.size))); };
+    return [c(u0, ix.u0, ix.nu), c(v0, ix.v0, ix.nv), c(u1, ix.u0, ix.nu), c(v1, ix.v0, ix.nv)];
+  }
+  function patternPartDistance(q, pu, pv) {
+    return q.r === undefined ? pointSegmentDistance(pu, pv, q.u0, q.v0, q.u1, q.v1) : pointArcDistance(pu, pv, q);
+  }
+  // No part nearer (pu, pv) than `least`: patternRadiusNear(...) >= least.
+  function patternRadiusClear(ix, pu, pv, least) {
+    if (ix.all) return patternRadiusNear(ix.parts, pu, pv) >= least;
+    var reach = Math.max(0, least) + ix.pad;
+    var r = patternCellRange(ix, pu - reach, pv - reach, pu + reach, pv + reach), seen = ++ix.seen;
+    for (var i = r[0]; i <= r[2]; i++) for (var j = r[1]; j <= r[3]; j++) {
+      var cell = ix.cells[i * ix.nv + j];
+      if (!cell) continue;
+      for (var n = 0; n < cell.length; n++) {
+        var k = cell[n];
+        if (ix.stamp[k] === seen) continue;
+        ix.stamp[k] = seen;
+        if (!(patternPartDistance(ix.parts[k], pu, pv) >= least)) return false;
+      }
+    }
+    return true;
+  }
+  // A loop's parts by where they lie across patternRadiusInLoop's ray: only
+  // a part spanning the point's place across it can cross the ray.
+  function patternLoopIndex(loop) {
+    var c = PATTERN_RAY_COS, sn = PATTERN_RAY_SIN, w = function(u, v) { return v * c - u * sn; };
+    var spans = loop.map(function(q) {
+      if (q.r === undefined) { var a = w(q.u0, q.v0), b = w(q.u1, q.v1); return [Math.min(a, b), Math.max(a, b)]; }
+      var m = w(q.cu, q.cv); return [m - q.r, m + q.r];
+    });
+    var lo = Infinity, hi = -Infinity;
+    spans.forEach(function(x) { lo = Math.min(lo, x[0]); hi = Math.max(hi, x[1]); });
+    if (!isFinite(lo) || !isFinite(hi)) return { loop: loop, all: true };
+    var pad = 1e-9 * (1 + hi - lo + Math.abs(lo) + Math.abs(hi)), n = Math.max(1, Math.min(512, loop.length));
+    var size = Math.max((hi - lo) / n, 1e-12), buckets = [];
+    var at = function(x) { return Math.max(0, Math.min(n - 1, Math.floor((x - lo) / size))); };
+    spans.forEach(function(x, k) {
+      for (var i = at(x[0] - pad); i <= at(x[1] + pad); i++) (buckets[i] = buckets[i] || []).push(loop[k]);
+    });
+    return { loop: loop, lo: lo - pad, hi: hi + pad, at: at, buckets: buckets, w: w };
+  }
+  // The parts of the loop that could cross the ray from (pu, pv), in order.
+  function patternLoopNear(ix, pu, pv) {
+    if (ix.all) return ix.loop;
+    var x = ix.w(pu, pv);
+    if (x < ix.lo || x > ix.hi) return [];
+    return ix.buckets[ix.at(x)] || [];
   }
   function patternRadiusNear(parts, pu, pv) {
     var best = Infinity;
@@ -6271,16 +6419,33 @@
     // The closest two copies' solid edges come, by their sample points:
     // where edges run side by side, the spot nearest the line between the
     // two copies' centers.
+    // b's points sorted along the line between the two copies: two
+    // points d apart are at most d apart along it, so each point of c0 is
+    // only measured against b's within the distance found so far. Ties go
+    // to the first pair in c0's then b's order, as measuring every pair did.
     var closest = function(b) {
       var best = null, least = Infinity, mu = (c0.u + b.u) / 2, mv = (c0.v + b.v) / 2;
-      c0.pts.forEach(function(p) { b.pts.forEach(function(q) { least = Math.min(least, Math.hypot(q.u - p.u, q.v - p.v)); }); });
-      c0.pts.forEach(function(p) {
-        b.pts.forEach(function(q) {
-          var d = Math.hypot(q.u - p.u, q.v - p.v);
-          if (d > least + 1e-6 * (1 + least)) return;
+      var eu = b.u - c0.u, ev = b.v - c0.v, el = Math.hypot(eu, ev);
+      if (el > 0) { eu /= el; ev /= el; } else { eu = 1; ev = 0; }
+      var along = function(q) { return q.u * eu + q.v * ev; };
+      var qs = b.pts.map(function(q, j) { return { q: q, j: j, t: along(q) }; }).sort(function(x, y) { return x.t - y.t; });
+      var pad = 1e-9 * (1 + qs.reduce(function(m, x) { return Math.max(m, Math.abs(x.t)); }, 0));
+      var from = function(t) { var lo = 0, hi = qs.length; while (lo < hi) { var m = (lo + hi) >> 1; if (qs[m].t < t) lo = m + 1; else hi = m; } return lo; };
+      var ps = c0.pts.map(function(p, i) { return { p: p, i: i, t: along(p) }; }).sort(function(x, y) { return y.t - x.t; });
+      ps.forEach(function(x) {
+        for (var k = least === Infinity ? 0 : from(x.t - least - pad); k < qs.length && qs[k].t <= x.t + least + pad; k++) {
+          least = Math.min(least, Math.hypot(qs[k].q.u - x.p.u, qs[k].q.v - x.p.v));
+        }
+      });
+      var tol = least + 1e-6 * (1 + least);
+      ps.forEach(function(x) {
+        var p = x.p;
+        for (var k = from(x.t - tol - pad); k < qs.length && qs[k].t <= x.t + tol + pad; k++) {
+          var q = qs[k].q, d = Math.hypot(q.u - p.u, q.v - p.v);
+          if (d > tol) continue;
           var off = Math.hypot((p.u + q.u) / 2 - mu, (p.v + q.v) / 2 - mv);
-          if (!best || off < best.off) best = { p: p, q: q, d: d, off: off };
-        });
+          if (!best || off < best.off || (off === best.off && (x.i < best.i || (x.i === best.i && qs[k].j < best.j)))) best = { p: p, q: q, d: d, off: off, i: x.i, j: qs[k].j };
+        }
       });
       if (!best || !(best.d > 2 * g)) return null;
       var du = (best.q.u - best.p.u) / best.d, dv = (best.q.v - best.p.v) / best.d;
