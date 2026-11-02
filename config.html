@@ -1619,17 +1619,25 @@
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19H3Z"/></svg></span>
             <span class="qc-nav-label">Triangle</span>
           </button>
-          <button type="button" title="Arch" aria-label="Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch">
-            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
-            <span class="qc-nav-label">Arch</span>
-          </button>
           <button type="button" title="Ellipse" aria-label="Ellipse" class="qc-nav-btn" data-tab="rectangle" data-kind="ellipse">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></svg></span>
             <span class="qc-nav-label">Ellipse</span>
           </button>
+          <button type="button" title="Arch" aria-label="Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch" data-pick="qc-rect-arch-style=round">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
+            <span class="qc-nav-label">Arch</span>
+          </button>
+          <button type="button" title="Pointed Arch" aria-label="Pointed Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch" data-pick="qc-rect-arch-style=pointed">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-8a11 11 0 0 1 7-9 11 11 0 0 1 7 9v8Z"/></svg></span>
+            <span class="qc-nav-label">Pointed Arch</span>
+          </button>
           <button type="button" title="Circle" aria-label="Circle" class="qc-nav-btn" data-tab="circle">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
             <span class="qc-nav-label">Circle</span>
+          </button>
+          <button type="button" title="Keyhole" aria-label="Keyhole" class="qc-nav-btn" data-tab="keyhole">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
+            <span class="qc-nav-label">Keyhole</span>
           </button>
           <button type="button" title="Polygon" aria-label="Polygon" class="qc-nav-btn" data-tab="polygon" data-kind="polygon">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
@@ -1639,13 +1647,13 @@
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.8L12 16.4l-5.1 2.9 1.1-5.8-4.3-4 5.8-.7Z"/></svg></span>
             <span class="qc-nav-label">Star</span>
           </button>
-          <button type="button" title="Slot" aria-label="Slot" class="qc-nav-btn" data-tab="slot">
+          <button type="button" title="Slot" aria-label="Slot" class="qc-nav-btn" data-tab="slot" data-pick="qc-slt-type=straight">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
             <span class="qc-nav-label">Slot</span>
           </button>
-          <button type="button" title="Keyhole" aria-label="Keyhole" class="qc-nav-btn" data-tab="keyhole">
-            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
-            <span class="qc-nav-label">Keyhole</span>
+          <button type="button" title="Arc Slot" aria-label="Arc Slot" class="qc-nav-btn" data-tab="slot" data-pick="qc-slt-type=arc">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.5a10.5 10.5 0 0 1 19 0 3 3 0 0 1-5.3 2.8 4.5 4.5 0 0 0-8.4 0 3 3 0 0 1-5.3-2.8Z"/></svg></span>
+            <span class="qc-nav-label">Arc Slot</span>
           </button>
         </div>
         <div class="qc-nav-group">Tools</div>
@@ -1679,7 +1687,7 @@
     <section class="qc-content active" data-view="rectangle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; Triangle, given by its sides, angles or height; Arch: a round or pointed top; or Ellipse. Each also has its own tab in the sidebar. They share every other setting.">
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; Triangle, given by its sides, angles or height; Arch: a round or pointed top; or Ellipse. Each also has its own tab in the sidebar (the pointed arch too). They share every other setting.">
             <option value="rectangle" selected>Rectangle</option>
             <option value="trapezoid">Trapezoid</option>
             <option value="triangle">Triangle</option>
@@ -2489,7 +2497,7 @@
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-slt-type">Slot Type</label>
-                    <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc.">
+                    <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc. Each also has its own tab in the sidebar.">
                       <option value="straight" selected>Straight</option>
                       <option value="arc">Arc</option>
                     </select>
@@ -3577,16 +3585,28 @@
 
   // Some sidebar tabs are another kind of a view's shape (data-kind),
   // the one its title menu picks: Trapezoid is the Rectangle view with
-  // Trapezoid picked. The tab lit is the view's and its kind's.
+  // Trapezoid picked. Some also set another menu of the view (data-pick,
+  // "menu-id=value"): Pointed Arch is Arch with the pointed top, Arc Slot
+  // the Slot view with its Type on Arc. The tab lit is the one whose kind
+  // and picks match the menus.
   var KIND_MENUS = { rectangle: 'qc-rect-kind', polygon: 'qc-poly-kind' };
+  function navPicks(btn) {
+    var pick = btn.getAttribute('data-pick');
+    return pick ? pick.split(';').map(function(x) { var kv = x.split('='); return { menu: kv[0], value: kv[1] }; }) : [];
+  }
   function navKey(btn) {
-    return btn.getAttribute('data-tab') + (btn.hasAttribute('data-kind') ? ':' + btn.getAttribute('data-kind') : '');
+    return btn.getAttribute('data-tab') + (btn.hasAttribute('data-kind') ? ':' + btn.getAttribute('data-kind') : '') +
+      navPicks(btn).map(function(p) { return '/' + p.value; }).join('');
+  }
+  function navMatches(b, view) {
+    var kind = KIND_MENUS[view] ? $(KIND_MENUS[view]).value : null;
+    return b.getAttribute('data-tab') === view &&
+      (!b.hasAttribute('data-kind') || b.getAttribute('data-kind') === kind) &&
+      navPicks(b).every(function(p) { var m = $(p.menu); return !m || m.value === p.value; });
   }
   function highlightNav(view) {
-    var kind = KIND_MENUS[view] ? $(KIND_MENUS[view]).value : null;
     document.querySelectorAll('.qc-nav-btn[data-tab]').forEach(function(b) {
-      b.classList.toggle('active', b.getAttribute('data-tab') === view &&
-        (!b.hasAttribute('data-kind') || b.getAttribute('data-kind') === kind));
+      b.classList.toggle('active', navMatches(b, view));
     });
   }
   function rememberTab() {
@@ -3610,21 +3630,39 @@
     btns.forEach(function(btn) {
       btn.addEventListener('click', function() {
         var view = btn.getAttribute('data-tab'), menu = KIND_MENUS[view] && $(KIND_MENUS[view]);
-        if (menu && btn.hasAttribute('data-kind') && menu.value !== btn.getAttribute('data-kind')) {
-          menu.value = btn.getAttribute('data-kind');
-          menu.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        var set = function(m, value) {
+          if (!m || m.value === value) return;
+          m.value = value;
+          m.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        if (btn.hasAttribute('data-kind')) set(menu, btn.getAttribute('data-kind'));
+        navPicks(btn).forEach(function(p) { set($(p.menu), p.value); });
         switchTab(view);
       });
+    });
+    // A pick made in the tab's own menu lights its tab.
+    var pickViews = {};
+    btns.forEach(function(b) { navPicks(b).forEach(function(p) { pickViews[p.menu] = b.getAttribute('data-tab'); }); });
+    Object.keys(pickViews).forEach(function(id) {
+      if ($(id)) $(id).addEventListener('change', function() { kindPicked(pickViews[id]); });
     });
     // Restore the last-selected tab (view:kind, or a view saved before
     // kinds had tabs). If it no longer exists, fall back to the default.
     try {
       var saved = localStorage.getItem(LAST_TAB_KEY);
       if (saved) {
-        if (saved.indexOf(':') < 0 && KIND_MENUS[saved]) saved += ':' + $(KIND_MENUS[saved]).value;
+        if (saved.indexOf(':') < 0 && KIND_MENUS[saved.split('/')[0]]) saved = saved.replace(/(\/|$)/, ':' + $(KIND_MENUS[saved.split('/')[0]]).value + '$1');
+        // Saved before a tab had picks (e.g. "slot", "rectangle:arch"):
+        // the view's tab that matches its menus as they are, so a restored
+        // Arc slot stays an arc.
+        var savedView = saved.split(/[:\/]/)[0], savedKind = saved.indexOf(':') >= 0 ? saved.split(':')[1].split('/')[0] : null;
+        var picksNow = function(b) { return navPicks(b).every(function(p) { var m = $(p.menu); return !m || m.value === p.value; }); };
         var savedBtn = [].filter.call(btns, function(b) { return navKey(b) === saved; })[0] ||
-          document.querySelector('.qc-nav-btn[data-tab="' + saved.split(':')[0] + '"]');
+          [].filter.call(btns, function(b) {
+            return b.getAttribute('data-tab') === savedView && picksNow(b) &&
+              (!savedKind || !b.hasAttribute('data-kind') || b.getAttribute('data-kind') === savedKind);
+          })[0] ||
+          document.querySelector('.qc-nav-btn[data-tab="' + savedView + '"]');
         if (savedBtn) savedBtn.click();
       } else {
         state.firstOpen = true;
