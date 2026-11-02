@@ -902,6 +902,9 @@
   /* Beside Generate: about how long it runs, and the travel check. */
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
   .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
+  /* A field's problem, at most two lines; a tap goes to the field. */
+  .qc-run-note.qc-run-fix { cursor: pointer; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .qc-run-note .qc-run-more { font-weight: 500; opacity: 0.8; white-space: nowrap; }
   /* Still pressable: Generate shows each field's problem. */
   .qc-primary-btn.qc-gen-blocked { opacity: 0.5; }
   /* The Depth card's fields, with the side view of the passes beside them. */
@@ -1417,18 +1420,8 @@
     border-color: #c4c4c4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
-  /* A field's own problem, until it's fixed (setFieldError): a line
-     under the field, in the field's own width. */
-  .qc-field-error {
-    align-self: stretch;
-    margin-top: 4px;
-    color: #ff6b6b;
-    font-size: 0.78rem;
-    font-weight: 500;
-    line-height: 1.3;
-    text-align: left;
-  }
-  body.theme-light .qc-field-error { color: #c62828; }
+  /* A field's own problem, until it's fixed (setFieldError): a red
+     border; the words go beside Generate, so the layout never moves. */
   .qc-input.qc-input-error { border-color: #d32f2f; }
   .qc-field label {
     font-size: 0.78rem;
@@ -4388,27 +4381,15 @@
     return true;
   }
 
-  // A field's problem stays on it, as a bubble over the field and a red
-  // border, until its value is valid: other fields can be clicked and
-  // typed in meanwhile (e.g. Total Depth 0 and Depth of Cut both flagged,
-  // fixed in either order). Shown when a field is left or by Generate,
-  // never while typing; cleared as soon as the value passes.
+  // A field's problem stays on it as a red border until its value is
+  // valid: other fields can be clicked and typed in meanwhile (e.g. Total
+  // Depth 0 and Depth of Cut both flagged, fixed in either order). Shown
+  // when a field is left or by Generate, never while typing; cleared as
+  // soon as the value passes. Its words show beside Generate (the run
+  // note, fieldProblems), so the cards keep their layout.
   function setFieldError(el, message) {
-    var holder = el.closest('.qc-field') || el.parentNode;
-    var bubble = holder.querySelector(':scope > .qc-field-error');
-    if (!message) {
-      if (bubble) bubble.remove();
-      el.classList.remove('qc-input-error');
-      return;
-    }
-    if (!bubble) {
-      bubble = document.createElement('div');
-      bubble.className = 'qc-field-error';
-      bubble.setAttribute('role', 'alert');
-      holder.appendChild(bubble);
-    }
-    bubble.textContent = message;
-    el.classList.add('qc-input-error');
+    el.classList.toggle('qc-input-error', !!message);
+    scheduleRunNote();
   }
   function recheckField(fieldId) {
     var el = document.getElementById(fieldId);
@@ -4419,7 +4400,7 @@
   // on mouse hover), so a field focused by touch or keyboard shows it after
   // a second, styled and placed like Chrome's own: a box just below
   // where the field was touched. Not after a mouse click (Chrome's hover
-  // tooltip covers that), not over a field's error bubble; gone on typing,
+  // tooltip covers that); gone on typing,
   // a tap, scrolling or leaving the field. Help's Touch Tooltips switch
   // turns it off.
   var FOCUS_TIP_MS = 1000;
@@ -4440,7 +4421,7 @@
       var text = holder && ROOT.contains(holder) ? holder.getAttribute('title') : '';
       if (!text || el.disabled) return;
       timer = setTimeout(function() {
-        if (!rootAlive() || document.activeElement !== el || el.classList.contains('qc-input-error')) return;
+        if (!rootAlive() || document.activeElement !== el) return;
         var r = el.getBoundingClientRect();
         tip = document.createElement('div');
         tip.className = 'qc-focus-tip';
@@ -8694,6 +8675,11 @@
       var note = document.createElement('span');
       note.className = 'qc-run-note';
       note.setAttribute('role', 'status');
+      // On a field's problem, a tap goes to that field.
+      note.addEventListener('click', function() {
+        var el = note._qcFix && document.getElementById(note._qcFix);
+        if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); }
+      });
       f.insertBefore(note, f.firstChild);
     });
     // In a five-column row it takes the columns the tabs' fields leave
@@ -8726,20 +8712,31 @@
   // anything), so the program can be made.
   // How many of the fields in view fail their checks (the slot's shape
   // counts as one).
-  function fieldsToFix() {
-    var rules = validationRules(), bad = 0, counted = {};
+  // What stops Generate, one { id, msg } a field: the field being typed
+  // in first, then the ones already flagged red, then the rest in order.
+  function fieldProblems() {
+    var rules = validationRules(), list = [], counted = {};
     for (var id in rules) {
       var el = document.getElementById(id);
       if (!el || el.disabled || el.offsetParent === null) continue;
-      if (validateField(id, el.value)) { bad++; counted[id] = true; }
+      var msg = validateField(id, el.value);
+      if (msg) { list.push({ id: id, msg: msg }); counted[id] = true; }
     }
     var slot = state.currentTab === 'slot' && slotShapeProblem();
+    if (slot && !counted[slot.field]) list.push({ id: slot.field, msg: slot.message });
     var tab = chamferTab(), chamfer = null;
-    if (tab && $('qc-chamfer-enable').checked && !bad) {
+    if (tab && $('qc-chamfer-enable').checked && !Object.keys(counted).length) {
       var p = readChamferShapeForm(tab);
       if (p.chamfer.width > 0) chamfer = chamferProblem(p, makeQuickCutGenerator(state.isImperial).chamferPlanFor(tab, p));
     }
-    return bad + (slot && !counted[slot.field] ? 1 : 0) + (chamfer ? 1 : 0);
+    if (chamfer) list.push(chamfer);
+    var rank = function(pr) {
+      var el = document.getElementById(pr.id);
+      return el === document.activeElement ? 0 : el && el.classList.contains('qc-input-error') ? 1 : 2;
+    };
+    return list.map(function(pr, i) { return { pr: pr, i: i }; })
+      .sort(function(a, b) { return rank(a.pr) - rank(b.pr) || a.i - b.i; })
+      .map(function(x) { return x.pr; });
   }
   // Each label menu as wide as the choice it shows, so its arrow sits
   // right after the text.
@@ -8761,11 +8758,20 @@
     updateToolSummary();
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
-    var toFix = fieldsToFix(), ready = toFix === 0, text = '', bad = false;
+    var problems = fieldProblems(), ready = problems.length === 0, text = '', bad = false;
     updateDepthPicture(TAB_PREFIX[view], ready);
+    note.classList.toggle('qc-run-fix', !ready);
+    note.title = problems.map(function(pr) { return pr.msg; }).join('\n');
+    note._qcFix = ready ? null : problems[0].id;
     if (!ready) {
-      text = 'Fix ' + (toFix === 1 ? 'one field' : toFix + ' fields') + ' to generate; Generate points ' + (toFix === 1 ? 'it' : 'them') + ' out.';
-      bad = true;
+      note.textContent = problems[0].msg + (problems.length > 1 ? ' ' : '');
+      if (problems.length > 1) {
+        var more = document.createElement('span');
+        more.className = 'qc-run-more';
+        more.textContent = '(+' + (problems.length - 1) + ' more)';
+        note.appendChild(more);
+      }
+      note.classList.add('qc-run-bad');
     }
     if (ready) {
       try {
@@ -8779,8 +8785,10 @@
         text += '.';
       } catch (e) { text = ''; }
     }
-    note.textContent = text;
-    note.classList.toggle('qc-run-bad', bad);
+    if (ready) {
+      note.textContent = text;
+      note.classList.toggle('qc-run-bad', bad);
+    }
     var gen = section.querySelector('.qc-panel-footer [id$="-generate"]');
     if (gen) gen.classList.toggle('qc-gen-blocked', !ready);
     if (Date.now() - _wcoAt > 3000) refreshWco();
