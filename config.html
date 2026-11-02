@@ -902,6 +902,9 @@
   /* Beside Generate: about how long it runs, and the travel check. */
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
   .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
+  /* A field's problem, at most two lines; a tap goes to the field. */
+  .qc-run-note.qc-run-fix { cursor: pointer; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .qc-run-note .qc-run-more { font-weight: 500; opacity: 0.8; white-space: nowrap; }
   /* Still pressable: Generate shows each field's problem. */
   .qc-primary-btn.qc-gen-blocked { opacity: 0.5; }
   /* The Depth card's fields, with the side view of the passes beside them. */
@@ -1417,19 +1420,9 @@
     border-color: #c4c4c4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
-  /* A field's own problem, until it's fixed (setFieldError): a line
-     under the field, in the field's own width. */
-  .qc-field-error {
-    align-self: stretch;
-    margin-top: 4px;
-    color: #ff6b6b;
-    font-size: 0.78rem;
-    font-weight: 500;
-    line-height: 1.3;
-    text-align: left;
-  }
-  body.theme-light .qc-field-error { color: #c62828; }
-  .qc-input.qc-input-error { border-color: #d32f2f; }
+  /* A field's own problem, until it's fixed (setFieldError): a red
+     border; the words go beside Generate, so the layout never moves. */
+  .qc-input.qc-input-error, .qc-input.qc-input-error:focus { border-color: #d32f2f; }
   .qc-field label {
     font-size: 0.78rem;
     font-weight: 600;
@@ -1618,25 +1611,17 @@
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></span>
             <span class="qc-nav-label">Rectangle</span>
           </button>
-          <button type="button" title="Trapezoid" aria-label="Trapezoid" class="qc-nav-btn" data-tab="rectangle" data-kind="trapezoid">
-            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6h9L21 18H3Z"/></svg></span>
-            <span class="qc-nav-label">Trapezoid</span>
+          <button type="button" title="Circle" aria-label="Circle" class="qc-nav-btn" data-tab="circle">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
+            <span class="qc-nav-label">Circle</span>
           </button>
           <button type="button" title="Triangle" aria-label="Triangle" class="qc-nav-btn" data-tab="rectangle" data-kind="triangle">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19H3Z"/></svg></span>
             <span class="qc-nav-label">Triangle</span>
           </button>
-          <button type="button" title="Arch" aria-label="Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch">
-            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
-            <span class="qc-nav-label">Arch</span>
-          </button>
           <button type="button" title="Ellipse" aria-label="Ellipse" class="qc-nav-btn" data-tab="rectangle" data-kind="ellipse">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/></svg></span>
             <span class="qc-nav-label">Ellipse</span>
-          </button>
-          <button type="button" title="Circle" aria-label="Circle" class="qc-nav-btn" data-tab="circle">
-            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg></span>
-            <span class="qc-nav-label">Circle</span>
           </button>
           <button type="button" title="Polygon" aria-label="Polygon" class="qc-nav-btn" data-tab="polygon" data-kind="polygon">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 8 20 16 12 21 4 16 4 8 Z"/></svg></span>
@@ -1646,13 +1631,29 @@
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.8L12 16.4l-5.1 2.9 1.1-5.8-4.3-4 5.8-.7Z"/></svg></span>
             <span class="qc-nav-label">Star</span>
           </button>
-          <button type="button" title="Slot" aria-label="Slot" class="qc-nav-btn" data-tab="slot">
+          <button type="button" title="Slot" aria-label="Slot" class="qc-nav-btn" data-tab="slot" data-pick="qc-slt-type=straight">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-30 12 12)"/></svg></span>
             <span class="qc-nav-label">Slot</span>
+          </button>
+          <button type="button" title="Arc Slot" aria-label="Arc Slot" class="qc-nav-btn" data-tab="slot" data-pick="qc-slt-type=arc">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.5a10.5 10.5 0 0 1 19 0 3 3 0 0 1-5.3 2.8 4.5 4.5 0 0 0-8.4 0 3 3 0 0 1-5.3-2.8Z"/></svg></span>
+            <span class="qc-nav-label">Arc Slot</span>
+          </button>
+          <button type="button" title="Trapezoid" aria-label="Trapezoid" class="qc-nav-btn" data-tab="rectangle" data-kind="trapezoid">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6h9L21 18H3Z"/></svg></span>
+            <span class="qc-nav-label">Trapezoid</span>
           </button>
           <button type="button" title="Keyhole" aria-label="Keyhole" class="qc-nav-btn" data-tab="keyhole">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="4"/><path d="M10.5 12.3V6a1.5 1.5 0 0 1 3 0v6.3"/></svg></span>
             <span class="qc-nav-label">Keyhole</span>
+          </button>
+          <button type="button" title="Arch" aria-label="Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch" data-pick="qc-rect-arch-style=round">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-9a7 7 0 0 1 14 0v9Z"/></svg></span>
+            <span class="qc-nav-label">Arch</span>
+          </button>
+          <button type="button" title="Pointed Arch" aria-label="Pointed Arch" class="qc-nav-btn" data-tab="rectangle" data-kind="arch" data-pick="qc-rect-arch-style=pointed">
+            <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-8a11 11 0 0 1 7-9 11 11 0 0 1 7 9v8Z"/></svg></span>
+            <span class="qc-nav-label">Pointed Arch</span>
           </button>
         </div>
         <div class="qc-nav-group">Tools</div>
@@ -1686,7 +1687,7 @@
     <section class="qc-content active" data-view="rectangle">
       <header class="qc-panel-header">
         <div class="qc-panel-title-row">
-          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; Triangle, given by its sides, angles or height; Arch: a round or pointed top; or Ellipse. Each also has its own tab in the sidebar. They share every other setting.">
+          <h2 class="qc-panel-title"><select class="qc-title-select" id="qc-rect-kind" aria-label="Shape" title="Rectangle; Trapezoid: a different width on top, like a sign with slanted ends; Triangle, given by its sides, angles or height; Arch: a round or pointed top; or Ellipse. Each also has its own tab in the sidebar (the pointed arch too). They share every other setting.">
             <option value="rectangle" selected>Rectangle</option>
             <option value="trapezoid">Trapezoid</option>
             <option value="triangle">Triangle</option>
@@ -2496,7 +2497,7 @@
                 <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-slt-type">Slot Type</label>
-                    <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc.">
+                    <select class="qc-select" id="qc-slt-type" title="A straight slot, or one that curves along an arc. Each also has its own tab in the sidebar.">
                       <option value="straight" selected>Straight</option>
                       <option value="arc">Arc</option>
                     </select>
@@ -3584,16 +3585,28 @@
 
   // Some sidebar tabs are another kind of a view's shape (data-kind),
   // the one its title menu picks: Trapezoid is the Rectangle view with
-  // Trapezoid picked. The tab lit is the view's and its kind's.
+  // Trapezoid picked. Some also set another menu of the view (data-pick,
+  // "menu-id=value"): Pointed Arch is Arch with the pointed top, Arc Slot
+  // the Slot view with its Type on Arc. The tab lit is the one whose kind
+  // and picks match the menus.
   var KIND_MENUS = { rectangle: 'qc-rect-kind', polygon: 'qc-poly-kind' };
+  function navPicks(btn) {
+    var pick = btn.getAttribute('data-pick');
+    return pick ? pick.split(';').map(function(x) { var kv = x.split('='); return { menu: kv[0], value: kv[1] }; }) : [];
+  }
   function navKey(btn) {
-    return btn.getAttribute('data-tab') + (btn.hasAttribute('data-kind') ? ':' + btn.getAttribute('data-kind') : '');
+    return btn.getAttribute('data-tab') + (btn.hasAttribute('data-kind') ? ':' + btn.getAttribute('data-kind') : '') +
+      navPicks(btn).map(function(p) { return '/' + p.value; }).join('');
+  }
+  function navMatches(b, view) {
+    var kind = KIND_MENUS[view] ? $(KIND_MENUS[view]).value : null;
+    return b.getAttribute('data-tab') === view &&
+      (!b.hasAttribute('data-kind') || b.getAttribute('data-kind') === kind) &&
+      navPicks(b).every(function(p) { var m = $(p.menu); return !m || m.value === p.value; });
   }
   function highlightNav(view) {
-    var kind = KIND_MENUS[view] ? $(KIND_MENUS[view]).value : null;
     document.querySelectorAll('.qc-nav-btn[data-tab]').forEach(function(b) {
-      b.classList.toggle('active', b.getAttribute('data-tab') === view &&
-        (!b.hasAttribute('data-kind') || b.getAttribute('data-kind') === kind));
+      b.classList.toggle('active', navMatches(b, view));
     });
   }
   function rememberTab() {
@@ -3617,21 +3630,39 @@
     btns.forEach(function(btn) {
       btn.addEventListener('click', function() {
         var view = btn.getAttribute('data-tab'), menu = KIND_MENUS[view] && $(KIND_MENUS[view]);
-        if (menu && btn.hasAttribute('data-kind') && menu.value !== btn.getAttribute('data-kind')) {
-          menu.value = btn.getAttribute('data-kind');
-          menu.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        var set = function(m, value) {
+          if (!m || m.value === value) return;
+          m.value = value;
+          m.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        if (btn.hasAttribute('data-kind')) set(menu, btn.getAttribute('data-kind'));
+        navPicks(btn).forEach(function(p) { set($(p.menu), p.value); });
         switchTab(view);
       });
+    });
+    // A pick made in the tab's own menu lights its tab.
+    var pickViews = {};
+    btns.forEach(function(b) { navPicks(b).forEach(function(p) { pickViews[p.menu] = b.getAttribute('data-tab'); }); });
+    Object.keys(pickViews).forEach(function(id) {
+      if ($(id)) $(id).addEventListener('change', function() { kindPicked(pickViews[id]); });
     });
     // Restore the last-selected tab (view:kind, or a view saved before
     // kinds had tabs). If it no longer exists, fall back to the default.
     try {
       var saved = localStorage.getItem(LAST_TAB_KEY);
       if (saved) {
-        if (saved.indexOf(':') < 0 && KIND_MENUS[saved]) saved += ':' + $(KIND_MENUS[saved]).value;
+        if (saved.indexOf(':') < 0 && KIND_MENUS[saved.split('/')[0]]) saved = saved.replace(/(\/|$)/, ':' + $(KIND_MENUS[saved.split('/')[0]]).value + '$1');
+        // Saved before a tab had picks (e.g. "slot", "rectangle:arch"):
+        // the view's tab that matches its menus as they are, so a restored
+        // Arc slot stays an arc.
+        var savedView = saved.split(/[:\/]/)[0], savedKind = saved.indexOf(':') >= 0 ? saved.split(':')[1].split('/')[0] : null;
+        var picksNow = function(b) { return navPicks(b).every(function(p) { var m = $(p.menu); return !m || m.value === p.value; }); };
         var savedBtn = [].filter.call(btns, function(b) { return navKey(b) === saved; })[0] ||
-          document.querySelector('.qc-nav-btn[data-tab="' + saved.split(':')[0] + '"]');
+          [].filter.call(btns, function(b) {
+            return b.getAttribute('data-tab') === savedView && picksNow(b) &&
+              (!savedKind || !b.hasAttribute('data-kind') || b.getAttribute('data-kind') === savedKind);
+          })[0] ||
+          document.querySelector('.qc-nav-btn[data-tab="' + savedView + '"]');
         if (savedBtn) savedBtn.click();
       } else {
         state.firstOpen = true;
@@ -4388,27 +4419,70 @@
     return true;
   }
 
-  // A field's problem stays on it, as a bubble over the field and a red
-  // border, until its value is valid: other fields can be clicked and
-  // typed in meanwhile (e.g. Total Depth 0 and Depth of Cut both flagged,
-  // fixed in either order). Shown when a field is left or by Generate,
-  // never while typing; cleared as soon as the value passes.
+  // A field's problem stays on it as a red border until its value is
+  // valid: other fields can be clicked and typed in meanwhile (e.g. Total
+  // Depth 0 and Depth of Cut both flagged, fixed in either order). Shown
+  // when a field is left or by Generate, never while typing; cleared as
+  // soon as the value passes. Its words show in a red bubble over the
+  // field (updateErrorBubble) and beside Generate (the run note,
+  // fieldProblems), so the cards keep their layout.
   function setFieldError(el, message) {
-    var holder = el.closest('.qc-field') || el.parentNode;
-    var bubble = holder.querySelector(':scope > .qc-field-error');
-    if (!message) {
-      if (bubble) bubble.remove();
-      el.classList.remove('qc-input-error');
+    el.classList.toggle('qc-input-error', !!message);
+    if (message) el.dataset.qcError = message;
+    else delete el.dataset.qcError;
+    updateErrorBubble();
+    scheduleRunNote();
+  }
+  // One red bubble, floating over the dialog, on the flagged field the
+  // cursor is in, else on the flagged field just left. It never moves the
+  // cursor or fades: it goes when that field is fixed or the cursor moves
+  // to another field (to that one, if it's flagged too). Other flagged
+  // fields show only their red border, so bubbles never pile up. On the
+  // host page's body, as showTooltip's, since the dialog may be transformed.
+  var _errBubble = null, _errLeft = null, _errWatch = null;
+  function errorBubbleTarget() {
+    var ok = function(el) {
+      return el && ROOT.contains(el) && el.classList.contains('qc-input-error') && el.offsetParent !== null;
+    };
+    var a = document.activeElement;
+    if (ok(a)) return a;
+    return ok(_errLeft) ? _errLeft : null;
+  }
+  function updateErrorBubble() {
+    var el = rootAlive() ? errorBubbleTarget() : null;
+    if (!el) {
+      if (_errBubble) { _errBubble.remove(); _errBubble = null; }
       return;
     }
-    if (!bubble) {
-      bubble = document.createElement('div');
-      bubble.className = 'qc-field-error';
-      bubble.setAttribute('role', 'alert');
-      holder.appendChild(bubble);
+    if (!_errBubble) {
+      _errBubble = document.createElement('div');
+      _errBubble.className = 'qc-error-bubble';
+      _errBubble.setAttribute('role', 'alert');
+      _errBubble.style.cssText = 'position:fixed;background:#d32f2f;color:#fff;padding:6px 10px;border-radius:4px;' +
+        'font-family:inherit;font-size:0.82rem;font-weight:500;line-height:1.3;z-index:10000;pointer-events:none;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,0.25);width:max-content;max-width:min(320px,90vw);';
+      document.body.appendChild(_errBubble);
     }
-    bubble.textContent = message;
-    el.classList.add('qc-input-error');
+    if (!_errWatch) _errWatch = setInterval(function() {
+      if (rootAlive() && _errBubble) return;
+      if (_errBubble) { _errBubble.remove(); _errBubble = null; }
+      clearInterval(_errWatch); _errWatch = null;
+    }, 500);
+    _errBubble.textContent = el.dataset.qcError || validateField(el.id, el.value) || '';
+    var r = el.getBoundingClientRect(), below = r.top < 60;
+    var arrow = document.createElement('div');
+    arrow.style.cssText = 'position:absolute;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;' +
+      (below ? 'border-bottom:6px solid #d32f2f;top:-6px;' : 'border-top:6px solid #d32f2f;bottom:-6px;');
+    _errBubble.appendChild(arrow);
+    // Centred on the field, kept on screen; the arrow stays on the field.
+    var w = _errBubble.offsetWidth, h = _errBubble.offsetHeight;
+    var cx = r.left + r.width / 2, left = Math.max(4, Math.min(cx - w / 2, window.innerWidth - w - 4));
+    arrow.style.left = Math.max(8, Math.min(cx - left - 6, w - 20)) + 'px';
+    _errBubble.style.left = left + 'px';
+    _errBubble.style.top = (below ? r.bottom + 8 : r.top - 8 - h) + 'px';
+    // Hidden when the field is scrolled out of the dialog's view.
+    var pane = el.closest('.qc-content') || ROOT, pr = pane.getBoundingClientRect();
+    _errBubble.style.visibility = r.bottom < pr.top || r.top > pr.bottom ? 'hidden' : 'visible';
   }
   function recheckField(fieldId) {
     var el = document.getElementById(fieldId);
@@ -4419,7 +4493,7 @@
   // on mouse hover), so a field focused by touch or keyboard shows it after
   // a second, styled and placed like Chrome's own: a box just below
   // where the field was touched. Not after a mouse click (Chrome's hover
-  // tooltip covers that), not over a field's error bubble; gone on typing,
+  // tooltip covers that), not on a flagged field (its error bubble); gone on typing,
   // a tap, scrolling or leaving the field. Help's Touch Tooltips switch
   // turns it off.
   var FOCUS_TIP_MS = 1000;
@@ -4459,6 +4533,14 @@
   }
 
   function wireValidation() {
+    // The error bubble follows the cursor between fields and the fields as they scroll.
+    ROOT.addEventListener('focusin', updateErrorBubble);
+    ROOT.addEventListener('focusout', function(ev) {
+      if (ev.target.classList && ev.target.classList.contains('qc-input-error')) _errLeft = ev.target;
+      setTimeout(updateErrorBubble, 0);
+    });
+    ROOT.addEventListener('scroll', updateErrorBubble, true);
+    window.addEventListener('resize', updateErrorBubble);
     // Any edit (a select too, e.g. a cut type that resolves the problem) clears it,
     // and re-checks the flagged fields, whose problem may be gone now.
     ROOT.addEventListener('change', function() {
@@ -5221,6 +5303,13 @@
         });
         bitR = 0;
       }
+      // A part repeated exactly (each depth pass) can't change the gap:
+      // measured once.
+      var seenPart = {};
+      parts = parts.filter(function(q) {
+        var k = q.r === undefined ? q.u0 + ',' + q.v0 + ',' + q.u1 + ',' + q.v1 : q.cu + ',' + q.cv + ',' + q.r + ',' + q.t0 + ',' + q.sweep;
+        return seenPart[k] ? false : (seenPart[k] = true);
+      });
       if (parts.length) {
         var box = [Infinity, Infinity, -Infinity, -Infinity];
         parts.forEach(function(q) {
@@ -5235,18 +5324,58 @@
   // The gap between a copy and the same copy moved (du, dv): the closest
   // its toolpath comes to the moved one's, less the bit diameter. 0 or less
   // where they touch.
+  // The parts are indexed by their boxes (once a copy), and the side
+  // facing the moved copy goes first: no part is farther from its moved
+  // self than the move, so only parts within that, then within the
+  // closest found so far, are measured. The same least distance as
+  // measuring every pair.
   function patternCopyGap(geom, du, dv) {
-    var best = Infinity, parts = geom.parts;
-    for (var i = 0; i < parts.length; i++) {
-      var p = parts[i];
-      for (var j = 0; j < parts.length; j++) {
-        var q = parts[j];
-        if (p.box[0] - q.box[2] - du > best || q.box[0] + du - p.box[2] > best ||
-            p.box[1] - q.box[3] - dv > best || q.box[1] + dv - p.box[3] > best) continue;
-        var d = pathPartDistance(p, q, du, dv);
+    var best = Infinity, parts = geom.parts, ix = geom.gapIndex;
+    if (!ix) {
+      var span = Math.max(geom.box.u1 - geom.box.u0, geom.box.v1 - geom.box.v0);
+      ix = geom.gapIndex = { u0: geom.box.u0, v0: geom.box.v0, size: Math.max(span / 32, 1e-9), cells: [], stamp: [], seen: 0 };
+      ix.nu = Math.floor((geom.box.u1 - geom.box.u0) / ix.size) + 1;
+      ix.nv = Math.floor((geom.box.v1 - geom.box.v0) / ix.size) + 1;
+      ix.ok = isFinite(span) && parts.every(function(q) { return q.box.every(isFinite); });
+      if (ix.ok) parts.forEach(function(q, k) {
+        var r = patternCellRange(ix, q.box[0], q.box[1], q.box[2], q.box[3]);
+        for (var i = r[0]; i <= r[2]; i++) for (var j = r[1]; j <= r[3]; j++) (ix.cells[i * ix.nv + j] = ix.cells[i * ix.nv + j] || []).push(k);
+      });
+    }
+    var far = function(p, q) {
+      return p.box[0] - q.box[2] - du > best || q.box[0] + du - p.box[2] > best ||
+        p.box[1] - q.box[3] - dv > best || q.box[1] + dv - p.box[3] > best;
+    };
+    if (!ix.ok) {
+      for (var i = 0; i < parts.length; i++) for (var j = 0; j < parts.length; j++) {
+        if (far(parts[i], parts[j])) continue;
+        var d = pathPartDistance(parts[i], parts[j], du, dv);
         if (d < best) best = d;
       }
+      return best - 2 * geom.r;
     }
+    var limit = Math.hypot(du, dv) * (1 + 1e-9) + 1e-9 * (1 + Math.abs(du) + Math.abs(dv));
+    var order = parts.map(function(p, k) { return k; });
+    var toward = function(p) { return (du > 0 ? p.box[2] : p.box[0]) * du + (dv > 0 ? p.box[3] : p.box[1]) * dv; };
+    order.sort(function(a, b) { return toward(parts[b]) - toward(parts[a]); });
+    order.forEach(function(i) {
+      var p = parts[i], reach = Math.min(best, limit) + 1e-9 * (1 + ix.size);
+      var r = patternCellRange(ix, p.box[0] - du - reach, p.box[1] - dv - reach, p.box[2] - du + reach, p.box[3] - dv + reach);
+      var seen = ++ix.seen;
+      for (var a = r[0]; a <= r[2]; a++) for (var b = r[1]; b <= r[3]; b++) {
+        var cell = ix.cells[a * ix.nv + b];
+        if (!cell) continue;
+        for (var n = 0; n < cell.length; n++) {
+          var k = cell[n];
+          if (ix.stamp[k] === seen) continue;
+          ix.stamp[k] = seen;
+          var q = parts[k];
+          if (far(p, q)) continue;
+          var d = pathPartDistance(p, q, du, dv);
+          if (d < best) best = d;
+        }
+      }
+    });
     return best - 2 * geom.r;
   }
   // The closest two toolpath parts come, the second moved (du, dv). It is
@@ -5593,7 +5722,21 @@
   // halving between samples.
   function patternRadiusPartEdges(geom, loopMoves) {
     var edges = [], r = geom.r;
+    // Each point is tested against the whole path (an ellipse or an arch
+    // is hundreds of moves, tested at thousands of points): indexed, so it
+    // only meets the moves that could matter. Same answers as the plain
+    // patternRadiusNear and patternRadiusInLoop.
+    // Each depth pass laps the same path again, so the same loop is found
+    // over and over (hundreds of times, starting at each move): a move's
+    // edges depend only on the move, the side and the loop's moves, in any
+    // order, so they're worked out once and repeated.
+    var nearIx = patternPartIndex(geom.parts, r), loopIx = geom.loops.map(patternLoopIndex), memo = {}, samples = {}, ids = {}, nid = 0;
+    // Short names for long keys (a loop's key is all its moves).
+    var idOf = function(k) { return k in ids ? ids[k] : (ids[k] = nid++); };
+    var clearOf = function(pt) { return patternRadiusClear(nearIx, pt.u, pt.v, r - 1e-9); };
     loopMoves.forEach(function(moves, li) {
+      var sigs = moves.map(function(m) { return idOf(JSON.stringify(m)); });
+      var loopKey = idOf(sigs.slice().sort(function(a, b) { return a - b; }).join(','));
       var area = 0;
       moves.forEach(function(m) {
         var q = patternRadiusPart(m);
@@ -5603,14 +5746,23 @@
         }
       });
       var side = area > 0 ? 1 : -1;
-      var keep = function(pt) {
-        return patternRadiusNear(geom.parts, pt.u, pt.v) >= r - 1e-9 && patternRadiusInLoop(geom.loops[li], pt.u, pt.v);
-      };
-      moves.forEach(function(m) {
+      var inLoop = function(pt) { return patternRadiusInLoop(patternLoopNear(loopIx[li], pt.u, pt.v), pt.u, pt.v); };
+      var keep = function(pt) { return clearOf(pt) && inLoop(pt); };
+      moves.forEach(function(m, mi) {
+        var key = side + '|' + sigs[mi] + '|' + loopKey;
+        if (memo[key]) { memo[key].forEach(function(e) { edges.push(Object.assign({}, e)); }); return; }
+        var mine = memo[key] = [];
         var o = offsetMove(m, side * r);
         if (!o) return;
         var q = patternRadiusPart(o), N = 64, ok = [];
-        for (var k = 0; k <= N; k++) ok.push(keep(patternRadiusPoint(q, k / N)));
+        // The samples and how far they are from the path don't depend on
+        // the loop: kept for the move's next loop.
+        var sk = side + '|' + sigs[mi], sm = samples[sk];
+        if (!sm) {
+          sm = samples[sk] = [];
+          for (var k = 0; k <= N; k++) { var pt = patternRadiusPoint(q, k / N); sm.push({ pt: pt, clear: clearOf(pt) }); }
+        }
+        for (var k = 0; k <= N; k++) ok.push(sm[k].clear && inLoop(sm[k].pt));
         var edgeOf = function(tIn, tOut) {
           for (var n = 0; n < 40; n++) {
             var mid = (tIn + tOut) / 2;
@@ -5623,12 +5775,90 @@
           var j = i;
           while (j < N && ok[j + 1]) j++;
           var from = i > 0 ? edgeOf(i / N, (i - 1) / N) : 0, to = j < N ? edgeOf(j / N, (j + 1) / N) : 1;
-          edges.push(patternRadiusSub(q, from, to));
+          var e = patternRadiusSub(q, from, to);
+          edges.push(e);
+          mine.push(Object.assign({}, e));
           i = j;
         }
       });
     });
     return edges;
+  }
+  // A move's box: an arc's whole circle's (its arc is inside it).
+  function patternPartBox(q) {
+    return q.r === undefined ? [Math.min(q.u0, q.u1), Math.min(q.v0, q.v1), Math.max(q.u0, q.u1), Math.max(q.v0, q.v1)]
+      : [q.cu - q.r, q.cv - q.r, q.cu + q.r, q.cv + q.r];
+  }
+  // The parts in a grid of their boxes, for patternRadiusClear: a part
+  // whose box is more than `reach` from a point is farther than that.
+  function patternPartIndex(parts, reach) {
+    // A part repeated exactly (each depth pass) is measured once.
+    var seen = {};
+    parts = parts.filter(function(q) {
+      var k = q.r === undefined ? q.u0 + ',' + q.v0 + ',' + q.u1 + ',' + q.v1 : q.cu + ',' + q.cv + ',' + q.r + ',' + q.t0 + ',' + q.sweep;
+      return seen[k] ? false : (seen[k] = true);
+    });
+    var boxes = parts.map(patternPartBox), b = [Infinity, Infinity, -Infinity, -Infinity];
+    boxes.forEach(function(x) { b = [Math.min(b[0], x[0]), Math.min(b[1], x[1]), Math.max(b[2], x[2]), Math.max(b[3], x[3])]; });
+    if (!boxes.every(function(x) { return x.every(isFinite); })) return { parts: parts, all: true };
+    var span = Math.max(b[2] - b[0], b[3] - b[1]), size = Math.max(reach, span / 64, 1e-9);
+    var nu = Math.floor((b[2] - b[0]) / size) + 1, nv = Math.floor((b[3] - b[1]) / size) + 1, cells = [];
+    var ix = { parts: parts, u0: b[0], v0: b[1], size: size, nu: nu, nv: nv, cells: cells, pad: 1e-9 * (1 + span), stamp: [], seen: 0 };
+    boxes.forEach(function(x, k) {
+      var r = patternCellRange(ix, x[0], x[1], x[2], x[3]);
+      for (var i = r[0]; i <= r[2]; i++) for (var j = r[1]; j <= r[3]; j++) (cells[i * nv + j] = cells[i * nv + j] || []).push(k);
+    });
+    return ix;
+  }
+  function patternCellRange(ix, u0, v0, u1, v1) {
+    var c = function(x, o, n) { return Math.max(0, Math.min(n - 1, Math.floor((x - o) / ix.size))); };
+    return [c(u0, ix.u0, ix.nu), c(v0, ix.v0, ix.nv), c(u1, ix.u0, ix.nu), c(v1, ix.v0, ix.nv)];
+  }
+  function patternPartDistance(q, pu, pv) {
+    return q.r === undefined ? pointSegmentDistance(pu, pv, q.u0, q.v0, q.u1, q.v1) : pointArcDistance(pu, pv, q);
+  }
+  // No part nearer (pu, pv) than `least`: patternRadiusNear(...) >= least.
+  function patternRadiusClear(ix, pu, pv, least) {
+    if (ix.all) return patternRadiusNear(ix.parts, pu, pv) >= least;
+    var reach = Math.max(0, least) + ix.pad;
+    var r = patternCellRange(ix, pu - reach, pv - reach, pu + reach, pv + reach), seen = ++ix.seen;
+    for (var i = r[0]; i <= r[2]; i++) for (var j = r[1]; j <= r[3]; j++) {
+      var cell = ix.cells[i * ix.nv + j];
+      if (!cell) continue;
+      for (var n = 0; n < cell.length; n++) {
+        var k = cell[n];
+        if (ix.stamp[k] === seen) continue;
+        ix.stamp[k] = seen;
+        if (!(patternPartDistance(ix.parts[k], pu, pv) >= least)) return false;
+      }
+    }
+    return true;
+  }
+  // A loop's parts by where they lie across patternRadiusInLoop's ray: only
+  // a part spanning the point's place across it can cross the ray.
+  function patternLoopIndex(loop) {
+    var c = PATTERN_RAY_COS, sn = PATTERN_RAY_SIN, w = function(u, v) { return v * c - u * sn; };
+    var spans = loop.map(function(q) {
+      if (q.r === undefined) { var a = w(q.u0, q.v0), b = w(q.u1, q.v1); return [Math.min(a, b), Math.max(a, b)]; }
+      var m = w(q.cu, q.cv); return [m - q.r, m + q.r];
+    });
+    var lo = Infinity, hi = -Infinity;
+    spans.forEach(function(x) { lo = Math.min(lo, x[0]); hi = Math.max(hi, x[1]); });
+    if (!isFinite(lo) || !isFinite(hi)) return { loop: loop, all: true };
+    var pad = 1e-9 * (1 + hi - lo + Math.abs(lo) + Math.abs(hi)), n = Math.max(1, Math.min(512, loop.length));
+    var size = Math.max((hi - lo) / n, 1e-12), buckets = [];
+    var at = function(x) { return Math.max(0, Math.min(n - 1, Math.floor((x - lo) / size))); };
+    spans.forEach(function(x, k) {
+      for (var i = at(x[0] - pad); i <= at(x[1] + pad); i++) (buckets[i] = buckets[i] || []).push(loop[k]);
+    });
+    return { loop: loop, lo: lo - pad, hi: hi + pad, at: at, buckets: buckets, w: w };
+  }
+  // The parts of the loop that could cross the ray from (pu, pv), in order.
+  function patternLoopNear(ix, pu, pv) {
+    if (ix.all) return ix.loop;
+    var x = ix.w(pu, pv);
+    if (x < ix.lo || x > ix.hi) return [];
+    return ix.buckets[ix.at(x)] || [];
   }
   function patternRadiusNear(parts, pu, pv) {
     var best = Infinity;
@@ -6227,16 +6457,33 @@
     // The closest two copies' solid edges come, by their sample points:
     // where edges run side by side, the spot nearest the line between the
     // two copies' centers.
+    // b's points sorted along the line between the two copies: two
+    // points d apart are at most d apart along it, so each point of c0 is
+    // only measured against b's within the distance found so far. Ties go
+    // to the first pair in c0's then b's order, as measuring every pair did.
     var closest = function(b) {
       var best = null, least = Infinity, mu = (c0.u + b.u) / 2, mv = (c0.v + b.v) / 2;
-      c0.pts.forEach(function(p) { b.pts.forEach(function(q) { least = Math.min(least, Math.hypot(q.u - p.u, q.v - p.v)); }); });
-      c0.pts.forEach(function(p) {
-        b.pts.forEach(function(q) {
-          var d = Math.hypot(q.u - p.u, q.v - p.v);
-          if (d > least + 1e-6 * (1 + least)) return;
+      var eu = b.u - c0.u, ev = b.v - c0.v, el = Math.hypot(eu, ev);
+      if (el > 0) { eu /= el; ev /= el; } else { eu = 1; ev = 0; }
+      var along = function(q) { return q.u * eu + q.v * ev; };
+      var qs = b.pts.map(function(q, j) { return { q: q, j: j, t: along(q) }; }).sort(function(x, y) { return x.t - y.t; });
+      var pad = 1e-9 * (1 + qs.reduce(function(m, x) { return Math.max(m, Math.abs(x.t)); }, 0));
+      var from = function(t) { var lo = 0, hi = qs.length; while (lo < hi) { var m = (lo + hi) >> 1; if (qs[m].t < t) lo = m + 1; else hi = m; } return lo; };
+      var ps = c0.pts.map(function(p, i) { return { p: p, i: i, t: along(p) }; }).sort(function(x, y) { return y.t - x.t; });
+      ps.forEach(function(x) {
+        for (var k = least === Infinity ? 0 : from(x.t - least - pad); k < qs.length && qs[k].t <= x.t + least + pad; k++) {
+          least = Math.min(least, Math.hypot(qs[k].q.u - x.p.u, qs[k].q.v - x.p.v));
+        }
+      });
+      var tol = least + 1e-6 * (1 + least);
+      ps.forEach(function(x) {
+        var p = x.p;
+        for (var k = from(x.t - tol - pad); k < qs.length && qs[k].t <= x.t + tol + pad; k++) {
+          var q = qs[k].q, d = Math.hypot(q.u - p.u, q.v - p.v);
+          if (d > tol) continue;
           var off = Math.hypot((p.u + q.u) / 2 - mu, (p.v + q.v) / 2 - mv);
-          if (!best || off < best.off) best = { p: p, q: q, d: d, off: off };
-        });
+          if (!best || off < best.off || (off === best.off && (x.i < best.i || (x.i === best.i && qs[k].j < best.j)))) best = { p: p, q: q, d: d, off: off, i: x.i, j: qs[k].j };
+        }
       });
       if (!best || !(best.d > 2 * g)) return null;
       var du = (best.q.u - best.p.u) / best.d, dv = (best.q.v - best.p.v) / best.d;
@@ -7801,6 +8048,9 @@
     wireTriangle();
     $('qc-rect-kind').addEventListener('change', function() { showRectKind(true); updateRectanglePreview(); kindPicked('rectangle'); });
     $('qc-rect-arch-style').addEventListener('change', function() { recheckField('qc-rect-arch-rise'); updateRectanglePreview(); });
+    // Reopening on Pointed Arch sets the top before this listener exists:
+    // its Rise is checked here, so a too-low Rise is flagged as on a click.
+    if (rectKind() === 'arch' && $('qc-rect-arch-style').value === 'pointed' && $('qc-rect-arch-rise').value.trim()) recheckField('qc-rect-arch-rise');
     ['qc-rect-arch-rise', 'qc-rect-width', 'qc-rect-height'].forEach(function(id) {
       $(id).addEventListener('input', function() {
         if (rectKind() !== 'arch') return;
@@ -8694,6 +8944,14 @@
       var note = document.createElement('span');
       note.className = 'qc-run-note';
       note.setAttribute('role', 'status');
+      // On a field's problem, a tap goes to that field.
+      note.addEventListener('click', function() {
+        // The note can be a moment behind the typing: checked again now.
+        var now = note._qcFix && fieldProblems()[0];
+        var el = now && document.getElementById(now.id);
+        if (!now) scheduleRunNote();
+        if (el) { setFieldError(el, now.msg); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); }
+      });
       f.insertBefore(note, f.firstChild);
     });
     // In a five-column row it takes the columns the tabs' fields leave
@@ -8726,20 +8984,31 @@
   // anything), so the program can be made.
   // How many of the fields in view fail their checks (the slot's shape
   // counts as one).
-  function fieldsToFix() {
-    var rules = validationRules(), bad = 0, counted = {};
+  // What stops Generate, one { id, msg } a field: the field being typed
+  // in first, then the ones already flagged red, then the rest in order.
+  function fieldProblems() {
+    var rules = validationRules(), list = [], counted = {};
     for (var id in rules) {
       var el = document.getElementById(id);
       if (!el || el.disabled || el.offsetParent === null) continue;
-      if (validateField(id, el.value)) { bad++; counted[id] = true; }
+      var msg = validateField(id, el.value);
+      if (msg) { list.push({ id: id, msg: msg }); counted[id] = true; }
     }
     var slot = state.currentTab === 'slot' && slotShapeProblem();
+    if (slot && !counted[slot.field]) list.push({ id: slot.field, msg: slot.message });
     var tab = chamferTab(), chamfer = null;
-    if (tab && $('qc-chamfer-enable').checked && !bad) {
+    if (tab && $('qc-chamfer-enable').checked && !Object.keys(counted).length) {
       var p = readChamferShapeForm(tab);
       if (p.chamfer.width > 0) chamfer = chamferProblem(p, makeQuickCutGenerator(state.isImperial).chamferPlanFor(tab, p));
     }
-    return bad + (slot && !counted[slot.field] ? 1 : 0) + (chamfer ? 1 : 0);
+    if (chamfer) list.push(chamfer);
+    var rank = function(pr) {
+      var el = document.getElementById(pr.id);
+      return el === document.activeElement ? 0 : el && el.classList.contains('qc-input-error') ? 1 : 2;
+    };
+    return list.map(function(pr, i) { return { pr: pr, i: i }; })
+      .sort(function(a, b) { return rank(a.pr) - rank(b.pr) || a.i - b.i; })
+      .map(function(x) { return x.pr; });
   }
   // Each label menu as wide as the choice it shows, so its arrow sits
   // right after the text.
@@ -8755,17 +9024,28 @@
     });
   }
   function updateRunNote() {
+    // A field left as the dialog closes schedules one: nothing to update.
+    if (!rootAlive()) return;
     var view = state.currentTab, pv = RUN_VIEWS[view];
     var section = ROOT.querySelector('.qc-content[data-view="' + view + '"]');
     if (section) fitLabelSelects(section);
     updateToolSummary();
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
-    var toFix = fieldsToFix(), ready = toFix === 0, text = '', bad = false;
+    var problems = fieldProblems(), ready = problems.length === 0, text = '', bad = false;
     updateDepthPicture(TAB_PREFIX[view], ready);
+    note.classList.toggle('qc-run-fix', !ready);
+    note.title = problems.map(function(pr) { return pr.msg; }).join('\n');
+    note._qcFix = ready ? null : problems[0];
     if (!ready) {
-      text = 'Fix ' + (toFix === 1 ? 'one field' : toFix + ' fields') + ' to generate; Generate points ' + (toFix === 1 ? 'it' : 'them') + ' out.';
-      bad = true;
+      note.textContent = problems[0].msg + (problems.length > 1 ? ' ' : '');
+      if (problems.length > 1) {
+        var more = document.createElement('span');
+        more.className = 'qc-run-more';
+        more.textContent = '(+' + (problems.length - 1) + ' more)';
+        note.appendChild(more);
+      }
+      note.classList.add('qc-run-bad');
     }
     if (ready) {
       try {
@@ -8779,10 +9059,13 @@
         text += '.';
       } catch (e) { text = ''; }
     }
-    note.textContent = text;
-    note.classList.toggle('qc-run-bad', bad);
+    if (ready) {
+      note.textContent = text;
+      note.classList.toggle('qc-run-bad', bad);
+    }
     var gen = section.querySelector('.qc-panel-footer [id$="-generate"]');
     if (gen) gen.classList.toggle('qc-gen-blocked', !ready);
+    updateErrorBubble();
     if (Date.now() - _wcoAt > 3000) refreshWco();
   }
   // Roughly how long a program takes, in minutes: its moves at their feed
