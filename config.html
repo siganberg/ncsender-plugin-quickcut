@@ -269,6 +269,23 @@
   .qc-help-tips dt { font-weight: 600; color: var(--color-text-primary); }
   .qc-help-tips dd { margin: 0; color: var(--color-text-primary); }
   .qc-help-card a { color: var(--color-accent); overflow-wrap: anywhere; }
+  /* Diagrams in Help (the README's docs/images/*.svg), in the theme's colours. */
+  .qc-help-fig { margin: 10px 0 4px; max-width: 680px; }
+  .qc-help-fig svg { display: block; width: 100%; height: auto; }
+  .qc-help-fig .stock { fill: color-mix(in srgb, var(--color-text-secondary) 22%, transparent); stroke: var(--color-text-secondary); stroke-width: 2; }
+  .qc-help-fig .cut { fill: var(--color-surface); stroke: var(--color-text-secondary); stroke-width: 1; stroke-dasharray: 4 3; }
+  .qc-help-fig .chamfer { fill: #e3b341; fill-opacity: .6; stroke: #c69026; stroke-width: 1.5; }
+  .qc-help-fig .bit { fill: var(--color-accent); fill-opacity: .18; stroke: var(--color-accent); stroke-width: 2; }
+  .qc-help-fig .z0 { stroke: var(--color-accent); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .qc-help-fig .dim { stroke: var(--color-text-secondary); stroke-width: 1.2; fill: none; }
+  .qc-help-fig .mk { fill: var(--color-text-secondary); }
+  .qc-help-fig .txt { fill: var(--color-text-primary); font-family: inherit; font-size: 14px; font-weight: 600; }
+  .qc-help-fig .sub { fill: var(--color-text-secondary); font-family: inherit; font-size: 13px; }
+  .qc-help-fig .acc { fill: var(--color-accent); font-family: inherit; font-size: 13px; font-weight: 600; }
+  .qc-help-fig .bad { stroke: var(--color-danger, #e74c3c); stroke-width: 3; fill: none; }
+  .qc-help-fig .badt { fill: var(--color-danger, #e74c3c); }
+  .qc-help-fig .good { stroke: var(--color-accent); stroke-width: 3; fill: none; }
+  .qc-help-fig .goodt { fill: var(--color-accent); }
   .qc-help-card kbd {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.8em;
@@ -1808,7 +1825,7 @@
                 <div class="qc-row-3" id="qc-rect-size-row">
                   <div class="qc-field">
                     <label for="qc-rect-width" id="qc-rect-width-label">Width</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-width" min="0.001" step="0.01" value="50" required title="Size of the rectangle along X. Cut Type sets which side of the line the bit runs on.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-width" min="0.001" step="0.01" value="50" required title="The shape's size along X: its Width, a triangle's Base, or a trapezoid's Bottom Width. Cut Type sets which side of the line the bit runs on.">
                   </div>
                   <div class="qc-field qc-rect-trap-only" style="display: none;">
                     <select class="qc-label-select" id="qc-rect-top-align" aria-label="Top Width, lined up" title="Top Width: the back edge's length, Height from the front edge. Its menu sets where it sits over the bottom edge: centered (both ends slant the same, like a sign), or lined up with the left or right end (that end square).">
@@ -1840,7 +1857,7 @@
                   </div>
                   <div class="qc-field">
                     <label for="qc-rect-height">Height</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required title="Size of the rectangle along Y. Cut Type sets which side of the line the bit runs on.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-height" min="0.001" step="0.01" value="30" required title="The shape's size along Y; an arch's includes its Rise. Cut Type sets which side of the line the bit runs on.">
                   </div>
                   <div class="qc-field qc-rect-arch-only" style="display: none;">
                     <select class="qc-label-select" id="qc-rect-arch-style" aria-label="Rise, and the top's shape" title="How far the top rises above the straight sides. Its menu sets the top's shape: Round (half an ellipse; a semicircle at half the Width) or Pointed (two arcs meeting at a point, like a church window; it must rise at least half the Width).">
@@ -1937,7 +1954,7 @@
               <div class="qc-tabs-fields" id="qc-rect-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-rect-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-rect-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
+                  <input class="qc-input" type="number" id="qc-rect-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape: on the straight edges, shared out by their length; evenly round a circle.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-rect-tabs-width">Tab Width</label>
@@ -2121,7 +2138,7 @@
               <div class="qc-tabs-fields" id="qc-circ-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-circ-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-circ-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
+                  <input class="qc-input" type="number" id="qc-circ-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape: on the straight edges, shared out by their length; evenly round a circle.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-circ-tabs-width">Tab Width</label>
@@ -2160,7 +2177,7 @@
               </div>
               <div class="qc-field">
                 <label for="qc-chamfer-cut-depth">Existing Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-depth" step="0.1" value="" placeholder="Blank: through" title="How deep the hole or cut you've already made goes; the V-bit's tip stays above its bottom. Blank: it goes right through (the tip then goes at most the chamfer's depth lower, and no more than 1 mm).">
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-depth" step="0.1" value="" placeholder="Blank: through" title="How deep the hole or cut you've already made goes; the V-bit's tip stays above its bottom. Blank: it goes right through (the tip then goes at most the chamfer's depth lower, and no more than 1 mm, or 0.04 in).">
               </div>
               <div class="qc-field qc-chamfer-cut">
                 <label for="qc-chamfer-cut-bit">Cut Bit</label>
@@ -2322,7 +2339,7 @@
                 </div>
                 <div class="qc-field qc-relief-field qc-poly-inner-only" style="display: none;">
                   <label for="qc-poly-corner-relief">Corner Relief</label>
-                  <select class="qc-select" id="qc-poly-corner-relief" title="Inner cuts only. A round bit leaves its radius in every sharp inside corner, so a square-cornered part won't fit. Dog-bone runs the bit diagonally into each corner and back; T-bone runs it straight on along the longer edge, so only the end wall is notched. Either way its edge reaches the corner (or the Corner Radius, when that's smaller than the bit).">
+                  <select class="qc-select" id="qc-poly-corner-relief" title="Inner cuts only. A round bit leaves its radius in every sharp inside corner, so a square-cornered part won't fit. Dog-bone runs the bit diagonally into each corner and back; T-bone runs each edge straight on past its end, so only the other wall is notched, all the way round like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that's smaller than the bit).">
                     <option value="none" selected>None</option>
                     <option value="dogbone">Dog-bone</option>
                     <option value="tbone">T-bone</option>
@@ -2376,7 +2393,7 @@
               <div class="qc-tabs-fields" id="qc-poly-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-poly-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-poly-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
+                  <input class="qc-input" type="number" id="qc-poly-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape: on the straight edges, shared out by their length; evenly round a circle.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-poly-tabs-width">Tab Width</label>
@@ -2615,7 +2632,7 @@
               <div class="qc-tabs-fields" id="qc-slt-tabs-fields" style="display: none;">
                 <div class="qc-field">
                   <label for="qc-slt-tabs-count">Tabs</label>
-                  <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape, spaced evenly around it.">
+                  <input class="qc-input" type="number" id="qc-slt-tabs-count" min="1" max="24" step="1" value="4" title="How many tabs per shape: on the straight edges, shared out by their length; evenly round a circle.">
                 </div>
                 <div class="qc-field">
                   <label for="qc-slt-tabs-width">Tab Width</label>
@@ -11235,6 +11252,10 @@
     ROOT.querySelectorAll('.qc-poly-star-only').forEach(function(el) { el.style.display = star ? '' : 'none'; });
     $('qc-poly-size-field').classList.toggle('qc-kind-hidden', star);
     $('qc-poly-sides-label').textContent = star ? 'Points' : 'Sides';
+    $('qc-poly-sides').title = star ? 'How many points the star has.' : 'Number of sides: 3 for a triangle, 6 for a hexagon.';
+    $('qc-poly-start-angle').title = star
+      ? 'Turns the star about its center, CCW (negative = CW). 0 = the first point toward the back. You can also twist the preview to turn it.'
+      : 'Turns the polygon about its center, CCW (negative = CW). 0 = a flat edge at the bottom. You can also twist the preview to turn it.';
     $('qc-poly-corner').closest('.qc-field').classList.toggle('qc-kind-hidden', star);
     $('qc-poly-corner-relief').closest('.qc-relief-field').classList.toggle('qc-kind-hidden', star);
     var clearOpt = $('qc-poly-cut-type').querySelector('option[value="clearing"]');
@@ -11829,17 +11850,20 @@
   // Keep HELP_TOPICS in step with the README when a feature changes.
   var help = { returnTo: null };
   var HELP_SHAPE_ORIGIN = 'The <strong>Origin</strong> dots pick which point of the shape is X0 Y0: a corner, an edge midpoint, or the center. With a pattern on, it is that point of the box around <em>all</em> the copies. Tapping a point on the shape preview instead picks that point of the shape drawn there (the first copy). <strong>Inset</strong> keeps the cut that far in from a corner or edge origin, e.g. a juice groove 10 mm in from the corner of a board, without moving the work offset; a negative Inset moves it out past the origin instead. The preview shows it as a short dashed dimension from the X0&nbsp;Y0 crosshair. Its label is a menu. <strong>Edge Inset</strong> is to the edge of the cut; <strong>Center Inset</strong> is to the copies&rsquo; centers instead, e.g. the first of a row of holes 10&nbsp;mm in from the corner, whatever the bit (Drill starts there). An arc slot&rsquo;s center is its arc&rsquo;s center, so Center Inset suits holes and shapes centered on themselves best. The <strong>XY</strong> choices split it into two boxes, X from a left or right origin point and Y from a front or back one. Changing it converts the numbers so nothing moves.';
-  var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the wasteboard): sheet goods are seldom exactly their nominal thickness. Each pass ramps down along its own path, at 5&deg; or less, instead of plunging, and Z never comes down faster than the <strong>Plunge Rate</strong>.';
+  // Diagrams, the same as the README's docs/images/chamfer.svg and ramp.svg.
+  var HELP_FIG_CHAMFER = '<figure class="qc-help-fig"><svg viewBox="0 0 800 300" role="img" aria-label="Chamfer cross-section: a V-bit cuts the top edge of a hole already cut. Its tip goes below the chamfer, into the hole."> <defs> <marker id="qcf-a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 9 5 0 9Z" class="mk"/></marker> </defs> <path class="stock" d="M30 90H250L310 150V240H640V280H30Z"/> <path class="chamfer" d="M250 90H310V150Z"/> <line class="z0" x1="30" y1="90" x2="640" y2="90"/> <text class="acc" x="636" y="82" text-anchor="end">Z0 = top of stock</text> <text class="sub" x="70" y="200">the part</text> <text class="sub" x="440" y="228">the hole you already cut</text> <rect class="bit" x="305" y="6" width="70" height="44" rx="3"/> <path class="bit" d="M210 50H470L340 180Z"/> <line class="dim" x1="250" y1="90" x2="250" y2="64"/> <line class="dim" x1="310" y1="90" x2="310" y2="64"/> <line class="dim" x1="252" y1="70" x2="308" y2="70" marker-start="url(#qcf-a)" marker-end="url(#qcf-a)"/> <text class="txt" x="196" y="75" text-anchor="end">Chamfer Width</text> <line class="dim" x1="200" y1="70" x2="250" y2="70" stroke-dasharray="3 3"/> <line class="dim" x1="310" y1="150" x2="372" y2="150" stroke-dasharray="3 3"/> <line class="dim" x1="340" y1="180" x2="372" y2="180" stroke-dasharray="3 3"/> <line class="dim" x1="366" y1="152" x2="366" y2="178" marker-start="url(#qcf-a)" marker-end="url(#qcf-a)"/> <text class="txt" x="378" y="162">tip below the chamfer</text> <text class="sub" x="378" y="179">up to 1 mm, so the V&#8217;s side cuts</text> <path class="dim" d="M318 158A31 31 0 0 0 362 158"/> <text class="sub" x="340" y="146" text-anchor="middle">90&#176;</text> <text class="txt" x="190" y="134" text-anchor="end">Included Angle</text> <text class="sub" x="190" y="151" text-anchor="end">the whole V</text> <line class="dim" x1="196" y1="140" x2="318" y2="150" stroke-dasharray="3 3"/> <line class="dim" x1="640" y1="240" x2="668" y2="240" stroke-dasharray="3 3"/> <line class="dim" x1="662" y1="92" x2="662" y2="238" marker-start="url(#qcf-a)" marker-end="url(#qcf-a)"/> <text class="txt" x="674" y="160">Existing Depth</text> <text class="sub" x="674" y="177">blank = right</text> <text class="sub" x="674" y="194">through</text> </svg></figure>';
+  var HELP_FIG_RAMP = '<figure class="qc-help-fig"><svg viewBox="0 0 640 230" role="img" aria-label="Side view: a plunge goes straight down into uncut wood; QuickCut&#8217;s ramp goes down along the path at 5 degrees or less, then back to where it began."> <defs> <marker id="qcf-b" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="badt" d="M0 0 10 5 0 10Z"/></marker> <marker id="qcf-g" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="goodt" d="M0 0 10 5 0 10Z"/></marker> </defs> <text class="txt" x="20" y="28">Plunge</text> <rect class="stock" x="20" y="70" width="280" height="110"/> <rect class="cut" x="20" y="70" width="280" height="22"/> <path class="bad" d="M80 40V112" marker-end="url(#qcf-b)"/> <path class="bad" d="M110 100 130 120M130 100 110 120"/> <text class="sub" x="20" y="204">straight down into uncut wood:</text> <text class="sub" x="20" y="221">hard on the bit and the spindle</text> <text class="txt" x="340" y="28">Ramp (QuickCut)</text> <rect class="stock" x="340" y="70" width="280" height="110"/> <rect class="cut" x="340" y="70" width="280" height="22"/> <path class="good" d="M370 92 580 114" marker-end="url(#qcf-g)"/> <path class="good" d="M580 114H378" marker-end="url(#qcf-g)"/> <text class="sub" x="586" y="60" text-anchor="end">angle drawn steeper than it is</text> <text class="sub" x="340" y="204">down along the pass&#8217;s own path at 5&#176; or</text> <text class="sub" x="340" y="221">less, then back to where it began</text> </svg></figure>';
+  var HELP_DEPTH = 'Zero Z on the top of the stock: Z0 is its top surface, and <strong>Total Depth</strong> is measured down from it, in passes no deeper than <strong>Depth of Cut</strong>. To cut right through, make Total Depth a little more than the stock is thick (about 0.5&nbsp;mm, or 0.02&nbsp;in, into the wasteboard): sheet goods are seldom exactly their nominal thickness. Each pass ramps down along its own path, at 5&deg; or less, instead of plunging, and Z never comes down faster than the <strong>Plunge Rate</strong>.' + HELP_FIG_RAMP;
   var HELP_CORNER_RELIEF = '<strong>Corner Relief</strong> (Inner cuts): a round bit leaves its own radius in every sharp inside corner, so a square-cornered part or panel won&rsquo;t drop in. <strong>Dog-bone</strong> runs the bit diagonally into each corner and back; <strong>T-bone</strong> runs it straight on along one edge, so only the other wall gets the notch, which hides better on a visible joint: on a Rectangle along the longer edges, so the notches are in the end walls; on a Polygon each edge runs on past its end in the same direction all the way round, like a pinwheel. Either way its edge reaches the corner (or the Corner Radius, when that&rsquo;s smaller than the bit), and the preview shows the notches. Other names: dogbone fillets, corner overcuts. None by default.';
   var HELP_CUT_TYPES = '<strong>Cut Type:</strong> <strong>Inner (perimeter)</strong> cuts just inside the outline, for an opening of that size. <strong>Inner (clearing)</strong> removes everything inside (a pocket), stepping over by <strong>Stepover</strong> (% of the bit). <strong>Outer (part)</strong> cuts just outside, so the piece inside comes out at full size. In the preview the solid outline is the size you typed; for Inner (perimeter) and Outer a fainter dashed line a bit diameter inside or outside it marks the cut&rsquo;s other edge, so the band between them is what the bit takes. The hatch shows what the bit removes: that band on an Outer cut, the whole inside on Inner (clearing).';
-  var HELP_CHAMFER = '<strong>Chamfer</strong> (the switch on its card) makes only a chamfer of the top edge of the shape you&rsquo;ve already cut, with a V-bit, in place of the cut: inside a hole&rsquo;s edge, outside a part&rsquo;s. Run the cut first, and clear the hole or slot out. The V-bit is the Tool card&rsquo;s bit: with a tool changer, a V-bit in the spindle (or picked in the Bit Diameter menu) turns Chamfer on, any other bit off, and fills the <strong>Included Angle</strong> (the whole V: 90 for a bit that is 45&deg; a side) from the tool table or the tool&rsquo;s name. <strong>Chamfer Width</strong> is across the top, as in Fusion 360; at 90&deg; it&rsquo;s the C on a drawing (C1 = 1&nbsp;&times;&nbsp;45&deg;), up to 90% of the V-bit&rsquo;s radius. <strong>Existing Depth</strong> is how deep the cut you already made goes (blank: right through), and <strong>Cut Bit</strong> the bit it was made with: a pocket&rsquo;s inside corners are as round as that bit, and the chamfer follows them; around a part it&rsquo;s the slot&rsquo;s width. The tip goes up to 1&nbsp;mm (0.04&nbsp;in) below the chamfer, into that cut, clear of its bottom, so the V&rsquo;s side does the cutting rather than its weak tip; the note under the card gives the deepest Z. Total Depth and the tabs belong to the cut, so they&rsquo;re hidden while chamfering; the chamfer has its own <strong>Depth of Cut</strong>, each pass taking about as much as the last. Corners the Corner Radius doesn&rsquo;t round (a star&rsquo;s points, an arch&rsquo;s top) are rounded in the chamfer as the Cut Bit rounded them.';
+  var HELP_CHAMFER = '<strong>Chamfer</strong> (the switch on its card) makes only a chamfer of the top edge of the shape you&rsquo;ve already cut, with a V-bit, in place of the cut: inside a hole&rsquo;s edge, outside a part&rsquo;s. Run the cut first, and clear the hole or slot out. The V-bit is the Tool card&rsquo;s bit: with a tool changer, a V-bit in the spindle (or picked in the Bit Diameter menu) turns Chamfer on, any other bit off, and fills the <strong>Included Angle</strong> (the whole V: 90 for a bit that is 45&deg; a side) from the tool table or the tool&rsquo;s name. <strong>Chamfer Width</strong> is across the top, as in Fusion 360; at 90&deg; it&rsquo;s the C on a drawing (C1 = 1&nbsp;&times;&nbsp;45&deg;), up to 90% of the V-bit&rsquo;s radius. <strong>Existing Depth</strong> is how deep the cut you already made goes (blank: right through), and <strong>Cut Bit</strong> the bit it was made with: a pocket&rsquo;s inside corners are as round as that bit, and the chamfer follows them; around a part it&rsquo;s the slot&rsquo;s width. The tip goes up to 1&nbsp;mm (0.04&nbsp;in) below the chamfer, into that cut, clear of its bottom, so the V&rsquo;s side does the cutting rather than its weak tip; the note under the card gives the deepest Z. Total Depth and the tabs belong to the cut, so they&rsquo;re hidden while chamfering; the chamfer has its own <strong>Depth of Cut</strong>, each pass taking about as much as the last. Corners the Corner Radius doesn&rsquo;t round (a star&rsquo;s points, an arch&rsquo;s top) are rounded in the chamfer as the Cut Bit rounded them.' + HELP_FIG_CHAMFER;
   var HELP_TABS = '<strong>Holding Tabs</strong> (Inner perimeter and Outer only) leave small bridges on the last passes so the part, or the drop-out, can&rsquo;t come loose. <strong>Tab Width</strong> is measured at the part; <strong>Tab Height</strong> is how much is left standing.';
   var HELP_TOPICS = {
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
-      'Pick <strong>Trapezoid</strong> from the menu in the title for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Tap a corner or an edge&rsquo;s middle in the preview to put X0 Y0 on the trapezoid itself; the Origin picker&rsquo;s points are the corners and edges of the box around it, so with a top wider or narrower than the bottom, a box corner can sit in the air beside the slanted end.',
-      'Pick <strong>Arch</strong> for straight sides under a curved top: <strong>Rise</strong> is how far the top rises, and its label is a menu: <strong>Round Top</strong> (half an ellipse; a semicircle at half the Width) or <strong>Pointed Top</strong> (two arcs meeting at a point, like a church window; it must rise at least half the Width). Height includes the rise. Corner Radius rounds the two front corners (and a pointed top&rsquo;s point), and any part of the curve tighter than it. Pick <strong>Ellipse</strong> for an oval Width by Height. Curves are cut as short straight moves within 0.01 mm of the curve, and Corner Relief doesn&rsquo;t apply to them.',
-      'Pick <strong>Triangle</strong> from the same menu, then say what you know in <strong>Defined By</strong>: <strong>3 Sides</strong>; <strong>2 Sides + Angle</strong> (the Base, the Left Side and the angle between them); <strong>Base + 2 Angles</strong> (the angles at the base&rsquo;s ends); or <strong>Base + Height</strong>, with the peak centered, over either end (a right angle there), or a set distance from the left end. The Base is the front edge and the peak points to the back; Start Angle turns it. The preview shows every side and angle, the ones worked out fainter, and switching Defined By keeps the triangle. Corner Radius, tabs, Corner Relief, clearing and patterns work as on the rectangle; tap a corner or a side&rsquo;s middle to put X0 Y0 there.',
+      'Pick <strong>Trapezoid</strong> (its icon in the sidebar, or the menu in the title) for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Tap a corner or an edge&rsquo;s middle in the preview to put X0 Y0 on the trapezoid itself; the Origin picker&rsquo;s points are the corners and edges of the box around it, so with a top wider or narrower than the bottom, a box corner can sit in the air beside the slanted end.',
+      'Pick <strong>Arch</strong> (or <strong>Pointed Arch</strong>, its own icon) for straight sides under a curved top: <strong>Rise</strong> is how far the top rises, and its label is a menu: <strong>Round Top</strong> (half an ellipse; a semicircle at half the Width) or <strong>Pointed Top</strong> (two arcs meeting at a point, like a church window; it must rise at least half the Width). Height includes the rise. Corner Radius rounds the two front corners (and a pointed top&rsquo;s point), and any part of the curve tighter than it. Pick <strong>Ellipse</strong> for an oval Width by Height. Curves are cut as short straight moves within 0.01 mm of the curve, and Corner Relief doesn&rsquo;t apply to them.',
+      'Pick <strong>Triangle</strong> (its icon, or the same menu), then say what you know in <strong>Defined By</strong>: <strong>3 Sides</strong>; <strong>2 Sides + Angle</strong> (the Base, the Left Side and the angle between them); <strong>Base + 2 Angles</strong> (the angles at the base&rsquo;s ends); or <strong>Base + Height</strong>, with the peak centered, over either end (a right angle there), or a set distance from the left end. The Base is the front edge and the peak points to the back; Start Angle turns it. The preview shows every side and angle, the ones worked out fainter, and switching Defined By keeps the triangle. Corner Radius, tabs, Corner Relief, clearing and patterns work as on the rectangle; tap a corner or a side&rsquo;s middle to put X0 Y0 there.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
       'Tap a <strong>corner</strong>, the <strong>middle of an edge</strong> (or the center) in the preview to make it X0 Y0; the crosshair marks X0 Y0. They follow the Start Angle, so a turned rectangle&rsquo;s own corners and edges can be X0 Y0. Corners are where the edges meet, even when rounded, and belong to the first copy when a pattern is on.',
@@ -11851,11 +11875,11 @@
     polygon: { name: 'Polygon', notes: [
       '<strong>Sides</strong> is 3 to 12. The size is measured how you choose in the dropdown above it: <strong>Across Corners</strong> (the circle the corners sit on), <strong>Across Flats</strong> (between opposite sides; e.g. a hex pocket for a 13&nbsp;mm nut is 13 across the flats, plus clearance), or <strong>Edge Length</strong> (one side). Changing it converts the number, so the polygon stays the same. <strong>Start Angle</strong> turns the polygon (or twist the preview: half degrees, sticking at miter angles such as 22.5 and 36&deg;). <strong>Corner Radius</strong> rounds the corners, up to fully round. On an Inner or Clearing cut the corners can&rsquo;t be tighter than the bit&rsquo;s radius; when the bit rounds them more than you asked, the preview shows your shape dashed behind the cut (a small polygon with a large bit can look almost round).',
       'Tap a <strong>corner</strong> in the preview, or its <strong>center</strong> (the polygon&rsquo;s own center, which on an odd-sided polygon isn&rsquo;t the middle of the Origin box), to make it X0 Y0.',
-      'Pick <strong>Star</strong> from the menu in the title (or its own tab): <strong>Points</strong>, the <strong>Diameter</strong> across them and the <strong>Inner Diameter</strong> the corners between them sit on (smaller for sharper points). Start Angle 0 points the first one to the back. Inner and Outer cuts only; the inside corners of an Outer cut and the points of an Inner one stay as sharp as the bit allows. Tap a point, an inner corner or the center to make it X0 Y0.',
+      'Pick <strong>Star</strong> (its icon in the sidebar, or the menu in the title): <strong>Points</strong>, the <strong>Diameter</strong> across them and the <strong>Inner Diameter</strong> the corners between them sit on (smaller for sharper points). Start Angle 0 points the first one to the back. Inner and Outer cuts only; the inside corners of an Outer cut and the points of an Inner one stay as sharp as the bit allows. Tap a point, an inner corner or the center to make it X0 Y0.',
       HELP_CUT_TYPES, HELP_CORNER_RELIEF, HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER ] },
     slot: { name: 'Slot', notes: [
       '<strong>Straight</strong>: <strong>Length</strong> is overall, end to end, at <strong>Angle</strong>. <strong>Width</strong> is the finished width; the ends are half circles.',
-      '<strong>Arc</strong> by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
+      '<strong>Arc</strong> (the <strong>Arc Slot</strong> icon, or <strong>Slot Type</strong>) by <strong>Radius &amp; Sweep</strong>: <strong>Radius</strong> is from the arc&rsquo;s center to the middle of the slot; it starts at <strong>Start Angle</strong> and runs <strong>Sweep</strong> degrees, CCW (negative = CW). By <strong>Chord &amp; Rise</strong>: <strong>Chord</strong> is the straight distance between the centres of the two ends, <strong>Rise</strong> how far the middle bulges out from it, toward <strong>Angle</strong>. Use whichever you can measure.',
       'For a grid of grooves, use a straight slot, the <strong>Center line</strong> cut type and a <strong>Grid</strong> pattern: Columns and Rows are the number of lines each way, and every line spans the grid, so the outer lines meet at the corners (the Slot&rsquo;s Length and Angle don&rsquo;t apply; the pattern Angle turns the grid). Rows are cut first, then columns, each to full depth, going back and forth so each line starts near where the last one ended.',
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
@@ -11869,7 +11893,7 @@
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
       'X0 Y0 starts at the <strong>plunge hole</strong>; tap it on the preview to go back to it. The Origin picker&rsquo;s dots are the box around the whole cut, which you can also tap on the preview: a corner, edge midpoint or its center.' ] },
     drill: { name: 'Drill', notes: [
-      'Holes the size of the <strong>Bit Diameter</strong>. Every move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
+      'Holes the size of the <strong>Bit Diameter</strong>. Every Z move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
       'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.',
       HELP_CHAMFER + ' On Drill, the card asks for the <strong>Hole Diameter</strong> (the drill&rsquo;s size, as the Tool card holds the V-bit), and the Feed Rate comes back on for the chamfer&rsquo;s laps; keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' ] },
@@ -11894,15 +11918,14 @@
   var HELP_SHARED = {
     pattern: { title: 'Patterns', notes: [
       '<strong>Linear</strong> is a grid; <strong>Honeycomb</strong> shifts every other row half a step; its <strong>Y Count</strong> and <strong>Y Spacing</strong> are row by row, shifted rows included (<strong>Symmetric Ends</strong> trims the shifted rows so both ends line up); <strong>Circular</strong> places copies around a circle.',
-      '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus: pick <strong>Extent</strong> to give the first-to-last center distance instead (e.g. a row of holes), or on Linear and Honeycomb <strong>Overall</strong> for the size from the outer edge of the first copy to the outer edge of the last (the solid lines on the preview), so every copy fits inside it. Either way the copies spread evenly. Each direction has its own.',
-      'On Linear and Honeycomb, the Spacing labels are menus: pick <strong>Gap</strong> to give the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
+      '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus, one for each direction: <strong>Extent</strong> gives the first-to-last center distance instead (e.g. a row of holes), and on Linear and Honeycomb <strong>Overall</strong> the size from the outer edge of the first copy to the outer edge of the last (the solid lines on the preview), so every copy fits inside it; either way the copies spread evenly. <strong>Gap</strong> (Linear and Honeycomb) gives the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
-      'A field that can&rsquo;t be used gets a red line under it saying why; the note beside <strong>Generate</strong> says how many fields to fix.',
+      'A field that can&rsquo;t be used gets a red border, and a red bubble over the field you&rsquo;re in (or just left) says why. The note beside <strong>Generate</strong> shows the first problem, with &ldquo;(+N more)&rdquo; when there are others; tap it to go to that field.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
       'Beside <strong>Generate</strong>: about how long the program runs, and whether it stays inside the machine&rsquo;s travel from the X0 Y0 in use (once the machine is homed). Set X0 Y0 first for a true check. The <strong>Depth</strong> card shows a side view of the cut: each pass, and the tabs.',
       '<strong>Save to File Manager</strong> also saves each program to File Manager &rsaquo; QuickCut.',
@@ -11936,7 +11959,21 @@
     var field = el.closest('.qc-field');
     var fl = field && field.querySelector('label');
     if (fl && text(fl)) return text(fl);
+    // A label that is a menu (Edge Inset, Slot Length...): its choice.
+    var own = el.matches('select.qc-label-select'), menu = own ? el : field && field.querySelector('select.qc-label-select');
+    if (menu && menu.options[menu.selectedIndex]) return menu.options[menu.selectedIndex].text + (own ? ' menu' : '');
     return cardTitle + ' switch';
+  }
+  // A field the tab doesn't show (another kind's, e.g. Rise on a
+  // Triangle, a straight slot's Length on an arc, or Hole Diameter off
+  // Drill) has no tip in its Help. A card switched off (Pattern, Tabs,
+  // Chamfer) still lists its fields: Help is where to read about them.
+  function helpHidden(el) {
+    for (var n = el; n && !n.matches('.qc-card, .qc-header-card'); n = n.parentElement) {
+      if (/-(pattern-body|tabs-fields)$|^qc-chamfer-body$/.test(n.id || '')) continue;
+      if (n.classList.contains('qc-kind-hidden') || getComputedStyle(n).display === 'none') return true;
+    }
+    return false;
   }
 
   // The tooltips in one part of the page, grouped by card. Skips the
@@ -11954,7 +11991,7 @@
       var seen = {}, tips = [];
       card.querySelectorAll('[title]').forEach(function(el) {
         var tip = el.getAttribute('data-title') || el.getAttribute('title');
-        if (!tip || el.hasAttribute('data-pattern-label') || /-pattern-[xy]-(count|dist)$/.test(el.id)) return;
+        if (!tip || el.hasAttribute('data-pattern-label') || /-pattern-[xy]-(count|dist)$/.test(el.id) || helpHidden(el)) return;
         var name = helpTipName(el, title);
         if (seen[name + tip]) return;
         seen[name + tip] = true;
@@ -11977,10 +12014,19 @@
     }).join('') + '</dl>';
   }
 
+  // The tab's name as its sidebar icon says it: the kind picked on the
+  // Rectangle and Polygon tabs, Pointed Arch, Arc Slot.
+  function helpTopicName(tab) {
+    var picked = function(id) { var m = $(id); return m && m.options[m.selectedIndex] ? m.options[m.selectedIndex].text : null; };
+    if (tab === 'rectangle') return $('qc-rect-kind').value === 'arch' && $('qc-rect-arch-style').value === 'pointed' ? 'Pointed Arch' : picked('qc-rect-kind') || 'Rectangle';
+    if (tab === 'polygon') return picked('qc-poly-kind') || 'Polygon';
+    if (tab === 'slot' && $('qc-slt-type').value === 'arc') return 'Arc Slot';
+    return (HELP_TOPICS[tab] || HELP_TOPICS.rectangle).name;
+  }
   function renderHelp(tab) {
-    var topic = HELP_TOPICS[tab] || HELP_TOPICS.rectangle;
+    var topic = HELP_TOPICS[tab] || HELP_TOPICS.rectangle, name = helpTopicName(tab);
     var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
-    var html = helpCard(topic.name, helpNotes(topic.notes));
+    var html = helpCard(name, helpNotes(topic.notes));
     if (section) {
       collectHelpTips(section).forEach(function(g) {
         html += helpCard(helpEscape(g.title) + ' &mdash; field tips', helpTips(g.tips));
@@ -11999,7 +12045,7 @@
     html += helpCard(HELP_SHARED.units.title, helpNotes(HELP_SHARED.units.notes));
     html += helpDocsCard();
     $('qc-help-body').innerHTML = html;
-    $('qc-help-for').textContent = ' — ' + topic.name;
+    $('qc-help-for').textContent = ' — ' + name;
     $('qc-help-sub').style.display = '';
     $('qc-help-all').style.display = '';
     $('qc-help-body').scrollTop = 0;
@@ -12018,12 +12064,20 @@
   // description; a pick shows that topic in place. Back still returns to
   // the tab Help was opened from.
   var HELP_ORDER = ['rectangle', 'circle', 'polygon', 'slot', 'keyhole', 'drill', 'planer', 'jointer', 'cutter', 'measure'];
+  // Tabs with several shapes list them all, with a line that doesn't
+  // change with the one picked.
+  var HELP_INDEX = {
+    rectangle: ['Rectangle, Trapezoid, Triangle, Arch, Ellipse', 'Shapes by width and height: a rectangle, a trapezoid, a triangle, an arch with a round or pointed top, or an ellipse.'],
+    polygon: ['Polygon, Star', 'A regular polygon of 3 to 12 sides, or a star.'],
+    slot: ['Slot, Arc Slot', 'A straight or curved slot with round ends.']
+  };
   function renderHelpIndex() {
     var rows = HELP_ORDER.map(function(tab) {
       var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
-      var sub = section && section.querySelector('.qc-panel-sub');
-      return '<li><a href="#" class="qc-help-topic" data-help-topic="' + tab + '">' + HELP_TOPICS[tab].name + '</a>' +
-        (sub ? ' &mdash; ' + helpEscape(sub.textContent.trim()) : '') + '</li>';
+      var sub = section && section.querySelector('.qc-panel-sub'), fixed = HELP_INDEX[tab];
+      var line = fixed ? fixed[1] : sub ? sub.textContent.trim() : '';
+      return '<li><a href="#" class="qc-help-topic" data-help-topic="' + tab + '">' + (fixed ? fixed[0] : HELP_TOPICS[tab].name) + '</a>' +
+        (line ? ' &mdash; ' + helpEscape(line) : '') + '</li>';
     }).join('');
     $('qc-help-body').innerHTML =
       helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>' +
