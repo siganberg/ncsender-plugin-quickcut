@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 230" role="img" aria-label="Side view: a plunge goes straight down into uncut wood; QuickCut&#8217;s ramp goes down along the path at 5 degrees or less, then back to where it began.">
+  <style>
+    .stock { fill: #d8dee4; stroke: #57606a; stroke-width: 2; }
+    .cut { fill: #ffffff; stroke: #57606a; stroke-width: 1; stroke-dasharray: 4 3; }
+    .bad { stroke: #cf222e; stroke-width: 3; fill: none; }
+    .good { stroke: #1a7f64; stroke-width: 3; fill: none; }
+    .txt { fill: #24292f; font: 600 15px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .sub { fill: #57606a; font: 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .badt { fill: #cf222e; } .goodt { fill: #1a7f64; }
+    @media (prefers-color-scheme: dark) {
+      .stock { fill: #2d333b; stroke: #8b949e; }
+      .cut { fill: #0d1117; stroke: #8b949e; }
+      .bad { stroke: #f85149; } .badt { fill: #f85149; }
+      .good { stroke: #3fb98f; } .goodt { fill: #3fb98f; }
+      .txt { fill: #e6edf3; }
+      .sub { fill: #9ba3ad; }
+    }
+  </style>
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="badt" d="M0 0 10 5 0 10Z"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="goodt" d="M0 0 10 5 0 10Z"/></marker>
+  </defs>
+  <!-- plunge -->
+  <text class="txt" x="20" y="28">Plunge</text>
+  <rect class="stock" x="20" y="70" width="280" height="110"/>
+  <rect class="cut" x="20" y="70" width="280" height="22"/>
+  <path class="bad" d="M80 40V112" marker-end="url(#b)"/>
+  <path class="bad" d="M110 100 130 120M130 100 110 120"/>
+  <text class="sub" x="20" y="204">straight down into uncut wood:</text>
+  <text class="sub" x="20" y="221">hard on the bit and the spindle</text>
+  <!-- ramp -->
+  <text class="txt" x="340" y="28">Ramp (QuickCut)</text>
+  <rect class="stock" x="340" y="70" width="280" height="110"/>
+  <rect class="cut" x="340" y="70" width="280" height="22"/>
+  <path class="good" d="M370 92 580 114" marker-end="url(#g)"/>
+  <path class="good" d="M580 114H378" marker-end="url(#g)"/>
+  <text class="sub" x="586" y="60" text-anchor="end">angle drawn steeper than it is</text>
+  <text class="sub" x="340" y="204">down along the pass&#8217;s own path at 5&#176; or</text>
+  <text class="sub" x="340" y="221">less, then back to where it began</text>
+</svg>
