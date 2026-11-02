@@ -8905,8 +8905,11 @@
       note.setAttribute('role', 'status');
       // On a field's problem, a tap goes to that field.
       note.addEventListener('click', function() {
-        var el = note._qcFix && document.getElementById(note._qcFix.id);
-        if (el) { setFieldError(el, note._qcFix.msg); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); }
+        // The note can be a moment behind the typing: checked again now.
+        var now = note._qcFix && fieldProblems()[0];
+        var el = now && document.getElementById(now.id);
+        if (!now) scheduleRunNote();
+        if (el) { setFieldError(el, now.msg); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); }
       });
       f.insertBefore(note, f.firstChild);
     });
@@ -8980,6 +8983,8 @@
     });
   }
   function updateRunNote() {
+    // A field left as the dialog closes schedules one: nothing to update.
+    if (!rootAlive()) return;
     var view = state.currentTab, pv = RUN_VIEWS[view];
     var section = ROOT.querySelector('.qc-content[data-view="' + view + '"]');
     if (section) fitLabelSelects(section);
