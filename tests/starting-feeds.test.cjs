@@ -56,3 +56,18 @@ test('stepover by material', () => {
   assert.equal(startingFeeds(6, 2, 'mdf').stepoverPct, 45);
   assert.equal(startingFeeds(6, 1, 'aluminum').stepoverPct, 25);
 });
+
+test('feeds style: average is as before; conservative and aggressive scale the chip, depth of cut and stepover', () => {
+  assert.deepEqual(startingFeeds(6.35, 2, 'mdf', null, 'average'), startingFeeds(6.35, 2, 'mdf'));
+  const avg = startingFeeds(6.35, 2, 'hardwood'), con = startingFeeds(6.35, 2, 'hardwood', null, 'conservative'), agg = startingFeeds(6.35, 2, 'hardwood', null, 'aggressive');
+  assert.equal(con.rpm, avg.rpm);
+  assert.ok(Math.abs(con.chipMm - avg.chipMm * 0.75) < 1e-12 && Math.abs(agg.chipMm - avg.chipMm * 1.25) < 1e-12);
+  assert.equal(con.feedMm, Math.round(avg.chipMm * 0.75 * 18000 * 2));
+  assert.ok(Math.abs(con.stepMm - avg.stepMm * 0.75) < 1e-12 && Math.abs(agg.stepMm - avg.stepMm * 1.2) < 1e-12);
+  assert.equal(agg.stepoverPct, 48);
+  assert.equal(con.plungeMm, Math.round(con.feedMm * 0.3));
+  // Still within the machine: the feed cap holds, and stepover stops at 90 %.
+  assert.equal(startingFeeds(12, 4, 'mdf', { maxFeed: 2500 }, 'aggressive').feedMm, 2500);
+  assert.equal(startingFeeds(6, 2, 'foam', null, 'aggressive').stepoverPct, 72);
+  assert.ok(startingFeeds(30, 2, 'aluminum', null, 'aggressive').chipMm <= 0.06 * 1.25 + 1e-12);
+});
