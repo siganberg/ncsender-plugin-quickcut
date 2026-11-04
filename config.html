@@ -233,7 +233,9 @@
     align-self: flex-start;
     -webkit-appearance: none;
     appearance: none;
-    padding: 0 14px 0 0;
+    /* Taller to tap (the Pi's touchscreen) without moving the layout. */
+    padding: 9px 14px 9px 0;
+    margin: -9px 0;
     border: none;
     background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 1px center / 9px 6px;
     font-family: inherit;
@@ -1751,8 +1753,8 @@
             </div>
             <div class="qc-row-2 qc-material-row">
               <div class="qc-field">
-                <select class="qc-label-select" id="qc-feeds-style" aria-label="Material, and how hard the starting feeds push" title="How hard the starting feeds push: Average as they are; Conservative a lighter chip (Feed Rate and Plunge Rate x0.75) and shallower passes and less stepover (x0.75), for a light machine, a long bit or a first try; Aggressive a heavier chip (x1.25) and deeper passes (x1.2), for a rigid machine. RPM stays. Picking it fills the feeds in again; kept for every tab.">
-                  <option value="average">Material</option>
+                <select class="qc-label-select" id="qc-feeds-style" aria-label="Material, and how hard the starting feeds push" title="How hard the starting feeds push. Average: as they are. Conservative, for a light machine, a long bit or a first try: Feed Rate and Plunge Rate x0.75 (even when the machine's max holds them), Depth of Cut and Stepover x0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs. Aggressive, for a rigid machine: Feed Rate and Plunge Rate x1.25 (up to the material's chip limit and the machine's max), Depth of Cut and Stepover x1.2, so about 1.5 to 1.8 times the load. RPM stays. Picking it fills the feeds in again; kept for every tab.">
+                  <option value="average">Material &middot; Average</option>
                   <option value="conservative">Material &middot; Conservative</option>
                   <option value="aggressive">Material &middot; Aggressive</option>
                 </select>
@@ -3418,6 +3420,8 @@
     // grblHAL $110/$111 (max rate, mm/min) and $30/$31 (spindle range),
     // which keep the starting feeds in reach; null when unknown.
     maxFeedMm: null,
+    // The Z axis's max rate ($112), which the starting Plunge Rate stays within.
+    maxPlungeMm: null,
     spindleMax: null,
     spindleMin: null,
     // Flutes on the bit, for the starting feeds.
@@ -3481,6 +3485,7 @@
       if (travelMin) { state.machineMinXmm = travelMin.x; state.machineMinYmm = travelMin.y; }
       var fwNum = function(k) { return parseFloat(fwSettings && fwSettings[k] && fwSettings[k].value); };
       if (fwNum('110') > 0 && fwNum('111') > 0) state.maxFeedMm = Math.min(fwNum('110'), fwNum('111'));
+      if (fwNum('112') > 0) state.maxPlungeMm = fwNum('112');
       // grblHAL's default $30 is 1000: not a router's real top speed.
       if (fwNum('30') >= 5000) state.spindleMax = fwNum('30');
       if (fwNum('31') > 0) state.spindleMin = fwNum('31');
@@ -4623,7 +4628,7 @@
 
   // Parsing what's typed in a length or feed field (1/4", 6.35mm, 100ipm,
   // 8mm*2) comes from the shared ncsender-unit-input library.
-// BEGIN ncsender-unit-input 0.1.2 (53aa971): pasted by node .scripts/sync-unit-input.mjs; edit the library, not this.
+// BEGIN ncsender-unit-input 0.1.3 (54e37bc): pasted by node .scripts/sync-unit-input.mjs; edit the library, not this.
 // Generated from src/unit-input.js by build.mjs: edit that, then npm run build.
 var NcUnitInput = (function () {
 /**
@@ -4652,8 +4657,12 @@ var MM_PER_INCH = 25.4;
 // when it can't be read. QuickCut's parser (parseUnitQuantity), plus
 // simple math from Spoilboard Toolbox (parseUnitMath) when it isn't a single value.
 function parseUnitValue(text, isImperial, kind) {
-  // A decimal comma (1,5mm, ,25in) reads as a point
-  text = String(text == null ? '' : text).replace(/,/g, '.');
+  // A decimal comma (1,5mm, ,25in) reads as a point, but not one before
+  // exactly three digits: 1,000 or 2,540 may be a thousands separator, and
+  // 1 or 2.54 instead would be quietly wrong, so that's unreadable.
+  text = String(text == null ? '' : text);
+  if (/\d,\d{3}(?!\d)/.test(text)) return null;
+  text = text.replace(/,/g, '.');
   var one = parseUnitQuantity(text, isImperial, kind);
   return one !== null ? one : parseUnitMath(text, isImperial, kind);
 }
@@ -7363,7 +7372,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Kept with the next save, so the menu still reads MDF / Plywood.
     if (fresh) initialConfig = Object.assign(initialConfig || {}, { common: Object.assign({}, common, { material: 'mdf', feedsAuto: true }) });
     var firstFeeds = function(bitMm) {
-      return startingFeeds(bitMm, state.flutes, 'mdf', { maxFeed: state.maxFeedMm, maxRpm: state.spindleMax, minRpm: state.spindleMin }, state.feedsStyle);
+      return startingFeeds(bitMm, state.flutes, 'mdf', { maxFeed: state.maxFeedMm, maxPlunge: state.maxPlungeMm, maxRpm: state.spindleMax, minRpm: state.spindleMin }, state.feedsStyle);
     };
     if (fresh) $('qc-rpm').value = firstFeeds(3.175).rpm;
     if (!loaded) {
@@ -8909,26 +8918,31 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // flutes x chip; plunge 30% of the feed; depth per pass and stepover a
     // share of the bit. HDPE takes a thick chip (a thin one melts it),
     // polycarbonate one between it and acrylic's, aluminum a small one.
-    // limits: the machine's max feed ($110/$111) and spindle range ($30/$31), when known.
-    // style: 'conservative' or 'aggressive' scale the chip (so the feed and plunge)
-    // and the depth per pass and stepover; 'average' (or none) leaves them as is.
+    // limits: the machine's max feed ($110/$111), max Z rate for the plunge ($112) and
+    // spindle range ($30/$31), when known.
+    // style: 'conservative' slows the feed x0.75, even when the machine's max holds it,
+    // except where a thin chip melts or rubs (keepChip); 'aggressive' speeds it x1.25, up
+    // to the material's chip limit and the machine's max. Depth per pass and stepover
+    // x0.75 / x1.2. 'average' (or none) leaves them as is. RPM stays.
     var MATERIALS = {
       mdf: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5, stepover: 0.45 },
       softwood: { rpm: 18000, chip: 0.012, maxChip: 0.25, stepdown: 0.5, stepover: 0.45 },
       hardwood: { rpm: 18000, chip: 0.009, maxChip: 0.2, stepdown: 0.35, stepover: 0.4 },
-      hdpe: { rpm: 15000, chip: 0.02, maxChip: 0.25, stepdown: 0.3, stepover: 0.4 },
-      acrylic: { rpm: 16000, chip: 0.015, maxChip: 0.2, stepdown: 0.3, stepover: 0.4 },
-      polycarbonate: { rpm: 16000, chip: 0.018, maxChip: 0.22, stepdown: 0.3, stepover: 0.4 },
-      aluminum: { rpm: 18000, chip: 0.0045, maxChip: 0.06, stepdown: 0.1, stepover: 0.25 },
+      hdpe: { rpm: 15000, chip: 0.02, maxChip: 0.25, stepdown: 0.3, stepover: 0.4, keepChip: true },
+      acrylic: { rpm: 16000, chip: 0.015, maxChip: 0.2, stepdown: 0.3, stepover: 0.4, keepChip: true },
+      polycarbonate: { rpm: 16000, chip: 0.018, maxChip: 0.22, stepdown: 0.3, stepover: 0.4, keepChip: true },
+      aluminum: { rpm: 18000, chip: 0.0045, maxChip: 0.06, stepdown: 0.1, stepover: 0.25, keepChip: true },
       foam: { rpm: 12000, chip: 0.02, maxChip: 0.4, stepdown: 1, stepover: 0.6 }
     };
     var m = MATERIALS[material] || MATERIALS.mdf, L = limits || {};
     var S = { conservative: { chip: 0.75, cut: 0.75 }, aggressive: { chip: 1.25, cut: 1.2 } }[style] || { chip: 1, cut: 1 };
     var rpm = Math.round(Math.min(L.maxRpm || 24000, Math.max(L.minRpm || 0, m.rpm)));
-    var chip = Math.min(m.maxChip * S.chip, m.chip * bitMm * S.chip), maxFeed = Math.min(L.maxFeed || 4000, 4000);
-    var raw = rpm * (flutes || 2) * chip, feed = Math.round(Math.min(maxFeed, Math.max(150, raw)));
-    return { rpm: rpm, chipMm: chip, feedMm: feed, capped: raw > maxFeed,
-             plungeMm: Math.round(Math.max(60, feed * 0.3)), stepMm: Math.max(0.05, bitMm * m.stepdown * S.cut), stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
+    var maxFeed = Math.min(L.maxFeed || 4000, 4000), perRev = rpm * (flutes || 2);
+    var avg = Math.min(maxFeed, perRev * Math.min(m.maxChip, m.chip * bitMm));
+    var raw = S.chip < 1 ? avg * (m.keepChip ? 1 : S.chip) : perRev * Math.min(m.maxChip, m.chip * bitMm * S.chip);
+    var exact = Math.min(maxFeed, Math.max(150, raw)), feed = Math.round(exact);
+    return { rpm: rpm, chipMm: exact / perRev, feedMm: feed, capped: raw > maxFeed,
+             plungeMm: Math.round(Math.min(L.maxPlunge || Infinity, Math.max(60, feed * 0.3))), stepMm: Math.max(0.05, bitMm * m.stepdown * S.cut), stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
   }
   // Fill in the starting feeds for the Material (and the Flutes) picked;
   // quiet when that's from a new Bit Diameter or Flutes rather than a pick.
@@ -8937,7 +8951,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!v) return;
     var bit = displayToMm(num('qc-bit', 0));
     if (!(bit > 0)) { if (!quiet) setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
-    var f = startingFeeds(bit, state.flutes, v, { maxFeed: state.maxFeedMm, maxRpm: state.spindleMax, minRpm: state.spindleMin }, state.feedsStyle);
+    var f = startingFeeds(bit, state.flutes, v, { maxFeed: state.maxFeedMm, maxPlunge: state.maxPlungeMm, maxRpm: state.spindleMax, minRpm: state.spindleMin }, state.feedsStyle);
     $('qc-rpm').value = f.rpm;
     writeFeed('qc-feed', f.feedMm);
     writeFeed('qc-plunge', f.plungeMm);
@@ -8950,7 +8964,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (quiet) return;
     setFeedsAuto(true);
     var u = state.unitLabel, chip = roundDisplay(mmToDisplay(f.chipMm)), sel = $('qc-material');
-    var styleName = state.feedsStyle && state.feedsStyle !== 'average' ? ' (' + state.feedsStyle + ')' : '';
+    var styleSel = $('qc-feeds-style'), styleName = state.feedsStyle && state.feedsStyle !== 'average' ? ' \u00b7 ' + styleSel.options[styleSel.selectedIndex].textContent.replace(/^Material \u00b7 /, '') : '';
     setTimeout(function() { showTooltip(feed, sel.options[sel.selectedIndex].textContent + styleName + ', a ' + state.flutes + '-flute ' +
       roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
       (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
@@ -8979,6 +8993,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-feeds-style').addEventListener('change', function() {
       state.feedsStyle = $('qc-feeds-style').value;
       persistSettings({ common: { feedsStyle: state.feedsStyle } });
+      if (!$('qc-material').value) { setTimeout(function() { showTooltip($('qc-material'), 'Pick a material, and the feeds are filled in for it.', null, true); }, 0); return; }
       fillStartingFeeds(false);
     });
     $('qc-flutes').addEventListener('change', function() {
@@ -12092,7 +12107,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     rectangle: { name: 'Rectangle', notes: [
       '<strong>Width</strong> and <strong>Height</strong> are the finished size; the bit diameter is allowed for.',
       'Pick <strong>Trapezoid</strong> (its icon in the sidebar, or the menu in the title) for a sign with slanted ends: <strong>Bottom Width</strong> is the front edge, <strong>Top Width</strong> the back edge, Height apart. Top Width&rsquo;s label is a menu: centered (both ends slant the same), or lined up with the left or right end. Corner Radius rounds all four corners; it&rsquo;s capped at the most the shape has room for, and the program&rsquo;s header says so. Tap a corner or an edge&rsquo;s middle in the preview to put X0 Y0 on the trapezoid itself; the Origin picker&rsquo;s points are the corners and edges of the box around it, so with a top wider or narrower than the bottom, a box corner can sit in the air beside the slanted end.',
-      'Pick <strong>Arch</strong> (or <strong>Pointed Arch</strong>, its own icon) for straight sides under a curved top: <strong>Rise</strong> is how far the top rises, and its label is a menu: <strong>Round Top</strong> (half an ellipse; a semicircle at half the Width) or <strong>Pointed Top</strong> (two arcs meeting at a point, like a church window; it must rise at least half the Width). Height includes the rise. Corner Radius rounds the two front corners (and a pointed top&rsquo;s point), and any part of the curve tighter than it. Pick <strong>Ellipse</strong> for an oval Width by Height. Curves are cut as short straight moves within 0.01 mm of the curve, and Corner Relief doesn&rsquo;t apply to them.',
+      'Pick <strong>Arch</strong> (or <strong>Pointed Arch</strong>, its own icon) for straight sides under a curved top: <strong>Rise</strong> is how far the top rises, and its label is a menu: <strong>Round Top</strong> (half an ellipse; a semicircle at half the Width) or <strong>Pointed Top</strong> (two arcs meeting at a point, like a church window; it must rise at least half the Width). Height includes the rise. Corner Radius rounds the two front corners (and a pointed top&rsquo;s point), and any part of the curve tighter than it. Curves are cut as short straight moves within 0.01 mm of the curve, and Corner Relief doesn&rsquo;t apply to them.',
+      'Pick <strong>Ellipse</strong> for an oval Width by Height, cut as short straight moves within 0.01 mm of the curve; Corner Relief doesn&rsquo;t apply.',
       'Pick <strong>Triangle</strong> (its icon, or the same menu), then say what you know in <strong>Defined By</strong>: <strong>3 Sides</strong>; <strong>2 Sides + Angle</strong> (the Base, the Left Side and the angle between them); <strong>Base + 2 Angles</strong> (the angles at the base&rsquo;s ends); or <strong>Base + Height</strong>, with the peak centered, over either end (a right angle there), or a set distance from the left end. The Base is the front edge and the peak points to the back; Start Angle turns it. The preview shows every side and angle, the ones worked out fainter, and switching Defined By keeps the triangle. Corner Radius, tabs, Corner Relief, clearing and patterns work as on the rectangle; tap a corner or a side&rsquo;s middle to put X0 Y0 there.',
       HELP_CUT_TYPES,
       '<strong>Corner Radius</strong> rounds the corners (0 = square). An inside corner can&rsquo;t be tighter than the bit&rsquo;s own radius; when the bit rounds the corners more than you asked, the preview shows your shape dashed behind the cut, so you can see the difference. <strong>Start Angle</strong> turns the rectangle about its center; you can also twist the preview with a finger or the mouse (half degrees, sticking at miter angles such as 22.5 and 45&deg;).',
@@ -12153,7 +12169,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: Average; <strong>Conservative</strong> (a lighter chip, Feed Rate and Plunge Rate &times;0.75, shallower passes and less stepover &times;0.75) for a light machine, a long bit or a first try; <strong>Aggressive</strong> (&times;1.25 and &times;1.2) for a rigid one. RPM stays; it&rsquo;s kept for every tab. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
       'A field that can&rsquo;t be used gets a red border, and a red bubble over the field you&rsquo;re in (or just left) says why. The note beside <strong>Generate</strong> shows the first problem, with &ldquo;(+N more)&rdquo; when there are others; tap it to go to that field.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
@@ -12162,6 +12178,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<strong>Load</strong> fills a tab from a QuickCut program in File Manager: every program records the settings it was made with in a few comment lines after M30. Pick one, check the values, then Generate. Share a program file and someone else can Load its settings too.' ] },
     units: { title: 'Typing units', notes: [
       'Size and feed fields accept a unit and convert it when you leave the field: <kbd>1/4"</kbd>, <kbd>5/4"</kbd>, <kbd>.25in</kbd>, <kbd>1-1/2"</kbd>, <kbd>6.35mm</kbd>, and for feeds <kbd>100ipm</kbd>, <kbd>2540mm/min</kbd>, <kbd>25mm/s</kbd>.',
+      'Simple math works too: <kbd>8mm*2</kbd>, <kbd>1in+4mm</kbd>, <kbd>(1/4"+2mm)/2</kbd>. A number without a unit is in the units shown. A dash with no spaces is a mixed number (<kbd>1-1/2</kbd> is 1.5); with spaces it subtracts (<kbd>1 - 1/2</kbd> is 0.5). A decimal comma reads as a point (<kbd>1,5mm</kbd>), but <kbd>1,000</kbd> is refused, as it may be a thousands separator.',
       'With a keyboard, <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> step a number by 1, with <kbd>Shift</kbd> 10, <kbd>Alt</kbd> 0.1, and <kbd>Ctrl</kbd> 0.001.' ] }
   };
 
@@ -12256,7 +12273,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function renderHelp(tab) {
     var topic = HELP_TOPICS[tab] || HELP_TOPICS.rectangle, name = helpTopicName(tab);
     var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
-    var html = helpCard(name, helpNotes(topic.notes));
+    // A kind picked on the tab (Triangle, Star...) puts its own note first.
+    var kindMenu = { rectangle: 'qc-rect-kind', polygon: 'qc-poly-kind' }[tab], notes = topic.notes;
+    if (kindMenu && $(kindMenu).selectedIndex > 0) {
+      var own = 'Pick <strong>' + $(kindMenu).options[$(kindMenu).selectedIndex].text + '</strong>';
+      var first = notes.filter(function(n) { return n.indexOf(own) === 0; });
+      if (first.length) notes = first.concat(notes.filter(function(n) { return n.indexOf(own) !== 0; }));
+    }
+    var html = helpCard(name, helpNotes(notes));
     if (section) {
       collectHelpTips(section).forEach(function(g) {
         html += helpCard(helpEscape(g.title) + ' &mdash; field tips', helpTips(g.tips));
