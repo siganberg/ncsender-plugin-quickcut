@@ -2,7 +2,11 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseUnitValue } = require('../lib/unit-input.cjs');
+// The library as pasted into config.html (between its BEGIN/END lines).
+const html = fs.readFileSync(path.join(__dirname, '..', 'config.html'), 'utf8');
+const begin = html.indexOf('// BEGIN ncsender-unit-input'), end = html.indexOf('// END ncsender-unit-input');
+const pasted = html.slice(html.indexOf('\n', begin) + 1, end);
+const { parseUnitValue } = new Function(pasted + '\nreturn NcUnitInput;')();
 
 const METRIC = false, IMPERIAL = true;
 
@@ -60,22 +64,21 @@ test('feed fields accept /m as per minute and per-second units', () => {
 });
 
 test('unreadable text returns null', () => {
-  for (const bad of ['', 'abc', '1/0', '1.5/2', '1-1/0', '6.35 furlongs', '1..2', '--1', '1/4/2']) {
+  for (const bad of ['', 'abc', '1/0', '1-1/0', '6.35 furlongs', '1..2', '--1', '2mm*3mm', '4/0']) {
     assert.equal(parseUnitValue(bad, METRIC, 'length'), null, JSON.stringify(bad));
   }
 });
 
-test('inline copy in config.html matches lib/unit-input.cjs', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'config.html'), 'utf8');
-  const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'unit-input.cjs'), 'utf8');
-  const body = (src) => {
-    const start = src.indexOf('function parseUnitValue(');
-    let i = src.indexOf('{', start), depth = 0;
-    for (; i < src.length; i++) {
-      if (src[i] === '{') depth++;
-      else if (src[i] === '}' && --depth === 0) break;
-    }
-    return src.slice(start, i + 1).split('\n').map(l => l.trim()).join('\n');
-  };
-  assert.equal(body(html), body(lib));
+test('simple math and a decimal comma', () => {
+  assert.equal(parseUnitValue('8mm*2', METRIC, 'length'), 16);
+  assert.equal(parseUnitValue('1in+4mm', METRIC, 'length'), 29.4);
+  assert.equal(parseUnitValue('(1/4"+2mm)/2', IMPERIAL, 'length'), 0.1644);
+  assert.equal(parseUnitValue('1.5/2', METRIC, 'length'), 0.75);
+  assert.equal(parseUnitValue('1,5mm', METRIC, 'length'), 1.5);
+});
+
+test('the ncsender-unit-input copy in config.html matches the library', (t) => {
+  const libFile = path.join(__dirname, '..', '..', 'ncsender-unit-input', 'dist', 'unit-input.global.js');
+  if (!fs.existsSync(libFile)) { t.skip('no ../ncsender-unit-input checkout'); return; }
+  assert.equal(pasted, fs.readFileSync(libFile, 'utf8'), 'run node .scripts/sync-unit-input.mjs');
 });

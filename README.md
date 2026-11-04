@@ -312,8 +312,10 @@ Size, depth, distance, and feed fields accept a unit. When you leave the field, 
 | `2540 mm/min` or `2540mm/m` (feed fields) | 2540 | 100 |
 | `25mm/s`, `25 mm/sec` (feed fields) | 1500 | 59.0551 |
 | `1ips`, `1 in/s` (feed fields) | 1524 | 60 |
+| `8mm*2`, `1in+4mm`, `(1/4"+2mm)/2` (simple math) | 16, 29.4, 4.175 | 0.6299, 1.1575, 0.1644 |
+| `1,5mm` (a decimal comma) | 1.5 | 0.0591 |
 
-Feeds are always per minute, so per-second entries are multiplied by 60, and `/m` means per minute. A number with no unit is taken to be in the current units already. Text that can't be read is left as typed, and the field says it must be a number. Counts, angles, RPM, and percentages are plain numbers.
+Math takes + - * / and brackets; a number with no unit is in the current units when it's added or subtracted, and a plain factor when it multiplies or divides. Feeds are always per minute, so per-second entries are multiplied by 60, and `/m` means per minute. A number with no unit is taken to be in the current units already. Text that can't be read is left as typed, and the field says it must be a number. Counts, angles, RPM, and percentages are plain numbers.
 
 **Arrow keys:** with a keyboard, Up / Down Arrow steps any number field, in the units shown. Unit text such as `1/4"` is converted first, so Up turns it into 7.35 in metric. Count fields always step by at least 1, and a step below a field's minimum stops at it if it's a whole number, so Down from 1 mm never lands on an odd minimum like 0.1 mm.
 
@@ -352,7 +354,7 @@ Generators live in two places on purpose:
 - `config.html`: the copy the browser dialog runs (ncSenderPro V2's plugin server serves this HTML directly; external `<script src>` won't resolve)
 - `lib/*.cjs`: the Node-loadable twin used by tests, kept in sync by hand
 
-Every fix to a generator must be applied to BOTH. The starting feeds (`startingFeeds` in `config.html` and `lib/starting-feeds.cjs`, checked by `tests/starting-feeds.test.cjs`) follow [ncCAM](https://github.com/siganberg/ncsender-plugin-nccam)'s `src/core/tools.js`: the chip each tooth takes grows with the bit up to a cap per material, and feed = RPM × flutes × chip. [Spoilboard Toolbox](https://github.com/tmuka/ncsender-plugin-spoilboard-toolbox) has the same materials table; change a material in all three rather than inventing a new formula. The same goes for the unit-entry parser (`parseUnitValue` in `config.html` and `lib/unit-input.cjs`); `tests/unit-input.test.cjs` fails if the two copies differ.
+Every fix to a generator must be applied to BOTH. The starting feeds (`startingFeeds` in `config.html` and `lib/starting-feeds.cjs`, checked by `tests/starting-feeds.test.cjs`) follow [ncCAM](https://github.com/siganberg/ncsender-plugin-nccam)'s `src/core/tools.js`: the chip each tooth takes grows with the bit up to a cap per material, and feed = RPM × flutes × chip. [Spoilboard Toolbox](https://github.com/tmuka/ncsender-plugin-spoilboard-toolbox) has the same materials table; change a material in all three rather than inventing a new formula. The unit-entry parser (`parseUnitValue`: 1/4", 6.35mm, 100ipm, 8mm*2) comes from the shared [ncsender-unit-input](https://github.com/tmuka/ncsender-unit-input) library, pasted into `config.html` between its `BEGIN`/`END ncsender-unit-input` lines by `node .scripts/sync-unit-input.mjs` (ncSender serves only `config.html`). Change the library, not the pasted copy; `tests/unit-input.test.cjs` fails if the copy differs from `../ncsender-unit-input/dist`.
 
 The images in `docs/images` are screenshots of the dialog and two hand-drawn diagrams (`chamfer.svg`, `ramp.svg`, which follow GitHub's light or dark theme).
 
