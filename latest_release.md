@@ -1,12 +1,15 @@
 ## What's Changed
 
 ### ✨ New Features
-- Pointed Arch and Arc Slot have their own icons in the sidebar, so you can find them without digging through a menu
-- The simplest shapes come first in the sidebar, with related shapes side by side
+- The Material label is now a menu of how hard the starting feeds push: Average, Conservative (lighter: Feed and Plunge ×0.75, shallower passes and less stepover) or Aggressive (heavier: ×1.25 and ×1.2, up to each material's chip limit and the machine's max). On plastics and aluminum, Conservative keeps the feed, since a thinner chip melts or rubs
+- Size and feed fields take simple math: `8mm*2`, `1in+4mm`, `(1/4"+2mm)/2`
+- A decimal comma works too: `1,5mm`
 
 ### 🔧 Improvements
-- A field with a problem gets a red border and a red bubble that floats over it, so the layout no longer jumps; the message also shows beside Generate, and tapping it goes to the field
-- The error bubble never moves the cursor while you type, and stays until the field is fixed
+- The starting Plunge Rate stays within your machine's Z max rate (`$112`)
+- Help for each shape starts with that shape's own notes, its field tips match the shape picked, and it has diagrams for chamfers and ramps
+- The README is reorganized, with screenshots and diagrams
+- Label menus (like Material and Bit Diameter) are easier to tap on a touchscreen
 
 ### 🐛 Bug Fixes
-- Switching to Ellipse or Arch could take many seconds (close to a minute on a Raspberry Pi) with an Outer cut, depth passes and a pattern on; it now takes a moment, with the same results
+- `1,000` in a field is refused rather than read as 1, since it may be a thousands separator
