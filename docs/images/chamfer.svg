@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" role="img" aria-label="Chamfer cross-section: a V-bit cuts the top edge of a hole already cut. Its tip goes below the chamfer, into the hole.">
+  <style>
+    .stock { fill: #d8dee4; stroke: #57606a; stroke-width: 2; }
+    .chamfer { fill: #d4a72c; fill-opacity: .55; stroke: #9a6700; stroke-width: 1.5; }
+    .bit { fill: #1a7f64; fill-opacity: .18; stroke: #1a7f64; stroke-width: 2; }
+    .z0 { stroke: #1a7f64; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .dim { stroke: #57606a; stroke-width: 1.2; fill: none; }
+    .mk { fill: #57606a; }
+    .txt { fill: #24292f; font: 600 14px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .sub { fill: #57606a; font: 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .acc { fill: #1a7f64; font: 600 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      .stock { fill: #2d333b; stroke: #8b949e; }
+      .chamfer { fill: #e3b341; stroke: #e3b341; }
+      .bit { fill: #3fb98f; stroke: #3fb98f; }
+      .z0 { stroke: #3fb98f; }
+      .dim { stroke: #9ba3ad; }
+      .mk { fill: #9ba3ad; }
+      .txt { fill: #e6edf3; }
+      .sub { fill: #9ba3ad; }
+      .acc { fill: #3fb98f; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 9 5 0 9Z" class="mk"/></marker>
+  </defs>
+  <!-- the part, after the chamfer; the hole already cut on the right -->
+  <path class="stock" d="M30 90H250L310 150V240H640V280H30Z"/>
+  <path class="chamfer" d="M250 90H310V150Z"/>
+  <line class="z0" x1="30" y1="90" x2="640" y2="90"/>
+  <text class="acc" x="636" y="82" text-anchor="end">Z0 = top of stock</text>
+  <text class="sub" x="70" y="200">the part</text>
+  <text class="sub" x="440" y="228">the hole you already cut</text>
+  <!-- the V-bit: 90 degrees included, tip below the chamfer -->
+  <rect class="bit" x="305" y="6" width="70" height="44" rx="3"/>
+  <path class="bit" d="M210 50H470L340 180Z"/>
+  <!-- Chamfer Width -->
+  <line class="dim" x1="250" y1="90" x2="250" y2="64"/>
+  <line class="dim" x1="310" y1="90" x2="310" y2="64"/>
+  <line class="dim" x1="252" y1="70" x2="308" y2="70" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="txt" x="196" y="75" text-anchor="end">Chamfer Width</text>
+  <line class="dim" x1="200" y1="70" x2="250" y2="70" stroke-dasharray="3 3"/>
+  <!-- tip offset -->
+  <line class="dim" x1="310" y1="150" x2="372" y2="150" stroke-dasharray="3 3"/>
+  <line class="dim" x1="340" y1="180" x2="372" y2="180" stroke-dasharray="3 3"/>
+  <line class="dim" x1="366" y1="152" x2="366" y2="178" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="txt" x="378" y="162">tip below the chamfer</text>
+  <text class="sub" x="378" y="179">up to 1 mm, so the V&#8217;s side cuts</text>
+  <!-- included angle -->
+  <path class="dim" d="M318 158A31 31 0 0 0 362 158"/>
+  <text class="sub" x="340" y="146" text-anchor="middle">90&#176;</text>
+  <text class="txt" x="190" y="134" text-anchor="end">Included Angle</text>
+  <text class="sub" x="190" y="151" text-anchor="end">the whole V</text>
+  <line class="dim" x1="196" y1="140" x2="318" y2="150" stroke-dasharray="3 3"/>
+  <!-- Existing Depth -->
+  <line class="dim" x1="640" y1="240" x2="668" y2="240" stroke-dasharray="3 3"/>
+  <line class="dim" x1="662" y1="92" x2="662" y2="238" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="txt" x="674" y="160">Existing Depth</text>
+  <text class="sub" x="674" y="177">blank = right</text>
+  <text class="sub" x="674" y="194">through</text>
+</svg>

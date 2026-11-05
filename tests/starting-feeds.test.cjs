@@ -56,3 +56,45 @@ test('stepover by material', () => {
   assert.equal(startingFeeds(6, 2, 'mdf').stepoverPct, 45);
   assert.equal(startingFeeds(6, 1, 'aluminum').stepoverPct, 25);
 });
+
+test('feeds style: average is as before; conservative and aggressive scale the feed, depth of cut and stepover', () => {
+  assert.deepEqual(startingFeeds(6.35, 2, 'mdf', null, 'average'), startingFeeds(6.35, 2, 'mdf'));
+  const avg = startingFeeds(6.35, 2, 'hardwood'), con = startingFeeds(6.35, 2, 'hardwood', null, 'conservative'), agg = startingFeeds(6.35, 2, 'hardwood', null, 'aggressive');
+  assert.equal(con.rpm, avg.rpm);
+  assert.ok(Math.abs(con.chipMm - avg.chipMm * 0.75) < 1e-12 && Math.abs(agg.chipMm - avg.chipMm * 1.25) < 1e-12);
+  assert.equal(con.feedMm, Math.round(avg.chipMm * 0.75 * 18000 * 2));
+  assert.ok(Math.abs(con.stepMm - avg.stepMm * 0.75) < 1e-12 && Math.abs(agg.stepMm - avg.stepMm * 1.2) < 1e-12);
+  assert.equal(agg.stepoverPct, 48);
+  assert.equal(con.plungeMm, Math.round(con.feedMm * 0.3));
+  // Still within the machine: the feed cap holds, and stepover stops at 90 %.
+  assert.equal(startingFeeds(12, 4, 'mdf', { maxFeed: 2500 }, 'aggressive').feedMm, 2500);
+  assert.equal(startingFeeds(6, 2, 'foam', null, 'aggressive').stepoverPct, 72);
+});
+
+test('conservative slows the feed even when the machine max holds it', () => {
+  const avg = startingFeeds(12.7, 2, 'mdf', { maxFeed: 2500 }), con = startingFeeds(12.7, 2, 'mdf', { maxFeed: 2500 }, 'conservative');
+  assert.equal(avg.feedMm, 2500);
+  assert.equal(avg.capped, true);
+  assert.equal(con.feedMm, 1875);
+  assert.equal(con.capped, false);
+  // The chip shown is the one the held feed cuts, not the formula's.
+  assert.ok(Math.abs(avg.chipMm - 2500 / 36000) < 1e-12);
+});
+
+test('conservative keeps the chip where a thin one melts or rubs: plastics and aluminum', () => {
+  for (const m of ['hdpe', 'acrylic', 'polycarbonate', 'aluminum']) {
+    const avg = startingFeeds(3.175, 2, m), con = startingFeeds(3.175, 2, m, null, 'conservative');
+    assert.equal(con.feedMm, avg.feedMm, m);
+    assert.ok(Math.abs(con.stepMm - avg.stepMm * 0.75) < 1e-12, m);
+  }
+});
+
+test('aggressive stops at the material chip limit', () => {
+  assert.ok(Math.abs(startingFeeds(30, 2, 'aluminum', null, 'aggressive').chipMm - 0.06) < 1e-12);
+  assert.ok(startingFeeds(12.7, 1, 'hdpe', null, 'aggressive').chipMm <= 0.25 + 1e-12);
+});
+
+test('the plunge stays within the Z max rate ($112)', () => {
+  assert.equal(startingFeeds(6.35, 2, 'mdf', { maxPlunge: 500 }).plungeMm, 500);
+  assert.equal(startingFeeds(6.35, 2, 'mdf', { maxPlunge: 5000 }).plungeMm, 823);
+});
