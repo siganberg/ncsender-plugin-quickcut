@@ -243,6 +243,11 @@
     letter-spacing: 0.02em;
     cursor: pointer;
   }
+  /* No focus box: the browser's ring drew round the whole tap area, over
+     the field below. Focused, the label takes the accent colour instead
+     (Chrome draws no underline on a select). */
+  .qc-label-select:focus, .qc-label-select:focus-visible { outline: none !important; box-shadow: none !important; border: none !important; }
+  .qc-label-select:focus-visible { color: color-mix(in srgb, var(--color-accent) 55%, var(--color-text-primary)); }
   .qc-help-card ul {
     margin: 0;
     padding-left: 18px;
