@@ -4804,9 +4804,8 @@
     if (rules.integer && !Number.isInteger(n))     return rules.label + ' must be a whole number';
     var units = unitKind === 'length' ? ' ' + state.unitLabel : unitKind === 'feed' ? ' ' + state.unitLabel + '/min' : '';
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min + units;
-    if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max + units;
-    // The machine's own limits, when known: its max rates ($110/$111, $112)
-    // and Z travel ($132).
+    // The machine's own limits, when known, said in place of a higher field
+    // limit: its max rates ($110/$111, $112) and Z travel ($132).
     var limit = id === 'qc-feed' ? [state.maxFeedMm, 'the machine\u2019s max feed ($110/$111)']
       : id === 'qc-plunge' ? [state.maxPlungeMm, 'the machine\u2019s max Z rate ($112)']
       : /^qc-[a-z]+-depth$/.test(id) ? [state.zTravelMm, 'the machine\u2019s Z travel ($132)'] : null;
@@ -4819,6 +4818,7 @@
       if (state.spindleMax > 0 && n > state.spindleMax) return rules.label + ' is more than the spindle\u2019s max ($30), ' + state.spindleMax;
       if (state.spindleMin > 0 && n < state.spindleMin) return rules.label + ' is less than the spindle\u2019s min ($31), ' + state.spindleMin + ' (0: no spindle)';
     }
+    if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max + units;
 
     // A Slot shape that can't be cut shows on the field to change.
     if (/^qc-slt-(width|length|radius|sweep|chord|rise)$/.test(id)) {
