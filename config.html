@@ -5,15 +5,17 @@
   .plugin-dialog-header { display: none !important; }
   .plugin-dialog-content { padding: 0 !important; }
 
+  /* Same size as Settings: 24 px clear all round, landscape and portrait. */
+  .plugin-dialog-container:has(.qc-wrapper) { max-height: none !important; max-width: none !important; }
   .qc-wrapper {
     /* One spacing step between sections: title to header cards, header
        cards to the header's edge, header to the first card, and card to
        card. */
     --qc-section-gap: 12px;
-    width: 953px;
-    max-width: 95vw;
-    height: 85vh;
-    max-height: 85vh;
+    width: calc(100vw - 48px);
+    max-width: none;
+    height: calc(100vh - 48px);
+    max-height: none;
     display: flex;
     flex-direction: column;
     background: var(--color-surface);
@@ -173,8 +175,8 @@
     opacity: 1;
   }
   .qc-nav-btn.active .qc-nav-label { font-weight: 600; }
-  /* Shapes: a grid of icons, named by their title (and the view's own
-     title once picked); the tools below keep their labels. */
+  /* Shapes: one tab that opens like an accordion to list the shapes,
+     and closes again when a tool is picked. */
   .qc-nav-group {
     padding: 8px 12px 4px;
     font-size: 10px;
@@ -183,21 +185,17 @@
     text-transform: uppercase;
     color: var(--color-text-secondary);
   }
-  .qc-nav-group:first-child { padding-top: 0; }
-  .qc-nav-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-bottom: 4px;
-  }
-  .qc-nav-grid .qc-nav-btn {
-    justify-content: center;
-    height: 48px;
-    padding: 0 !important;
-  }
-  .qc-nav-grid .qc-nav-label { display: none; }
-  .qc-nav-grid .qc-nav-icon { width: 38px; height: 38px; }
-  .qc-nav-grid .qc-nav-icon svg { width: 38px; height: 38px; stroke-width: 1.5; }
+  .qc-nav-chev { display: inline-flex; width: 16px; height: 16px; color: var(--color-text-secondary); transition: transform 0.25s ease; flex-shrink: 0; }
+  .qc-nav-chev svg { width: 16px; height: 16px; }
+  .qc-nav-parent[aria-expanded="true"] .qc-nav-chev { transform: rotate(180deg); }
+  .qc-nav-parent.has-active { color: var(--color-text-primary) !important; font-weight: 600; }
+  .qc-nav-parent.has-active .qc-nav-icon { color: var(--color-accent); opacity: 1; }
+  .qc-nav-sub { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.28s ease; }
+  .qc-nav-sub.open { grid-template-rows: 1fr; }
+  .qc-nav-sub-inner { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; padding-left: 14px; margin-left: 21px; border-left: 1px solid var(--color-border); opacity: 0; transition: opacity 0.2s ease; }
+  .qc-nav-sub.open .qc-nav-sub-inner { opacity: 1; padding-top: 2px; padding-bottom: 4px; }
+  .qc-nav-sub .qc-nav-btn { padding: 6px 10px !important; }
+  @media (prefers-reduced-motion: reduce) { .qc-nav-sub, .qc-nav-sub-inner, .qc-nav-chev { transition: none; } }
   .qc-nav-sup {
     font-size: 8px;
     font-weight: 700;
@@ -371,7 +369,10 @@
   .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label.qc-tri-angle { font-size: 2.4px; }
   .qc-tri-drop { stroke-dasharray: 2 2; }
   /* A dropdown standing in for a panel's title (Rectangle / Trapezoid). */
-  .qc-title-select {
+  /* The kind menus stay for the code, but the sidebar picks the shape, so
+     the title is plain text (.qc-title-text). */
+  .qc-title-select { display: none !important; }
+  .qc-title-select-unused {
     font: inherit;
     color: inherit;
     background: transparent;
@@ -892,14 +893,6 @@
      each label centred over its control. */
   .qc-inset-field { width: 84px; }
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
-  /* Feed Rate's and Bit Diameter's menus span their column, so the arrow
-     sits at its own edge. */
-  #qc-bit-tool { align-self: stretch; height: 14px; line-height: 14px; text-align: left; }
-  /* A button, so ncSender's dialog button style is undone (it beats a class). */
-  button#qc-bit-tool { min-height: 0 !important; min-width: 0 !important; margin: 0 !important; padding: 0 14px 0 0 !important; border: none !important; border-radius: 0 !important;
-    box-shadow: none !important; color: var(--color-text-secondary) !important; font-size: 0.78rem !important; font-weight: 600 !important; letter-spacing: 0.02em;
-    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 1px center / 9px 6px !important; }
-  button#qc-bit-tool:hover, button#qc-bit-tool[aria-expanded="true"] { color: var(--color-text-primary) !important; }
   .qc-tool-pop .qc-tool-filter { font-family: inherit; }
   /* Bit Diameter's tool menu: a filter on top, then the tool table. */
   .qc-tool-pop { position: absolute; z-index: 30; width: 420px; max-width: calc(100% - 16px); display: flex; flex-direction: column; gap: 6px; padding: 8px;
@@ -1233,6 +1226,7 @@
     font-family: 'JetBrains Mono', monospace;
   }
   .qc-preview-big .qc-inset-label { font-size: 2.5px; }
+  .qc-drl-big .qc-inset-label { font-size: 2.6px; }
   .qc-shape-preview-cell .qc-shape-ideal {
     fill: none;
     stroke: currentColor;
@@ -1463,6 +1457,18 @@
   /* A menu is never narrower than its longest option, so no choice is
      cut off. */
   select.qc-select { min-width: max-content; }
+  /* Every menu looks like the tool picker: flat field, soft chevron on the right. */
+  select.qc-select {
+    -webkit-appearance: none; appearance: none;
+    min-height: 40px;
+    padding-right: 32px;
+    border-radius: var(--radius-small, 8px);
+    background: var(--color-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 10px 6px;
+    cursor: pointer;
+  }
+  select.qc-select:disabled { cursor: not-allowed; }
+  /* Fields, menus and the tool picker share one height so rows line up. */
+  input.qc-input { min-height: 40px; }
   .qc-input {
     text-align: right;
     font-family: 'JetBrains Mono', monospace;
@@ -1612,6 +1618,226 @@
     font-weight: 600;
   }
   .qc-soon p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+  /* ============ Cutter: fields on the left, figures large on the right ============ */
+  .qc-content[data-view="cutter"] .qc-panel.qc-cut-panel { overflow: hidden; }
+  .qc-cut-panel > form { flex: 1 1 auto; min-height: 0; }
+  .qc-cut-panel > form > .qc-cut-layout { flex: 1 1 0; }
+  .qc-cut-layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 18px; }
+  .qc-cut-side { display: flex; flex-direction: column; gap: var(--qc-section-gap); min-height: 0; overflow-y: auto; }
+  /* Left: the Cut card, then the side view in the room under it. Right: the top view. */
+  .qc-cut-side > .qc-card { flex: 0 0 auto; }
+  .qc-cut-fig--side { flex: 1 1 0; min-height: 200px; }
+  .qc-cut-stage { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .qc-cut-figs { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .qc-cut-fig { min-height: 0; display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: var(--color-surface-muted); padding: 10px; }
+  .qc-cut-fig svg { flex: 1; width: 100%; height: 100%; min-height: 0; overflow: visible; }
+  .qc-cut-small { margin: 0; font-size: 0.85rem; }
+  @media (orientation: portrait), (max-width: 1100px) {
+    .qc-content[data-view="cutter"] .qc-panel.qc-cut-panel { overflow-y: auto; }
+    .qc-cut-layout { grid-template-columns: minmax(0, 1fr); height: auto; flex: 0 0 auto; align-content: start; }
+    .qc-cut-side { overflow: visible; }
+    .qc-cut-stage { order: -1; }
+    .qc-cut-fig { height: 48vh; }
+    /* Portrait: the Cut card and the side view side by side under the top view. */
+    .qc-cut-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); align-items: stretch; }
+    .qc-cut-fig--side { height: auto; min-height: 0; }
+  }
+  /* Segmented choice: one solid pick, the rest plain. */
+  .qc-seg { display: grid; gap: 4px; padding: 4px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-border); }
+  .qc-seg--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .qc-seg--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .qc-seg button { -webkit-appearance: none; appearance: none; min-height: 36px; padding: 0 6px !important; border: 0 !important; border-radius: 7px !important; background: transparent !important; color: var(--color-text-secondary) !important; font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .qc-seg button.on { background: var(--color-accent) !important; color: #fff !important; }
+  /* Figures in the 3D probe calibration style. */
+  .qc-cut-fig text { font-family: inherit; }
+  .qc-fig-edge { stroke: color-mix(in srgb, var(--color-text-primary) 28%, transparent); stroke-width: 1; }
+  .qc-fig-ext { stroke: var(--color-text-secondary); stroke-width: 1; opacity: 0.55; }
+  .qc-fig-dim { stroke: var(--color-accent); stroke-width: 1.6; fill: none; }
+  .qc-fig-dim--muted { stroke: var(--color-text-secondary); opacity: 0.75; }
+  .qc-fig-accent-fill { fill: var(--color-accent); }
+  .qc-fig-muted-fill { fill: var(--color-text-secondary); }
+  .qc-fig-pill { fill: var(--color-surface); stroke: var(--color-accent); stroke-width: 1.4; }
+  .qc-fig-pill--muted { stroke: var(--color-text-secondary); }
+  .qc-fig-pill-text { fill: var(--color-text-primary); font-size: 12.5px; font-weight: 600; text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .qc-fig-cap { fill: var(--color-text-secondary); font-size: 11px; text-anchor: middle; letter-spacing: 0.06em; text-transform: uppercase; }
+  .qc-fig-on-wood { fill: #6b5a40; }
+  .qc-fig-keep { fill: #4a3d2a; font-weight: 700; }
+  .qc-fig-note { fill: var(--color-text-secondary); font-size: 12.5px; text-anchor: middle; }
+  .qc-fig-accent-text { fill: var(--color-accent); font-size: 11px; font-weight: 600; }
+  .qc-fig-path { stroke: var(--color-accent); stroke-width: 1.6; stroke-dasharray: 4 5; fill: none; opacity: 0.75; }
+  .qc-fig-kerf { stroke: color-mix(in srgb, var(--color-accent) 35%, transparent); stroke-width: 12; }
+  .qc-fig-kerf-box { fill: color-mix(in srgb, var(--color-accent) 25%, var(--color-surface)); stroke: var(--color-accent); stroke-width: 1; }
+  .qc-fig-zero { stroke: var(--color-accent); stroke-width: 4; stroke-linecap: round; }
+  .qc-fig-z0 { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 7 5; }
+  .qc-fig-table { stroke: color-mix(in srgb, var(--color-text-primary) 45%, transparent); stroke-width: 3; stroke-linecap: round; }
+  .qc-fig-origin { fill: none; stroke: var(--color-text-primary); stroke-width: 1.4; }
+  .qc-cut-fig .qc-side-hit { stroke: transparent; stroke-width: 18; cursor: pointer; }
+  .qc-cut-fig .qc-side-hit:hover { stroke: color-mix(in srgb, var(--color-accent) 20%, transparent); }
+  .qc-cut-fig .qc-side-active { stroke: none; }
+  .qc-cut-fig .qc-feed-hit { stroke: transparent; stroke-width: 16; cursor: pointer; }
+  .qc-fig-spin { animation: qc-fig-spin 0.5s linear infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes qc-fig-spin { to { transform: rotate(360deg); } }
+  .qc-fig-a-tool { animation: qc-fig-tool 7s ease-in-out infinite; }
+  @keyframes qc-fig-tool { 0%, 4% { transform: translateY(-14px); } 14%, 22% { transform: translateY(0); } 32%, 40% { transform: translateY(26px); } 50%, 58% { transform: translateY(52px); } 68%, 78% { transform: translateY(80px); } 92%, 100% { transform: translateY(-14px); } }
+  .qc-fig-a-kerf { transform-box: fill-box; transform-origin: top; animation: qc-fig-kerf 7s ease-in-out infinite; }
+  @keyframes qc-fig-kerf { 0%, 14% { transform: scaleY(0); } 22%, 40% { transform: scaleY(0.33); } 41%, 58% { transform: scaleY(0.65); } 59%, 92% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .qc-fig-spin, .qc-fig-a-tool, .qc-fig-a-kerf { animation: none !important; } }
+
+  /* Landscape: Tool and Spindle stand in a column beside the tab's own
+     settings, so no input row stretches across the whole dialog. Portrait
+     keeps them side by side on top. */
+  @media (orientation: landscape) and (min-width: 1200px) {
+    /* Cards fill the height: the column is as tall as the panel shows,
+       and stays put while a long tab scrolls beside it. */
+    .qc-panel:has(> .qc-header-cards) { display: grid; grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: auto; align-content: stretch; column-gap: 18px; container-type: size; }
+    .qc-panel > .qc-header-cards { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; align-self: start; position: sticky; top: calc(var(--qc-section-gap) / -2); height: calc(100cqh + var(--qc-section-gap) / 2 + 16px); margin: calc(var(--qc-section-gap) / -2) 0 -16px -20px; border-bottom: 0; border-right: 1px solid var(--color-border); }
+    .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { border-left: 0; border-top: 1px dashed var(--color-border); }
+    .qc-panel > .qc-header-cards > .qc-header-card { flex: 1 1 auto; }
+    .qc-panel:has(> .qc-header-cards) > :not(.qc-header-cards) { grid-column: 2; }
+    .qc-panel.qc-cut-panel:has(> .qc-header-cards) { grid-template-rows: minmax(0, 1fr); align-content: stretch; }
+    .qc-panel.qc-cut-panel > .qc-header-cards { grid-row: 1; }
+    /* One field per row down the column, spread over its height. */
+    .qc-panel > .qc-header-cards .qc-row-3, .qc-panel > .qc-header-cards .qc-row-2 { grid-template-columns: minmax(0, 1fr); }
+    .qc-panel > .qc-header-cards .qc-header-card { justify-content: space-evenly; gap: 10px; }
+    .qc-panel > .qc-header-cards .qc-header-card > .qc-row-3, .qc-panel > .qc-header-cards .qc-header-card > .qc-row-2 { display: contents; }
+    .qc-panel > .qc-header-cards .qc-coolant-toggles { flex-direction: column; align-items: stretch; gap: 14px; padding: 4px 0 0; }
+    .qc-panel > .qc-header-cards .qc-switch-label { display: flex; justify-content: space-between; font-size: 0.9rem; }
+  }
+
+  /* Tool and Spindle belong to the page's header, not its content: a band
+     in the header's colour, edge to edge, while the content behind the
+     cards sits a shade deeper. Across the top in portrait, down the side
+     in landscape. */
+  .qc-panel:has(> .qc-header-cards) { background: color-mix(in srgb, var(--color-surface) 80%, #000); }
+  /* Light theme: only a touch deeper than the cards, not grey. */
+  body.theme-light .qc-panel:has(> .qc-header-cards) { background: color-mix(in srgb, var(--color-surface-muted) 70%, #c9d2dc); }
+  .qc-panel > .qc-header-cards {
+    gap: 0;
+    margin: calc(var(--qc-section-gap) / -2) -20px 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .qc-panel > .qc-header-cards > .qc-header-card { background: transparent; border: 0; border-radius: 0; padding: 10px 20px 14px; }
+  .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { border-left: 1px dashed var(--color-border); }
+  @media (orientation: landscape) and (min-width: 1200px) {
+    .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { border-left: 0; border-top: 1px dashed var(--color-border); }
+    /* The content keeps its own padding beside and below the band. */
+    .qc-panel:has(> .qc-header-cards) { padding-top: 16px; column-gap: 20px; }
+    .qc-panel > .qc-header-cards { margin: -16px 0 -16px -20px; top: -16px; height: calc(100cqh + 32px); }
+  }
+
+  /* Bit: from the tool table or a typed size (tool changer only). */
+  .qc-seg--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* A sliding switch: the thumb glides under the picked side. */
+  .qc-bit-mode { position: relative; isolation: isolate; }
+  .qc-bit-mode .qc-slide-thumb { position: absolute; z-index: -1; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 6px); border-radius: 7px; background: var(--color-accent); transition: transform 0.25s ease; }
+  .qc-bit-mode.qc-slide-right .qc-slide-thumb { transform: translateX(calc(100% + 4px)); }
+  .qc-bit-mode button { font-size: 0.8rem; transition: color 0.25s ease; }
+  .qc-bit-mode button.on { background: transparent !important; }
+  @media (prefers-reduced-motion: reduce) { .qc-bit-mode .qc-slide-thumb { transition: none; } }
+  .qc-field.qc-bit-hidden { display: none; }
+  button.qc-tool-row { -webkit-appearance: none; appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin: 0 !important; padding: 0 30px 0 12px !important;
+    border: 1px solid var(--color-border) !important; border-radius: var(--radius-small) !important; color: var(--color-text-primary) !important; font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer;
+    background: var(--color-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 10px 6px !important; }
+  button.qc-tool-row[hidden] { display: none; }
+  button.qc-tool-row b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+  button.qc-tool-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button.qc-tool-row em { font-style: normal; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  button.qc-tool-row .qc-tool-row-empty { color: var(--color-text-secondary); }
+  button.qc-tool-row[aria-expanded="true"] { border-color: var(--color-accent) !important; }
+  /* With the Tool Library switch there, Bit Diameter's label is just a label. */
+  .qc-has-tool-lib .qc-bit-label { text-decoration: none; cursor: default; }
+  /* The band in either orientation: rows fill their width (Feed and Plunge
+     share the row when the Bit field is the tool picker above), and Mist /
+     Flood are rows, label left and switch right. */
+  .qc-panel > .qc-header-cards .qc-row-3:has(> .qc-field.qc-bit-hidden) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qc-panel > .qc-header-cards .qc-coolant-toggles { flex-direction: column; align-items: stretch; gap: 14px; padding: 6px 0 0; }
+  .qc-panel > .qc-header-cards .qc-switch-label { display: flex; justify-content: space-between; font-size: 0.9rem; }
+  /* Portrait: Tool and Spindle balanced, about three rows each. Tool: the
+     Library / Size switch beside the picker (or the size), then Feed,
+     Plunge, Material and Flutes on one row. Spindle: RPM and Delay, then
+     Mist and Flood side by side. */
+  @media (orientation: portrait), (max-width: 1199px) {
+    .qc-panel > .qc-header-cards { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+    .qc-panel > .qc-header-cards > .qc-header-card:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 0.9fr); align-content: start; gap: 10px 10px; }
+    .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-row-3,
+    .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-row-2 { display: contents; }
+    .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-header-card-title { grid-column: 1 / -1; }
+    .qc-panel > .qc-header-cards .qc-bit-mode, .qc-panel > .qc-header-cards button.qc-tool-row { grid-column: span 2; align-self: end; }
+    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) { grid-column: span 2; }
+    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) > label { display: none; }
+    .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 10px; }
+    .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card > .qc-header-card-title,
+    .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card > .qc-coolant-toggles { grid-column: 1 / -1; }
+    .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card > .qc-row-2 { display: contents; }
+    .qc-panel > .qc-header-cards .qc-coolant-toggles { flex-direction: row; gap: 10px; padding: 18px 0 0; }
+    .qc-panel > .qc-header-cards .qc-coolant-toggles > .qc-switch-label { flex: 1; white-space: nowrap; gap: 8px; }
+    .qc-panel > .qc-header-cards select.qc-select { min-width: 0; text-overflow: ellipsis; }
+    .qc-panel > .qc-header-cards .qc-header-card:has(.qc-field.qc-bit-hidden > #qc-flutes) .qc-field:has(> #qc-material) { grid-column: span 2; }
+  }
+
+  /* ============ Drill: Hole + side view | top view + Pattern ============ */
+  .qc-content[data-view="drill"] .qc-panel.qc-drl-panel > form { flex: 1 1 auto; min-height: 0; }
+  .qc-drl-layout { flex: 1 1 auto; min-height: 0; height: 100%; display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 18px; }
+  .qc-drl-side, .qc-drl-stage { display: flex; flex-direction: column; gap: var(--qc-section-gap); min-height: 0; }
+  .qc-drl-side > .qc-card, .qc-drl-stage > .qc-card { flex: 0 0 auto; }
+  .qc-drl-sidefig { flex: 1 1 0; min-height: 200px; }
+  .qc-drl-stage > .qc-drl-top { flex: 1 1 0; min-height: 260px; flex-direction: row; align-items: stretch; gap: 16px; }
+  .qc-drl-top > .qc-origin-stack { flex: 0 0 auto; align-self: center; }
+  .qc-drl-top > .qc-shape-preview-cell.qc-drl-big { flex: 1 1 auto; width: auto; height: auto; min-height: 0; border: 0; background: transparent; }
+  .qc-drl-done { fill: #3a2e1e; }
+  /* Chamfering on Drill: the Hole card's fields are all hidden, so the card
+     goes too; the Chamfer card says what the Hole card would. */
+  .qc-drl-side:has(#qc-chamfer-enable:checked) > .qc-card:first-child { display: none; }
+  /* Chamfer in the narrow Drill column: its fields three to a row. */
+  .qc-drl-side #qc-chamfer-card .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .qc-drl-bevel { fill: none; stroke: #6b5536; }
+  .qc-drl-bevel-guide { fill: none; stroke: rgba(90, 70, 40, 0.55); stroke-width: 0.35; stroke-dasharray: 1 1; }
+  /* Drilling only moves in Z, at the Plunge Rate: no Feed Rate to ask for. */
+  .qc-content[data-view="drill"] .qc-field:has(> #qc-feed) { display: none; }
+  .qc-drl-stock { stroke: color-mix(in srgb, var(--color-text-primary) 28%, transparent); stroke-width: 0.3; }
+  /* The big top view: holes in the stock, small label, thin marks. */
+  .qc-drl-big .qc-shape-fill { fill: rgba(58, 46, 30, 0.16); stroke: rgba(90, 70, 40, 0.65); stroke-width: 0.35; }
+  .qc-drl-big .qc-drl-cap { fill: var(--color-text-secondary); font-size: 3.4px; font-weight: 600; letter-spacing: 0.02em; }
+  .qc-drl-big .qc-drl-dim { stroke: var(--color-accent); stroke-width: 0.45; fill: none; }
+  .qc-drl-big .qc-drl-dimtext { font-size: 2.6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .qc-drl-big .qc-fig-pill--small { stroke-width: 0.4; }
+  .qc-drl-big .qc-on-pill { fill: var(--color-text-primary) !important; font-weight: 600; }
+  /* The Pattern card's small preview: its spacing and size are on the big view now. */
+  #qc-drl-pattern-body .qc-shape-preview-cell { display: none; }
+  .qc-drl-big .qc-origin-mark { stroke-width: 0.6; }
+  @media (orientation: portrait), (max-width: 1100px) {
+    .qc-drl-layout { grid-template-columns: minmax(0, 1fr); height: auto; flex: 0 0 auto; align-content: start; }
+    .qc-drl-stage { order: -1; }
+    .qc-drl-stage > .qc-drl-top { height: 34vh; flex: 0 0 auto; }
+    /* Hole on the left; Chamfer, then the side view, on the right. */
+    .qc-drl-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; }
+    .qc-drl-side > .qc-card:first-child { grid-column: 1; grid-row: 1 / span 2; }
+    .qc-drl-side > #qc-chamfer-card { grid-column: 2; grid-row: 1; }
+    .qc-drl-sidefig { grid-column: 2; grid-row: 2; height: auto; min-height: 220px; }
+  }
+  /* Inset, spelled out (see wireInsetUI). */
+  .qc-inset-field.qc-inset-v2 { width: 180px; align-items: stretch !important; gap: 8px; }
+  .qc-inset-v2 > select.qc-label-select { display: none !important; }
+  .qc-inset-head { display: flex; flex-direction: column; gap: 6px; }
+  .qc-inset-title { font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary); text-align: center; }
+  .qc-inset-seg button { font-size: 0.78rem; min-height: 30px; }
+  .qc-inset-v2 .qc-inset-inputs { align-items: center; gap: 6px; }
+  .qc-inset-ax { position: relative; flex: 1; min-width: 0; display: flex; }
+  .qc-inset-ax em { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 0.72rem; font-weight: 700; color: var(--color-text-secondary); pointer-events: none; }
+  .qc-inset-v2 .qc-inset-inputs .qc-input { display: block !important; padding-left: 22px !important; padding-right: 8px !important; }
+  .qc-inset-v2 .qc-input[readonly] { opacity: 0.6; }
+  button.qc-inset-lock { flex: none; width: 28px; height: 28px; min-height: 0 !important; padding: 0 !important; margin: 0 !important; border: 1px solid var(--color-border) !important; border-radius: 7px !important; background: transparent !important; color: var(--color-text-secondary) !important; display: grid; place-items: center; cursor: pointer; }
+  button.qc-inset-lock svg { width: 15px; height: 15px; }
+  button.qc-inset-lock.on { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; border-color: color-mix(in srgb, var(--color-accent) 50%, transparent) !important; color: var(--color-accent) !important; }
+  .qc-inset-off { opacity: 0.5; }
+  /* X0 Y0 (figAxes): the same arrows on every figure and preview. */
+  .qc-axes-x, .qc-axes-y { stroke-width: 4.5; stroke-linecap: butt; }
+  .qc-axes-x { stroke: #e5534b; } .qc-axes-xh, .qc-axes-xt { fill: #e5534b; }
+  .qc-axes-y { stroke: #57ab5a; } .qc-axes-yh, .qc-axes-yt { fill: #57ab5a; }
+  .qc-axes-xt, .qc-axes-yt { font-size: 22px; font-weight: 700; font-family: inherit; }
+  .qc-axes-o { fill: none; stroke: var(--color-text-primary); stroke-width: 2.6; }
 </style>
 
 <div class="qc-wrapper">
@@ -1624,8 +1850,29 @@
         <span class="qc-sidebar-unit" data-unit-badge>METRIC (mm)</span>
       </div>
       <nav class="qc-sidebar-nav">
-        <div class="qc-nav-group">Shapes</div>
-        <div class="qc-nav-grid">
+        <button type="button" class="qc-nav-btn" data-tab="drill">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span>
+          <span class="qc-nav-label">Drill</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="planer">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"/><path d="M6 14v6M10 14v6M14 14v6M18 14v6"/></svg></span>
+          <span class="qc-nav-label">Planer</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="jointer">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18M3 14h18M6 6l3 4M15 6l3 4M6 18l3-4M15 18l3-4"/></svg></span>
+          <span class="qc-nav-label">Jointer</span>
+        </button>
+        <button type="button" class="qc-nav-btn" data-tab="cutter">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
+          <span class="qc-nav-label">Cutter</span>
+        </button>
+        <button type="button" class="qc-nav-btn qc-nav-parent" id="qc-shapes-toggle" aria-expanded="false" aria-controls="qc-shapes-sub">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><circle cx="17" cy="7" r="4"/><path d="M7 13.5 11.5 21h-9Z"/><path d="M14 14h7v7h-7z"/></svg></span>
+          <span class="qc-nav-label">Shapes</span>
+          <span class="qc-nav-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </button>
+        <div class="qc-nav-sub" id="qc-shapes-sub">
+        <div class="qc-nav-sub-inner">
           <button type="button" title="Rectangle" aria-label="Rectangle" class="qc-nav-btn active" data-tab="rectangle" data-kind="rectangle">
             <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></span>
             <span class="qc-nav-label">Rectangle</span>
@@ -1675,23 +1922,7 @@
             <span class="qc-nav-label">Pointed Arch</span>
           </button>
         </div>
-        <div class="qc-nav-group">Tools</div>
-        <button type="button" class="qc-nav-btn" data-tab="drill">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span>
-          <span class="qc-nav-label">Drill</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="planer">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"/><path d="M6 14v6M10 14v6M14 14v6M18 14v6"/></svg></span>
-          <span class="qc-nav-label">Planer</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="jointer">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18M3 14h18M6 6l3 4M15 6l3 4M6 18l3-4M15 18l3-4"/></svg></span>
-          <span class="qc-nav-label">Jointer</span>
-        </button>
-        <button type="button" class="qc-nav-btn" data-tab="cutter">
-          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
-          <span class="qc-nav-label">Cutter</span>
-        </button>
+        </div>
       </nav>
       <div class="qc-sidebar-footer">
         <button type="button" class="qc-nav-btn qc-help-btn" id="qc-help-btn" title="More about this tab's settings">
@@ -2907,12 +3138,12 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-drl-panel">
         <form id="qc-drl-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Hole</h3>
-            <div class="qc-shape-grid qc-shape-grid--origin">
-              <div class="qc-shape-fields">
+          <div class="qc-drl-layout">
+            <div class="qc-drl-side">
+              <div class="qc-card qc-section-card">
+                <h3 class="qc-card-title">Hole</h3>
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-drl-depth">Total Depth</label>
@@ -2923,25 +3154,31 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-drl-peck" min="0" step="0.01" value="3" title="Depth of each peck: the bit comes up between pecks to clear the chips, which an end mill can't do on its own. 0, or the hole's depth or more: one plunge to full depth.">
                   </div>
                 </div>
-                <div class="qc-row-2">
-                  <div class="qc-field">
-                    <label for="qc-drl-peck-mode">Peck Retract</label>
-                    <select class="qc-select" id="qc-drl-peck-mode" title="Full lifts the bit out of the hole after each peck to clear chips. Short backs off a little to break them, which is faster.">
+                <div class="qc-field">
+                  <label>Peck Retract</label>
+                  <div class="qc-seg qc-seg--2" id="qc-drl-peck-seg" role="radiogroup" aria-label="Peck Retract">
+                    <button type="button" role="radio" data-v="clear">Full · clear chips</button>
+                    <button type="button" role="radio" data-v="break">Short · break chips</button>
+                  </div>
+                  <div hidden><select class="qc-select" id="qc-drl-peck-mode" title="Full lifts the bit out of the hole after each peck to clear chips. Short backs off a little to break them, which is faster.">
                       <option value="clear" selected>Full (clear chips)</option>
                       <option value="break">Short (break chips)</option>
-                    </select>
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-drl-dwell">Dwell at Bottom (s)</label>
-                    <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0" title="Seconds to pause at the bottom of each hole to clean up its floor.">
-                  </div>
+                    </select></div>
+                </div>
+                <div class="qc-field">
+                  <label for="qc-drl-dwell">Dwell at Bottom (s)</label>
+                  <input class="qc-input" type="number" id="qc-drl-dwell" min="0" max="10" step="0.1" value="0" title="Seconds to pause at the bottom of each hole to clean up its floor.">
                 </div>
                 <p class="qc-mode-hint" id="qc-drl-hint">
                   Hole diameter is the <strong>Bit Diameter</strong>. With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview.
                   Every Z move uses the Plunge Rate.
                 </p>
               </div>
-              <div class="qc-origin-stack">
+              <div class="qc-cut-fig qc-cut-fig--side qc-drl-sidefig"><svg id="qc-drl-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: pecking to depth"></svg></div>
+            </div>
+            <div class="qc-drl-stage">
+              <div class="qc-card qc-section-card qc-drl-top">
+                <div class="qc-origin-stack">
                 <div class="qc-field qc-origin-col">
                   <label>Origin</label>
                   <div id="qc-drl-origin-picker"></div>
@@ -2959,12 +3196,10 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-shape-preview-cell">
-                <svg id="qc-drl-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                <div class="qc-shape-preview-cell qc-drl-big qc-no-enlarge">
+                  <svg id="qc-drl-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                </div>
               </div>
-            </div>
-          </div>
-
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
@@ -3037,6 +3272,8 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </form>
@@ -3232,26 +3469,35 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-cut-panel">
         <form id="qc-cut-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Cut</h3>
-            <div class="qc-cut-grid">
-              <div class="qc-shape-fields">
+          <div class="qc-cut-layout">
+            <div class="qc-cut-side">
+              <div class="qc-card qc-section-card">
+                <h3 class="qc-card-title">Cut</h3>
+                <div class="qc-field">
+                  <label>XY zero edge</label>
+                  <div class="qc-seg qc-seg--4" id="qc-cut-edge" role="radiogroup" aria-label="XY zero edge">
+                    <button type="button" data-side="front" role="radio">Front</button>
+                    <button type="button" data-side="back" role="radio">Back</button>
+                    <button type="button" data-side="left" role="radio">Left</button>
+                    <button type="button" data-side="right" role="radio">Right</button>
+                  </div>
+                </div>
                 <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-cut-target">Target Size</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-target" min="0.001" step="0.01" value="100" required title="Size of the piece you keep, measured from the origin. The bit radius is added so the cut lands on size.">
                   </div>
                   <div class="qc-field">
-                    <label for="qc-cut-length">Cutting Length</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required title="How far the bit travels along the cut. Make it longer than the stock is wide.">
+                    <label for="qc-cut-depth">Total Depth</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes. Go slightly past the stock's thickness to part it off.">
                   </div>
                 </div>
                 <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-cut-depth">Total Depth</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-depth" min="0.001" step="0.01" value="5" required title="How far below Z0 the cut goes. Go slightly past the stock's thickness to part it off.">
+                    <label for="qc-cut-length">Cutting Length</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-cut-length" min="0.001" step="0.01" value="200" required title="How far the bit travels along the cut. Make it longer than the stock is wide.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-cut-step">Depth of Cut</label>
@@ -3259,29 +3505,36 @@
                   </div>
                 </div>
                 <div class="qc-field">
-                  <label for="qc-cut-axis">Cut Axis</label>
-                  <select class="qc-select" id="qc-cut-axis" title="Axis the bit travels along. The cut line runs parallel to it.">
+                  <label>Cut Direction</label>
+                  <div class="qc-seg qc-seg--3" id="qc-cut-dir" role="radiogroup" aria-label="Cut Direction">
+                      <button type="button" data-dir="conventional" role="radio">Conventional</button>
+                      <button type="button" data-dir="climb" role="radio">Climb</button>
+                      <button type="button" data-dir="both" role="radio">Both Ways</button>
+                    </div>
+                </div>
+                <p class="qc-mode-hint qc-cut-small">Make Cutting Length longer than the stock is wide.</p>
+              </div>
+              <div class="qc-cut-fig qc-cut-fig--side"><svg id="qc-cut-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: the depth passes"></svg></div>
+              <!-- Kept for the generator and saved settings; the buttons above drive them. -->
+              <div hidden>
+                <select class="qc-select" id="qc-cut-axis" title="Axis the bit travels along. The cut line runs parallel to it.">
                     <option value="x" selected>X-axis</option>
                     <option value="y">Y-axis</option>
                   </select>
-                </div>
-                <div class="qc-field">
-                  <label for="qc-cut-direction">Cut Direction</label>
-                  <select class="qc-select" id="qc-cut-direction" title="For the kept piece's edge. Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. Both Ways: depth passes alternate, saving the trip back. The arrow in the preview shows the way the bit travels; tap it to switch.">
+                <select class="qc-select" id="qc-cut-direction" title="For the kept piece's edge. Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. Both Ways: depth passes alternate, saving the trip back. The arrow in the preview shows the way the bit travels; tap it to switch.">
                     <option value="conventional" selected>Conventional</option>
                     <option value="climb">Climb</option>
                     <option value="both">Both Ways</option>
                   </select>
-                </div>
-                <!-- Picked by clicking an edge of the preview; the edge also
-                     sets Cut Axis (front/back = X, left/right = Y). -->
                 <input type="hidden" id="qc-cut-origin" value="front">
               </div>
-              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless qc-cut-preview-cell">
-                <svg id="qc-cut-preview" viewBox="-106 -66 212 128" aria-label="Click the edge your XY zero is on"></svg>
-              </div>
             </div>
-            <p class="qc-mode-hint" id="qc-cut-hint"></p>
+            <div class="qc-cut-stage">
+              <div class="qc-cut-figs">
+                <div class="qc-cut-fig"><svg id="qc-cut-preview" viewBox="0 0 440 300" role="img" aria-label="Top view of the cut. Click an edge to put XY zero on it."></svg></div>
+              </div>
+              <p class="qc-mode-hint" id="qc-cut-hint"></p>
+            </div>
           </div>
         </form>
       </div>
@@ -3508,9 +3761,11 @@
     wireValidation();
     wireFocusTips();
     wireInsetModes();
+    wireInsetUI();
+    watchAxes();
     $('qc-bit').parentNode.querySelector('.qc-bit-label').addEventListener('click', function(evt) {
       evt.preventDefault();
-      useLoadedToolDiameter();
+      if (!state.atc) useLoadedToolDiameter();
     });
     if (state.atc) wireToolMenu();
     wireRunNotes();
@@ -3575,6 +3830,8 @@
     relocateCommonCards(target);
     var shown = document.querySelector('.qc-content[data-view="' + target + '"]');
     if (shown) fitLabelSelects(shown);
+    // Arrows drawn while the tab was hidden couldn't be sized yet.
+    if (shown) setTimeout(function() { shown.querySelectorAll('svg').forEach(fitAxes); }, 0);
     setTimeout(updateToolSummary, 0);
     // Load the new tab's tool values into the (now-relocated) inputs.
     if (TOOL_SHAPES.indexOf(target) >= 0) {
@@ -3631,10 +3888,39 @@
       (!b.hasAttribute('data-kind') || b.getAttribute('data-kind') === kind) &&
       navPicks(b).every(function(p) { var m = $(p.menu); return !m || m.value === p.value; });
   }
+  // Plain titles that follow the hidden kind menus.
+  function syncKindTitles() {
+    document.querySelectorAll('.qc-title-select').forEach(function(sel) {
+      var t = sel.nextElementSibling;
+      if (!t || !t.classList.contains('qc-title-text')) {
+        t = document.createElement('span'); t.className = 'qc-title-text';
+        sel.parentNode.insertBefore(t, sel.nextSibling);
+        sel.addEventListener('change', syncKindTitles);
+      }
+      var o = sel.options[sel.selectedIndex];
+      t.textContent = o ? o.text : '';
+    });
+  }
   function highlightNav(view) {
+    syncKindTitles();
     document.querySelectorAll('.qc-nav-btn[data-tab]').forEach(function(b) {
       b.classList.toggle('active', navMatches(b, view));
     });
+    // A shape lit: Shapes opens on it. A tool lit: Shapes closes.
+    var shapeOn = document.querySelector('#qc-shapes-sub .qc-nav-btn.active');
+    if (shapeOn) lastShapeBtn = shapeOn;
+    var parent = $('qc-shapes-toggle');
+    if (parent) parent.classList.toggle('has-active', !!shapeOn);
+    if (view !== 'help') setShapesOpen(!!shapeOn);
+  }
+  var lastShapeBtn = null;
+  function setShapesOpen(open) {
+    var sub = $('qc-shapes-sub'), parent = $('qc-shapes-toggle');
+    if (!sub || !parent) return;
+    sub.classList.toggle('open', open);
+    parent.setAttribute('aria-expanded', open ? 'true' : 'false');
+    // Closed shapes can't be tabbed to.
+    sub.querySelectorAll('.qc-nav-btn').forEach(function(b) { b.tabIndex = open ? 0 : -1; });
   }
   function rememberTab() {
     var active = document.querySelector('.qc-nav-btn.active[data-tab]');
@@ -3653,6 +3939,14 @@
     nav.addEventListener('scroll', moreBelow);
     window.addEventListener('resize', moreBelow);
     setTimeout(moreBelow, 0);
+    // Shapes: opens on the last shape used; open with a shape showing, it
+    // folds away and back like any accordion.
+    $('qc-shapes-toggle').addEventListener('click', function() {
+      var sub = $('qc-shapes-sub');
+      if (document.querySelector('#qc-shapes-sub .qc-nav-btn.active')) { setShapesOpen(!sub.classList.contains('open')); return; }
+      (lastShapeBtn || sub.querySelector('.qc-nav-btn')).click();
+    });
+    $('qc-shapes-sub').addEventListener('transitionend', moreBelow);
     var btns = document.querySelectorAll('.qc-nav-btn[data-tab]');
     btns.forEach(function(btn) {
       btn.addEventListener('click', function() {
@@ -5295,24 +5589,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function updateCutterHint() {
     var hint = $('qc-cut-hint');
     if (!hint) return;
-    var feedAxis = $('qc-cut-axis').value;
-    var target = num('qc-cut-target', 0);
-    var length = num('qc-cut-length', 0);
-    var dir = $('qc-cut-direction').value;
-    var origin = $('qc-cut-origin').value;
-    var perpAxis = feedAxis === 'x' ? 'Y' : 'X';
-    var u = state.unitLabel;
-    var dirText = (dir === 'climb')
-      ? '<strong>Climb</strong> — cutter teeth engage <em>with</em> the feed direction. Cleaner finish, but needs a rigid machine.'
-      : dir === 'both'
-      ? '<strong>Both Ways</strong> — depth passes alternate direction, each starting where the last ended, so there’s no trip back; every other pass is a climb cut.'
-      : '<strong>Conventional</strong> — cutter teeth engage <em>against</em> the feed direction. Safer and less chatter.';
-    hint.innerHTML =
-      'XY zero is on the <strong>' + origin + '</strong> edge — click an edge in the preview to change it. ' +
-      'Tool feeds <strong>' + length + ' ' + u + '</strong> along the ' + feedAxis.toUpperCase() +
-      '-axis (the arrow shows which way). Single cut line <strong>' + target + ' ' + u +
-      '</strong> in from that edge — the final <strong>' + perpAxis +
-      '-dimension</strong> of the kept material. Depth passes reduce bit load.<br>' + dirText;
+    var target = num('qc-cut-target', 0), u = state.unitLabel;
+    var side = $('qc-cut-origin').value, dir = $('qc-cut-direction').value;
+    var corner = { front: 'front-left', back: 'back-left', left: 'front-left', right: 'front-right' }[side] || 'front-left';
+    var along = side === 'front' || side === 'back' ? 'X' : 'Y';
+    var size = side === 'front' || side === 'back' ? 'deep' : 'wide';
+    var dirText = dir === 'climb' ? 'Climb leaves a cleaner edge on a rigid machine.'
+      : dir === 'both' ? 'Both Ways turns round each pass, so there is no trip back.'
+      : 'Conventional is gentler on a lighter machine.';
+    hint.innerHTML = 'Zero X and Y on the <strong>' + corner + ' corner</strong> and Z on top of the stock. ' +
+      'The bit cuts along <strong>' + along + '</strong>, <strong>' + (target > 0 ? target : '?') + ' ' + u +
+      '</strong> in from the ' + side + ' edge, so the piece you keep is ' + (target > 0 ? target : '?') + ' ' + u + ' ' + size + '. ' + dirText;
   }
 
   function readJointerForm() {
@@ -6494,7 +6781,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return !!big;
   }
   function wirePreviewEnlarge() {
-    ROOT.querySelectorAll('.qc-shape-preview-cell').forEach(function(cell) {
+    ROOT.querySelectorAll('.qc-shape-preview-cell:not(.qc-no-enlarge)').forEach(function(cell) {
       cell.setAttribute('data-return-hint', 'Click a blank spot or press Esc to return');
       cell.addEventListener('pointerdown', function() { previewPicked = false; }, true);
       cell.addEventListener('click', function() {
@@ -6918,9 +7205,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     };
     var d = pathD(trace.moves);
 
-    var ox = Number(X(0)), oy = Number(Y(0)), arm = 5;
-    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm) + ',' + oy + ' H' + (ox + arm) +
-      ' M' + ox + ',' + (oy - arm) + ' V' + (oy + arm) + '"/>';
+    var ox = Number(X(0)), oy = Number(Y(0));
+    var origin = figAxes(ox, oy);
     var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') +
       (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '') +
       (measured ? measured.svg(X, Y) : '');
@@ -8376,6 +8662,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       $(id).addEventListener('change', updateCutterPreview);
     });
     wireSidePicker('qc-cut-preview', 'qc-cut-origin', 'qc-cut-axis');
+    ROOT.querySelectorAll('#qc-cut-edge button').forEach(function(b) {
+      b.addEventListener('click', function() { setSide('qc-cut-origin', 'qc-cut-axis', b.getAttribute('data-side')); });
+    });
+    ROOT.querySelectorAll('#qc-cut-dir button').forEach(function(b) {
+      b.addEventListener('click', function() {
+        var dir = $('qc-cut-direction');
+        dir.value = b.getAttribute('data-dir');
+        dir.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+    ['qc-cut-depth', 'qc-cut-step'].forEach(function(id) {
+      $(id).addEventListener('input', updateCutterSide);
+      $(id).addEventListener('change', updateCutterSide);
+    });
     $('qc-cut-preview').addEventListener('click', function(e) {
       if (!(e.target.closest && e.target.closest('.qc-feed-hit'))) return;
       markPreviewPick();
@@ -8716,6 +9016,43 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
            ' L' + P(x, y + r) + A + P(x + r, y) + ' Z';
   }
 
+  // X0 Y0, the same everywhere in QuickCut: a red X arrow, a green Y arrow
+  // and a hollow ring. Drawn in screen pixels inside .qc-axes-s, which
+  // fitAxes scales to the SVG it lands in, so it looks the same size on a
+  // small preview and a big figure.
+  function figAxes(x, y) {
+    var L = 58, h = 12, w = 7;
+    return '<g class="qc-axes" pointer-events="none" transform="translate(' + (+x).toFixed(2) + ' ' + (+y).toFixed(2) + ')"><g class="qc-axes-s">' +
+      '<line class="qc-axes-x" x1="0" y1="0" x2="' + (L - h + 1) + '" y2="0"/>' +
+      '<path class="qc-axes-xh" d="M' + L + ' 0 L' + (L - h) + ' ' + (-w) + ' L' + (L - h) + ' ' + w + 'Z"/>' +
+      '<text class="qc-axes-xt" x="' + (L + 14) + '" y="0" dominant-baseline="central" text-anchor="middle">X</text>' +
+      '<line class="qc-axes-y" x1="0" y1="0" x2="0" y2="' + (-(L - h + 1)) + '"/>' +
+      '<path class="qc-axes-yh" d="M0 ' + (-L) + ' L' + (-w) + ' ' + (-(L - h)) + ' L' + w + ' ' + (-(L - h)) + 'Z"/>' +
+      '<text class="qc-axes-yt" x="0" y="' + (-(L + 14)) + '" dominant-baseline="central" text-anchor="middle">Y</text>' +
+      '<circle class="qc-axes-o" r="6"/></g></g>';
+  }
+  function fitAxes(svg) {
+    var g = svg.querySelectorAll('.qc-axes-s');
+    if (!g.length) return;
+    var vb = svg.viewBox && svg.viewBox.baseVal, rc = svg.getBoundingClientRect();
+    if (!vb || !vb.width || !rc.width || !rc.height) return;
+    // SVG units per screen pixel (the viewBox is fitted inside the box).
+    var upp = Math.max(vb.width / rc.width, vb.height / rc.height);
+    // A little smaller on the small previews.
+    var k = upp * Math.max(0.4, Math.min(1, Math.min(rc.width, rc.height) / 420));
+    g.forEach(function(e) { e.setAttribute('transform', 'scale(' + k.toFixed(4) + ')'); });
+  }
+  var axesObserver = typeof MutationObserver === 'function' ? new MutationObserver(function(list) {
+    var seen = new Set();
+    list.forEach(function(m) { var svg = m.target.closest ? m.target.closest('svg') || (m.target.querySelector && m.target.querySelector('svg')) : null; if (svg) seen.add(svg.ownerSVGElement || svg); });
+    seen.forEach(fitAxes);
+  }) : null;
+  function watchAxes() {
+    if (!axesObserver) return;
+    axesObserver.observe(ROOT, { childList: true, subtree: true });
+    window.addEventListener('resize', function() { ROOT.querySelectorAll('svg').forEach(fitAxes); });
+  }
+
   // Origin crosshair for the shape previews, as on Drill: X0 Y0 at
   // (px, py) in the SVG's coordinates. With a pattern the origin can lie
   // outside the drawn copy; then there's nothing to mark, so no crosshair.
@@ -8723,11 +9060,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Inset marks (insetMarks) from the crosshair.
   function originCross(px, py, prefix, scale) {
     if (!isFinite(px) || !isFinite(py) || Math.abs(px) > 50 || Math.abs(py) > 50) return '';
-    var arm = 5;
-    return '<path class="qc-origin-mark" d="M' + (px - arm).toFixed(2) + ',' + py.toFixed(2) +
-           ' H' + (px + arm).toFixed(2) + ' M' + px.toFixed(2) + ',' + (py - arm).toFixed(2) +
-           ' V' + (py + arm).toFixed(2) + '"/>' +
-           (prefix ? insetMarks(prefix, px, py, scale) : '');
+    return figAxes(px, py) + (prefix ? insetMarks(prefix, px, py, scale) : '');
   }
 
   // Inset, shown where it is: with a corner or edge origin the box around
@@ -8805,6 +9138,64 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     y.style.display = split ? '' : 'none';
     y.closest('.qc-inset-inputs').classList.toggle('qc-inset-split', split);
     updateInsetState(prefix);
+  }
+  // The inset spelled out: "Offset from origin", a To edge | To center
+  // switch, then X and Y with a lock that keeps them equal. They drive the
+  // hidden mode menu, so the conversions above still run.
+  function wireInsetUI() {
+    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
+      var sel = $('qc-' + prefix + '-inset-mode'), x = $('qc-' + prefix + '-inset'), y = $('qc-' + prefix + '-inset-y');
+      if (!sel || !x || !y) return;
+      var field = sel.closest('.qc-inset-field'), inputs = x.parentNode;
+      field.classList.add('qc-inset-v2');
+      var head = document.createElement('div');
+      head.className = 'qc-inset-head';
+      head.innerHTML = '<span class="qc-inset-title">Offset from origin</span>' +
+        '<div class="qc-seg qc-seg--2 qc-inset-seg" role="radiogroup" aria-label="Offset to"><button type="button" role="radio" data-to="edge">To edge</button><button type="button" role="radio" data-to="center">To center</button></div>';
+      field.insertBefore(head, inputs);
+      var wrap = function(input, axis) {
+        var w = document.createElement('label'); w.className = 'qc-inset-ax';
+        w.innerHTML = '<em>' + axis + '</em>';
+        input.parentNode.insertBefore(w, input); w.appendChild(input);
+        return w;
+      };
+      wrap(x, 'X');
+      var wy = wrap(y, 'Y');
+      var lock = document.createElement('button');
+      lock.type = 'button'; lock.className = 'qc-inset-lock';
+      lock.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+      inputs.insertBefore(lock, wy);
+      var setMode = function(center, split) {
+        var v = (split ? 'xy' : '') + (center ? (split ? '-center' : 'center') : (split ? '' : 'both'));
+        if (sel.value === v) return;
+        sel.value = v;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      head.querySelectorAll('[data-to]').forEach(function(b) {
+        b.addEventListener('click', function() { setMode(b.getAttribute('data-to') === 'center', insetSplit(prefix)); });
+      });
+      lock.addEventListener('click', function() { setMode(insetToCenter(prefix), !insetSplit(prefix)); });
+      var sync = function() {
+        var split = insetSplit(prefix), center = insetToCenter(prefix), off = x.disabled;
+        head.querySelectorAll('[data-to]').forEach(function(b) {
+          var on = (b.getAttribute('data-to') === 'center') === center;
+          b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); b.disabled = off;
+        });
+        lock.classList.toggle('on', !split); lock.disabled = off;
+        lock.title = split ? 'X and Y apart: tap to keep them equal' : 'X and Y equal: tap to set them apart';
+        lock.setAttribute('aria-pressed', split ? 'false' : 'true');
+        y.readOnly = !split;
+        if (!split) y.value = x.value;
+        field.classList.toggle('qc-inset-off', off);
+      };
+      sel.addEventListener('change', sync);
+      x.addEventListener('input', sync);
+      x.addEventListener('change', sync);
+      var o = $('qc-' + prefix + '-origin');
+      if (o) o.addEventListener('change', function() { setTimeout(sync, 0); });
+      new MutationObserver(sync).observe(x, { attributes: true, attributeFilter: ['disabled'] });
+      sync();
+    });
   }
   function wireInsetModes() {
     ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
@@ -9044,16 +9435,35 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // diameter drops the tool change.
   var toolPop = { open: false, active: 0, items: [] };
   async function wireToolMenu() {
-    var label = $('qc-bit').parentNode.querySelector('.qc-bit-label');
+    // Two plain ways in, side by side at the top of the Tool card: pick
+    // from the tool table (the row below opens it), or type a size.
+    var bitField = $('qc-bit').closest('.qc-field'), card = bitField.closest('.qc-header-card');
+    var anchor = bitField.parentNode === card ? bitField : bitField.parentNode;
+    var mode = document.createElement('div');
+    mode.className = 'qc-seg qc-seg--2 qc-bit-mode';
+    mode.setAttribute('role', 'radiogroup');
+    mode.setAttribute('aria-label', 'Bit');
+    mode.innerHTML = '<span class="qc-slide-thumb" aria-hidden="true"></span><button type="button" role="radio" data-m="table">Tool Library</button><button type="button" role="radio" data-m="size">Type a Size</button>';
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'qc-label-select';
+    btn.className = 'qc-tool-row';
     btn.id = 'qc-bit-tool';
     btn.setAttribute('aria-haspopup', 'listbox');
     btn.setAttribute('aria-expanded', 'false');
-    btn.title = 'Bit Diameter. Opens ncSender’s tool table: pick the tool to cut with and the program starts with a tool change to it (M6 T). Type a diameter for no tool change.';
-    label.parentNode.replaceChild(btn, label);
-    $('qc-bit').setAttribute('aria-labelledby', 'qc-bit-tool');
+    btn.title = 'Opens ncSender’s tool table: the program starts with a tool change to the tool you pick (M6 T).';
+    card.insertBefore(mode, anchor);
+    card.insertBefore(btn, anchor);
+    ROOT.classList.add('qc-has-tool-lib');
+    var bitLabel = bitField.querySelector('.qc-bit-label');
+    if (bitLabel) bitLabel.removeAttribute('title');
+    mode.querySelectorAll('button').forEach(function(b) {
+      b.addEventListener('click', function() {
+        state.bitMode = b.getAttribute('data-m');
+        if (state.bitMode === 'size' && bitTool().n) pickBitTool('none');
+        showBitTool();
+        if (state.bitMode === 'table' && !bitToolNumber()) openToolPop();
+      });
+    });
     var pop = document.createElement('div');
     pop.className = 'qc-tool-pop';
     pop.id = 'qc-tool-pop';
@@ -9152,9 +9562,24 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function showBitTool() {
     var btn = $('qc-bit-tool');
     if (!btn) return;
-    // Short, to fit the column: "Bit · T3" while a tool is picked.
     var n = bitToolNumber();
-    btn.textContent = n ? 'Bit · T' + n : 'Bit Diameter';
+    if (n) state.bitMode = 'table';
+    var table = (state.bitMode || 'table') === 'table';
+    ROOT.querySelectorAll('.qc-bit-mode').forEach(function(m) { m.classList.toggle('qc-slide-right', !table); });
+    ROOT.querySelectorAll('.qc-bit-mode button').forEach(function(b) {
+      var on = b.getAttribute('data-m') === (table ? 'table' : 'size');
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    // From the table: the picked tool (or a prompt) in place of the field.
+    btn.hidden = !table;
+    $('qc-bit').closest('.qc-field').classList.toggle('qc-bit-hidden', table);
+    // The tool table has the flutes: asked only for a typed size.
+    $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table);
+    var esc = function(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
+    btn.innerHTML = t
+      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + $('qc-flutes').value + ' fl</em>'
+      : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
     if (toolPop.open) renderToolList();
   }
   // The Tool card takes a tool from the table: flutes first, so the bit's
@@ -10551,179 +10976,142 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // from); the accent arrow is the cut line, `target` in from that
   // edge, pointing the way the tool feeds; the hatched part is the
   // offcut. Proportions are fixed — only the labels carry numbers.
+  // Cutter figures, drawn like the 3D probe calibration ones: the top view
+  // with the bit running along the cut, the side view with the passes.
+  var CUT_REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function pillW(t) { return String(t).length * 7.4 + 20; }
+  function cutPill(x, y, text, rotate, muted) {
+    var w = pillW(text);
+    return '<g transform="translate(' + x + ' ' + y + ')' + (rotate ? ' rotate(-90)' : '') + '">' +
+      '<rect x="' + (-w / 2) + '" y="-11" width="' + w + '" height="22" rx="11" class="qc-fig-pill' + (muted ? ' qc-fig-pill--muted' : '') + '"/>' +
+      '<text y="4" class="qc-fig-pill-text">' + text + '</text></g>';
+  }
   function updateCutterPreview() {
     var svg = document.getElementById('qc-cut-preview');
     if (!svg) return;
-    var side   = $('qc-cut-origin').value;
-    var target = num('qc-cut-target', 0);
-    var direction = $('qc-cut-direction').value;
-    var climb  = direction === 'climb';
-    var tl = (target > 0 ? target : '?') + ' ' + state.unitLabel;
-
-    // u: 0 = left .. 1 = right, v: 0 = front .. 1 = back (top face).
-    var FRONT_HALF = 76, BACK_HALF = 48, FRONT_Y = 10, DEPTH = 44, THICK = 38;
-    function P(u, v) {
-      var half = FRONT_HALF - (FRONT_HALF - BACK_HALF) * v;
-      return [-half + 2 * half * u, FRONT_Y - DEPTH * v];
-    }
-    function pts(list) {
-      return list.map(function(q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join(' ');
-    }
-    function down(q) { return [q[0], q[1] + THICK]; }
-
-    var fl = P(0, 0), fr = P(1, 0), bl = P(0, 1), br = P(1, 1);
-    var keep = 0.6;
-    var waste, frontWaste, cutA, cutB, zero, dimA, dimB, kerf = '';
-
-    if (side === 'front' || side === 'back') {
-      var cv = side === 'front' ? keep : 1 - keep;
-      waste = side === 'front'
-        ? [P(0, cv), P(1, cv), br, bl]
-        : [fl, fr, P(1, cv), P(0, cv)];
-      cutA = P(0, cv); cutB = P(1, cv);
-      // Back origin leaves the offcut at the front, so the whole front
-      // face is waste; front origin hides it behind the kept part.
-      frontWaste = side === 'back' ? [fl, fr, down(fr), down(fl)] : null;
-      zero = side === 'front' ? fl : bl;
-      var ev = side === 'front' ? 0 : 1;
-      dimA = P(0.12, ev); dimB = P(0.12, cv);
-    } else {
-      var cu = side === 'left' ? keep : 1 - keep;
-      waste = side === 'left'
-        ? [P(cu, 0), fr, br, P(cu, 1)]
-        : [fl, P(cu, 0), P(cu, 1), bl];
-      cutA = P(cu, 0); cutB = P(cu, 1);
-      frontWaste = side === 'left'
-        ? [P(cu, 0), fr, down(fr), down(P(cu, 0))]
-        : [fl, P(cu, 0), down(P(cu, 0)), down(fl)];
-      zero = side === 'left' ? fl : fr;
-      var eu = side === 'left' ? 0 : 1;
-      dimA = P(eu, 0.2); dimB = P(cu, 0.2);
-      // The cut also shows as a kerf down the front face.
-      kerf = '<line class="qc-cut-kerf" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
-             '" x2="' + cutA[0].toFixed(2) + '" y2="' + (cutA[1] + THICK).toFixed(2) + '"/>';
-    }
-    // cutA -> cutB runs +X / +Y. As in the generator, Cut Direction is for
-    // the kept edge: with the spindle clockwise, conventional runs +X from
-    // a back origin and +Y from a left one, the other way otherwise.
+    var side = $('qc-cut-origin').value, direction = $('qc-cut-direction').value;
+    var u = state.unitLabel, target = num('qc-cut-target', 0), length = num('qc-cut-length', 0);
+    ROOT.querySelectorAll('#qc-cut-edge button').forEach(function(b) {
+      var on = b.getAttribute('data-side') === side;
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    ROOT.querySelectorAll('#qc-cut-dir button').forEach(function(b) {
+      var on = b.getAttribute('data-dir') === direction;
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    // Stock 300 x 190 at 70..370, 50..240; u: 0 left .. 1 right, v: 0 front .. 1 back.
+    var X = function(t) { return 70 + 300 * t; }, Y = function(t) { return 240 - 190 * t; };
+    var k = 0.59, along = side === 'front' || side === 'back';
+    var cut, waste, zero, A, B, tdim, ldim, feedOff;
+    if (side === 'front') { cut = Y(k); waste = [X(0), Y(1), 300, cut - Y(1)]; zero = [X(0), Y(0)]; tdim = [402, Y(0), 402, cut]; feedOff = [0, -18]; }
+    if (side === 'back')  { cut = Y(1 - k); waste = [X(0), cut, 300, Y(0) - cut]; zero = [X(0), Y(1)]; tdim = [402, Y(1), 402, cut]; feedOff = [0, 18]; }
+    if (side === 'left')  { cut = X(k); waste = [cut, Y(1), X(1) - cut, 190]; zero = [X(0), Y(0)]; tdim = [X(0), 272, cut, 272]; feedOff = [18, 0]; }
+    if (side === 'right') { cut = X(1 - k); waste = [X(0), Y(1), cut - X(0), 190]; zero = [X(1), Y(0)]; tdim = [cut, 272, X(1), 272]; feedOff = [-18, 0]; }
+    // The bit runs +X (front/back) or +Y (left/right), flipped as the
+    // generator does: conventional runs + from a back or left zero.
+    if (along) { A = [45, cut]; B = [395, cut]; ldim = [45, 272, 395, 272]; }
+    else { A = [cut, 258]; B = [cut, 32]; ldim = side === 'right' ? [36, 32, 36, 258] : [404, 32, 404, 258]; }
     var plusIsConventional = side === 'back' || side === 'left';
-    if (climb === plusIsConventional) { var t = cutA; cutA = cutB; cutB = t; }
-
-    // Cutting Length, written along the cut arrow on the offcut side
-    // (away from the Target Size dimension).
-    var lengthVal = num('qc-cut-length', 0);
-    var lmx = (cutA[0] + cutB[0]) / 2, lmy = (cutA[1] + cutB[1]) / 2;
-    var lengthLabel;
-    if (side === 'front' || side === 'back') {
-      var ly = side === 'front' ? lmy - 4 : lmy + 4;
-      lengthLabel = '<text class="qc-cut-length-label" x="' + lmx.toFixed(2) + '" y="' + ly.toFixed(2) +
-        '" text-anchor="middle" dominant-baseline="' + (side === 'front' ? 'auto' : 'hanging') + '">' +
-        (lengthVal > 0 ? lengthVal : '?') + ' ' + state.unitLabel + '</text>';
-    } else {
-      var lx = side === 'left' ? lmx + 7 : lmx - 7;
-      var ang = Math.atan2(cutB[1] - cutA[1], cutB[0] - cutA[0]) * 180 / Math.PI;
-      // Near-vertical line: always read bottom-to-top.
-      if (ang > 0) ang -= 180;
-      lengthLabel = '<text class="qc-cut-length-label" x="' + lx.toFixed(2) + '" y="' + lmy.toFixed(2) +
-        '" text-anchor="middle" dominant-baseline="central" transform="rotate(' +
-        ang.toFixed(1) + ' ' + lx.toFixed(2) + ' ' + lmy.toFixed(2) + ')">' +
-        (lengthVal > 0 ? lengthVal : '?') + ' ' + state.unitLabel + '</text>';
-    }
-
-    var mid = [(dimA[0] + dimB[0]) / 2, (dimA[1] + dimB[1]) / 2];
-    var label = '<text class="qc-shape-dim-label" x="' + mid[0].toFixed(2) + '" y="' + (mid[1] - 3).toFixed(2) +
-                '" text-anchor="middle">' + tl + '</text>';
-    if (side === 'front' || side === 'back') {
-      label = '<text class="qc-shape-dim-label" x="' + (mid[0] + 4).toFixed(2) + '" y="' + mid[1].toFixed(2) +
-              '" dominant-baseline="central">' + tl + '</text>';
-    }
-
-    var labelY = fl[1] + THICK + 6;
-    var edgeLabels =
-      '<text class="qc-plan-caption" x="' + ((bl[0] + br[0]) / 2).toFixed(2) + '" y="' + (bl[1] - 6) + '" text-anchor="middle">Back (Y+)</text>' +
-      '<text class="qc-plan-caption" x="' + ((fl[0] + fr[0]) / 2).toFixed(2) + '" y="' + labelY + '" text-anchor="middle" dominant-baseline="hanging">Front (Y\u2212)</text>' +
-      '<text class="qc-plan-caption" x="' + fl[0].toFixed(2) + '" y="' + labelY + '" dominant-baseline="hanging">Left (X\u2212)</text>' +
-      '<text class="qc-plan-caption" x="' + fr[0].toFixed(2) + '" y="' + labelY + '" text-anchor="end" dominant-baseline="hanging">Right (X+)</text>';
-
-    // Total Depth, measured down the front face from the top surface.
-    var depthVal = num('qc-cut-depth', 0);
-    var ddx = fl[0] - 7;
-    var depthDim =
-      '<line class="qc-shape-dim-line" x1="' + ddx.toFixed(2) + '" y1="' + fr[1].toFixed(2) +
-        '" x2="' + ddx.toFixed(2) + '" y2="' + (fr[1] + THICK).toFixed(2) + '" ' +
-        'marker-start="url(#qc-cut-arr)" marker-end="url(#qc-cut-arr)"/>' +
-      // Label reads along the dimension line (rotated) to stay narrow.
-      '<text class="qc-shape-dim-label" x="' + (ddx - 7).toFixed(2) + '" y="' + (fr[1] + THICK / 2).toFixed(2) +
-        '" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 ' + (ddx - 7).toFixed(2) + ' ' +
-        (fr[1] + THICK / 2).toFixed(2) + ')">' + (depthVal > 0 ? depthVal : '?') + ' ' + state.unitLabel + '</text>';
-
-    var edges = { back: bl.concat(br), front: fl.concat(fr), left: fl.concat(bl), right: fr.concat(br) };
-
-    // Work-offset zero: a CAD-style axis triad on the zero corner —
-    // X red, Y green, Z blue — with X and Y following the perspective.
-    var zu = zero === fr || zero === br ? 1 : 0;
-    var zv = zero === bl || zero === br ? 1 : 0;
-    var AXIS_LEN = 20;
-    function axisDir(tip) {
-      var dx = tip[0] - zero[0], dy = tip[1] - zero[1];
-      var len = Math.sqrt(dx * dx + dy * dy) || 1;
-      return [dx / len, dy / len];
-    }
-    function axisArrow(dir, cls, name) {
-      var tx = zero[0] + dir[0] * AXIS_LEN, ty = zero[1] + dir[1] * AXIS_LEN;
-      return '<line class="qc-wcs-axis ' + cls + '" x1="' + zero[0].toFixed(2) + '" y1="' + zero[1].toFixed(2) +
-             '" x2="' + tx.toFixed(2) + '" y2="' + ty.toFixed(2) + '" marker-end="url(#' + cls + '-arr)"/>' +
-             '<text class="qc-wcs-axis-label ' + cls + '" x="' + (tx + dir[0] * 6).toFixed(2) +
-             '" y="' + (ty + dir[1] * 6).toFixed(2) + '" text-anchor="middle" dominant-baseline="central">' +
-             name + '</text>';
-    }
-    var wcs =
-      '<g pointer-events="none">' +
-        axisArrow(axisDir(P(zu + 0.2, zv)), 'qc-wcs-x', 'X') +
-        axisArrow(axisDir(P(zu, zv + 0.4)), 'qc-wcs-y', 'Y') +
-        axisArrow([0, -1], 'qc-wcs-z', 'Z') +
-        '<circle class="qc-wcs-origin" cx="' + zero[0].toFixed(2) + '" cy="' + zero[1].toFixed(2) + '" r="2.4"/>' +
-      '</g>';
-
+    if ((direction === 'climb') === plusIsConventional) { var t = A; A = B; B = t; }
+    var L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    var f = function(n) { return n.toFixed(1); };
+    var line = function(a, b, cls, extra) { return '<line x1="' + f(a[0]) + '" y1="' + f(a[1]) + '" x2="' + f(b[0]) + '" y2="' + f(b[1]) + '" class="' + cls + '"' + (extra || '') + '/>'; };
+    var both = direction === 'both', dur = both ? '4s' : '2.6s';
+    var motion = both ? ' keyPoints="0;0;1;1;0;0" keyTimes="0;0.05;0.45;0.55;0.95;1"' : ' keyPoints="0;0;1;1" keyTimes="0;0.08;0.85;1"';
+    // Feed arrow beside the cut, on the waste side.
+    var mid = [(A[0] + B[0]) / 2 + feedOff[0], (A[1] + B[1]) / 2 + feedOff[1]];
+    var ux = (B[0] - A[0]) / L, uy = (B[1] - A[1]) / L;
+    var fa = [mid[0] - ux * 50, mid[1] - uy * 50], fb = [mid[0] + ux * 50, mid[1] + uy * 50];
+    var tlabel = (target > 0 ? target : '?') + ' ' + u, llabel = (length > 0 ? length : '?') + ' ' + u;
+    var tmid = [(tdim[0] + tdim[2]) / 2, (tdim[1] + tdim[3]) / 2], lmid = [(ldim[0] + ldim[2]) / 2, (ldim[1] + ldim[3]) / 2];
+    var keepLabel = along ? 'keep · ' + tlabel + ' deep' : 'keep · ' + tlabel + ' wide';
+    var keepAt = side === 'front' ? [220, (Y(0) + cut) / 2] : side === 'back' ? [220, (Y(1) + cut) / 2] :
+      side === 'left' ? [(X(0) + cut) / 2, 150] : [(X(1) + cut) / 2, 150];
+    var wasteAt = side === 'front' ? [220, Y(1) + 22] : side === 'back' ? [220, Y(0) - 14] :
+      side === 'left' ? [(X(1) + cut) / 2, 72] : [(X(0) + cut) / 2, 72];
+    var edges = { back: [X(0), Y(1), X(1), Y(1)], front: [X(0), Y(0), X(1), Y(0)], left: [X(0), Y(1), X(0), Y(0)], right: [X(1), Y(1), X(1), Y(0)] };
+    // +X is always to the right and +Y always to the back, whichever corner.
+    var zx = zero[0], zy = zero[1], xdir = 1, ydir = -1;
     svg.innerHTML =
-      shapePreviewDefs('qc-cut') +
-      '<defs><marker id="qc-cut-feedarr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" ' +
-        'orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L8,5 L0,10" fill="none" ' +
-        'style="stroke: var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>' +
-        '<marker id="qc-wcs-x-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
-          'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#e5534b"/></marker>' +
-        '<marker id="qc-wcs-y-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
-          'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#57ab5a"/></marker>' +
-        '<marker id="qc-wcs-z-arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto" ' +
-          'markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#4c8fe0"/></marker></defs>' +
-      // Front face first, then the top face over it.
-      '<polygon class="qc-cut-side-face" points="' + pts([fl, fr, down(fr), down(fl)]) + '"/>' +
-      (frontWaste ? '<polygon class="qc-shape-hatch" fill="url(#qc-cut-hatch)" points="' + pts(frontWaste) + '"/>' : '') +
-      '<polygon class="qc-shape-fill" points="' + pts([fl, fr, br, bl]) + '"/>' +
-      '<polygon class="qc-shape-hatch" fill="url(#qc-cut-hatch)" points="' + pts(waste) + '"/>' +
-      kerf + depthDim +
-      '<line class="qc-shape-dim-line" x1="' + dimA[0].toFixed(2) + '" y1="' + dimA[1].toFixed(2) +
-        '" x2="' + dimB[0].toFixed(2) + '" y2="' + dimB[1].toFixed(2) + '" ' +
-        'marker-start="url(#qc-cut-arr)" marker-end="url(#qc-cut-arr)"/>' + label +
-      '<line class="qc-cut-feed" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
-        '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '" marker-end="url(#qc-cut-feedarr)"' +
-        // Both Ways: a head on each end.
-        (direction === 'both' ? ' marker-start="url(#qc-cut-feedarr)"' : '') + '/>' +
-      lengthLabel +
-      edgeLabels +
+      '<defs>' +
+        '<linearGradient id="qc-cut-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c9b493"/></linearGradient>' +
+        '<linearGradient id="qc-cut-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<pattern id="qc-cut-waste" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)"><rect width="9" height="9" fill="rgba(90,70,40,.10)"/><line x1="0" y1="0" x2="0" y2="9" stroke="rgba(90,70,40,.35)" stroke-width="1.4"/></pattern>' +
+        '<marker id="qc-cut-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+        '<marker id="qc-cut-am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-muted-fill"/></marker>' +
+        '<marker id="qc-cut-ax" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="context-stroke"/></marker>' +
+      '</defs>' +
+      '<text x="220" y="18" class="qc-fig-cap">Top view · Back (Y+)</text>' +
+      '<rect x="70" y="50" width="300" height="190" rx="3" fill="url(#qc-cut-wood)" class="qc-fig-edge"/>' +
+      '<rect x="' + f(waste[0]) + '" y="' + f(waste[1]) + '" width="' + f(waste[2]) + '" height="' + f(waste[3]) + '" fill="url(#qc-cut-waste)"/>' +
+      '<text x="' + f(wasteAt[0]) + '" y="' + f(wasteAt[1]) + '" class="qc-fig-cap qc-fig-on-wood">waste</text>' +
+      '<text x="' + f(keepAt[0]) + '" y="' + f(keepAt[1]) + '" class="qc-fig-cap qc-fig-on-wood qc-fig-keep">' + keepLabel + '</text>' +
+      // The kerf the bit leaves, drawn as it goes.
+      line(A, B, 'qc-fig-kerf', CUT_REDUCED || both ? '' : ' stroke-dasharray="' + f(L) + '" stroke-dashoffset="0"') +
+      line(A, B, 'qc-fig-path') +
+      line(fa, fb, 'qc-fig-dim', ' marker-end="url(#qc-cut-a)"' + (both ? ' marker-start="url(#qc-cut-a)"' : '')) +
+      // Zero edge and the X / Y triad on the zero corner.
+      line([edges[side][0], edges[side][1]], [edges[side][2], edges[side][3]], 'qc-fig-zero') +
+      figAxes(zx, zy) +
+      // Target Size and Cutting Length.
+      line([tdim[0], tdim[1]], [tdim[2], tdim[3]], 'qc-fig-dim', ' marker-start="url(#qc-cut-a)" marker-end="url(#qc-cut-a)"') +
+      cutPill(f(tmid[0]), f(tmid[1]), tlabel, along) +
+      line([ldim[0], ldim[1]], [ldim[2], ldim[3]], 'qc-fig-dim qc-fig-dim--muted', ' marker-start="url(#qc-cut-am)" marker-end="url(#qc-cut-am)"') +
+      cutPill(f(lmid[0]), f(lmid[1]), llabel, !along, true) +
+      '<text x="220" y="300" class="qc-fig-cap">Front (Y−)</text>' +
+      // The bit, spinning, along the cut.
+      '<g class="qc-fig-bit"' + (CUT_REDUCED ? ' transform="translate(' + f(B[0]) + ' ' + f(B[1]) + ')"' : '') + '>' +
+        '<circle r="11" fill="url(#qc-cut-rod)" class="qc-fig-edge"/>' +
+        '<g class="qc-fig-spin"><path d="M0 -11 A11 11 0 0 1 9 6 L0 0Z M0 11 A11 11 0 0 1 -9 -6 L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
+        (CUT_REDUCED ? '' : '<animateMotion dur="' + dur + '" repeatCount="indefinite" calcMode="linear" path="M' + f(A[0]) + ' ' + f(A[1]) + ' L' + f(B[0]) + ' ' + f(B[1]) + '"' + motion + '/>') +
+      '</g>' +
       sideEdgesSvg(side, edges) +
-      // Click the cut arrow to flip Conventional / Climb.
-      '<line class="qc-feed-hit" x1="' + cutA[0].toFixed(2) + '" y1="' + cutA[1].toFixed(2) +
-        '" x2="' + cutB[0].toFixed(2) + '" y2="' + cutB[1].toFixed(2) + '"><title>' +
-        { conventional: 'Conventional', climb: 'Climb', both: 'Both Ways' }[direction] + ' \u2014 click to switch</title></line>' +
-      // The front face is a big target for "front" too.
-      '<polygon class="qc-side-hit-face" data-side="front" points="' + pts([fl, fr, down(fr), down(fl)]) + '"><title>Front</title></polygon>' +
-      wcs;
+      '<line class="qc-feed-hit" x1="' + f(A[0]) + '" y1="' + f(A[1]) + '" x2="' + f(B[0]) + '" y2="' + f(B[1]) + '"><title>Cut direction: click to change</title></line>';
+    // Kerf drawn in step with the bit (single direction only).
+    if (!CUT_REDUCED && !both) {
+      var kerf = svg.querySelector('.qc-fig-kerf');
+      var an = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+      an.setAttribute('attributeName', 'stroke-dashoffset');
+      an.setAttribute('values', f(L) + ';' + f(L) + ';0;0');
+      an.setAttribute('keyTimes', '0;0.08;0.85;1');
+      an.setAttribute('dur', dur);
+      an.setAttribute('repeatCount', 'indefinite');
+      kerf.appendChild(an);
+    }
+    updateCutterSide();
+  }
+  // Side view: the bit stepping down a pass at a time.
+  function updateCutterSide() {
+    var svg = document.getElementById('qc-cut-side');
+    if (!svg) return;
+    var u = state.unitLabel, depth = num('qc-cut-depth', 0), doc = num('qc-cut-step', 0);
+    var passes = depth > 0 && doc > 0 ? Math.ceil(depth / doc - 1e-9) : 0;
+    var dl = (depth > 0 ? depth : '?') + ' ' + u;
+    svg.innerHTML =
+      '<defs>' +
+        '<linearGradient id="qc-cut-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="qc-cut-rod2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="qc-cut-wood2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c2ab88"/></linearGradient>' +
+        '<marker id="qc-cut-a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+      '</defs>' +
+      '<text x="150" y="-46" class="qc-fig-cap">Side view · depth passes</text>' +
+      '<line x1="20" y1="230" x2="280" y2="230" class="qc-fig-table"/>' +
+      '<rect x="40" y="152" width="220" height="78" fill="url(#qc-cut-wood2)" class="qc-fig-edge"/>' +
+      '<rect x="146" y="152" width="18" height="80" class="qc-fig-kerf-box qc-fig-a-kerf"/>' +
+      '<line x1="40" y1="152" x2="260" y2="152" class="qc-fig-z0"/>' +
+      '<text x="44" y="146" class="qc-fig-accent-text">Z0 = top of stock</text>' +
+      '<g class="qc-fig-a-tool">' +
+        '<rect x="121" y="-24" width="68" height="50" fill="url(#qc-cut-body)"/>' +
+        '<path d="M127 26 H183 L175 42 H135 Z" fill="url(#qc-cut-rod2)"/>' +
+        '<rect x="146" y="42" width="18" height="110" rx="2" fill="url(#qc-cut-rod2)"/>' +
+      '</g>' +
+      '<line x1="276" y1="152" x2="296" y2="152" class="qc-fig-ext"/><line x1="276" y1="232" x2="296" y2="232" class="qc-fig-ext"/>' +
+      '<line x1="288" y1="156" x2="288" y2="228" class="qc-fig-dim" marker-start="url(#qc-cut-a2)" marker-end="url(#qc-cut-a2)"/>' +
+      cutPill(288, 192, dl, true) +
+      '<text x="150" y="258" class="qc-fig-note">' + (passes ? passes + (passes === 1 ? ' pass' : ' passes') + ' of up to ' + doc + ' ' + u : 'Set Total Depth and Depth of Cut') + '</text>' +
+      '<text x="150" y="276" class="qc-fig-note">a little past the stock, into the wasteboard</text>';
   }
 
-
-  // Circle preview — bordered viewport, hatched waste based on cut
-  // type, horizontal dimension arrow labeling the diameter.
   function updateCirclePreview() {
     schedulePatternPreview();
     updateInsetState('circ');
@@ -11181,10 +11569,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // the whole hole or more, is one plunge.
     var peck = num('qc-drl-peck', 0);
     $('qc-drl-peck-mode').closest('.qc-field').style.visibility = peck > 0 && peck < num('qc-drl-depth', 0) ? '' : 'hidden';
+    ROOT.querySelectorAll('#qc-drl-peck-seg button').forEach(function(b) {
+      var on = b.getAttribute('data-v') === $('qc-drl-peck-mode').value;
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    updateDrillSide();
     var svg = document.getElementById('qc-drl-preview');
     if (!svg) return;
     // Chamfering, the Tool card holds the V-bit: the holes are the Hole Diameter.
-    var dia = $('qc-chamfer-enable').checked ? num('qc-chamfer-hole', 0) : num('qc-bit', 0);
+    var chamferOn = $('qc-chamfer-enable').checked, chamferW = chamferOn ? Math.max(0, num('qc-chamfer-width', 0)) : 0;
+    var dia = chamferOn ? num('qc-chamfer-hole', 0) : num('qc-bit', 0);
     var D = dia > 0 ? dia : 1;
     var gen = makeQuickCutGenerator(state.isImperial);
     var pattern = readPatternForm('drl');
@@ -11207,7 +11601,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
     });
     var extent = Math.max(maxX - minX, maxY - minY) + D + 2 * insetPad('drl');
-    var scale = Math.min(76 / extent, 30 / D);
+    // The big Drill view keeps holes modest: a lone hole about an eighth of
+    // the view, a pattern no wider than about 60%.
+    var bigView = !!svg.closest('.qc-drl-big');
+    var scale = bigView ? Math.min(60 / extent, 13 / D) : Math.min(76 / extent, 30 / D);
     var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     var r = Math.max(0.8, D * scale / 2);
     var holes = positions.map(function(p, i) {
@@ -11222,9 +11619,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // X0 Y0 sits at -shift in pattern coordinates.
     var shift = picked.shift;
     var ox = (-shift.x - cx) * scale, oy = (shift.y + cy) * scale, arm = r + 4;
-    var origin = '<path class="qc-origin-mark" d="M' + (ox - arm).toFixed(2) + ',' + oy.toFixed(2) +
-                 ' H' + (ox + arm).toFixed(2) + ' M' + ox.toFixed(2) + ',' + (oy - arm).toFixed(2) +
-                 ' V' + (oy + arm).toFixed(2) + '"/>';
+    var origin = figAxes(ox, oy);
     var text = positions.length > 1 ? positions.length + ' × ⌀' + (dia > 0 ? dia : '?') : '⌀' + (dia > 0 ? dia : '?');
     // Enlarged, small holes are also shown magnified around X0 Y0, a hole
     // about a third of the box across.
@@ -11233,8 +11628,198 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       ? originZoom('drl', ox, oy, holes, positions.map(function(p) { return [(p.x - cx) * scale, -(p.y - cy) * scale]; }), zoomZ, 'drl', scale)
       : (originZoomFrames.drl = null, '');
     svg.innerHTML =
-      shapePreviewDefs('qc-drl') + holes + origin + insetMarks('drl', ox, oy, scale) +
-      '<text class="qc-shape-dim-label" x="0" y="47" text-anchor="middle">' + text + '</text>' + zoom;
+      shapePreviewDefs('qc-drl') + drillStock(minX, maxX, minY, maxY, cx, cy, scale, r) +
+      (chamferOn ? drillChamferHoles(positions, cx, cy, scale, r) : holes) +
+      drillVisits(positions, cx, cy, scale, chamferOn ? r + chamferW * scale : r, chamferOn ? r : 0) + origin + insetMarks('drl', ox, oy, scale) +
+      (bigView ? drillDims(pattern, positions, minX, maxX, minY, maxY, cx, cy, scale, r, dia, chamferW) : '<text class="qc-shape-dim-label" x="0" y="47" text-anchor="middle">' + text + '</text>') + zoom;
+    if (bigView) figPills(svg, '.qc-drl-dimtext, .qc-inset-label');
+  }
+  // A pill behind each dimension value (sized to the drawn text), the
+  // Cutter figures' style.
+  function figPills(svg, selector) {
+    svg.querySelectorAll(selector).forEach(function(t) {
+      var b;
+      try { b = t.getBBox(); } catch (e) { return; }
+      if (!b || !b.width) return;
+      var h = b.height + 1, w = b.width + h * 0.9;
+      var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('class', 'qc-fig-pill qc-fig-pill--small');
+      rect.setAttribute('x', (b.x + b.width / 2 - w / 2).toFixed(2));
+      rect.setAttribute('y', (b.y + b.height / 2 - h / 2).toFixed(2));
+      rect.setAttribute('width', w.toFixed(2)); rect.setAttribute('height', h.toFixed(2));
+      rect.setAttribute('rx', (h / 2).toFixed(2));
+      if (t.getAttribute('transform')) rect.setAttribute('transform', t.getAttribute('transform'));
+      t.parentNode.insertBefore(rect, t);
+      t.classList.add('qc-on-pill');
+    });
+  }
+  // On the big view: the hole count, size and the box they fill under the
+  // stock, and a straight grid's X / Y spacing on its first gaps (what the
+  // Pattern card's small preview used to show).
+  function drillDims(pattern, positions, minX, maxX, minY, maxY, cx, cy, scale, r, dia, chamferW) {
+    var u = state.unitLabel, n = positions.length, f = function(v) { return v.toFixed(2); };
+    var pad = Math.max(r * 3, 7), bottom = -(minY - cy) * scale + pad;
+    var cap = (n > 1 ? n + ' holes · ' : '') + '⌀' + (dia > 0 ? dia : '?') + ' ' + u +
+      (chamferW > 0 ? ' · ' + roundDisplay(chamferW) + ' ' + u + ' chamfer' : '');
+    var out = '<text class="qc-drl-cap" x="0" y="' + f(Math.min(47, bottom + 6)) + '" text-anchor="middle">' + cap + '</text>';
+    var pat = pattern && pattern.enabled ? pattern : null;
+    if (pat && (pat.style || 'linear') === 'linear' && !(+pat.angle)) {
+      var xs = Array.from(new Set(positions.map(function(p) { return +p.x.toFixed(4); }))).sort(function(a, b) { return a - b; });
+      var ys = Array.from(new Set(positions.map(function(p) { return +p.y.toFixed(4); }))).sort(function(a, b) { return a - b; });
+      var X = function(x) { return (x - cx) * scale; }, Y = function(y) { return -(y - cy) * scale; };
+      var dim = function(x1, y1, x2, y2, label, vertical) {
+        var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        // The value in a pill on the line, as on the Cutter figures.
+        return '<line class="qc-drl-dim" x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(x2) + '" y2="' + f(y2) + '" marker-start="url(#qc-drl-da)" marker-end="url(#qc-drl-da)"/>' +
+          '<text class="qc-drl-dimtext" x="' + f(mx) + '" y="' + f(my) + '" text-anchor="middle" dominant-baseline="central"' +
+          (vertical ? ' transform="rotate(-90 ' + f(mx) + ' ' + f(my) + ')"' : '') + '>' + label + ' ' + state.unitLabel + '</text>';
+      };
+      out += '<defs><marker id="qc-drl-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
+      if (xs.length > 1) out += dim(X(xs[0]), Y(ys[0]) + r + 3, X(xs[1]), Y(ys[0]) + r + 3, roundDisplay(xs[1] - xs[0]), false);
+      if (ys.length > 1) out += dim(X(xs[0]) - r - 3, Y(ys[0]), X(xs[0]) - r - 3, Y(ys[1]), roundDisplay(ys[1] - ys[0]), true);
+    }
+    return out;
+  }
+  // Chamfering: the holes are already drilled (dark), each with a faint
+  // ring where the bevel will go.
+  function drillChamferHoles(positions, cx, cy, scale, r) {
+    var f = function(v) { return v.toFixed(2); }, w = Math.max(0, num('qc-chamfer-width', 0)) * scale;
+    return positions.map(function(p) {
+      var x = f((p.x - cx) * scale), y = f(-(p.y - cy) * scale);
+      return '<circle cx="' + x + '" cy="' + y + '" r="' + f(r + w) + '" class="qc-drl-bevel-guide"/>' +
+        '<circle cx="' + x + '" cy="' + y + '" r="' + f(r) + '" class="qc-drl-done"/>';
+    }).join('');
+  }
+  // The stock under the holes, as on the Cutter figures.
+  function drillStock(minX, maxX, minY, maxY, cx, cy, scale, r) {
+    var pad = Math.max(r * 3, 7);
+    var x0 = (minX - cx) * scale - pad, x1 = (maxX - cx) * scale + pad, y0 = -(maxY - cy) * scale - pad, y1 = -(minY - cy) * scale + pad;
+    return '<defs><linearGradient id="qc-drl-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c9b493"/></linearGradient></defs>' +
+      '<rect class="qc-drl-stock" x="' + x0.toFixed(2) + '" y="' + y0.toFixed(2) + '" width="' + (x1 - x0).toFixed(2) + '" height="' + (y1 - y0).toFixed(2) + '" rx="1" fill="url(#qc-drl-wood)"/>';
+  }
+  // The drill going round the holes in order, each left drilled as it
+  // goes (SMIL, so it runs inside the redrawn SVG). Skipped for big grids
+  // and under reduced motion.
+  function drillVisits(positions, cx, cy, scale, r, inner) {
+    var n = positions.length;
+    if (!n || n > 60 || CUT_REDUCED) return '';
+    var pts = positions.map(function(p) { return [(p.x - cx) * scale, -(p.y - cy) * scale]; });
+    var f = function(v) { return v.toFixed(2); };
+    var per = 0.9, dur = Math.max(2.4, n * per + 0.8), total = 0, lens = [0];
+    for (var i = 1; i < n; i++) { total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); lens.push(total); }
+    var br = Math.max(1.6, r * 1.15), out = '<g class="qc-drl-done-marks">';
+    // Each hole: travel in, plunge (a short stay), on to the next.
+    var kp = [], kt = [];
+    for (var j = 0; j < n; j++) {
+      var tIn = (j * per + 0.25) / dur, tOut = Math.min(1, (j * per + 0.75) / dur), frac = total ? lens[j] / total : 0;
+      kp.push(frac, frac); kt.push(tIn, tOut);
+      // Chamfering: the bevel ring appears (the hole is already there).
+      // A smooth countersink: shaded from the hole's edge outwards, a
+      // touch wider than the dashed guide so it covers it.
+      out += (inner ? '<circle cx="' + f(pts[j][0]) + '" cy="' + f(pts[j][1]) + '" r="' + f(r + 0.3) + '" fill="url(#qc-drl-csk)" opacity="0">'
+        : '<circle cx="' + f(pts[j][0]) + '" cy="' + f(pts[j][1]) + '" r="' + f(r) + '" class="qc-drl-done" opacity="0">') +
+        '<animate attributeName="opacity" values="0;0;1;1" keyTimes="0;' + f(Math.min(0.999, tIn + 0.2 / dur)) + ';' + f(Math.min(0.9995, tIn + 0.21 / dur)) + ';1" dur="' + dur + 's" repeatCount="indefinite"/></circle>';
+    }
+    out += '</g>';
+    kp.unshift(0); kt.unshift(0); kp.push(kp[kp.length - 1]); kt.push(1);
+    // keyTimes must rise: nudge equal neighbours apart.
+    for (var k = 1; k < kt.length; k++) if (kt[k] <= kt[k - 1]) kt[k] = Math.min(1, kt[k - 1] + 0.0001);
+    kt[kt.length - 1] = 1;
+    var path = 'M' + pts.map(function(q) { return f(q[0]) + ' ' + f(q[1]); }).join(' L');
+    if (n === 1) path += ' L' + f(pts[0][0] + 0.01) + ' ' + f(pts[0][1]);
+    out += '<g class="qc-drl-bit" pointer-events="none"><circle r="' + f(br) + '" fill="url(#qc-drl-rod)" stroke="rgba(0,0,0,.35)" stroke-width="0.4"/>' +
+      '<g class="qc-fig-spin"><path d="M0 ' + f(-br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(br * 0.82) + ' ' + f(br * 0.55) + ' L0 0Z M0 ' + f(br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(-br * 0.82) + ' ' + f(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
+      '<animateMotion dur="' + dur + 's" repeatCount="indefinite" calcMode="linear" path="' + path + '" keyPoints="' + kp.map(function(v) { return v.toFixed(5); }).join(';') + '" keyTimes="' + kt.map(function(t) { return t.toFixed(4); }).join(';') + '"/></g>';
+    var csk = inner ? '<radialGradient id="qc-drl-csk"><stop offset="0" stop-color="#3a2e1e"/><stop offset="' + (inner / (r + 0.3)).toFixed(3) + '" stop-color="#3a2e1e"/><stop offset="' + (inner / (r + 0.3) + 0.02).toFixed(3) + '" stop-color="#5c4628"/><stop offset="1" stop-color="#b59a72"/></radialGradient>' : '';
+    return '<defs>' + csk + '<linearGradient id="qc-drl-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>' + out;
+  }
+  // Side view while chamfering: a V-bit comes down into the drilled hole and
+  // cuts the bevel round its top edge.
+  function drillChamferSide(svg) {
+    var u = state.unitLabel, w = num('qc-chamfer-width', 0), ang = num('qc-chamfer-angle', 90), hole = num('qc-chamfer-hole', 0);
+    var dur = 4, an = CUT_REDUCED ? '' :
+      '<animateTransform attributeName="transform" type="translate" values="0 -46;0 -46;0 0;0 0;0 -46" keyTimes="0;0.12;0.45;0.75;1" dur="' + dur + 's" repeatCount="indefinite"/>';
+    var bev = CUT_REDUCED ? '' : '<animate attributeName="opacity" values="0;0;1;1;1" keyTimes="0;0.3;0.45;0.75;1" dur="' + dur + 's" repeatCount="indefinite"/>';
+    svg.innerHTML =
+      '<defs>' +
+        '<linearGradient id="qc-drl-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="qc-drl-rod2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="qc-drl-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c2ab88"/></linearGradient>' +
+      '</defs>' +
+      '<text x="150" y="-46" class="qc-fig-cap">Side view · chamfer</text>' +
+      '<line x1="20" y1="250" x2="280" y2="250" class="qc-fig-table"/>' +
+      '<rect x="40" y="152" width="220" height="98" fill="url(#qc-drl-wood)" class="qc-fig-edge"/>' +
+      // The hole drilled before, then the bevel round its top.
+      '<rect x="135" y="152" width="30" height="98" fill="#3a2e1e"/>' +
+      '<path d="M121 152 H135 V166 Z M179 152 H165 V166 Z" fill="#3a2e1e" opacity="' + (CUT_REDUCED ? 1 : 0) + '">' + bev + '</path>' +
+      '<line x1="40" y1="152" x2="260" y2="152" class="qc-fig-z0"/>' +
+      '<text x="256" y="146" class="qc-fig-accent-text" text-anchor="end">Z0 = top of stock</text>' +
+      // V-bit: body, shank, cone; at rest its cone cuts the bevel.
+      '<g>' +
+        '<rect x="116" y="-6" width="68" height="50" fill="url(#qc-drl-body)"/>' +
+        '<path d="M122 44 H178 L170 60 H130 Z" fill="url(#qc-drl-rod2)"/>' +
+        '<rect x="141" y="60" width="18" height="91" fill="url(#qc-drl-rod2)"/>' +
+        '<path d="M120 151 H180 L150 181 Z" fill="url(#qc-drl-rod2)"/>' +
+        an +
+      '</g>' +
+      '<line x1="121" y1="140" x2="121" y2="152" class="qc-fig-ext"/><line x1="135" y1="140" x2="135" y2="152" class="qc-fig-ext"/>' +
+      '<line x1="98" y1="142" x2="135" y2="142" class="qc-fig-dim"/>' +
+      cutPill(74, 142, (w > 0 ? w : '?') + ' ' + u, false) +
+      '<text x="150" y="276" class="qc-fig-note">' + (w > 0 ? w : '?') + ' ' + u + ' chamfer at ' + ang + '° on ⌀' + (hole > 0 ? hole : '?') + ' ' + u + ' holes</text>';
+  }
+  // Side view: the drill pecking down, backing out (fully or a little),
+  // dwelling at the bottom.
+  function updateDrillSide() {
+    var svg = document.getElementById('qc-drl-side');
+    if (!svg) return;
+    if ($('qc-chamfer-enable').checked) return drillChamferSide(svg);
+    var u = state.unitLabel, depth = num('qc-drl-depth', 0), peck = num('qc-drl-peck', 0), dwell = Math.max(0, num('qc-drl-dwell', 0));
+    var full = $('qc-drl-peck-mode').value !== 'break';
+    var pecking = peck > 0 && depth > 0 && peck < depth, n = pecking ? Math.ceil(depth / peck - 1e-9) : 1;
+    var D = 80, top = -18;
+    // Tool translate and bore height over time.
+    var tv = [top], bv = [0], tt = [0], t = 0.5;
+    tt.push(t); tv.push(top); bv.push(0);
+    for (var i = 1; i <= n; i++) {
+      var d = D * Math.min(1, pecking ? (i * peck) / depth : 1);
+      t += 0.55; tt.push(t); tv.push(d); bv.push(d);
+      if (i === n) { t += Math.min(1.2, Math.max(0.15, dwell)); tt.push(t); tv.push(d); bv.push(d); }
+      t += 0.4; tt.push(t); tv.push(i === n || full ? top : Math.max(0, d - 10)); bv.push(d);
+    }
+    t += 0.8; tt.push(t); tv.push(top); bv.push(D);
+    var dur = t, kt = tt.map(function(x) { return (x / dur).toFixed(4); }).join(';');
+    var anim = CUT_REDUCED ? '' : '<animateTransform attributeName="transform" type="translate" values="' + tv.map(function(v) { return '0 ' + v.toFixed(1); }).join(';') + '" keyTimes="' + kt + '" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/>';
+    var bore = CUT_REDUCED ? '' : '<animate attributeName="height" values="' + bv.map(function(v) { return v.toFixed(1); }).join(';') + '" keyTimes="' + kt + '" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/>';
+    var marks = '';
+    if (pecking) for (var m = 1; m < n; m++) { var y = 152 + D * (m * peck) / depth; marks += '<line x1="168" y1="' + y.toFixed(1) + '" x2="206" y2="' + y.toFixed(1) + '" class="qc-fig-ext" stroke-dasharray="3 3"/>'; }
+    var dl = (depth > 0 ? depth : '?') + ' ' + u;
+    var note = !pecking ? 'One plunge, no pecking' : n + ' pecks of up to ' + peck + ' ' + u + ', ' + (full ? 'full' : 'short') + ' retract';
+    if (dwell > 0) note += ', ' + dwell + ' s dwell';
+    svg.innerHTML =
+      '<defs>' +
+        '<linearGradient id="qc-drl-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="qc-drl-rod2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="qc-drl-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c2ab88"/></linearGradient>' +
+        '<marker id="qc-drl-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+      '</defs>' +
+      '<text x="150" y="-46" class="qc-fig-cap">Side view · ' + (pecking ? 'pecking' : 'plunge') + '</text>' +
+      '<line x1="20" y1="250" x2="280" y2="250" class="qc-fig-table"/>' +
+      '<rect x="40" y="152" width="220" height="98" fill="url(#qc-drl-wood)" class="qc-fig-edge"/>' +
+      '<rect x="141" y="152" width="18" height="' + (CUT_REDUCED ? D : 0) + '" fill="#3a2e1e">' + bore + '</rect>' +
+      marks +
+      '<line x1="40" y1="152" x2="260" y2="152" class="qc-fig-z0"/>' +
+      '<text x="44" y="146" class="qc-fig-accent-text">Z0 = top of stock</text>' +
+      '<g>' +
+        '<rect x="116" y="-24" width="68" height="50" fill="url(#qc-drl-body)"/>' +
+        '<path d="M122 26 H178 L170 42 H130 Z" fill="url(#qc-drl-rod2)"/>' +
+        '<path d="M141 42 h18 v100 l-9 10 l-9 -10 z" fill="url(#qc-drl-rod2)"/>' +
+        '<path d="M141 70 l18 10 M141 92 l18 10 M141 114 l18 10" stroke="#6d7684" stroke-width="2"/>' +
+        anim +
+      '</g>' +
+      '<line x1="276" y1="152" x2="296" y2="152" class="qc-fig-ext"/><line x1="276" y1="232" x2="296" y2="232" class="qc-fig-ext"/>' +
+      '<line x1="288" y1="156" x2="288" y2="228" class="qc-fig-dim" marker-start="url(#qc-drl-a)" marker-end="url(#qc-drl-a)"/>' +
+      cutPill(288, 192, dl, true) +
+      '<text x="150" y="276" class="qc-fig-note">' + note + '</text>';
   }
 
   function wireDrillForm() {
@@ -11242,6 +11827,19 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-bit').addEventListener('input', updateDrillPreview);
     $('qc-drl-peck').addEventListener('input', updateDrillPreview);
     $('qc-drl-depth').addEventListener('input', updateDrillPreview);
+    $('qc-drl-dwell').addEventListener('input', updateDrillSide);
+    ['qc-chamfer-enable', 'qc-chamfer-width', 'qc-chamfer-angle', 'qc-chamfer-hole'].forEach(function(id) {
+      $(id).addEventListener('input', updateDrillPreview);
+      $(id).addEventListener('change', updateDrillPreview);
+    });
+    $('qc-drl-peck-mode').addEventListener('change', updateDrillPreview);
+    ROOT.querySelectorAll('#qc-drl-peck-seg button').forEach(function(b) {
+      b.addEventListener('click', function() {
+        var sel = $('qc-drl-peck-mode');
+        sel.value = b.getAttribute('data-v');
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
     $('qc-drl-pattern-enable').addEventListener('change', function() {
       updatePatternVisibility('drl');
       updateDrillPreview();
@@ -11923,8 +12521,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<path class="qc-origin-zoom-edge" d="' + edges + '"/>' +
       // The crosshair at its centre; originCross only draws inside the
       // square drawing, and an enlarged preview's corners are outside it.
-      '<path class="qc-origin-mark" d="M' + f(best.x - 5) + ',' + f(best.y) + ' H' + f(best.x + 5) +
-        ' M' + f(best.x) + ',' + f(best.y - 5) + ' V' + f(best.y + 5) + '"/>';
+      figAxes(best.x, best.y);
   }
   // Redraw a preview that can have a magnified view, e.g. when it's
   // enlarged or resized.
