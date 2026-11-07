@@ -136,3 +136,10 @@ test('deep passes ease the chip a little, not under the style\'s least chip, nor
   // Acrylic keeps its chip, a thin one melts it.
   assert.equal(startingFeeds(6.35, 2, 'acrylic', null, null, { stepMm: 19.05 }).feedMm, startingFeeds(6.35, 2, 'acrylic').feedMm);
 });
+
+test('no pass deeper than the flutes', () => {
+  // A 2" surfacing bit with 1/2" flutes: half its width would be 24.6 mm.
+  assert.equal(startingFeeds(50.8, 3, 'mdf', null, null, { fluteMm: 12.7 }).stepMm, 12.7);
+  // Shallower than the flutes: as before.
+  assert.ok(Math.abs(startingFeeds(6.35, 2, 'mdf', null, null, { fluteMm: 25.4 }).stepMm - 3.175) < 1e-9);
+});
