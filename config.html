@@ -11802,7 +11802,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var set = function(k, v) { ROOT.style.setProperty(k, v); };
     set('--qc-m-a', look[0]); set('--qc-m-b', look[1]); set('--qc-m-hole', look[2]);
     set('--qc-m-ink', look[3]); set('--qc-m-ink2', look[4]); set('--qc-m-bevel', look[5]);
-    set('--qc-m-hatch', 'rgba(' + rgb + ',.4)'); set('--qc-m-hatch-bg', 'rgba(' + rgb + ',.12)');
+    // The waste's hatch, strong enough to read as stock coming away.
+    set('--qc-m-hatch', 'rgba(' + rgb + ',.6)'); set('--qc-m-hatch-bg', 'rgba(' + rgb + ',.25)');
     ROOT.classList.toggle('qc-wood-soft', !!m && m.value === 'softwood');
     ROOT.classList.toggle('qc-wood-hard', !!m && m.value === 'hardwood');
   }
