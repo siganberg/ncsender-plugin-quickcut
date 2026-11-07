@@ -11086,12 +11086,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
     var waste, clips = '';
     if (chf) {
-      // Already cut, the waste gone: Outside leaves just the parts, Inside /
-      // Pocket the stock with its openings. The bevel opens up behind the
-      // V-bit on what's left.
+      // Already cut: Outside leaves the parts in the stock, the cut bit's
+      // slot round them (as the Shapes tab's preview ends); Inside / Pocket
+      // the stock with its openings. The bevel opens up behind the V-bit
+      // on what's left.
       if (cutType === 'outer') {
-        clips = '<clipPath id="qc-shp-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
-        waste = '<g clip-path="url(#qc-shp-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+        clips = '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+        waste = stockSvg + '<path class="qc-shp-kerfcut" clip-path="url(#qc-shp-away)" d="' + outlines.join(' ') + '" stroke-width="' + F(2 * slotV * s) + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i); }).join('');
       } else {
         // Through: nothing in the openings (the stock is clipped round
         // them); with an Existing Depth, the floor shows, shaded.
@@ -11402,12 +11404,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
     var waste, clips = '', id = sh.prefix;
     if (chf) {
-      // Already cut, the waste gone: Outside leaves just the parts, Inside
-      // the stock with its openings (with an Existing Depth, the floor
-      // shows, shaded). The bevel opens up behind the V-bit on what's left.
+      // Already cut: Outside leaves the parts in the stock, the cut bit's
+      // slot round them (as the Shapes tab's preview ends); Inside the
+      // stock with its openings (with an Existing Depth, the floor shows,
+      // shaded). The bevel opens up behind the V-bit on what's left.
       if (cutType === 'outer') {
-        clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
-        waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+        clips = '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+        waste = stockSvg + '<path class="qc-shp-kerfcut" clip-path="url(#qc-' + id + '-away)" d="' + outlines.join(' ') + '" stroke-width="' + F(2 * slotV * s) + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i); }).join('');
       } else if (num('qc-chamfer-cut-depth', 0) > 0) {
         waste = stockSvg + outlines.map(function(o, i) { return kerfOf(i) + '<path class="qc-shp-floor" d="' + o + '"/>'; }).join('');
       } else {
