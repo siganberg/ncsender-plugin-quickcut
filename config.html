@@ -6913,8 +6913,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     tabs.count = Math.min(24, tabs.count);
     tabs.width = Math.max(0, tabs.width);
     var bit = Math.max(0, num('qc-bit', 0));
-    var bit = Math.max(0, num('qc-bit', 0));
-    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, bit, false);
+    // Given the bit's real path (`real`, the same lengths as `segs`), the
+    // tabs the program drops (tabsWhole) are left out here too.
+    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(real || segs, tabs, bit, real ? undefined : false);
     var total = 0;
     segs.forEach(function(s) { total += s.len; });
     // A tab across the start point comes back as two pieces (one at
@@ -10524,6 +10525,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     note.textContent = text;
     note.hidden = !text;
+  }
   // When Total Depth goes past the picked tool's flutes (its tool table
   // entry's flute length), a note by Generate; it doesn't stop it. Not
   // while chamfering: the shape's Total Depth isn't cut then.
