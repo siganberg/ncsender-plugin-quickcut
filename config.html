@@ -10227,6 +10227,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var t = travelCheck(lines, k);
         if (t) { text += '. ' + t.text; bad = t.bad; }
         text += '.';
+        var fl = fluteDepthNote(TAB_PREFIX[view]);
+        if (fl) { text += ' ' + fl; bad = true; }
       } catch (e) { text = ''; }
     }
     if (ready) {
@@ -10237,6 +10239,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (gen) gen.classList.toggle('qc-gen-blocked', !ready);
     updateErrorBubble();
     if (Date.now() - _wcoAt > 3000) refreshWco();
+  }
+  // When Total Depth goes past the picked tool's flutes (its tool table
+  // entry's flute length), a note by Generate; it doesn't stop it. Not
+  // while chamfering: the shape's Total Depth isn't cut then.
+  function fluteDepthNote(prefix) {
+    if (state.chamferMode) return '';
+    var n = bitToolNumber(), depth = prefix && $('qc-' + prefix + '-depth') ? num('qc-' + prefix + '-depth', 0) : 0;
+    var t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
+    var fl = t && t.dimensions && t.dimensions.flute_length;
+    if (!(fl > 0) || !(depth > roundDisplay(mmToDisplay(fl)) + 1e-9)) return '';
+    return 'Deeper than T' + n + '\u2019s ' + roundDisplay(mmToDisplay(fl)) + ' ' + state.unitLabel + ' flutes.';
   }
   // Roughly how long a program takes, in minutes: its moves at their feed
   // (rapids at rapid, in the program's units a minute) and its dwells.
