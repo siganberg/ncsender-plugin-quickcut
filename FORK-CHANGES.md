@@ -39,7 +39,8 @@ resolved.
 | #30 | `fix/chamfer-pattern-gaps` | Chamfer measures a pattern's X / Y Gap on the cut, instead of taking it as the distance between centers (the bevels were cut in the wrong places). |
 | #31 | `fix/chamfer-preview-stock` | An Outside chamfer's preview keeps the stock and the cut's slot round each part, framed like the shape's own; the side view goes under the Chamfer card so the top view keeps its full height (builds on #19). |
 | #32 | `fix/triangle-pattern-labels` | In a pattern, a triangle's sizes and angles go on the copy facing open stock, not all on the first (builds on #19). |
-| #33 | `fix/tool-column-contrast` | The Tool column's fields take the cards' color, so they stand out from the column. |
+| #33 | `fix/tool-column-contrast` | The Tool column sits on the panel without its own strip or edges, its fields in the cards' color. |
+| #34 | `fix/tool-column-align` | The Tool column's titles as the cards', and its rows level with the cards' beside it (builds on #33). |
 
 **Not yet PRs** (in `combined/0.1.23` for machine testing): `feat/depth-aware-feeds` (compression bits cut in fewer, deeper passes in wood; deep passes ease the chip; no pass deeper than the flutes) and `feat/feeds-help` on it (Help: Feeds & Speeds, the starting feeds for every bit in the tool table).
 
