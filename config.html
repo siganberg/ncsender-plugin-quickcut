@@ -7888,6 +7888,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var fresh = !loaded && common.feedRate == null && common.spindleRpm == null;
     if (!loaded) $('qc-material').value = common.material != null ? common.material : fresh ? 'mdf' : '';
     if (!loaded) state.feedsAuto = fresh || !!common.feedsAuto;
+    if (!loaded && common.stepTyped && typeof common.stepTyped === 'object') state.stepTyped = Object.assign({}, common.stepTyped);
     // How hard the starting feeds push: a preference, not part of a program.
     if (!loaded) {
       state.feedsStyle = /^(conservative|aggressive)$/.test(common.feedsStyle) ? common.feedsStyle : 'average';
@@ -9813,19 +9814,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // x0.75 / x1.2. 'average' (or none) leaves them as is. RPM stays.
     // deep (optional): { depthMm: Total Depth, stepMm: a Depth of Cut typed by
     // hand, compression: a compression bit, fluteMm: its flute length, which
-    // no pass goes deeper than }. A
-    // compression bit cuts in the fewest equal passes no deeper than its
-    // flutes or 3x its diameter (its down-cut top only cleans the face once
-    // a pass is past its up-cut tip). A pass deeper than the bit is wide
+    // no pass goes deeper than }. In
+    // wood (sheet goods are what it's for), a compression bit cuts in the
+    // fewest equal passes no deeper than its flutes or 3x its diameter, 2x
+    // under 6 mm and 1x under 3 mm, where a long pass snaps it (its down-cut
+    // top only cleans the face once a pass is past its up-cut tip). A pass
+    // deeper than the bit is wide
     // loads and bends it: the chip comes down a little, to 87.5% at 2x and
     // 75% at 3x and past (in wood, heat from a thin chip matters more than
     // the bend), but not under the material's least chip (minChip, mm, by
     // the style: a thinner one rubs and burns), nor where a thin chip melts
     // (keepChip).
     var MATERIALS = {
-      mdf: { rpm: 18000, chip: 0.012, maxChip: 0.25, minChip: 0.05, stepdown: 0.5, stepover: 0.45 },
-      softwood: { rpm: 18000, chip: 0.012, maxChip: 0.25, minChip: 0.05, stepdown: 0.5, stepover: 0.45 },
-      hardwood: { rpm: 18000, chip: 0.009, maxChip: 0.2, minChip: 0.05, stepdown: 0.35, stepover: 0.4 },
+      mdf: { rpm: 18000, chip: 0.012, maxChip: 0.25, minChip: 0.05, stepdown: 0.5, stepover: 0.45, wood: true },
+      softwood: { rpm: 18000, chip: 0.012, maxChip: 0.25, minChip: 0.05, stepdown: 0.5, stepover: 0.45, wood: true },
+      hardwood: { rpm: 18000, chip: 0.009, maxChip: 0.2, minChip: 0.05, stepdown: 0.35, stepover: 0.4, wood: true },
       hdpe: { rpm: 15000, chip: 0.02, maxChip: 0.25, stepdown: 0.3, stepover: 0.4, keepChip: true },
       acrylic: { rpm: 16000, chip: 0.015, maxChip: 0.2, stepdown: 0.3, stepover: 0.4, keepChip: true },
       polycarbonate: { rpm: 16000, chip: 0.018, maxChip: 0.22, stepdown: 0.3, stepover: 0.4, keepChip: true },
@@ -9839,21 +9842,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var avg = Math.min(maxFeed, perRev * Math.min(m.maxChip, m.chip * bitMm));
     var raw = S.chip < 1 ? avg * (m.keepChip ? 1 : S.chip) : perRev * Math.min(m.maxChip, m.chip * bitMm * S.chip);
     var D = deep || {}, step = Math.max(0.05, bitMm * m.stepdown * S.cut), passes = 0;
-    if (D.compression && D.depthMm > 0 && bitMm > 0) {
-      var most = Math.min(D.fluteMm > 0 ? D.fluteMm : Infinity, 3 * bitMm);
+    if (D.compression && m.wood && D.depthMm > 0 && bitMm > 0) {
+      var most = Math.min(D.fluteMm > 0 ? D.fluteMm : Infinity, (bitMm >= 6 ? 3 : bitMm >= 3 ? 2 : 1) * bitMm);
       passes = Math.max(1, Math.ceil(D.depthMm / most - 1e-9));
       step = D.depthMm / passes;
     }
     // No pass deeper than the flutes, when the tool table gives them.
     if (D.fluteMm > 0) step = Math.min(step, D.fluteMm);
     var pass = D.stepMm > 0 ? D.stepMm : step, ratio = bitMm > 0 ? pass / bitMm : 0;
-    var deepChip = 1;
+    // deepChip: how much the deep pass took off the feed, after the caps.
+    var shallow = Math.min(maxFeed, Math.max(150, raw));
     if (!m.keepChip && ratio > 1 && raw > 0) {
       var eased = raw * Math.max(0.75, 1 - 0.125 * (ratio - 1)), least = Math.min(raw, perRev * (m.minChip || 0) * S.chip);
-      deepChip = Math.max(eased, least) / raw;
-      raw *= deepChip;
+      raw = Math.max(eased, least);
     }
-    var exact = Math.min(maxFeed, Math.max(150, raw)), feed = Math.round(exact);
+    var exact = Math.min(maxFeed, Math.max(150, raw)), feed = Math.round(exact), deepChip = exact / shallow;
     return { rpm: rpm, chipMm: exact / perRev, feedMm: feed, capped: raw > maxFeed, deepChip: deepChip, passes: passes,
              plungeMm: Math.round(Math.min(L.maxPlunge || Infinity, Math.max(60, feed * 0.3))), stepMm: step, stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
   }
@@ -9866,7 +9869,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!(bit > 0)) { if (!quiet) setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
     // Picking the material fills Depth of Cut in again, even a typed one.
     var dpre = state.chamferMode ? null : TAB_PREFIX[state.currentTab];
-    if (!quiet && dpre) delete state.stepTyped[dpre];
+    if (!quiet && dpre && state.stepTyped[dpre]) { delete state.stepTyped[dpre]; persistSettings({ common: { stepTyped: state.stepTyped } }); }
     var f = startingFeeds(bit, state.flutes, v, { maxFeed: state.maxFeedMm, maxPlunge: state.maxPlungeMm, maxRpm: state.spindleMax, minRpm: state.spindleMin }, state.feedsStyle, deepFeeds(dpre));
     $('qc-rpm').value = f.rpm;
     writeFeed('qc-feed', f.feedMm);
@@ -9874,7 +9877,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Depth of Cut too (not on Planer, whose bit is a surfacing one), and
     // Stepover for the shapes that clear pockets.
     var pre = TAB_PREFIX[state.currentTab], filled = ['qc-rpm', 'qc-feed', 'qc-plunge'];
-    if (pre && pre !== 'plan' && $('qc-' + pre + '-step') && !state.stepTyped[pre]) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(f.stepMm)); filled.push('qc-' + pre + '-step'); }
+    // A compression bit's equal passes round up, so no sliver of a pass is left.
+    var shown = f.passes ? Math.ceil(mmToDisplay(f.stepMm) * (state.isImperial ? 1e4 : 1e3) - 1e-6) / (state.isImperial ? 1e4 : 1e3) : roundDisplay(mmToDisplay(f.stepMm));
+    if (pre && pre !== 'plan' && $('qc-' + pre + '-step') && !state.stepTyped[pre]) { $('qc-' + pre + '-step').value = shown; filled.push('qc-' + pre + '-step'); }
     if (pre && $('qc-' + pre + '-stepover') && pre !== 'plan') { $('qc-' + pre + '-stepover').value = f.stepoverPct; filled.push('qc-' + pre + '-stepover'); }
     filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
     if (quiet) return;
@@ -9897,12 +9902,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function noteHandEdit(el) {
     var m = /^qc-([a-z]+)-(step|depth)$/.exec(el.id), deep = m && deepFeeds(m[1]);
     if (deep && m[2] === 'step') {
-      state.stepTyped[m[1]] = true;
+      if (!state.stepTyped[m[1]]) { state.stepTyped[m[1]] = true; persistSettings({ common: { stepTyped: state.stepTyped } }); }
       if (state.feedsAuto) fillStartingFeeds(true);
       return;
     }
     if (deep && state.feedsAuto && !state.stepTyped[m[1]] && deep.compression) { fillStartingFeeds(true); return; }
-    if (/^qc-(rpm|feed|plunge|[a-z]+-stepover)$/.test(el.id)) setFeedsAuto(false);
+    if (/^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(el.id)) setFeedsAuto(false);
+  }
+  // A compression bit: its tool type, or its name says so (not its notes,
+  // where "not a compression bit" would count).
+  function isCompressionTool(t) {
+    return !!t && (t.type === 'compression' || /\bcompression\b/i.test(t.name || ''));
   }
   // A compression bit, by its tool type or its name or notes.
   function isCompressionTool(t) {
