@@ -1700,9 +1700,12 @@
     /* Cards fill the height: the column is as tall as the panel shows,
        and stays put while a long tab scrolls beside it. */
     .qc-panel:has(> .qc-header-cards) { display: grid; grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: auto; align-content: stretch; column-gap: 18px; container-type: size; }
-    .qc-panel > .qc-header-cards { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; align-self: start; position: sticky; top: calc(var(--qc-section-gap) / -2); height: calc(100cqh + var(--qc-section-gap) / 2 + 16px); margin: calc(var(--qc-section-gap) / -2) 0 -16px -20px; border-bottom: 0; border-right: 1px solid var(--color-border); }
+    .qc-panel > .qc-header-cards { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; align-self: start; position: sticky; top: calc(var(--qc-section-gap) / -2); height: calc(100cqh + var(--qc-section-gap) / 2 + 16px); margin: calc(var(--qc-section-gap) / -2) 0 -16px -20px; }
     .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { border-left: 0; border-top: 1px dashed var(--color-border); }
     .qc-panel > .qc-header-cards > .qc-header-card { flex: 1 1 auto; }
+    /* No right padding (over the cards' own, later): with no edge of its
+       own, it would double the gap to the cards. */
+    .qc-panel > .qc-header-cards > div.qc-header-card { padding-right: 0; }
     .qc-panel:has(> .qc-header-cards) > :not(.qc-header-cards) { grid-column: 2; }
     .qc-panel.qc-cut-panel:has(> .qc-header-cards) { grid-template-rows: minmax(0, 1fr); align-content: stretch; }
     .qc-panel.qc-cut-panel > .qc-header-cards { grid-row: 1; }
@@ -1721,11 +1724,11 @@
   .qc-panel:has(> .qc-header-cards) { background: color-mix(in srgb, var(--color-surface) 80%, #000); }
   /* Light theme: only a touch deeper than the cards, not grey. */
   body.theme-light .qc-panel:has(> .qc-header-cards) { background: color-mix(in srgb, var(--color-surface-muted) 70%, #c9d2dc); }
+  /* On the panel itself, no strip or edge of its own: its fields (in the
+     cards' color) set it out. */
   .qc-panel > .qc-header-cards {
     gap: 0;
     margin: calc(var(--qc-section-gap) / -2) -20px 0;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
   }
   .qc-panel > .qc-header-cards > .qc-header-card { background: transparent; border: 0; border-radius: 0; padding: 10px 20px 14px; }
   .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { border-left: 1px dashed var(--color-border); }
