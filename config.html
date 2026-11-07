@@ -6872,14 +6872,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // is Tab Width along the outline, sampled as points with the normal
   // toward the side the bit cuts (outside for an outer cut, inside for an
   // inner one).
-  function tabPlaces(prefix, segs) {
+  function tabPlaces(prefix, segs, real) {
     var tabs = readTabsForm(prefix);
     var cutNow = $('qc-' + prefix + '-cut-type').value;
     if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center' || !segs.length) return [];
     tabs.count = Math.min(24, tabs.count);
     tabs.width = Math.max(0, tabs.width);
     var bit = Math.max(0, num('qc-bit', 0));
-    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, bit, false);
+    // Given the bit's real path (`real`, the same lengths as `segs`), the
+    // tabs the program drops (tabsWhole) are left out here too.
+    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(real || segs, tabs, bit, real ? undefined : false);
     var total = 0;
     segs.forEach(function(s) { total += s.len; });
     // A tab across the start point comes back as two pieces (one at
@@ -6946,9 +6948,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // standing, from the outline out to the bit's far edge (a bit diameter,
   // as these previews draw it), in the part's color; drawn under the
   // outline, so its border meets the shape's.
-  function tabMarks(prefix, segs) {
+  function tabMarks(prefix, segs, real) {
     var f = function(v) { return v.toFixed(2); };
-    return tabPlaces(prefix, segs).map(function(t) {
+    return tabPlaces(prefix, segs, real).map(function(t) {
       var h = Math.max(0.015 * t.big, t.bit * t.k);
       var pts = t.run.map(function(q) { return f(q.x) + ',' + f(q.y); })
         .concat(t.run.slice().reverse().map(function(q) { return f(q.x + q.nx * h) + ',' + f(q.y + q.ny * h); }));
@@ -11096,7 +11098,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     if (sideSvg && state.chamferMode === 'rectangle') rectChamferSide(sideSvg);
     else if (sideSvg) {
-      var tabsOn = $('qc-rect-tabs-enable').checked;
+      var tabsOn = !!readTabsForm('rect') && tabsApply('rect');
       passesSide(sideSvg, { depth: num('qc-rect-depth', 0), doc: num('qc-rect-step', 0), title: 'Side view · depth passes',
         note2: tabsOn ? 'tabs ' + num('qc-rect-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     }
@@ -11696,30 +11698,41 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       (z ? originZoom(sh.prefix, oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, zpts, z, sh.prefix, s) : '');
     var over = sh.overlay ? copies.map(function(q, i) { return sh.overlay(c, Tc(i)); }).join('') : '';
     svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste +
-      (chf ? '' : parts + over + ideal + ($('qc-' + sh.prefix + '-tabs-enable') ? tabMarks(sh.prefix, sh.tabs(c)) : '')) + dims + cap + bit + origin;
+      (chf ? '' : parts + over + ideal + ($('qc-' + sh.prefix + '-tabs-enable') ? sh.tabs(c).map(function(segs) { return tabMarks(sh.prefix, segs, segs.real); }).join('') : '')) + dims + cap + bit + origin;
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
   }
 
   // For topView's tabs: the bit's path (the generator's segments, real
   // lengths, as tabIntervals spaces the tabs along it) moved back onto the
-  // outline, on every copy.
+  // outline, one list for each copy (its `real` the generator's segments),
+  // an arc as short lines along it.
   function tabsAlong(c, segs, cutType) {
-    var out = [], back = (cutType === 'outer' ? 1 : -1) * c.bitD / 2;
-    c.copies.forEach(function(q, i) {
-      var Ti = c.Tc(i);
+    var back = (cutType === 'outer' ? 1 : -1) * c.bitD / 2;
+    return c.copies.map(function(q, i) {
+      var Ti = c.Tc(i), out = [];
       (segs || []).forEach(function(sg) {
-        var ends = sg.type === 'line' ? [{ x: sg.x0, y: sg.y0 }, { x: sg.x1, y: sg.y1 }]
-          : [sg.a0, sg.a1].map(function(a) { return { x: sg.cx + (sg.r - back) * Math.cos(a), y: sg.cy + (sg.r - back) * Math.sin(a) }; });
+        var pts;
         if (sg.type === 'line') {
           var nx = (sg.y1 - sg.y0) / sg.len, ny = -(sg.x1 - sg.x0) / sg.len;
-          ends = ends.map(function(e) { return { x: e.x - back * nx, y: e.y - back * ny }; });
+          pts = [{ x: sg.x0 - back * nx, y: sg.y0 - back * ny }, { x: sg.x1 - back * nx, y: sg.y1 - back * ny }];
+        } else {
+          // Back across the path: out from the center on a CCW arc, in on a CW one.
+          var n = Math.max(2, Math.ceil(Math.abs(sg.a1 - sg.a0) / (Math.PI / 24))), rr = sg.r - (sg.a1 > sg.a0 ? back : -back);
+          pts = [];
+          for (var k = 0; k <= n; k++) {
+            var a = sg.a0 + (sg.a1 - sg.a0) * k / n;
+            pts.push({ x: sg.cx + rr * Math.cos(a), y: sg.cy + rr * Math.sin(a) });
+          }
         }
-        var a = c.L(Ti, ends[0].x, ends[0].y), e2 = c.L(Ti, ends[1].x, ends[1].y);
-        out.push({ type: 'line', x0: a.x, y0: a.y, x1: e2.x, y1: e2.y, len: sg.len });
+        pts = pts.map(function(p) { return c.L(Ti, p.x, p.y); });
+        for (var j = 1; j < pts.length; j++) {
+          out.push({ type: 'line', x0: pts[j - 1].x, y0: pts[j - 1].y, x1: pts[j].x, y1: pts[j].y, len: sg.len / (pts.length - 1) });
+        }
       });
+      out.real = segs || [];
+      return out;
     });
-    return out;
   }
   // A diameter: its dashed circle, and the arrows past the shape's edge
   // `y` (under the front-most copy; with `above`, over the back-most one).
@@ -12099,7 +12112,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var len = Math.PI * Math.max(0.001, D + (cutType === 'outer' ? 1 : -1) * c.bitD);
         return c.copies.map(function(q, i) {
           var p = c.Tc(i)(0, 0), a = (q.rotDeg || 0) * Math.PI / 180;
-          return { type: 'arc', cx: p.x, cy: p.y, r: R * c.s, a0: a, a1: a + 2 * Math.PI, len: len };
+          return [{ type: 'arc', cx: p.x, cy: p.y, r: R * c.s, a0: a, a1: a + 2 * Math.PI, len: len }];
         });
       },
       // The circle's box corners, its quadrant points and its center.
@@ -12890,7 +12903,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateInsetState('circ');
     var sideSvg = $('qc-circ-side');
     if (sideSvg) passesSide(sideSvg, { depth: num('qc-circ-depth', 0), doc: num('qc-circ-step', 0), title: 'Side view · depth passes',
-      note2: $('qc-circ-tabs-enable').checked ? 'tabs ' + num('qc-circ-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
+      note2: readTabsForm('circ') && tabsApply('circ') ? 'tabs ' + num('qc-circ-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
     ['outer', 'inner', 'clearing'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-circ-cut-type').value === k); });
@@ -13745,7 +13758,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateReliefState('poly');
     var sideSvg = $('qc-poly-side');
     if (sideSvg) passesSide(sideSvg, { depth: num('qc-poly-depth', 0), doc: num('qc-poly-step', 0), title: 'Side view · depth passes',
-      note2: $('qc-poly-tabs-enable').checked ? 'tabs ' + num('qc-poly-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
+      note2: readTabsForm('poly') && tabsApply('poly') ? 'tabs ' + num('qc-poly-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
     ['outer', 'inner', 'clearing'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-poly-cut-type').value === k); });
@@ -14138,7 +14151,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateSlotFields();
     var sideSvg = $('qc-slt-side');
     if (sideSvg) passesSide(sideSvg, { depth: num('qc-slt-depth', 0), doc: num('qc-slt-step', 0), title: 'Side view · depth passes',
-      note2: $('qc-slt-tabs-enable').checked && !/^(center|clearing)$/.test($('qc-slt-cut-type').value) ? 'tabs ' + num('qc-slt-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
+      note2: readTabsForm('slt') && tabsApply('slt') ? 'tabs ' + num('qc-slt-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = $('qc-slt-preview');
     if (!svg) return;
     ['outer', 'inner', 'clearing', 'center'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-slt-cut-type').value === k); });
