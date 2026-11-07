@@ -10914,10 +10914,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
     var topW = num('qc-rect-top-width', 0);
-    // The other kinds: the same top view from the generator's outlines
-    // (the older drawing still shows their chamfer).
+    // The other kinds: the same top view from the generator's outlines.
     var other = /^(triangle|arch|ellipse)$/.test(rectKind()) || (rectKind() === 'trapezoid' && W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9);
-    if (other) return state.chamferMode === 'rectangle' ? updateTrapezoidPreview(svg) : updateConvexTopView(svg);
+    if (other) return updateConvexTopView(svg);
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
     // The corner you'll get: an inner cut can't be tighter than the bit.
@@ -11274,9 +11273,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType);
     var bitV = bitD;
     var reach = Math.max(edgeDir > 0 ? bitV : 0, insetPad(sh.prefix));
+    // Chamfering (sh.chamfer), as the rectangle: the cut's already made (a
+    // slot round a part, or an opening) and a V-bit bevels its top edge,
+    // Chamfer Width wide, on the part's side (Outside) or the stock's
+    // (Inside); drawn like the bit, a thin band whatever the size.
+    var chf = !!sh.chamfer, cwV = 0;
+    var slotV = chf && cutType === 'outer' ? Math.min(Math.max(0, num('qc-chamfer-cut-bit', 0)), 0.06 * Math.max(Wb, Hb), 0.15 * Math.min(Wb, Hb)) : 0;
+    if (chf) reach = Math.max(cutType === 'outer' ? slotV : 0.03 * Math.max(Wb, Hb), insetPad(sh.prefix));
     // Inside and Pocket: the bit's center goes right into a corner, so the
     // cut it leaves is rounded by the bit (as drawn).
-    if (!relief && cutType !== 'outer' && !sh.smooth) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
+    if (!relief && cutType !== 'outer' && !sh.smooth && !chf) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
     function mpt(i, lx, ly) {
       var q = copies[i], a = ((q.rotDeg || 0) + turn) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
       return { x: q.x - p0.x + lx * ca - ly * sa, y: q.y - p0.y + lx * sa + ly * ca };
@@ -11292,10 +11298,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var mcx = (mb.x0 + mb.x1) / 2, mcy = (mb.y0 + mb.y1) / 2;
     // A small bit is drawn bigger, to be seen; its path, its cut and its far
     // edge go with it, so the cut stays wholly off the part's edge.
-    if (bitV > 0 && bitV * s < 1.6) {
+    if (bitV > 0 && bitV * s < 1.6 && !chf) {
       bitV = 1.6 / s;
       if (!relief && cutType !== 'outer' && !sh.smooth) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
     }
+    if (chf && num('qc-chamfer-width', 0) > 0) cwV = Math.min(0.8 / s, 0.12 * Math.min(Wb, Hb));
     function V(m) { return { x: (m.x - mcx) * s, y: -(m.y - mcy) * s }; }
     function Tc(i) { return function(px, py) { return V(mpt(i, px / s, -py / s)); }; }
     var T = Tc(0);
@@ -11333,7 +11340,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // The bit's center line, a half bit out (Outside) or in (Inside, Pocket).
     var half = (edgeDir || (cutType === 'clearing' ? -1 : 0)) * bitV / 2 * s;
     var cuts = [];
-    if (bitV > 0) copies.forEach(function(q, i) {
+    if (chf) copies.forEach(function(q, i) {
+      // The bevel's middle line, inside the part's edge or outside the
+      // opening, a hair past the edge as well, so no wood shows along it.
+      var e = 0.25, g = (cutType === 'outer' ? -1 : 1) * (cwV * s - e) / 2, ring = cwV > 0 ? sh.offset(g / s, CR) : null;
+      if (ring) cuts.push({ i: i, d: segsD(ring, Tc(i)), len: lenOf(ring), wid: cwV * s + e, cls: 'qc-shp-bevelcut' });
+    });
+    else if (bitV > 0) copies.forEach(function(q, i) {
       var Ti = Tc(i);
       if (cutType !== 'clearing') {
         var loop = sh.offset(half / s, CR);
@@ -11380,7 +11393,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return cuts.filter(function(c) { return c.i === i; }).map(function(c) {
         var kt = [0, c.a, c.b, 1].map(function(t, k, arr) { return k && t <= arr[k - 1] ? arr[k - 1] + 0.0001 : t; });
         kt[3] = 1;
-        return '<path class="qc-shp-kerfcut" d="' + c.d + '" pathLength="100" stroke-width="' + F(bitV * s) + '"' +
+        return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + c.d + '" pathLength="100" stroke-width="' + F(c.wid || bitV * s) + '"' +
           (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
             kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
       }).join('');
@@ -11388,7 +11401,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-shp-wood)"/>' +
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
     var waste, clips = '', id = sh.prefix;
-    if (cutType === 'outer') {
+    if (chf) {
+      // Already cut, the waste gone: Outside leaves just the parts, Inside
+      // the stock with its openings (with an Existing Depth, the floor
+      // shows, shaded). The bevel opens up behind the V-bit on what's left.
+      if (cutType === 'outer') {
+        clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
+        waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+      } else if (num('qc-chamfer-cut-depth', 0) > 0) {
+        waste = stockSvg + outlines.map(function(o, i) { return kerfOf(i) + '<path class="qc-shp-floor" d="' + o + '"/>'; }).join('');
+      } else {
+        clips = '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+        waste = '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg + copies.map(function(q, i) { return kerfOf(i); }).join('') + '</g>';
+      }
+    } else if (cutType === 'outer') {
       clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
         '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
       waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' +
@@ -11408,7 +11434,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // What a shape's pills and tabs work with: the front-most (iw),
     // left-most (ih) and back-most (it) copies, so pills sit clear of the
     // others, and the distance out to them.
-    var u = state.unitLabel, offV = (edgeDir > 0 ? bitV * s : 0) + 5.5;
+    var u = state.unitLabel, offV = (chf ? reach * s : edgeDir > 0 ? bitV * s : 0) + 5.5;
     var ctr = copies.map(function(q, i) { return mpt(i, 0, 0); }), iw = 0, ih = 0, it = 0;
     ctr.forEach(function(c, i) { if (c.y < ctr[iw].y - 1e-6) iw = i; if (c.x < ctr[ih].x - 1e-6) ih = i; if (c.y > ctr[it].y + 1e-6) it = i; });
     function dimSvg(p, q, value) {
@@ -11422,7 +11448,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var c = { F: F, s: s, L: L, T: T, Tc: Tc, copies: copies, u: u, o: offV / s, dimSvg: dimSvg, ext: ext,
               Tw: Tc(iw), Th: Tc(ih), Tt: Tc(it), segsD: segsD, cutType: cutType, bitD: bitD };
     var dims = sh.dims(c);
-    var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + ' · ' + { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType] +
+    var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + ' · ' +
+      (chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType]) +
       (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
     sh.nodes(c);
@@ -11432,12 +11459,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<marker id="qc-shp-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
     var bit = '';
     if (live) {
-      var brad = Math.max(0.8, bitV / 2 * s);
+      var brad = Math.max(0.8, chf ? 1.6 : bitV / 2 * s), ds = paths;
+      // Chamfering, the V-bit runs off the edge, over the cut: its rim on
+      // the bevel's inner line.
+      if (chf) {
+        var gb = cutType === 'outer' ? brad - cwV * s : cwV * s - brad;
+        ds = copies.map(function(q, i) { return segsD(sh.offset(gb / s, CR), Tc(i)); }).filter(Boolean);
+      }
       // The bit's metal, this view's own (the class's points at the Rectangle's).
       bit = '<defs><linearGradient id="qc-' + sh.prefix + '-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>' +
         '<g class="qc-shp-bit-g" pointer-events="none"><circle r="' + F(brad) + '" class="qc-shp-bit" style="fill:url(#qc-' + sh.prefix + '-rod)"/>' +
         '<g class="qc-fig-spin"><path d="M0 ' + F(-brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(brad * 0.82) + ' ' + F(brad * 0.55) + ' L0 0Z M0 ' + F(brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(-brad * 0.82) + ' ' + F(-brad * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
-        '<animateMotion dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;' + cutF.toFixed(4) + ';1" path="' + paths.join(' ') + '"/></g>';
+        '<animateMotion dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;' + cutF.toFixed(4) + ';1" path="' + ds.join(' ') + '"/></g>';
     }
     // X0 Y0 about the first copy's center. Enlarged, a small Inset or corner
     // radius there is also shown magnified.
@@ -11448,7 +11481,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       .map(function(p) { var t = L(T, p[0], p[1]); return [t.x, t.y]; });
     var origin = figAxes(oq.x, oq.y) + insetMarks(sh.prefix, oq.x, oq.y, s) +
       (z ? originZoom(sh.prefix, oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, zpts, z, sh.prefix, s) : '');
-    svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste + parts + ideal + tabMarks(sh.prefix, sh.tabs(c)) + dims + cap + bit + origin;
+    svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste + (chf ? '' : parts + ideal + tabMarks(sh.prefix, sh.tabs(c))) + dims + cap + bit + origin;
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
   }
@@ -11475,6 +11508,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var kindName = { trapezoid: 'trapezoid', triangle: 'triangle', arch: 'arch', ellipse: 'ellipse' }[params.kind] || 'shape';
     topView(svg, {
       prefix: 'rect', params: params, cutType: cutType, turn: params.startAngleDeg || 0, copies: gen.computePatternPositions(params.pattern),
+      chamfer: state.chamferMode === 'rectangle',
       box: box, smooth: smooth, typedCR: typedCR, mostCR: most, relief: relief, reliefPts: part, deep: geo.maxInset,
       CR: relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most),
       offset: function(d, cr) { return gen.convexOutline(part, normals, d, cr); },
