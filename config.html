@@ -1225,7 +1225,7 @@
     font-weight: 600;
     font-family: 'JetBrains Mono', monospace;
   }
-  .qc-preview-big .qc-inset-label { font-size: 2.5px; }
+  .qc-preview-big .qc-inset-label, .qc-shp-big .qc-inset-label { font-size: 2.5px; }
   .qc-drl-big .qc-inset-label { font-size: 2.6px; }
   .qc-shape-preview-cell .qc-shape-ideal {
     fill: none;
@@ -11253,7 +11253,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // copy of the pattern, the waste hatched, the bit's path cut as it goes
   // round (Pocket: a helix, then rings from the inside out), the waste
   // coming away, the bit, the sizes in pills and X0 Y0. The bit is drawn
-  // as on the rectangle, a hint rather than to scale. A shape gives:
+  // to scale, a small one at least big enough to see. A shape gives:
   //   prefix, params, cutType, turn (degrees), copies (pattern positions)
   //   box: { x0, x1, y0, y1 }, its size about its center (mm, y up)
   //   offset(d, cr): its outline grown by d mm (negative: shrunk) as the
@@ -11272,7 +11272,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (total > RECT_PREVIEW_MAX) copies = copies.slice(0, 1);
     var p0 = copies[0], b = sh.box, Wb = b.x1 - b.x0, Hb = b.y1 - b.y0, CR = sh.CR, relief = sh.relief;
     var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType);
-    var bitV = Math.min(bitD, 0.06 * Math.max(Wb, Hb), 0.15 * Math.min(Wb, Hb));
+    var bitV = bitD;
     var reach = Math.max(edgeDir > 0 ? bitV : 0, insetPad(sh.prefix));
     // Inside and Pocket: the bit's center goes right into a corner, so the
     // cut it leaves is rounded by the bit (as drawn).
@@ -11290,6 +11290,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     var s = Math.min(70 / Math.max(1e-6, mb.x1 - mb.x0), 52 / Math.max(1e-6, mb.y1 - mb.y0));
     var mcx = (mb.x0 + mb.x1) / 2, mcy = (mb.y0 + mb.y1) / 2;
+    // A small bit is drawn bigger, to be seen; its path, its cut and its far
+    // edge go with it, so the cut stays wholly off the part's edge.
+    if (bitV > 0 && bitV * s < 1.6) {
+      bitV = 1.6 / s;
+      if (!relief && cutType !== 'outer' && !sh.smooth) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
+    }
     function V(m) { return { x: (m.x - mcx) * s, y: -(m.y - mcy) * s }; }
     function Tc(i) { return function(px, py) { return V(mpt(i, px / s, -py / s)); }; }
     var T = Tc(0);
@@ -11427,7 +11433,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var bit = '';
     if (live) {
       var brad = Math.max(0.8, bitV / 2 * s);
-      bit = '<g class="qc-shp-bit-g" pointer-events="none"><circle r="' + F(brad) + '" class="qc-shp-bit"/>' +
+      // The bit's metal, this view's own (the class's points at the Rectangle's).
+      bit = '<defs><linearGradient id="qc-' + sh.prefix + '-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>' +
+        '<g class="qc-shp-bit-g" pointer-events="none"><circle r="' + F(brad) + '" class="qc-shp-bit" style="fill:url(#qc-' + sh.prefix + '-rod)"/>' +
         '<g class="qc-fig-spin"><path d="M0 ' + F(-brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(brad * 0.82) + ' ' + F(brad * 0.55) + ' L0 0Z M0 ' + F(brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(-brad * 0.82) + ' ' + F(-brad * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
         '<animateMotion dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;' + cutF.toFixed(4) + ';1" path="' + paths.join(' ') + '"/></g>';
     }
