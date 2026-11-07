@@ -2433,12 +2433,30 @@ test('slot header notes its holding tabs like the other shapes', () => {
     origin: 'center', slotType: 'straight', length: 60, width: 12, tabs: { count: 4, width: 8, height: 2 } };
   const header = (p) => g.generateSlotProgram(Object.assign({}, base, p)).split('\n').filter(l => /^\((Tabs|WARNING)/.test(l));
   assert.deepEqual(header({ cutType: 'outer' }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
-  assert.deepEqual(header({ cutType: 'inner', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
+  assert.deepEqual(header({ cutType: 'inner', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90, width: 20 }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
   assert.deepEqual(header({ cutType: 'center' }), []);
   assert.deepEqual(header({ cutType: 'clearing' }), []);
   assert.deepEqual(header({ cutType: 'outer', tabs: null }), []);
   assert.deepEqual(header({ cutType: 'outer', length: 30, tabs: { count: 20, width: 8, height: 2 } }),
     ['(Tabs: 20 x 8mm wide, 2mm high)', '(WARNING: only 6 of 20 tabs fit; using 6)']);
+});
+
+test('an Inner cut no more than two bits across has no tabs: nothing is left to hold', () => {
+  const g = makeQuickCutGenerator(false);
+  const common = { bitDiameter: 6, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, depth: 6, depthOfCut: 2,
+    origin: 'center', cutType: 'inner', tabs: { count: 4, width: 4, height: 2 } };
+  const tabbed = (prog) => /\(Tabs:/.test(prog);
+  const slot = (p) => g.generateSlotProgram(Object.assign({ slotType: 'straight', length: 60 }, common, p));
+  assert.equal(tabbed(slot({ width: 12 })), false);
+  assert.equal(tabbed(slot({ width: 12.5 })), true);
+  assert.equal(tabbed(slot({ width: 12, cutType: 'outer' })), true);
+  const circle = (d) => g.generateCircleProgram(Object.assign({ diameter: d }, common));
+  assert.equal(tabbed(circle(10)), false);
+  assert.equal(tabbed(circle(30)), true);
+  const rect = (w, h) => g.generateRectangleProgram(Object.assign({ width: w, height: h, kind: 'rectangle' }, common));
+  assert.equal(tabbed(rect(60, 11)), false);
+  assert.equal(tabbed(rect(60, 30)), true);
+  assert.equal(g.innerLeavesNoSlug({ cutType: 'inner', bitDiameter: 6, kind: 'polygon', sides: 6, diameter: 10 }), false);
 });
 
 test('grid center lines go back and forth: each starts where the last one finished', () => {
