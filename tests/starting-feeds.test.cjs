@@ -114,19 +114,25 @@ test('deep passes: a compression bit cuts in the fewest passes its flutes and 3x
   assert.ok(Math.abs(startingFeeds(6.35, 2, 'mdf', null, null, { depthMm: 19.05 }).stepMm - 3.175) < 1e-9);
 });
 
-test('deep passes ease the chip, but not under the material\'s least chip, nor in plastics', () => {
+test('deep passes ease the chip a little, not under the style\'s least chip, nor in plastics', () => {
   const base = startingFeeds(6.35, 2, 'mdf');
-  // 2x the bit: 75% of 0.0762 mm, 0.0572 (over the 0.05 least).
+  // 2x the bit: 87.5% of 0.0762 mm.
   const two = startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 12.7 });
-  assert.ok(Math.abs(two.chipMm - 0.0762 * 0.75) < 1e-4);
-  // 3x: half would be 0.038 mm, under the least: held at 0.05.
+  assert.ok(Math.abs(two.chipMm - 0.0762 * 0.875) < 1e-4);
+  // 3x and past: 75%, 0.0572 mm (2057 mm/min), over the 0.05 least.
   const three = startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 19.05 });
-  assert.ok(Math.abs(three.chipMm - 0.05) < 1e-4);
-  assert.ok(three.feedMm < base.feedMm);
+  assert.equal(three.feedMm, 2057);
+  assert.equal(startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 30 }).feedMm, 2057);
+  // The styles stay apart at full depth: 1543 / 2057 / 2572 mm/min.
+  const full = (style) => startingFeeds(6.35, 2, 'mdf', null, style, { compression: true, depthMm: 19.05, fluteMm: 25.4 }).feedMm;
+  assert.deepEqual([full('conservative'), full('average'), full('aggressive')], [1543, 2057, 2572]);
+  // The least chip follows the style: a conservative 1/4" bit eased to
+  // 0.0429 mm stays over its 0.0375 least.
+  assert.ok(startingFeeds(6.35, 2, 'mdf', null, 'conservative', { stepMm: 19.05 }).chipMm > 0.0375);
   // A small bit whose chip is already under the least keeps it.
   assert.equal(startingFeeds(3.175, 2, 'mdf', null, null, { stepMm: 9.525 }).feedMm, startingFeeds(3.175, 2, 'mdf').feedMm);
   // Up to 1x the bit, nothing changes.
-  assert.deepEqual(startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 6.35 }).feedMm, base.feedMm);
+  assert.equal(startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 6.35 }).feedMm, base.feedMm);
   // Acrylic keeps its chip, a thin one melts it.
   assert.equal(startingFeeds(6.35, 2, 'acrylic', null, null, { stepMm: 19.05 }).feedMm, startingFeeds(6.35, 2, 'acrylic').feedMm);
 });
