@@ -11562,8 +11562,29 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // A triangle: each side's length along it, outside it, and each angle
     // just outside its corner; what Defined By worked out (not typed) is
     // fainter. Base + Height adds the height, dashed down from the peak.
+    // In a pattern each goes on the copy it faces open stock from (the
+    // base on the front row, the sloping sides on the back corners); among
+    // copies that face it about as well (within 30 % of their spacing),
+    // the nearest the pattern's middle, so the labels don't meet.
     function triangleDims(c) {
       var F = c.F, Tw = c.Tw, o = c.o, L = c.L, s = c.s, ext = c.ext, dimSvg = c.dimSvg, u = c.u;
+      var T0 = c.Tc(0), z0 = L(T0, 0, 0), mids = c.copies.map(function(q, i) { var p = L(c.Tc(i), 0, 0); return { x: p.x - z0.x, y: p.y - z0.y }; });
+      var gx = 0, gy = 0, gap = Infinity;
+      mids.forEach(function(p, i) {
+        gx += p.x / mids.length; gy += p.y / mids.length;
+        for (var j = 0; j < i; j++) gap = Math.min(gap, Math.hypot(p.x - mids[j].x, p.y - mids[j].y) || Infinity);
+      });
+      var tol = isFinite(gap) ? 0.3 * gap : 0;
+      var facing = function(nx, ny) {
+        var d = L(T0, nx, ny), dx = d.x - z0.x, dy = d.y - z0.y, dl = Math.hypot(dx, dy) || 1, top = -Infinity, best = 0, bd = Infinity;
+        var sc = mids.map(function(p) { return (p.x * dx + p.y * dy) / dl; });
+        sc.forEach(function(v) { top = Math.max(top, v); });
+        mids.forEach(function(p, i) {
+          var dist = Math.hypot(p.x - gx, p.y - gy);
+          if (sc[i] >= top - tol - 1e-6 && dist < bd - 1e-6) { best = i; bd = dist; }
+        });
+        return c.Tc(best);
+      };
       var m = gen.triangleMeasures(params.triangle), by = $('qc-rect-tri-by').value;
       var sideTyped = { sss: [1, 1, 1], sas: [1, 0, 1], asa: [1, 0, 0], height: [1, 0, 0] }[by] || [1, 1, 1];
       var angleTyped = { sss: [0, 0, 0], sas: [1, 0, 0], asa: [1, 1, 0], height: [0, 0, 0] }[by] || [0, 0, 0];
@@ -11574,7 +11595,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       v.forEach(function(a, i) {
         var e = v[(i + 1) % 3], ex = e.x - a.x, ey = e.y - a.y, len = Math.hypot(ex, ey) || 1, nx = ey / len, ny = -ex / len;
         if (nx * ((a.x + e.x) / 2 - mx) + ny * ((a.y + e.y) / 2 - my) < 0) { nx = -nx; ny = -ny; }
-        var at = function(p, k) { return L(Tw, p.x + nx * k, p.y + ny * k); };
+        var Ti = facing(nx, ny), at = function(p, k) { return L(Ti, p.x + nx * k, p.y + ny * k); };
         out += ext(at(a, 1 / s), at(a, o + 1.5 / s)) + ext(at(e, 1 / s), at(e, o + 1.5 / s)) +
           faint(dimSvg(at(a, o), at(e, o), roundDisplay(sides[i])), sideTyped[i]);
       });
@@ -11582,7 +11603,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var a = v[(i + 2) % 3], e = v[(i + 1) % 3], la = Math.hypot(a.x - p.x, a.y - p.y) || 1, lb = Math.hypot(e.x - p.x, e.y - p.y) || 1;
         var ux = (a.x - p.x) / la + (e.x - p.x) / lb, uy = (a.y - p.y) / la + (e.y - p.y) / lb, ul = Math.hypot(ux, uy) || 1;
         // Just outside the corner, along its bisector.
-        var q = L(Tw, p.x - ux / ul * 6 / s, p.y - uy / ul * 6 / s);
+        var q = L(facing(-ux / ul, -uy / ul), p.x - ux / ul * 6 / s, p.y - uy / ul * 6 / s);
         out += faint('<text class="qc-shp-dimtext" x="' + F(q.x) + '" y="' + F(q.y) + '" text-anchor="middle" dominant-baseline="central">' +
           parseFloat(angles[i].toFixed(1)) + '°</text>', angleTyped[i]);
       });
