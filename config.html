@@ -672,7 +672,6 @@
   .qc-section-card .qc-unit-badge {
     background: var(--color-surface);
   }
-  .qc-section-card .qc-shape-preview-cell .qc-tab-mark,
   .qc-section-card .qc-shape-preview-cell .qc-shape-dim-label {
     stroke: var(--color-surface);
   }
@@ -1069,9 +1068,12 @@
   }
   /* Holding-tab positions on the Rectangle / Circle / Polygon previews. */
   .qc-shape-preview-cell .qc-tab-mark {
-    fill: var(--color-accent);
-    stroke: var(--color-surface-muted, var(--color-surface));
+    fill: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-muted, var(--color-surface)));
+    fill-opacity: 0.75;
+    stroke: color-mix(in srgb, var(--color-text-secondary) 55%, var(--color-surface-muted, var(--color-surface)));
     stroke-width: 1;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
   }
   /* Drill preview: a crosshair marks the Origin (X0 Y0), and a hole
      tapped to be the Origin is filled. */
@@ -1951,6 +1953,10 @@
   .qc-shp-big .qc-shp-hole { fill: var(--qc-m-hole); }
   .qc-shp-big .qc-shp-dimcircle { stroke-dasharray: 1.2 1.2; }
   .qc-shp-big .qc-shp-kerfcut { fill: none; stroke: var(--qc-m-hole); stroke-linejoin: round; }
+  .qc-shape-preview-cell .qc-tab-band { fill: none; stroke: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-muted, var(--color-surface))); stroke-opacity: 0.85; stroke-linecap: butt; stroke-linejoin: round; }
+  .qc-shape-preview-cell .qc-tab-band-edge { fill: none; stroke: color-mix(in srgb, var(--color-text-secondary) 55%, var(--color-surface-muted, var(--color-surface))); stroke-linecap: butt; stroke-linejoin: round; }
+  .qc-shp-big .qc-tab-mark { fill: var(--qc-m-a); fill-opacity: 0.6; stroke: color-mix(in srgb, var(--qc-m-hole) 55%, transparent); }
+  .qc-shp-big .qc-shp-tabcut { fill: none; stroke: var(--qc-m-hole); stroke-linejoin: round; opacity: 0.35; }
   /* Chamfering, a pocket's edge is an Inside cut's: no Pocket choice. */
   .qc-chamfer-mode .qc-seg:has(+ #qc-rect-cut-type) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .qc-chamfer-mode .qc-seg:has(+ #qc-rect-cut-type) button[data-v="clearing"] { display: none; }
@@ -1964,7 +1970,6 @@
   .qc-shp-big .qc-shp-cap { fill: var(--color-text-secondary); font-size: 3.4px; font-weight: 600; letter-spacing: 0.02em; }
   .qc-shp-big .qc-fig-pill--small { stroke-width: 0.4; }
   .qc-shp-big .qc-on-pill { fill: var(--color-text-primary) !important; font-weight: 600; }
-  .qc-shp-big .qc-tab-mark { r: 1.4px; stroke-width: 0.4; }
   .qc-shp-big .qc-shape-ideal { stroke-width: 0.3; stroke-dasharray: 0.9 0.9; }
   /* The Pattern card's small preview: the copies are on the big view. */
   #qc-rect-pattern-body .qc-shape-preview-cell { display: none; }
@@ -6828,18 +6833,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateTabsVisibility(prefix);
   }
 
-  // Dots on a shape preview where the holding tabs will be, placed by
-  // the generator's own tabIntervals. `segs` is the outline in preview
+  // Where the holding tabs will be on a shape preview, placed by the
+  // generator's own tabIntervals. `segs` is the outline in preview
   // coordinates, starting where the cut starts and running the way it
-  // cuts, with each segment's `len` set to its REAL length, so the dots
-  // land where the tabs will even though the preview isn't to scale.
-  function tabMarks(prefix, segs) {
+  // cuts, with each segment's `len` set to its REAL length, so the tabs
+  // land where they will even though the preview isn't to scale. Each tab
+  // is Tab Width along the outline, sampled as points with the normal
+  // toward the side the bit cuts (outside for an outer cut, inside for an
+  // inner one).
+  function tabPlaces(prefix, segs) {
     var tabs = readTabsForm(prefix);
     var cutNow = $('qc-' + prefix + '-cut-type').value;
-    if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center') return '';
+    if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center' || !segs.length) return [];
     tabs.count = Math.min(24, tabs.count);
     tabs.width = Math.max(0, tabs.width);
-    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, Math.max(0, num('qc-bit', 0)));
+    var bit = Math.max(0, num('qc-bit', 0));
+    var intervals = makeQuickCutGenerator(state.isImperial).tabIntervals(segs, tabs, bit);
     var total = 0;
     segs.forEach(function(s) { total += s.len; });
     // A tab across the start point comes back as two pieces (one at
@@ -6850,29 +6859,133 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var mid = (last.start + first.end + total) / 2;
       centers = centers.slice(1, -1).concat([mid >= total ? mid - total : mid]);
     }
-    var out = '';
-    centers.forEach(function(target) {
+    // The outline as a polygon, to tell its inside from its outside.
+    var poly = [];
+    segs.forEach(function(s) {
+      if (s.type === 'line') { poly.push([s.x0, s.y0]); return; }
+      for (var k = 0; k < 24; k++) { var a = s.a0 + (s.a1 - s.a0) * k / 24; poly.push([s.cx + s.r * Math.cos(a), s.cy - s.r * Math.sin(a)]); }
+    });
+    var xs = poly.map(function(p) { return p[0]; }), ys = poly.map(function(p) { return p[1]; });
+    var bw = Math.max.apply(null, xs) - Math.min.apply(null, xs), bh = Math.max.apply(null, ys) - Math.min.apply(null, ys);
+    var big = Math.max(bw, bh);
+    function inside(x, y) {
+      var c = false;
+      for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        var p = poly[i], q = poly[j];
+        if ((p[1] > y) !== (q[1] > y) && x < (q[0] - p[0]) * (y - p[1]) / (q[1] - p[1]) + p[0]) c = !c;
+      }
+      return c;
+    }
+    // The point `d` (real length) along the outline, its tangent, and the
+    // preview units per real unit there.
+    function at(d) {
+      d = ((d % total) + total) % total;
       var walked = 0;
       for (var i = 0; i < segs.length; i++) {
         var s = segs[i];
-        if (walked + s.len >= target || i === segs.length - 1) {
-          var t = s.len > 0 ? (target - walked) / s.len : 0, x, y;
+        if (walked + s.len >= d || i === segs.length - 1) {
+          var t = s.len > 0 ? (d - walked) / s.len : 0, x, y, tx, ty, drawn;
           if (s.type === 'line') {
-            x = s.x0 + (s.x1 - s.x0) * t;
-            y = s.y0 + (s.y1 - s.y0) * t;
+            x = s.x0 + (s.x1 - s.x0) * t; y = s.y0 + (s.y1 - s.y0) * t;
+            tx = s.x1 - s.x0; ty = s.y1 - s.y0; drawn = Math.hypot(tx, ty);
           } else {
             // Preview arcs are CCW in machine terms; SVG y points down.
-            var a = s.a0 + (s.a1 - s.a0) * t;
-            x = s.cx + s.r * Math.cos(a);
-            y = s.cy - s.r * Math.sin(a);
+            var a = s.a0 + (s.a1 - s.a0) * t, da = s.a1 - s.a0;
+            x = s.cx + s.r * Math.cos(a); y = s.cy - s.r * Math.sin(a);
+            tx = -Math.sin(a) * da; ty = -Math.cos(a) * da; drawn = Math.abs(s.r * da);
           }
-          out += '<circle class="qc-tab-mark" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) + '" r="2.8"/>';
-          break;
+          var tl = Math.hypot(tx, ty) || 1;
+          return { x: x, y: y, tx: tx / tl, ty: ty / tl, k: s.len > 0 ? drawn / s.len : 1 };
         }
         walked += s.len;
       }
+    }
+    var e = 0.002 * big, cut = cutNow;
+    return centers.map(function(c) {
+      var p = at(c), half = Math.max(0.01 * big / p.k, tabs.width / 2), run = [];
+      for (var n = 0; n <= 8; n++) {
+        var q = at(c - half + 2 * half * n / 8), nx = -q.ty, ny = q.tx;
+        if (inside(q.x + nx * e, q.y + ny * e) !== (cut === 'inner')) { nx = -nx; ny = -ny; }
+        run.push({ x: q.x, y: q.y, nx: nx, ny: ny });
+      }
+      return { run: run, k: p.k, big: big, bw: bw, bh: bh, bit: bit };
     });
-    return out;
+  }
+  // Old-style previews: each tab as the band of the bit's path it leaves
+  // standing, from the outline out to the bit's far edge (a bit diameter,
+  // as these previews draw it), in the part's color; drawn under the
+  // outline, so its border meets the shape's.
+  function tabMarks(prefix, segs) {
+    var f = function(v) { return v.toFixed(2); };
+    return tabPlaces(prefix, segs).map(function(t) {
+      var h = Math.max(0.015 * t.big, t.bit * t.k);
+      var pts = t.run.map(function(q) { return f(q.x) + ',' + f(q.y); })
+        .concat(t.run.slice().reverse().map(function(q) { return f(q.x + q.nx * h) + ',' + f(q.y + q.ny * h); }));
+      return '<polygon class="qc-tab-mark" points="' + pts.join(' ') + '"/>';
+    }).join('');
+  }
+  // Where a tab's real shape matters (a star's inner corners): `center`
+  // is the bit's center line as the program cuts it, scaled to the
+  // preview (`scale` preview units per real unit, y still up) with each
+  // segment's `len` its real length; `kerf` the bit's width in preview
+  // units. Each tab is what the bit leaves
+  // standing: its path while lifted over the tab, less everything it
+  // cuts at full depth, so a full-depth pass past an inner corner trims
+  // it as it will on the machine.
+  var tabCutCount = 0;
+  function tabCuts(prefix, center, kerf, scale) {
+    var tabs = readTabsForm(prefix), cutNow = $('qc-' + prefix + '-cut-type').value;
+    if (!tabs || !(tabs.count >= 1) || cutNow === 'clearing' || cutNow === 'center' || !center || !center.length) return '';
+    tabs.count = Math.min(24, tabs.count);
+    tabs.width = Math.max(0, tabs.width);
+    var ivs = makeQuickCutGenerator(state.isImperial).tabIntervals(center, tabs, Math.max(0, num('qc-bit', 0)), scale);
+    if (!ivs.length) return '';
+    var total = 0, bounds = [0];
+    center.forEach(function(sg) { total += sg.len; bounds.push(total); });
+    function point(d) {
+      d = Math.min(Math.max(d, 0), total);
+      for (var i = 0; i < center.length; i++) {
+        var sg = center[i];
+        if (d <= bounds[i + 1] || i === center.length - 1) {
+          var t = sg.len > 0 ? (d - bounds[i]) / sg.len : 0;
+          if (sg.type === 'line') return [sg.x0 + (sg.x1 - sg.x0) * t, -(sg.y0 + (sg.y1 - sg.y0) * t)];
+          var a = sg.a0 + (sg.a1 - sg.a0) * t;
+          return [sg.cx + sg.r * Math.cos(a), -(sg.cy + sg.r * Math.sin(a))];
+        }
+      }
+    }
+    // The center line from `a` to `b` (real lengths), through its corners.
+    function run(a, b) {
+      var ds = [a, b];
+      for (var k = 1; k < 96; k++) ds.push(a + (b - a) * k / 96);
+      bounds.forEach(function(x) { if (x > a && x < b) ds.push(x); });
+      return ds.sort(function(x, y) { return x - y; }).map(function(d, i) { var q = point(d); return (i ? 'L' : 'M') + q[0].toFixed(2) + ' ' + q[1].toFixed(2); }).join('');
+    }
+    ivs = ivs.slice().sort(function(x, y) { return x.start - y.start; });
+    var full = [];
+    ivs.forEach(function(iv, i) {
+      var next = i + 1 < ivs.length ? ivs[i + 1].start : total + ivs[0].start;
+      if (next - iv.end > 1e-9) {
+        if (next <= total) full.push([iv.end, next]);
+        else { full.push([iv.end, total]); if (next - total > 1e-9) full.push([0, next - total]); }
+      }
+    });
+    var id = 'qc-tabcut-' + (++tabCutCount), w = kerf.toFixed(2), edge = Math.max(0.3, kerf * 0.08);
+    return '<mask id="' + id + '" maskUnits="userSpaceOnUse" x="-1000" y="-1000" width="2000" height="2000"><rect x="-1000" y="-1000" width="2000" height="2000" fill="#fff"/>' +
+      full.map(function(r) { return '<path d="' + run(r[0], r[1]) + '" fill="none" stroke="#000" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round"/>'; }).join('') + '</mask>' +
+      '<g mask="url(#' + id + ')">' + ivs.map(function(iv) {
+        var d = run(iv.start, iv.end);
+        return '<path class="qc-tab-band-edge" d="' + d + '" stroke-width="' + w + '"/><path class="qc-tab-band" d="' + d + '" stroke-width="' + (kerf - 2 * edge).toFixed(2) + '"/>';
+      }).join('') + '</g>';
+  }
+  // New-style previews: each tab as the stretch of the bit's path it
+  // leaves standing, its center line a half `kerf` off the outline. The
+  // path's `d`s, to draw shallow and to mask out of the full-depth path.
+  function tabRuns(prefix, segs, kerf) {
+    var f = function(v) { return v.toFixed(2); };
+    return tabPlaces(prefix, segs).map(function(t) {
+      return t.run.map(function(q, i) { return (i ? 'L' : 'M') + f(q.x + q.nx * kerf / 2) + ' ' + f(q.y + q.ny * kerf / 2); }).join('');
+    });
   }
 
   // Preview outline as generator-style line segments: preview
@@ -11098,8 +11211,27 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     // The slot the bit cuts, opening up behind it as it goes round each
     // copy (stroke drawn along the bit's path, a bit wide).
+    // A copy's bit path. Where a tab stands the cut is shallower: that
+    // stretch is drawn faint, the wood showing through, and kept out of
+    // the full-depth path.
     function kerfOf(i) {
-      return cuts.filter(function(c) { return c.i === i; }).map(kerfCut).join('');
+      var kerf = cuts.filter(function(c) { return c.i === i; }).map(kerfCut).join('');
+      var kw = bitV * s, runs = chf ? [] : tabRuns('rect', copyTabSegs(i), kw);
+      if (!runs.length) return kerf;
+      var id = 'qc-shp-tabmask-' + i, R = function(v) { return v.toFixed(2); };
+      return '<mask id="' + id + '" maskUnits="userSpaceOnUse" x="' + R(sxA - 5) + '" y="' + R(syA - 5) + '" width="' + R(sxB - sxA + 10) + '" height="' + R(syB - syA + 10) + '">' +
+        '<rect x="' + R(sxA - 5) + '" y="' + R(syA - 5) + '" width="' + R(sxB - sxA + 10) + '" height="' + R(syB - syA + 10) + '" fill="#fff"/>' +
+        runs.map(function(d) { return '<path d="' + d + '" fill="none" stroke="#000" stroke-width="' + R(kw + 0.4) + '"/>'; }).join('') + '</mask>' +
+        runs.map(function(d) { return '<path class="qc-shp-tabcut" d="' + d + '" stroke-width="' + R(kw) + '"/>'; }).join('') +
+        '<g mask="url(#' + id + ')">' + kerf + '</g>';
+    }
+    // A copy's outline for the tabs. The cut starts mid-bottom and runs CCW
+    // (right along the bottom).
+    function copyTabSegs(i) {
+      var Ti = Tc(i);
+      var tp = [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
+                { x: x, y: y + h }, { x: 0, y: y + h }].map(function(p) { return Ti(p.x, p.y); });
+      return previewLines(tp, rectTabLens());
     }
     function kerfCut(c) {
       var d = c.d, a = c.a, b = c.b;
@@ -11205,16 +11337,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
 
-    // Tabs on every copy. The cut starts mid-bottom and runs CCW (right
-    // along the bottom).
-    var tabSegs = [];
-    copies.forEach(function(q, i) {
-      var Ti = Tc(i);
-      var tp = [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
-                { x: x, y: y + h }, { x: 0, y: y + h }].map(function(p) { return Ti(p.x, p.y); });
-      tabSegs = tabSegs.concat(previewLines(tp, rectTabLens()));
-    });
-
     // Corners in the generator's order (front-left, front-right,
     // back-right, back-left, before turning), the middles of the front,
     // right, back and left edges, then the center.
@@ -11231,7 +11353,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     svg.innerHTML =
       shapePreviewDefs('qc-rect') + defs +
       waste + (chf ? '' : parts + ideal) +
-      tabMarks('rect', tabSegs) +
       dims + cap +
       rectBit() +
       rectOriginCross();
@@ -12105,9 +12226,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       shapePreviewDefs('qc-rect') +
       hatched +
       bitEdge(edgeD, cutType) +
+      tabMarks('rect', tabLines()) +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       ideal + dims +
-      tabMarks('rect', tabLines()) +
       originCross(o.x, o.y, 'rect', scale);
 
     // The tool path, as tabIntervals spaces the tabs along it (real
@@ -12765,10 +12886,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       bitEdge(bitEdgeDir(cutType) && edgeR > 0.5 && edgeR !== r
         ? 'M' + edgeR.toFixed(2) + ',0 A' + edgeR.toFixed(2) + ',' + edgeR.toFixed(2) + ' 0 1 0 ' + (-edgeR).toFixed(2) + ',0 A' +
           edgeR.toFixed(2) + ',' + edgeR.toFixed(2) + ' 0 1 0 ' + edgeR.toFixed(2) + ',0 Z' : '', cutType) +
-      '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
-      dLine + dLabel +
       // The cut starts at the rightmost point and runs CCW.
       tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]) +
+      '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
+      dLine + dLabel +
       pickHints(circPreviewNodes) +
       (D > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
@@ -12829,17 +12950,23 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       shapePreviewDefs('qc-poly') +
       hatched +
       bitEdge(edgeD, cutType) +
+      starTabs() +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       dim +
-      tabMarks('poly', previewLines(pts.concat([pts[0]]), verts.map(function(v, i) {
-        var w = verts[(i + 1) % n];
-        return Math.hypot(w.x - v.x, w.y - v.y);
-      }))) +
       pickHints(polyPreviewNodes) +
       (function() {
         var off = gen.shapeOriginOffset('polygon', params);
         return originCross(off.x * k, -off.y * k, 'poly', k);
       })();
+
+    // The tabs on the bit's center line, as the program cuts it.
+    function starTabs() {
+      var center = dir && bit > 0 ? gen.starOutline(params, dir * bit / 2) : null;
+      return center ? tabCuts('poly', center.map(function(sg) {
+        return sg.type === 'line' ? { type: 'line', x0: sg.x0 * k, y0: sg.y0 * k, x1: sg.x1 * k, y1: sg.y1 * k, len: sg.len }
+          : { type: 'arc', cx: sg.cx * k, cy: sg.cy * k, r: sg.r * k, a0: sg.a0, a1: sg.a1, len: sg.len };
+      }), bit * k, k) : '';
+    }
   }
 
   // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
@@ -13700,11 +13827,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       shapePreviewDefs('qc-poly') +
       hatchedPath +
       bitEdge(edgeD, cutType) +
+      // The cut starts at the first vertex (or its corner arc) and runs CCW.
+      tabMarks('poly', polyTabSegs()) +
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       ideal +
       dim +
-      // The cut starts at the first vertex (or its corner arc) and runs CCW.
-      tabMarks('poly', polyTabSegs()) +
       pickHints(polyPreviewNodes) +
       (diameter > 0 ? (function() {
         var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('polygon', readPolygonForm());
@@ -14112,8 +14239,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       shapePreviewDefs('qc-slt') +
       hatched +
       bitEdge(edgeD, cut) +
+      marks +
       '<path class="qc-shape-fill" d="' + d + '"/>' +
-      dim + marks +
+      dim +
       pickHints(slotPreviewNodes) +
       originCross(X(off.x), Y(off.y), 'slt', k) +
       slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k, previewIsBig(svg), k, bitEdge(edgeD, cut));
