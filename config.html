@@ -2467,17 +2467,20 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-shp-panel">
         <form id="qc-circ-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid qc-shape-grid--origin">
+          <div class="qc-shp-layout">
+            <div class="qc-shp-side">
+              <div class="qc-card qc-section-card qc-shp-shape">
+                <h3 class="qc-card-title">Shape</h3>
               <div class="qc-shape-fields">
-                <div class="qc-row-3 qc-type-mid-row">
+                <div class="qc-row-3">
                   <div class="qc-field">
                     <label for="qc-circ-diameter">Diameter</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-diameter" min="0.001" step="0.01" value="30" required title="Diameter of the circle. Cut Type sets which side of the line the bit runs on.">
                   </div>
+                </div>
+                <div class="qc-row-3 qc-type-row">
                   <div class="qc-field">
                     <label for="qc-circ-cut-type">Cut Type</label>
                     <select class="qc-select" id="qc-circ-cut-type" title="Outer (part) cuts around the outside to free a part. Inner (perimeter) traces the inside edge of a hole; Inner (clearing) also clears out the whole pocket.">
@@ -2492,30 +2495,7 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-origin-stack">
-                <div class="qc-field qc-origin-col">
-                  <label>Origin</label>
-                  <div id="qc-circ-origin-picker"></div>
-                </div>
-                <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-circ-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
-                    <option value="both" selected>Edge Inset</option>
-                    <option value="xy">Edge Inset XY</option>
-                    <option value="center">Center Inset</option>
-                    <option value="xy-center">Center Inset XY</option>
-                  </select>
-                  <div class="qc-inset-inputs">
-                    <input aria-labelledby="qc-circ-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
-                  </div>
-                </div>
               </div>
-              <div class="qc-shape-preview-cell">
-                <svg id="qc-circ-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
-              </div>
-            </div>
-          </div>
-
           <div class="qc-card qc-section-card" id="qc-circ-depth-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Depth</h3>
@@ -2593,6 +2573,32 @@
             </div>
           </div>
 
+              <div class="qc-cut-fig qc-cut-fig--side qc-shp-sidefig"><svg id="qc-circ-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: depth passes"></svg></div>
+            </div>
+            <div class="qc-shp-stage">
+              <div class="qc-card qc-section-card qc-shp-top">
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-circ-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <select class="qc-label-select" id="qc-circ-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset XY</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset XY</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-circ-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-circ-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
+                </div>
+              </div>
+                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                  <svg id="qc-circ-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                </div>
+              </div>
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
@@ -2665,6 +2671,8 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </form>
@@ -9075,8 +9083,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Chamfer card first, so the Edge switch heads the page (Drill: after
     // the Hole card, which chamfering hides).
     if (prefix === 'drl') depthCard.parentNode.insertBefore(card, depthCard.nextSibling);
-    // Rect: after the Shape card, which heads with the Edge switch.
-    else if (prefix === 'rect') depthCard.parentNode.insertBefore(card, depthCard.parentNode.querySelector('.qc-shp-shape').nextSibling);
+    // The new layout: after the Shape card, which heads with the Edge switch.
+    else if (depthCard.parentNode.querySelector('.qc-shp-shape')) depthCard.parentNode.insertBefore(card, depthCard.parentNode.querySelector('.qc-shp-shape').nextSibling);
     else depthCard.parentNode.insertBefore(card, depthCard.parentNode.firstChild);
     card.style.display = '';
     // After the switch has made this the current tab.
@@ -9280,12 +9288,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       updateRectanglePreview();
     }
   }
-  // The Edge switch heads the Shape card on the shapes with the new layout
-  // (Rect), where it picks what's chamfered; elsewhere the Chamfer card.
+  // The Edge switch heads the Shape card on the shapes with the new layout,
+  // where it picks what's chamfered; elsewhere the Chamfer card.
   function placeChamferEdge(target) {
     var edge = ROOT.querySelector('.qc-chf-edge');
     if (!edge) return;
-    var shapeCard = target === 'rectangle' ? ROOT.querySelector('.qc-content[data-view="rectangle"] .qc-shp-shape') : null;
+    var shapeCard = target ? ROOT.querySelector('.qc-content[data-view="' + target + '"] .qc-shp-shape') : null;
     if (shapeCard) shapeCard.insertBefore(edge, shapeCard.querySelector('.qc-card-title').nextSibling);
     else { var card = $('qc-chamfer-card'); card.insertBefore(edge, card.querySelector('.qc-card-header').nextSibling); }
   }
@@ -11393,12 +11401,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return cuts.filter(function(c) { return c.i === i; }).map(function(c) {
         var kt = [0, c.a, c.b, 1].map(function(t, k, arr) { return k && t <= arr[k - 1] ? arr[k - 1] + 0.0001 : t; });
         kt[3] = 1;
-        return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + c.d + '" pathLength="100" stroke-width="' + F(c.wid || bitV * s) + '"' +
-          (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
-            kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
+        // Hidden until it starts: a path's round cap would show as a dot.
+        return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + c.d + '" pathLength="100" stroke-linecap="round" stroke-width="' + F(c.wid || bitV * s) + '"' +
+          (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100" visibility="hidden"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
+            kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>' +
+            '<animate attributeName="visibility" values="hidden;visible" keyTimes="0;' + Math.min(0.999, kt[1] + 0.0005).toFixed(4) + '" calcMode="discrete" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
       }).join('');
     }
-    var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-shp-wood)"/>' +
+    var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-' + sh.prefix + '-wood)"/>' +
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
     var waste, clips = '', id = sh.prefix;
     if (chf) {
@@ -11419,14 +11429,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
       waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' +
         '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg +
-          '<path fill="url(#qc-shp-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
+          '<path fill="url(#qc-' + id + '-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
           copies.map(function(q, i) { return kerfOf(i); }).join('') +
           goneAt(cutF) + '</g>';
     } else {
       waste = stockSvg + outlines.map(function(o, i) {
         var at = doneAt[i];
         return '<path class="qc-shp-hole" d="' + o + '"' + (live ? ' opacity="0"' : '') + '>' + goneAt(at, true) + '</path>' +
-          '<g><path fill="url(#qc-shp-waste)" d="' + o + '"/>' + kerfOf(i) + goneAt(at) + '</g>';
+          '<g><path fill="url(#qc-' + id + '-waste)" d="' + o + '"/>' + kerfOf(i) + goneAt(at) + '</g>';
       }).join('');
     }
     var parts = outlines.map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
@@ -11440,7 +11450,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function dimSvg(p, q, value) {
       var mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
       if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
-      return '<line class="qc-shp-dim" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '" marker-start="url(#qc-shp-da)" marker-end="url(#qc-shp-da)"/>' +
+      return '<line class="qc-shp-dim" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '" marker-start="url(#qc-' + id + '-da)" marker-end="url(#qc-' + id + '-da)"/>' +
         '<text class="qc-shp-dimtext" x="' + F(mx) + '" y="' + F(my) + '" text-anchor="middle" dominant-baseline="central"' +
         (Math.abs(ang) > 0.01 ? ' transform="rotate(' + F(ang) + ' ' + F(mx) + ' ' + F(my) + ')"' : '') + '>' + value + ' ' + u + '</text>';
     }
@@ -11454,9 +11464,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
     sh.nodes(c);
 
-    var defs = '<defs>' + clips + '<linearGradient id="qc-shp-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
-      '<pattern id="qc-shp-waste" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)"><rect width="2.2" height="2.2" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="2.2" style="stroke:var(--qc-m-hatch)" stroke-width="0.35"/></pattern>' +
-      '<marker id="qc-shp-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
+    var defs = '<defs>' + clips + '<linearGradient id="qc-' + id + '-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+      '<pattern id="qc-' + id + '-waste" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)"><rect width="2.2" height="2.2" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="2.2" style="stroke:var(--qc-m-hatch)" stroke-width="0.35"/></pattern>' +
+      '<marker id="qc-' + id + '-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
     var bit = '';
     if (live) {
       var brad = Math.max(0.8, chf ? 1.6 : bitV / 2 * s), ds = paths;
@@ -11598,6 +11608,53 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       return out;
     }
+  }
+
+  // The Circle in the top view: its outline a circle about its center,
+  // grown or shrunk by the bit (from its rightmost point, CCW, as the
+  // generator cuts it).
+  function updateCircleTopView(svg) {
+    var params = readCircleForm(), cutType = params.cutType, D = params.diameter, R = D / 2;
+    var gen = makeQuickCutGenerator(state.isImperial);
+    if (!(D > 0)) {
+      circPreviewNodes = null;
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not a circle yet</text>';
+      return;
+    }
+    function ring(r) {
+      return r > 1e-6 ? [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: Math.PI, len: Math.PI * r },
+                         { type: 'arc', cx: 0, cy: 0, r: r, a0: Math.PI, a1: 2 * Math.PI, len: Math.PI * r }] : null;
+    }
+    topView(svg, {
+      prefix: 'circ', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
+      box: { x0: -R, x1: R, y0: -R, y1: R }, smooth: true, typedCR: 0, CR: 0, deep: R,
+      offset: function(d) { return ring(R + d); },
+      caption: 'circle ⌀' + roundDisplay(D) + ' ' + state.unitLabel,
+      origin: gen.shapeOriginOffset('circle', params),
+      // The diameter under the front-most copy.
+      dims: function(c) {
+        var Tw = c.Tw, o = c.o, L = c.L, s = c.s;
+        return c.ext(L(Tw, -R, -1 / s), L(Tw, -R, -R - o - 1.5 / s)) + c.ext(L(Tw, R, -1 / s), L(Tw, R, -R - o - 1.5 / s)) +
+          c.dimSvg(L(Tw, -R, -R - o), L(Tw, R, -R - o), roundDisplay(D));
+      },
+      // On every copy, the cut starting at its rightmost point, as long as
+      // the tool path (what tabIntervals spaces the tabs along).
+      tabs: function(c) {
+        var len = Math.PI * Math.max(0.001, D + (cutType === 'outer' ? 1 : -1) * c.bitD);
+        return c.copies.map(function(q, i) {
+          var p = c.Tc(i)(0, 0), a = (q.rotDeg || 0) * Math.PI / 180;
+          return { type: 'arc', cx: p.x, cy: p.y, r: R * c.s, a0: a, a1: a + 2 * Math.PI, len: len };
+        });
+      },
+      // The circle's box corners, its quadrant points and its center.
+      nodes: function(c) {
+        circPreviewNodes = ownPreviewNodes('circ', [
+          ['back-left', -R, R], ['back-center', 0, R], ['back-right', R, R],
+          ['left-center', -R, 0], ['center', 0, 0], ['right-center', R, 0],
+          ['front-left', -R, -R], ['front-center', 0, -R], ['front-right', R, -R]
+        ].map(function(n) { var t = c.L(c.T, n[1], n[2]); return { value: n[0], x: t.x, y: t.y }; }), 'shape-center');
+      }
+    });
   }
 
   // The most Corner Radius the shape takes: a slow search on a curve's
@@ -12371,10 +12428,19 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
 
   function updateCirclePreview() {
+    selectSeg('qc-circ-cut-type', [['outer', 'Outside'], ['inner', 'Inside'], ['clearing', 'Pocket']]);
+    syncSelectSegs();
     schedulePatternPreview();
     updateInsetState('circ');
+    var sideSvg = $('qc-circ-side');
+    if (sideSvg) passesSide(sideSvg, { depth: num('qc-circ-depth', 0), doc: num('qc-circ-step', 0), title: 'Side view · depth passes',
+      note2: $('qc-circ-tabs-enable').checked ? 'tabs ' + num('qc-circ-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
+    ['outer', 'inner', 'clearing'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-circ-cut-type').value === k); });
+    // The top view, as the Rectangle's (the older drawing still shows the
+    // chamfer).
+    if (state.chamferMode !== 'circle') return updateCircleTopView(svg);
     var D = num('qc-circ-diameter', 0);
     var cutType = $('qc-circ-cut-type').value;
     // Smaller when an inset needs room, so X0 Y0 stays in view.
