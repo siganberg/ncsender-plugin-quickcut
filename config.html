@@ -3938,6 +3938,7 @@
       var fwNum = function(k) { return parseFloat(fwSettings && fwSettings[k] && fwSettings[k].value); };
       if (fwNum('110') > 0 && fwNum('111') > 0) state.maxFeedMm = Math.min(fwNum('110'), fwNum('111'));
       if (fwNum('112') > 0) state.maxPlungeMm = fwNum('112');
+      if (fwNum('132') > 0) state.zTravelMm = fwNum('132');
       // grblHAL's default $30 is 1000: not a router's real top speed.
       if (fwNum('30') >= 5000) state.spindleMax = fwNum('30');
       if (fwNum('31') > 0) state.spindleMin = fwNum('31');
@@ -4803,6 +4804,20 @@
     if (rules.integer && !Number.isInteger(n))     return rules.label + ' must be a whole number';
     var units = unitKind === 'length' ? ' ' + state.unitLabel : unitKind === 'feed' ? ' ' + state.unitLabel + '/min' : '';
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min + units;
+    // The machine's own limits, when known, said in place of a higher field
+    // limit: its max rates ($110/$111, $112) and Z travel ($132).
+    var limit = id === 'qc-feed' ? [state.maxFeedMm, 'the machine\u2019s max feed ($110/$111)']
+      : id === 'qc-plunge' ? [state.maxPlungeMm, 'the machine\u2019s max Z rate ($112)']
+      : /^qc-[a-z]+-depth$/.test(id) ? [state.zTravelMm, 'the machine\u2019s Z travel ($132)'] : null;
+    if (limit && limit[0] > 0) {
+      var top = unitKind === 'feed' ? +mmToDisplay(limit[0]).toFixed(state.isImperial ? 1 : 0) : roundDisplay(mmToDisplay(limit[0]));
+      if (n > top + 1e-9)                          return rules.label + ' is more than ' + limit[1] + ', ' + top + units;
+    }
+    // The spindle's range ($30/$31); 0 doesn't start it.
+    if (id === 'qc-rpm' && n > 0) {
+      if (state.spindleMax > 0 && n > state.spindleMax) return rules.label + ' is more than the spindle\u2019s max ($30), ' + state.spindleMax;
+      if (state.spindleMin > 0 && n < state.spindleMin) return rules.label + ' is less than the spindle\u2019s min ($31), ' + state.spindleMin + ' (0: no spindle)';
+    }
     if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max + units;
 
     // A Slot shape that can't be cut shows on the field to change.
