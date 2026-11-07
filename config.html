@@ -6295,16 +6295,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function withPatternGaps(prefix, params) {
     var pat = params.pattern;
-    if (pat && pat.enabled && /^circular/.test(pat.style) && pat.radiusEdge != null) withPatternRadius(prefix, params);
-    if (pat && pat.enabled && (pat.xOverall != null || pat.yOverall != null)) withPatternOveralls(prefix, params);
+    // Chamfering, the gaps are the cut's: measured on the shape as the Cut
+    // Bit made it, not the chamfer's path (the same pattern object, so the
+    // spacings land in params).
+    var ch = params.chamfer, cut = ch && state.chamferMode ? Object.assign({}, params, { chamfer: null, bitDiameter: ch.cutBit > 0 ? ch.cutBit : params.bitDiameter }) : params;
+    if (pat && pat.enabled && /^circular/.test(pat.style) && pat.radiusEdge != null) withPatternRadius(prefix, cut);
+    if (pat && pat.enabled && (pat.xOverall != null || pat.yOverall != null)) withPatternOveralls(prefix, cut);
     if (!pat || !pat.enabled || (pat.xGap == null && pat.yGap == null)) return params;
-    var geom = patternCopyGeom(prefix, params);
+    var geom = patternCopyGeom(prefix, cut);
     if (!geom) return params;
     var honeycomb = pat.style === 'honeycomb';
     // The form is read several times a change (preview, run note,
     // checks): the last spacings are kept while the shape and pattern
     // stay the same.
-    var key = patternGeomKey(prefix, params) + JSON.stringify(pat);
+    var key = patternGeomKey(prefix, cut) + JSON.stringify(pat);
     if (patternGapCache.key === key) {
       if (pat.xGap != null) pat.xDist = patternGapCache.x;
       if (pat.yGap != null) pat.yDist = patternGapCache.y;
