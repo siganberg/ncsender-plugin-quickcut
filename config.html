@@ -9914,10 +9914,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function isCompressionTool(t) {
     return !!t && (t.type === 'compression' || /\bcompression\b/i.test(t.name || ''));
   }
-  // A compression bit, by its tool type or its name or notes.
-  function isCompressionTool(t) {
-    return !!t && (t.type === 'compression' || /compression/i.test((t.name || '') + ' ' + (t.notes || '')));
-  }
   // What startingFeeds needs for deep passes on a tab: its Total Depth, a
   // Depth of Cut typed by hand, and whether the picked tool is a
   // compression bit (its type, name or notes) and how long its flutes are.
@@ -13948,7 +13944,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var rows = (feedsHelp.source === 'mine' ? feedsHelpTools().map(function(t) {
       var fromTable = t.flutes > 0, named = flutesFromText(t.name + ' ' + t.notes);
       return { name: (t.n ? 'T' + t.n + ' ' : '') + t.name, mm: t.mm, flutes: fromTable ? Math.min(4, Math.round(t.flutes)) : named || 2,
-               flutesFrom: fromTable ? '' : named ? 'name' : 'guess', compression: isCompressionTool(t), fluteMm: (t.dimensions && t.dimensions.flute_length) || 0 };
+               flutesFrom: fromTable ? '' : named ? 'name' : 'guess', compression: isCompressionTool(t), noAtc: isCompressionTool(t) && !state.atc,
+               fluteMm: (t.dimensions && t.dimensions.flute_length) || 0 };
     }) : FEEDS_COMMON.map(function(t) { return Object.assign({ flutesFrom: '', fluteMm: 0 }, t); }));
     if (!rows.length) return '<p>No end mills in ncSender&rsquo;s tool table yet. Pick <strong>Common sizes</strong>.</p>';
     // What the tool table leaves out that would make these better.
@@ -13957,11 +13954,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var noFlutes = rows.filter(function(r) { return r.flutesFrom; }).length, noLength = rows.filter(function(r) { return !(r.fluteMm > 0); }).length;
       var tips = [];
       if (noFlutes) tips.push('<strong>' + noFlutes + ' of ' + rows.length + '</strong> have no flute count: the feed is RPM &times; flutes &times; chip, so a wrong count is a wrong feed (QuickCut reads it from the name, else assumes 2)');
-      if (noLength) tips.push('<strong>' + noLength + ' of ' + rows.length + '</strong> have no flute length: with it, QuickCut warns when Total Depth goes past the flutes, and sets a compression bit&rsquo;s passes');
+      if (noLength) tips.push('<strong>' + noLength + ' of ' + rows.length + '</strong> have no flute length: with it, QuickCut keeps each starting pass within the flutes, flags a Total Depth past them here, and sets a compression bit&rsquo;s passes');
       if (tips.length) missing = '<p class="qc-fh-flag">Your tool table is missing details that make these better. ' + tips.join('; ') + '. Add them in ncSender&rsquo;s tool table; naming a compression bit &ldquo;compression&rdquo; lets QuickCut cut it full depth.</p>';
     }
     var body = rows.map(function(r) {
-      var deep = { depthMm: depthMm, compression: r.compression, fluteMm: r.fluteMm }, notes = [], odd = false, rpm = 0;
+      // Without a tool changer the tabs can't tell which bit is in, so a
+      // compression bit gets the usual passes there: shown as they'll be.
+      var deep = { depthMm: depthMm, compression: r.compression && !r.noAtc, fluteMm: r.fluteMm }, notes = [], odd = false, rpm = 0;
       var cells = ['conservative', 'average', 'aggressive'].map(function(style) {
         var f = startingFeeds(r.mm, r.flutes, mat, limits, style, deep), passes = depthMm > 0 ? Math.max(1, Math.ceil(depthMm / f.stepMm - 1e-9)) : 0;
         rpm = f.rpm;
@@ -13975,6 +13974,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           '<span class="qc-fh-sub">' + len(f.stepMm) + (passes ? ' &times; ' + passes : '') + '</span>' +
           '<span class="qc-fh-sub">chip ' + roundDisplay(mmToDisplay(f.chipMm)) + '</span></td>';
       }).join('');
+      if (r.noAtc) notes.push('compression bit: the usual passes here; with a tool changer QuickCut knows the bit and cuts it in fewer');
       if (r.flutesFrom === 'name') notes.push('flutes from its name');
       if (r.flutesFrom === 'guess') { notes.push('<span class="qc-fh-flag">flutes not in the tool table: 2 assumed</span>'); odd = true; }
       if (r.fluteMm > 0 && depthMm > r.fluteMm + 1e-9 && !r.compression) { notes.push('<span class="qc-fh-flag">Total Depth is past its ' + len(r.fluteMm) + ' ' + u + ' flutes</span>'); odd = true; }
@@ -14074,6 +14074,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function openHelp() {
     if (state.currentTab === 'help') return;
     help.returnTo = state.currentTab;
+    feedsHelp = { source: null, material: null, depth: null };
     // Rendered before switching, while the tab's own tooltips (e.g.
     // Feed Rate on Drill) are still set for it.
     renderHelp(help.returnTo);
