@@ -2441,6 +2441,26 @@ test('slot header notes its holding tabs like the other shapes', () => {
     ['(Tabs: 20 x 8mm wide, 2mm high)', '(WARNING: only 6 of 20 tabs fit; using 6)']);
 });
 
+test('a tab the full-depth passes cut through is dropped, with a warning', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { bitDiameter: 6.35, feedRate: 1000, plungeFeedRate: 300, spindleRpm: 18000, spindleDelay: 0, depth: 6, depthOfCut: 2,
+    origin: 'center', tabs: { count: 4, width: 6, height: 2 } };
+  const notes = (p) => g.generatePolygonProgram(Object.assign({}, base, p)).split('\n').filter(l => /^\(WARNING: (only|tabs)/.test(l));
+  const star = (D, d, cutType) => notes({ kind: 'star', sides: 6, diameter: D, radius: D / 2, innerDiameter: d, startAngleDeg: 90, cornerRadius: 0, cutType });
+  // A small star: its edges are too short for a tab, so they land on its
+  // points (touching only the tip) and inner corners (cut through by the
+  // passes along the next edges).
+  assert.deepEqual(star(40, 16, 'outer'), ['(WARNING: tabs too wide for this path; no tabs cut)']);
+  assert.deepEqual(star(120, 50, 'outer'), []);
+  // Inside its narrow arms, both walls' passes clear what a tab would hold.
+  assert.deepEqual(star(40, 16, 'inner'), ['(WARNING: tabs too wide for this path; no tabs cut)']);
+  // Open corners keep their tabs, even where they land on a corner: a
+  // small hexagon, a small rectangle.
+  assert.deepEqual(notes({ kind: 'polygon', sides: 6, diameter: 30, radius: 15, startAngleDeg: 0, cornerRadius: 0, cutType: 'inner' }), []);
+  assert.deepEqual(g.generateRectangleProgram(Object.assign({}, base, { kind: 'rectangle', width: 20, height: 14, cornerRadius: 0, cutType: 'inner' }))
+    .split('\n').filter(l => /^\(WARNING: (only|tabs)/.test(l)), ['(WARNING: only 3 of 4 tabs fit; using 3)']);
+});
+
 test('grid center lines go back and forth: each starts where the last one finished', () => {
   const g = makeQuickCutGenerator(false);
   for (const passes of [1, 2, 3]) {
