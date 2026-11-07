@@ -912,6 +912,10 @@
   .qc-tool-empty { padding: 8px 10px; font-size: 0.85rem; color: var(--color-text-secondary); }
   .qc-material-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 10px; }
   /* Beside Generate: about how long it runs, and the travel check. */
+  .qc-shape-preview-cell:has(.qc-tabs-note) { position: relative; }
+  .qc-tabs-note { position: absolute; left: 4px; right: 4px; bottom: 4px; margin: 0; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; line-height: 1.25; text-align: center; pointer-events: none;
+    background: color-mix(in srgb, var(--color-surface-muted, var(--color-surface)) 85%, transparent); color: color-mix(in srgb, var(--color-warning, #d9a441) 70%, var(--color-text-primary)); }
+  .qc-tabs-note[hidden] { display: none; }
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
   .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
   /* A field's problem, at most two lines; a tap goes to the field. */
@@ -10202,7 +10206,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateToolSummary();
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
-    var problems = fieldProblems(), ready = problems.length === 0, text = '', bad = false;
+    var problems = fieldProblems(), ready = problems.length === 0, text = '', bad = false, tabNote = '';
     updateDepthPicture(TAB_PREFIX[view], ready);
     note.classList.toggle('qc-run-fix', !ready);
     note.title = problems.map(function(pr) { return pr.msg; }).join('\n');
@@ -10227,8 +10231,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var t = travelCheck(lines, k);
         if (t) { text += '. ' + t.text; bad = t.bad; }
         text += '.';
+        tabNote = tabsNote(lines);
       } catch (e) { text = ''; }
     }
+    showTabsNote(section, tabNote);
     if (ready) {
       note.textContent = text;
       note.classList.toggle('qc-run-bad', bad);
@@ -10237,6 +10243,29 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (gen) gen.classList.toggle('qc-gen-blocked', !ready);
     updateErrorBubble();
     if (Date.now() - _wcoAt > 3000) refreshWco();
+  }
+  // On the preview, when the program has fewer holding tabs than asked
+  // for (too long for the path, or they'd be cut away or left on a point:
+  // tabsWhole), from its header's warning.
+  function tabsNote(lines) {
+    for (var i = 0; i < Math.min(lines.length, 80); i++) {
+      var m = /^\(WARNING: only (\d+) of (\d+) tabs fit/.exec(lines[i]);
+      if (m) return 'Only ' + m[1] + ' of ' + m[2] + ' tabs fit';
+      if (/^\(WARNING: tabs too wide for this path/.test(lines[i])) return 'No tabs fit: try narrower ones';
+    }
+    return '';
+  }
+  function showTabsNote(section, text) {
+    var cell = section && section.querySelector('.qc-shape-preview-cell');
+    if (!cell) return;
+    var note = cell.querySelector('.qc-tabs-note');
+    if (!note) {
+      note = document.createElement('p');
+      note.className = 'qc-tabs-note';
+      cell.appendChild(note);
+    }
+    note.textContent = text;
+    note.hidden = !text;
   }
   // Roughly how long a program takes, in minutes: its moves at their feed
   // (rapids at rapid, in the program's units a minute) and its dwells.
