@@ -9416,6 +9416,24 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (t) applyBitTool(t);
   }
 
+  function toolEntry(n) { return n ? (state.tools || []).filter(function(x) { return x.n === n; })[0] : null; }
+  // A V-bit for the Chamfer tab: the one in the spindle, else a 90° one,
+  // else the first V-bit in the tool table.
+  function pickVBit() {
+    var vs = (state.tools || []).filter(function(t) { return vBitOf(t) != null; });
+    return toolEntry(state.loadedVBit) || vs.filter(function(t) { return vBitOf(t) === 90; })[0] || vs[0] || null;
+  }
+  // Chamfering with a bit that isn't a V-bit: a tool table bit that isn't
+  // one, or the shape's bit carried over when no V-bit was found (until
+  // the bit is changed). A note by Generate; it doesn't stop it.
+  function chamferToolNote() {
+    if (!state.chamferMode) return '';
+    var n = bitTool().n, t = toolEntry(n);
+    if (t && vBitOf(t) == null) return 'T' + n + ' isn\u2019t a V-bit: pick one for the chamfer.';
+    if (!n && state.chamferBitStale) return 'Set the V-bit: this is still the ' + state.chamferBitStale + '\u2019s bit.';
+    return '';
+  }
+
   // ---- The Chamfer tab ----
   // It is the chosen shape's page (Drill's holes, a circle, rectangle,
   // polygon or slot) in chamfer mode: the shape's sizes, origin and
@@ -9469,9 +9487,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     state.enteringChamfer = false;
     var first = !state.chamferMode;
     state.chamferMode = target;
-    // The Chamfer tab's own V-bit (kept apart from the drill or end mill).
-    if (state.toolByShape.chamfer) writeToolToInputs(state.toolByShape.chamfer);
-    else if (first) { var n = state.loadedVBit, t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0]; if (t) applyBitTool(t); }
+    // The Chamfer tab's own V-bit (kept apart from the drill or end mill):
+    // its saved one, unless that's a tool table bit that isn't a V-bit; else
+    // a V-bit from the tool table (pickVBit). With none, the shape's bit
+    // stays and the note by Generate asks for the V-bit.
+    var saved = state.toolByShape.chamfer, savedT = saved && saved.toolNumber && toolEntry(saved.toolNumber);
+    if (saved && !(savedT && vBitOf(savedT) == null)) writeToolToInputs(saved);
+    else if (first || saved) {
+      var v = pickVBit();
+      if (v) { applyBitTool(v); chamferForPickedTool(v); }
+      else if (!saved) state.chamferBitStale = { drill: 'drill', circle: 'circle', rectangle: 'rectangle', polygon: 'polygon', slot: 'slot' }[target] || target;
+    }
     state.chamferSource = source || '';
     var en = $('qc-chamfer-enable');
     en.checked = true;
@@ -9511,6 +9537,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else { var card = $('qc-chamfer-card'); card.insertBefore(edge, card.querySelector('.qc-card-header').nextSibling); }
   }
   function exitChamferMode() {
+    state.chamferBitStale = null;
     placeChamferEdge(null);
     var target = state.chamferMode;
     state.chamferMode = null;
@@ -9537,6 +9564,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Generate on the shape tabs is a split button: its arrow offers
   // "Chamfer these holes / this shape" (T3).
   function wireChamferTab() {
+    // A bit typed or picked is the one meant for the chamfer.
+    $('qc-bit').addEventListener('input', function() { state.chamferBitStale = null; });
     $('qc-nav-chamfer').addEventListener('click', function() {
       if (state.chamferMode) return;
       enterChamfer(CHAMFER_READY[state.currentTab] ? state.currentTab : 'drill');
@@ -10050,9 +10079,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-rpm').value = f.rpm;
     writeFeed('qc-feed', f.feedMm);
     writeFeed('qc-plunge', f.plungeMm);
-    // Depth of Cut too (not on Planer, whose bit is a surfacing one), and
-    // Stepover for the shapes that clear pockets.
-    var pre = TAB_PREFIX[state.currentTab], filled = ['qc-rpm', 'qc-feed', 'qc-plunge'];
+    // Depth of Cut too (not on Planer, whose bit is a surfacing one, nor
+    // while chamfering, which has its own), and Stepover for the shapes
+    // that clear pockets.
+    var pre = state.chamferMode ? null : TAB_PREFIX[state.currentTab], filled = ['qc-rpm', 'qc-feed', 'qc-plunge'];
     if (pre && pre !== 'plan' && $('qc-' + pre + '-step')) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(f.stepMm)); filled.push('qc-' + pre + '-step'); }
     if (pre && $('qc-' + pre + '-stepover') && pre !== 'plan') { $('qc-' + pre + '-stepover').value = f.stepoverPct; filled.push('qc-' + pre + '-stepover'); }
     filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
@@ -10453,6 +10483,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         tabNote = tabsNote(lines);
         var fl = fluteDepthNote(TAB_PREFIX[view]);
         if (fl) { text += ' ' + fl; bad = true; }
+        var cn = chamferToolNote();
+        if (cn) { text += ' ' + cn; bad = true; }
       } catch (e) { text = ''; }
     }
     showTabsNote(section, tabNote);
