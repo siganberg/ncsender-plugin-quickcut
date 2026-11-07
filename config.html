@@ -274,6 +274,17 @@
   .qc-help-tips dt { font-weight: 600; color: var(--color-text-primary); }
   .qc-help-tips dd { margin: 0; color: var(--color-text-primary); }
   .qc-help-card a { color: var(--color-accent); overflow-wrap: anywhere; }
+  .qc-fh-ctl { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; margin: 8px 0 12px; }
+  .qc-fh-ctl .qc-field { min-width: 160px; margin: 0; }
+  .qc-fh-wrap { overflow-x: auto; }
+  .qc-fh-table { border-collapse: collapse; width: 100%; font-size: 13px; color: var(--color-text-primary); }
+  .qc-fh-table th, .qc-fh-table td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+  .qc-fh-table th { color: var(--color-text-secondary); font-weight: 600; white-space: nowrap; }
+  .qc-fh-table td.qc-fh-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qc-fh-table .qc-fh-sub { display: block; color: var(--color-text-secondary); font-size: 12px; }
+  .qc-fh-table tr.qc-fh-odd td:first-child { box-shadow: inset 3px 0 0 #e3b341; }
+  .qc-fh-flag { color: #e3b341; }
+  .qc-fh-note { color: var(--color-text-secondary); font-size: 12px; min-width: 180px; }
   /* Diagrams in Help (the README's docs/images/*.svg), in the theme's colours. */
   .qc-help-fig { margin: 10px 0 4px; max-width: 680px; }
   .qc-help-fig svg { display: block; width: 100%; height: auto; }
@@ -10057,7 +10068,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // to the material's chip limit and the machine's max. Depth per pass and stepover
     // x0.75 / x1.2. 'average' (or none) leaves them as is. RPM stays.
     // deep (optional): { depthMm: Total Depth, stepMm: a Depth of Cut typed by
-    // hand, compression: a compression bit, fluteMm: its flute length }. A
+    // hand, compression: a compression bit, fluteMm: its flute length, which
+    // no pass goes deeper than }. A
     // compression bit cuts in the fewest equal passes no deeper than its
     // flutes or 3x its diameter (its down-cut top only cleans the face once
     // a pass is past its up-cut tip). A pass deeper than the bit is wide
@@ -10088,6 +10100,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       passes = Math.max(1, Math.ceil(D.depthMm / most - 1e-9));
       step = D.depthMm / passes;
     }
+    // No pass deeper than the flutes, when the tool table gives them.
+    if (D.fluteMm > 0) step = Math.min(step, D.fluteMm);
     var pass = D.stepMm > 0 ? D.stepMm : step, ratio = bitMm > 0 ? pass / bitMm : 0;
     var deepChip = 1;
     if (!m.keepChip && ratio > 1 && raw > 0) {
@@ -10147,6 +10161,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (deep && state.feedsAuto && !state.stepTyped[m[1]] && deep.compression) { fillStartingFeeds(true); return; }
     if (/^qc-(rpm|feed|plunge|[a-z]+-stepover)$/.test(el.id)) setFeedsAuto(false);
   }
+  // A compression bit, by its tool type or its name or notes.
+  function isCompressionTool(t) {
+    return !!t && (t.type === 'compression' || /compression/i.test((t.name || '') + ' ' + (t.notes || '')));
+  }
   // What startingFeeds needs for deep passes on a tab: its Total Depth, a
   // Depth of Cut typed by hand, and whether the picked tool is a
   // compression bit (its type, name or notes) and how long its flutes are.
@@ -10157,7 +10175,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return {
       depthMm: $('qc-' + pre + '-depth') ? displayToMm(num('qc-' + pre + '-depth', 0)) : 0,
       stepMm: state.stepTyped[pre] ? displayToMm(num('qc-' + pre + '-step', 0)) : 0,
-      compression: !!t && (t.type === 'compression' || /compression/i.test(t.name + ' ' + t.notes)),
+      compression: isCompressionTool(t),
       fluteMm: (t && t.dimensions && t.dimensions.flute_length) || 0
     };
   }
@@ -14820,7 +14838,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
       'A field that can&rsquo;t be used gets a red border, and a red bubble over the field you&rsquo;re in (or just left) says why. The note beside <strong>Generate</strong> shows the first problem, with &ldquo;(+N more)&rdquo; when there are others; tap it to go to that field.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
@@ -14912,6 +14930,105 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }).join('') + '</dl>';
   }
 
+  // Feeds & Speeds: the starting feeds QuickCut fills in, for each cutting
+  // bit in ncSender's tool table (or common sizes), one material at a time,
+  // Conservative, Average and Aggressive side by side, with what shapes
+  // them flagged: to check them, or to set feeds by hand.
+  var FEEDS_COMMON = [
+    { name: '1/16" end mill', mm: 1.5875, flutes: 2 },
+    { name: '1/8" O-flute', mm: 3.175, flutes: 1 },
+    { name: '1/8" end mill', mm: 3.175, flutes: 2 },
+    { name: '1/8" compression', mm: 3.175, flutes: 2, compression: true, fluteMm: 12.7 },
+    { name: '1/4" O-flute', mm: 6.35, flutes: 1 },
+    { name: '1/4" end mill', mm: 6.35, flutes: 2 },
+    { name: '1/4" end mill, 3 flutes', mm: 6.35, flutes: 3 },
+    { name: '1/4" compression', mm: 6.35, flutes: 2, compression: true, fluteMm: 25.4 },
+    { name: '6 mm end mill', mm: 6, flutes: 2 },
+    { name: '3/8" end mill', mm: 9.525, flutes: 2 },
+    { name: '1/2" end mill', mm: 12.7, flutes: 2 }
+  ];
+  var feedsHelp = { source: null, material: null, depth: null };
+  // The tool table's cutting bits: end mills, ball noses, compression bits
+  // (not V-bits, drills, surfacing bits or probes).
+  function feedsHelpTools() {
+    return (state.tools || []).filter(function(t) { return t.mm > 0 && (!t.type || /^(flat|ball|compression)$/.test(t.type)); });
+  }
+  function renderFeedsHelp() {
+    var mine = feedsHelpTools(), imp = state.isImperial, u = state.unitLabel;
+    if (!feedsHelp.source) feedsHelp.source = mine.length ? 'mine' : 'common';
+    if (!feedsHelp.material) feedsHelp.material = $('qc-material').value || 'mdf';
+    if (feedsHelp.depth == null) {
+      var pre = TAB_PREFIX[help.returnTo], d = pre && $('qc-' + pre + '-depth') ? num('qc-' + pre + '-depth', 0) : 0;
+      feedsHelp.depth = d > 0 ? d : imp ? 0.75 : 19;
+    }
+    var mats = Array.prototype.slice.call($('qc-material').options).filter(function(o) { return o.value; })
+      .map(function(o) { return '<option value="' + o.value + '"' + (o.value === feedsHelp.material ? ' selected' : '') + '>' + helpEscape(o.textContent) + '</option>'; }).join('');
+    var max = Math.min(state.maxFeedMm || 4000, 4000);
+    var intro = '<p>The starting feeds QuickCut fills in when you pick a <strong>Material</strong>, for each bit, in the three styles of the Material menu. ' +
+      '<strong>Feed</strong> is RPM &times; flutes &times; the chip each flute takes, which grows with the bit up to the material&rsquo;s limit; <strong>Plunge</strong> is 30% of it; ' +
+      '<strong>Depth</strong> is the depth of each pass, a share of the bit, and how many passes make the Total Depth. A compression bit cuts in the fewest equal passes its flutes and 3&times; its width allow, and a pass deeper than the bit is wide takes a slightly thinner chip. ' +
+      'Conservative is &times;0.75 and Aggressive &times;1.25 on the feed (plastics and aluminum keep their chip), &times;0.75 and &times;1.2 on the depth. All stay within the machine&rsquo;s spindle range and max feed, and starting feeds stop at ' +
+      feedToDisplay(max) + ' ' + u + '/min. A start: listen, look at the chips, and adjust.</p>';
+    var ctl = '<div class="qc-fh-ctl">' +
+      '<div class="qc-field"><label for="qc-fh-source">Tools</label><select class="qc-select" id="qc-fh-source">' +
+        '<option value="mine"' + (feedsHelp.source === 'mine' ? ' selected' : '') + (mine.length ? '' : ' disabled') + '>My tool table (' + mine.length + ')</option>' +
+        '<option value="common"' + (feedsHelp.source === 'common' ? ' selected' : '') + '>Common sizes</option></select></div>' +
+      '<div class="qc-field"><label for="qc-fh-material">Material</label><select class="qc-select" id="qc-fh-material">' + mats + '</select></div>' +
+      '<div class="qc-field"><label for="qc-fh-depth">Total Depth (' + u + ')</label><input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-fh-depth" value="' + feedsHelp.depth + '"></div>' +
+      '</div>';
+    $('qc-help-body').innerHTML = helpCard('Feeds &amp; Speeds', intro + ctl + '<div class="qc-fh-wrap" id="qc-fh-table">' + feedsHelpTable() + '</div>') + helpDocsCard();
+    $('qc-help-for').textContent = ' — Feeds & Speeds';
+    $('qc-help-sub').style.display = 'none';
+    $('qc-help-all').style.display = '';
+    $('qc-help-body').scrollTop = 0;
+  }
+  function feedsHelpTable() {
+    var imp = state.isImperial, u = state.unitLabel, mat = feedsHelp.material, depthMm = displayToMm(Math.max(0, +feedsHelp.depth || 0));
+    var limits = { maxFeed: state.maxFeedMm, maxPlunge: state.maxPlungeMm, maxRpm: state.spindleMax, minRpm: state.spindleMin };
+    var len = function(mm) { return roundDisplay(mmToDisplay(mm)); };
+    var rows = (feedsHelp.source === 'mine' ? feedsHelpTools().map(function(t) {
+      var fromTable = t.flutes > 0, named = flutesFromText(t.name + ' ' + t.notes);
+      return { name: (t.n ? 'T' + t.n + ' ' : '') + t.name, mm: t.mm, flutes: fromTable ? Math.min(4, Math.round(t.flutes)) : named || 2,
+               flutesFrom: fromTable ? '' : named ? 'name' : 'guess', compression: isCompressionTool(t), fluteMm: (t.dimensions && t.dimensions.flute_length) || 0 };
+    }) : FEEDS_COMMON.map(function(t) { return Object.assign({ flutesFrom: '', fluteMm: 0 }, t); }));
+    if (!rows.length) return '<p>No end mills in ncSender&rsquo;s tool table yet. Pick <strong>Common sizes</strong>.</p>';
+    // What the tool table leaves out that would make these better.
+    var missing = '';
+    if (feedsHelp.source === 'mine') {
+      var noFlutes = rows.filter(function(r) { return r.flutesFrom; }).length, noLength = rows.filter(function(r) { return !(r.fluteMm > 0); }).length;
+      var tips = [];
+      if (noFlutes) tips.push('<strong>' + noFlutes + ' of ' + rows.length + '</strong> have no flute count: the feed is RPM &times; flutes &times; chip, so a wrong count is a wrong feed (QuickCut reads it from the name, else assumes 2)');
+      if (noLength) tips.push('<strong>' + noLength + ' of ' + rows.length + '</strong> have no flute length: with it, QuickCut warns when Total Depth goes past the flutes, and sets a compression bit&rsquo;s passes');
+      if (tips.length) missing = '<p class="qc-fh-flag">Your tool table is missing details that make these better. ' + tips.join('; ') + '. Add them in ncSender&rsquo;s tool table; naming a compression bit &ldquo;compression&rdquo; lets QuickCut cut it full depth.</p>';
+    }
+    var body = rows.map(function(r) {
+      var deep = { depthMm: depthMm, compression: r.compression, fluteMm: r.fluteMm }, notes = [], odd = false, rpm = 0;
+      var cells = ['conservative', 'average', 'aggressive'].map(function(style) {
+        var f = startingFeeds(r.mm, r.flutes, mat, limits, style, deep), passes = depthMm > 0 ? Math.max(1, Math.ceil(depthMm / f.stepMm - 1e-9)) : 0;
+        rpm = f.rpm;
+        if (style === 'average') {
+          if (f.passes) notes.push('compression bit: ' + (f.passes === 1 ? 'one full-depth pass' : f.passes + ' equal passes'));
+          if (f.deepChip < 1) notes.push('deep pass: chip ' + Math.round(f.deepChip * 100) + '%');
+          if (f.capped) { notes.push('<span class="qc-fh-flag">feed held at the ' + feedToDisplay(Math.min(state.maxFeedMm || 4000, 4000)) + ' ' + u + '/min starting limit</span>'); odd = true; }
+          if (mat !== 'aluminum' && f.chipMm < 0.025) { notes.push('<span class="qc-fh-flag">thin chip: may rub; try a higher feed or lower RPM</span>'); odd = true; }
+        }
+        return '<td class="qc-fh-num">' + feedToDisplay(f.feedMm) + ' <span class="qc-fh-sub">plunge ' + feedToDisplay(f.plungeMm) + '</span>' +
+          '<span class="qc-fh-sub">' + len(f.stepMm) + (passes ? ' &times; ' + passes : '') + '</span>' +
+          '<span class="qc-fh-sub">chip ' + roundDisplay(mmToDisplay(f.chipMm)) + '</span></td>';
+      }).join('');
+      if (r.flutesFrom === 'name') notes.push('flutes from its name');
+      if (r.flutesFrom === 'guess') { notes.push('<span class="qc-fh-flag">flutes not in the tool table: 2 assumed</span>'); odd = true; }
+      if (r.fluteMm > 0 && depthMm > r.fluteMm + 1e-9 && !r.compression) { notes.push('<span class="qc-fh-flag">Total Depth is past its ' + len(r.fluteMm) + ' ' + u + ' flutes</span>'); odd = true; }
+      if (r.compression && !(r.fluteMm > 0)) notes.push('<span class="qc-fh-flag">no flute length: passes up to 3&times; its width</span>');
+      else if (feedsHelp.source === 'mine' && !(r.fluteMm > 0)) notes.push('no flute length in the tool table');
+      return '<tr' + (odd ? ' class="qc-fh-odd"' : '') + '><td>' + helpEscape(r.name) + '</td><td class="qc-fh-num">' + len(r.mm) + '</td><td class="qc-fh-num">' + r.flutes + '</td><td class="qc-fh-num">' + rpm + '</td>' +
+        cells + '<td class="qc-fh-note">' + notes.join('; ') + '</td></tr>';
+    }).join('');
+    return missing + '<table class="qc-fh-table"><thead><tr><th>Tool</th><th>&Oslash; ' + u + '</th><th>Flutes</th><th>RPM</th>' +
+      '<th>Conservative</th><th>Average</th><th>Aggressive</th><th>Notes</th></tr></thead><tbody>' + body + '</tbody></table>' +
+      '<p class="qc-fh-note">Each style: Feed (' + u + '/min), Plunge, Depth of each pass &times; passes for the Total Depth, and the chip per flute (' + u + '). A bar on the left marks a row to look at.</p>';
+  }
+
   // The tab's name as its sidebar icon says it: the kind picked on the
   // Rectangle and Polygon tabs, Pointed Arch, Arc Slot.
   function helpTopicName(tab) {
@@ -14922,6 +15039,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return (HELP_TOPICS[tab] || HELP_TOPICS.rectangle).name;
   }
   function renderHelp(tab) {
+    if (tab === 'feeds') return renderFeedsHelp();
     var topic = HELP_TOPICS[tab] || HELP_TOPICS.rectangle, name = helpTopicName(tab);
     var section = document.querySelector('.qc-content[data-view="' + tab + '"]');
     // A kind picked on the tab (Triangle, Star...) puts its own note first.
@@ -14983,7 +15101,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var line = fixed ? fixed[1] : sub ? sub.textContent.trim() : '';
       return '<li><a href="#" class="qc-help-topic" data-help-topic="' + tab + '">' + (fixed ? fixed[0] : HELP_TOPICS[tab].name) + '</a>' +
         (line ? ' &mdash; ' + helpEscape(line) : '') + '</li>';
-    }).join('');
+    }).join('') + '<li><a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> &mdash; The starting feeds for each bit in your tool table, or common sizes, by material: Conservative, Average and Aggressive side by side.</li>';
     $('qc-help-body').innerHTML =
       helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>' +
         '<p>On a touchscreen, touch a field (or tab to it) and wait a second to see its tip below it, like a mouse hover would. The <strong>Touch Tooltips</strong> switch at the top right turns them off.</p>') +
@@ -15012,6 +15130,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-help-all').addEventListener('click', function(evt) {
       evt.preventDefault();
       renderHelpIndex();
+    });
+    $('qc-help-body').addEventListener('change', function(evt) {
+      var id = evt.target.id;
+      if (id === 'qc-fh-source') feedsHelp.source = evt.target.value;
+      else if (id === 'qc-fh-material') feedsHelp.material = evt.target.value;
+      else if (id === 'qc-fh-depth') { var d = num('qc-fh-depth', NaN); if (!(d >= 0)) return; feedsHelp.depth = d; }
+      else return;
+      $('qc-fh-table').innerHTML = feedsHelpTable();
     });
     $('qc-help-body').addEventListener('click', function(evt) {
       var link = evt.target.closest && evt.target.closest('[data-help-topic]');
