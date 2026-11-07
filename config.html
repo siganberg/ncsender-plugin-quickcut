@@ -11249,48 +11249,42 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
   }
 
-  // Trapezoid, Triangle, Arch and Ellipse in the rectangle's big top view:
-  // the stock, every copy of the pattern, the waste hatched, the bit's band
-  // and path cut as it goes round, the waste coming away, and the bit. The
-  // shapes come from the generator's own outlines (convexOutline: the part,
-  // grown or shrunk to the bit's far edge, its center line and a pocket's
-  // rings), the bit drawn as on the rectangle, a hint rather than to scale.
-  function updateConvexTopView(svg) {
-    var params = readRectangleForm(), cutType = params.cutType;
-    var gen = makeQuickCutGenerator(state.isImperial);
-    if (gen.convexShapeProblem(params)) {
-      rectPreviewNodes = null;
-      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not ' +
-        ({ triangle: 'a triangle', arch: 'an arch', ellipse: 'an ellipse' }[params.kind] || 'a shape') + ' yet</text>';
-      return;
-    }
+  // The big top view the Rectangle has, for any shape: the stock, every
+  // copy of the pattern, the waste hatched, the bit's path cut as it goes
+  // round (Pocket: a helix, then rings from the inside out), the waste
+  // coming away, the bit, the sizes in pills and X0 Y0. The bit is drawn
+  // as on the rectangle, a hint rather than to scale. A shape gives:
+  //   prefix, params, cutType, turn (degrees), copies (pattern positions)
+  //   box: { x0, x1, y0, y1 }, its size about its center (mm, y up)
+  //   offset(d, cr): its outline grown by d mm (negative: shrunk) as the
+  //     generator's segments (lines and CCW arcs, mm about its center),
+  //     corners of radius cr on the part, or null when nothing is left
+  //   CR, typedCR: the corner radius drawn / typed; smooth: no corners
+  //   relief, reliefPts: Corner Relief's style and the part's corners
+  //   deep: how far in it goes (mm), for a pocket's rings
+  //   dims(c), tabs(c), nodes(c): its pills, its tabs' path and its Origin
+  //     taps, from c (the drawing's helpers)
+  //   caption, origin (X0 Y0 about the first copy's center, mm), zoom
+  //     points for the enlarged view's magnified origin
+  function topView(svg, sh) {
     var F = function(v) { return v.toFixed(2); };
-    var turn = params.startAngleDeg || 0, smooth = params.kind === 'arch' || params.kind === 'ellipse';
-    var geo = gen.computeTrapezoidGeom(params), part = geo.part, normals = geo.normals;
-    var most = params.kind === 'ellipse' ? 0 : convexCornerCap(gen, params);
-    var typedCR = Math.min(Math.max(0, params.cornerRadius || 0), most);
-    var relief = geo.allCorners ? reliefStyle('rect', cutType) : null;
-    var CR = relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most);
-    var bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity;
-    part.forEach(function(q) { bx0 = Math.min(bx0, q.x); bx1 = Math.max(bx1, q.x); by0 = Math.min(by0, q.y); by1 = Math.max(by1, q.y); });
-    var Wb = bx1 - bx0, Hb = by1 - by0;
-    var copies = gen.computePatternPositions(params.pattern), total = copies.length;
+    var cutType = sh.cutType, copies = sh.copies, total = copies.length, turn = sh.turn || 0;
     if (total > RECT_PREVIEW_MAX) copies = copies.slice(0, 1);
-    var p0 = copies[0];
+    var p0 = copies[0], b = sh.box, Wb = b.x1 - b.x0, Hb = b.y1 - b.y0, CR = sh.CR, relief = sh.relief;
     var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType);
     var bitV = Math.min(bitD, 0.06 * Math.max(Wb, Hb), 0.15 * Math.min(Wb, Hb));
-    var reach = Math.max(edgeDir > 0 ? bitV : 0, insetPad('rect'));
+    var reach = Math.max(edgeDir > 0 ? bitV : 0, insetPad(sh.prefix));
     // Inside and Pocket: the bit's center goes right into a corner, so the
     // cut it leaves is rounded by the bit (as drawn).
-    if (!relief && cutType !== 'outer' && !smooth) CR = Math.min(Math.max(typedCR, bitV / 2), most || bitV / 2);
+    if (!relief && cutType !== 'outer' && !sh.smooth) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
     function mpt(i, lx, ly) {
       var q = copies[i], a = ((q.rotDeg || 0) + turn) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
       return { x: q.x - p0.x + lx * ca - ly * sa, y: q.y - p0.y + lx * sa + ly * ca };
     }
     var mb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
     copies.forEach(function(q, i) {
-      [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]].forEach(function(k) {
-        var m = mpt(i, k[0] + (k[0] > 0 ? reach : -reach), k[1] + (k[1] > 0 ? reach : -reach));
+      [[b.x0 - reach, b.y0 - reach], [b.x1 + reach, b.y0 - reach], [b.x1 + reach, b.y1 + reach], [b.x0 - reach, b.y1 + reach]].forEach(function(k) {
+        var m = mpt(i, k[0], k[1]);
         mb.x0 = Math.min(mb.x0, m.x); mb.x1 = Math.max(mb.x1, m.x); mb.y0 = Math.min(mb.y0, m.y); mb.y1 = Math.max(mb.y1, m.y);
       });
     });
@@ -11299,12 +11293,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function V(m) { return { x: (m.x - mcx) * s, y: -(m.y - mcy) * s }; }
     function Tc(i) { return function(px, py) { return V(mpt(i, px / s, -py / s)); }; }
     var T = Tc(0);
-    // A generator path (lines and CCW arcs, in mm about the part) on copy
-    // Ti; `close` ends it with Z, else a line back to its start (Chrome's
-    // dashes skip a closing Z, so a cut would run ahead of the bit).
+    function L(Ti, mx, my) { return Ti(mx * s, -my * s); }
+    // Segments on copy Ti; `close` ends with Z, else a line back to the
+    // start (Chrome's dashes skip a closing Z, so a cut would run ahead of
+    // the bit).
     function segsD(segs, Ti, close) {
       if (!segs || !segs.length) return '';
-      var P = function(mx, my) { var t = Ti(mx * s, -my * s); return F(t.x) + ',' + F(t.y); };
+      var P = function(mx, my) { var t = L(Ti, mx, my); return F(t.x) + ',' + F(t.y); };
       var d = '';
       segs.forEach(function(sg, i) {
         if (i === 0) d += 'M' + (sg.type === 'line' ? P(sg.x0, sg.y0) : P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0)));
@@ -11315,18 +11310,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return d + (close ? ' Z' : '');
     }
     function lenOf(segs) { return (segs || []).reduce(function(t, sg) { return t + sg.len; }, 0) * s; }
-    // The part's outline (with Corner Relief's notches), and it grown or
-    // shrunk by g SVG units.
     function outlineOf(Ti) {
       return relief
-        ? reliefOutline(part.map(function(q) { return Ti(q.x * s, -q.y * s); }), bitD / 2 * s, typedCR * s, relief)
-        : segsD(gen.convexOutline(part, normals, 0, CR), Ti, true);
+        ? reliefOutline(sh.reliefPts.map(function(q) { return L(Ti, q.x, q.y); }), bitD / 2 * s, sh.typedCR * s, relief)
+        : segsD(sh.offset(0, CR), Ti, true);
     }
-    function grownOf(Ti, g) { return segsD(gen.convexOutline(part, normals, g / s, CR), Ti, true); }
     var outlines = copies.map(function(q, i) { return outlineOf(Tc(i)); });
-    var edges = edgeDir && bitV > 0 ? copies.map(function(q, i) { return grownOf(Tc(i), edgeDir * bitV * s); }) : [];
+    var edges = edgeDir && bitV > 0 ? copies.map(function(q, i) { return segsD(sh.offset(edgeDir * bitV, CR), Tc(i), true); }) : [];
     var outline = outlines[0], edgeD = edges[0] || '';
-    var ideal = CR > typedCR + 1e-9 && !smooth ? idealOutline(segsD(gen.convexOutline(part, normals, 0, typedCR), T, true)) : '';
+    var ideal = CR > sh.typedCR + 1e-9 && !sh.smooth ? idealOutline(segsD(sh.offset(0, sh.typedCR), T, true)) : '';
 
     // The stock, square to the machine, a margin round every copy.
     var M = 11;
@@ -11338,46 +11330,45 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (bitV > 0) copies.forEach(function(q, i) {
       var Ti = Tc(i);
       if (cutType !== 'clearing') {
-        var loop = gen.convexOutline(part, normals, half / s, CR);
+        var loop = sh.offset(half / s, CR);
         if (loop) cuts.push({ i: i, d: segsD(loop, Ti), len: lenOf(loop) });
         return;
       }
-      // Pocket: a helix bores the middle, then rings from the inside out,
-      // Stepover apart; only the last keeps the corner radius.
-      var rb = bitV / 2 * s, step = Math.min(Math.max(0.05, num('qc-rect-stepover', 40) / 100) * bitV * s, rb * (1 + Math.SQRT1_2));
-      var deep = (geo.maxInset || 0) * s, rings = [], off = 0, left = deep + half;
+      var rb = bitV / 2 * s, step = Math.min(Math.max(0.05, num('qc-' + sh.prefix + '-stepover', 40) / 100) * bitV * s, rb * (1 + Math.SQRT1_2));
+      var left = (sh.deep || 0) * s + half, rings = [], off = 0;
       while (left - off > 0) {
         rings.push(half - off);
         if (left - off <= rb) break;
-        var sh = left - off;
-        off += sh - step <= 1e-9 && sh - rb > 1e-9 ? sh - rb : step;
+        var gap = left - off;
+        off += gap - step <= 1e-9 && gap - rb > 1e-9 ? gap - rb : step;
       }
-      var core = rings.length ? gen.convexOutline(part, normals, rings[rings.length - 1] / s, 0) : null;
+      var core = rings.length ? sh.offset(rings[rings.length - 1] / s, 0) : null;
       if (core) {
         var cx = 0, cy = 0, n = 0;
-        core.forEach(function(sg) { if (sg.type === 'line') { cx += sg.x0; cy += sg.y0; n++; } });
-        var c0 = n ? { x: cx / n, y: cy / n } : { x: 0, y: 0 }, hr = Math.min(rb * 0.6, Math.max(0, left - off + rb) * 0.6);
+        core.forEach(function(sg) {
+          var p = sg.type === 'line' ? { x: sg.x0, y: sg.y0 } : { x: sg.cx + sg.r * Math.cos(sg.a0), y: sg.cy + sg.r * Math.sin(sg.a0) };
+          cx += p.x; cy += p.y; n++;
+        });
+        var c0 = { x: cx / n, y: cy / n }, hr = Math.min(rb * 0.6, Math.max(0, left - off + rb) * 0.6);
         if (hr > rb * 0.1) {
-          var ha = Ti((c0.x + hr / s) * s, -c0.y * s), hb = Ti((c0.x - hr / s) * s, -c0.y * s);
+          var ha = L(Ti, c0.x + hr / s, c0.y), hb = L(Ti, c0.x - hr / s, c0.y);
           cuts.push({ i: i, d: 'M' + F(ha.x) + ',' + F(ha.y) + ' A' + F(hr) + ',' + F(hr) + ' 0 0 0 ' + F(hb.x) + ',' + F(hb.y) + ' A' + F(hr) + ',' + F(hr) + ' 0 0 0 ' + F(ha.x) + ',' + F(ha.y), len: 2 * Math.PI * hr });
         }
       }
       rings.reverse().forEach(function(g, k) {
-        var ring = gen.convexOutline(part, normals, g / s, k === rings.length - 1 ? CR : 0);
+        var ring = sh.offset(g / s, k === rings.length - 1 ? CR : 0);
         if (ring) cuts.push({ i: i, d: segsD(ring, Ti), len: lenOf(ring) });
       });
     });
     var paths = cuts.map(function(c) { return c.d; });
-    // As on the rectangle: the bit goes round each copy in turn, and as
-    // each loop closes its waste comes away. A pause, then it starts over.
     var live = !CUT_REDUCED && cuts.length > 0;
     var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + 3 * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
     var totalLen = cuts.reduce(function(t, c) { return t + c.len; }, 0) || 1, run = 0, doneAt = copies.map(function(q, i) { return cutF * (i + 1) / copies.length; });
     cuts.forEach(function(c) { c.a = cutF * run / totalLen; run += c.len; c.b = cutF * run / totalLen; doneAt[c.i] = c.b; });
     function goneAt(t, show) {
       if (!live) return '';
-      var a = Math.min(0.998, t), b = Math.min(0.999, a + 0.35 / loopT);
-      return '<animate attributeName="opacity" values="' + (show ? '0;0;1;1' : '1;1;0;0') + '" keyTimes="0;' + a.toFixed(4) + ';' + b.toFixed(4) + ';1" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>';
+      var a = Math.min(0.998, t), e = Math.min(0.999, a + 0.35 / loopT);
+      return '<animate attributeName="opacity" values="' + (show ? '0;0;1;1' : '1;1;0;0') + '" keyTimes="0;' + a.toFixed(4) + ';' + e.toFixed(4) + ';1" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>';
     }
     function kerfOf(i) {
       return cuts.filter(function(c) { return c.i === i; }).map(function(c) {
@@ -11388,14 +11379,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
             kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
       }).join('');
     }
-    var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-rect-wood)"/>' +
+    var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-shp-wood)"/>' +
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
-    var waste, clips = '';
+    var waste, clips = '', id = sh.prefix;
     if (cutType === 'outer') {
-      clips = '<clipPath id="qc-shp-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
-        '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
-      waste = '<g clip-path="url(#qc-shp-keep)">' + stockSvg + '</g>' +
-        '<g clip-path="url(#qc-shp-away)">' + stockSvg +
+      clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
+        '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+      waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' +
+        '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg +
           '<path fill="url(#qc-shp-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
           copies.map(function(q, i) { return kerfOf(i); }).join('') +
           goneAt(cutF) + '</g>';
@@ -11408,12 +11399,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     var parts = outlines.map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
 
-    // The sizes in pills outside the first copies, as on the rectangle:
-    // the bottom edge (a trapezoid's top one too) and the height.
+    // What a shape's pills and tabs work with: the front-most (iw),
+    // left-most (ih) and back-most (it) copies, so pills sit clear of the
+    // others, and the distance out to them.
     var u = state.unitLabel, offV = (edgeDir > 0 ? bitV * s : 0) + 5.5;
     var ctr = copies.map(function(q, i) { return mpt(i, 0, 0); }), iw = 0, ih = 0, it = 0;
     ctr.forEach(function(c, i) { if (c.y < ctr[iw].y - 1e-6) iw = i; if (c.x < ctr[ih].x - 1e-6) ih = i; if (c.y > ctr[it].y + 1e-6) it = i; });
-    function L(Ti, mx, my) { return Ti(mx * s, -my * s); }
     function dimSvg(p, q, value) {
       var mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
       if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
@@ -11422,84 +11413,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         (Math.abs(ang) > 0.01 ? ' transform="rotate(' + F(ang) + ' ' + F(mx) + ' ' + F(my) + ')"' : '') + '>' + value + ' ' + u + '</text>';
     }
     function ext(p, q) { return '<line class="qc-shp-ext" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '"/>'; }
-    var Tw = Tc(iw), Th = Tc(ih), o = offV / s;
-    var bl = smooth ? bx0 : part[0].x, br = smooth ? bx1 : part[1].x;
-    var dims = ext(L(Tw, bl, by0 - 1 / s), L(Tw, bl, by0 - o - 1.5 / s)) + ext(L(Tw, br, by0 - 1 / s), L(Tw, br, by0 - o - 1.5 / s)) +
-      dimSvg(L(Tw, bl, by0 - o), L(Tw, br, by0 - o), roundDisplay(br - bl)) +
-      ext(L(Th, bx0 - 1 / s, by0), L(Th, bx0 - o - 1.5 / s, by0)) + ext(L(Th, bx0 - 1 / s, by1), L(Th, bx0 - o - 1.5 / s, by1)) +
-      dimSvg(L(Th, bx0 - o, by0), L(Th, bx0 - o, by1), roundDisplay(Hb));
-    if (params.kind === 'trapezoid') {
-      // The top width over the back-most copy, clear of the others.
-      var tl = part[3].x, tr = part[2].x, Tt = Tc(it);
-      dims += ext(L(Tt, tl, by1 + 1 / s), L(Tt, tl, by1 + o + 1.5 / s)) + ext(L(Tt, tr, by1 + 1 / s), L(Tt, tr, by1 + o + 1.5 / s)) +
-        dimSvg(L(Tt, tl, by1 + o), L(Tt, tr, by1 + o), roundDisplay(tr - tl));
-    }
-    if (params.triangle) dims = triangleDims();
-    // A triangle: each side's length along it, outside it, and each angle
-    // just outside its corner; what Defined By worked out (not typed) is
-    // fainter. Base + Height adds the height, dashed down from the peak.
-    function triangleDims() {
-      var m = gen.triangleMeasures(params.triangle), by = $('qc-rect-tri-by').value;
-      var sideTyped = { sss: [1, 1, 1], sas: [1, 0, 1], asa: [1, 0, 0], height: [1, 0, 0] }[by] || [1, 1, 1];
-      var angleTyped = { sss: [0, 0, 0], sas: [1, 0, 0], asa: [1, 1, 0], height: [0, 0, 0] }[by] || [0, 0, 0];
-      var sides = [params.triangle.base, params.triangle.right, params.triangle.left];
-      var angles = [m.leftAngle, m.rightAngle, m.topAngle];
-      var v = part, mx = (v[0].x + v[1].x + v[2].x) / 3, my = (v[0].y + v[1].y + v[2].y) / 3, out = '';
-      var faint = function(svgText, typed) { return typed ? svgText : '<g class="qc-tri-derived">' + svgText + '</g>'; };
-      v.forEach(function(a, i) {
-        var b = v[(i + 1) % 3], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey) || 1, nx = ey / len, ny = -ex / len;
-        if (nx * ((a.x + b.x) / 2 - mx) + ny * ((a.y + b.y) / 2 - my) < 0) { nx = -nx; ny = -ny; }
-        var at = function(p, k) { return L(Tw, p.x + nx * k, p.y + ny * k); };
-        out += ext(at(a, 1 / s), at(a, o + 1.5 / s)) + ext(at(b, 1 / s), at(b, o + 1.5 / s)) +
-          faint(dimSvg(at(a, o), at(b, o), roundDisplay(sides[i])), sideTyped[i]);
-      });
-      v.forEach(function(p, i) {
-        var a = v[(i + 2) % 3], b = v[(i + 1) % 3], la = Math.hypot(a.x - p.x, a.y - p.y) || 1, lb = Math.hypot(b.x - p.x, b.y - p.y) || 1;
-        var ux = (a.x - p.x) / la + (b.x - p.x) / lb, uy = (a.y - p.y) / la + (b.y - p.y) / lb, ul = Math.hypot(ux, uy) || 1;
-        var q = L(Tw, p.x - ux / ul * 6 / s, p.y - uy / ul * 6 / s);
-        out += faint('<text class="qc-shp-dimtext" x="' + F(q.x) + '" y="' + F(q.y) + '" text-anchor="middle" dominant-baseline="central">' +
-          parseFloat(angles[i].toFixed(1)) + '°</text>', angleTyped[i]);
-      });
-      if (by === 'height') {
-        var top = v[2], foot = { x: v[2].x, y: v[0].y }, t1 = L(Tw, top.x, top.y), f1 = L(Tw, foot.x, foot.y);
-        out += '<line class="qc-shp-ext qc-tri-drop" x1="' + F(t1.x) + '" y1="' + F(t1.y) + '" x2="' + F(f1.x) + '" y2="' + F(f1.y) + '"/>';
-        var end = m.peakOffset < 0 ? v[0] : v[1], e1 = L(Tw, end.x, end.y);
-        if (m.peakOffset < 0 || m.peakOffset > params.triangle.base) out += '<line class="qc-shp-ext qc-tri-drop" x1="' + F(e1.x) + '" y1="' + F(e1.y) + '" x2="' + F(f1.x) + '" y2="' + F(f1.y) + '"/>';
-        // Low on the drop, clear of X0 Y0's arrows in the middle.
-        var hc = L(Tw, foot.x, foot.y + (top.y - foot.y) * 0.22);
-        out += '<text class="qc-shp-dimtext" x="' + F(hc.x + 1.5) + '" y="' + F(hc.y) + '" text-anchor="start" dominant-baseline="central">' + roundDisplay(m.height) + ' ' + u + '</text>';
-      }
-      return out;
-    }
-    var kindName = { trapezoid: 'trapezoid', triangle: 'triangle', arch: 'arch', ellipse: 'ellipse' }[params.kind] || 'shape';
-    var capText = (total > 1 ? total + ' copies · ' : '') + kindName + ' ' + roundDisplay(Wb) + ' × ' + roundDisplay(Hb) + ' ' + u +
-      ' · ' + { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType] + (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
+    var c = { F: F, s: s, L: L, T: T, Tc: Tc, copies: copies, u: u, o: offV / s, dimSvg: dimSvg, ext: ext,
+              Tw: Tc(iw), Th: Tc(ih), Tt: Tc(it), segsD: segsD, cutType: cutType, bitD: bitD };
+    var dims = sh.dims(c);
+    var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + ' · ' + { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType] +
+      (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
+    sh.nodes(c);
 
-    // Tabs on every copy: the tool path (real lengths, as tabIntervals
-    // spaces the tabs along it) moved back onto the outline.
-    var tabSegs = [], back = (cutType === 'outer' ? 1 : -1) * bitD / 2;
-    copies.forEach(function(q, i) {
-      var Ti = Tc(i);
-      (geo.segs || []).forEach(function(sg) {
-        var ends = sg.type === 'line' ? [{ x: sg.x0, y: sg.y0 }, { x: sg.x1, y: sg.y1 }]
-          : [sg.a0, sg.a1].map(function(a) { return { x: sg.cx + (sg.r - back) * Math.cos(a), y: sg.cy + (sg.r - back) * Math.sin(a) }; });
-        if (sg.type === 'line') {
-          var nx = (sg.y1 - sg.y0) / sg.len, ny = -(sg.x1 - sg.x0) / sg.len;
-          ends = ends.map(function(e) { return { x: e.x - back * nx, y: e.y - back * ny }; });
-        }
-        var a = L(Ti, ends[0].x, ends[0].y), b = L(Ti, ends[1].x, ends[1].y);
-        tabSegs.push({ type: 'line', x0: a.x, y0: a.y, x1: b.x, y1: b.y, len: sg.len });
-      });
-    });
-
-    // Corners in the generator's order, then the edge middles, then the center.
-    rectPreviewNodes = ownPreviewNodes('rect', gen.trapezoidCorners(params)(0).map(function(q, i) {
-      var t = L(T, q.x, q.y);
-      return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
-    }).concat([{ x: T(0, 0).x, y: T(0, 0).y, value: 'center' }]), 'shape-center');
-
-    var defs = '<defs>' + clips + '<linearGradient id="qc-rect-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+    var defs = '<defs>' + clips + '<linearGradient id="qc-shp-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
       '<pattern id="qc-shp-waste" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)"><rect width="2.2" height="2.2" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="2.2" style="stroke:var(--qc-m-hatch)" stroke-width="0.35"/></pattern>' +
       '<marker id="qc-shp-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
     var bit = '';
@@ -11509,17 +11431,136 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '<g class="qc-fig-spin"><path d="M0 ' + F(-brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(brad * 0.82) + ' ' + F(brad * 0.55) + ' L0 0Z M0 ' + F(brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(-brad * 0.82) + ' ' + F(-brad * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
         '<animateMotion dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;' + cutF.toFixed(4) + ';1" path="' + paths.join(' ') + '"/></g>';
     }
-    // X0 Y0, from the generator, about the first copy's center.
-    originZoomFrames.rect = null;
-    var oq = V(gen.shapeOriginOffset('rectangle', params));
-    var z = previewIsBig(svg) ? detailZoom('rect', s, CR * s) : 0;
-    var opts = [[bx0, by1], [(bx0 + bx1) / 2, by1], [bx1, by1], [bx1, (by0 + by1) / 2], [bx1, by0], [(bx0 + bx1) / 2, by0], [bx0, by0], [bx0, (by0 + by1) / 2]]
+    // X0 Y0 about the first copy's center. Enlarged, a small Inset or corner
+    // radius there is also shown magnified.
+    originZoomFrames[sh.prefix] = null;
+    var oq = V(sh.origin);
+    var z = previewIsBig(svg) ? detailZoom(sh.prefix, s, CR * s) : 0;
+    var zpts = [[b.x0, b.y1], [(b.x0 + b.x1) / 2, b.y1], [b.x1, b.y1], [b.x1, (b.y0 + b.y1) / 2], [b.x1, b.y0], [(b.x0 + b.x1) / 2, b.y0], [b.x0, b.y0], [b.x0, (b.y0 + b.y1) / 2]]
       .map(function(p) { var t = L(T, p[0], p[1]); return [t.x, t.y]; });
-    var origin = figAxes(oq.x, oq.y) + insetMarks('rect', oq.x, oq.y, s) +
-      (z ? originZoom('rect', oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, opts, z, 'rect', s) : '');
-    svg.innerHTML = shapePreviewDefs('qc-rect') + defs + waste + parts + ideal + tabMarks('rect', tabSegs) + dims + cap + bit + origin;
+    var origin = figAxes(oq.x, oq.y) + insetMarks(sh.prefix, oq.x, oq.y, s) +
+      (z ? originZoom(sh.prefix, oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, zpts, z, sh.prefix, s) : '');
+    svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste + parts + ideal + tabMarks(sh.prefix, sh.tabs(c)) + dims + cap + bit + origin;
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
+  }
+
+  // Trapezoid, Triangle, Arch and Ellipse in the top view, from the
+  // generator's own outlines (convexOutline: the part grown or shrunk).
+  function updateConvexTopView(svg) {
+    var params = readRectangleForm(), cutType = params.cutType;
+    var gen = makeQuickCutGenerator(state.isImperial);
+    if (gen.convexShapeProblem(params)) {
+      rectPreviewNodes = null;
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not ' +
+        ({ triangle: 'a triangle', arch: 'an arch', ellipse: 'an ellipse' }[params.kind] || 'a shape') + ' yet</text>';
+      return;
+    }
+    var smooth = params.kind === 'arch' || params.kind === 'ellipse';
+    var geo = gen.computeTrapezoidGeom(params), part = geo.part, normals = geo.normals;
+    var most = params.kind === 'ellipse' ? 0 : convexCornerCap(gen, params);
+    var typedCR = Math.min(Math.max(0, params.cornerRadius || 0), most);
+    var relief = geo.allCorners ? reliefStyle('rect', cutType) : null;
+    var box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+    part.forEach(function(q) { box.x0 = Math.min(box.x0, q.x); box.x1 = Math.max(box.x1, q.x); box.y0 = Math.min(box.y0, q.y); box.y1 = Math.max(box.y1, q.y); });
+    var Wb = box.x1 - box.x0, Hb = box.y1 - box.y0;
+    var kindName = { trapezoid: 'trapezoid', triangle: 'triangle', arch: 'arch', ellipse: 'ellipse' }[params.kind] || 'shape';
+    topView(svg, {
+      prefix: 'rect', params: params, cutType: cutType, turn: params.startAngleDeg || 0, copies: gen.computePatternPositions(params.pattern),
+      box: box, smooth: smooth, typedCR: typedCR, mostCR: most, relief: relief, reliefPts: part, deep: geo.maxInset,
+      CR: relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most),
+      offset: function(d, cr) { return gen.convexOutline(part, normals, d, cr); },
+      caption: kindName + ' ' + roundDisplay(Wb) + ' × ' + roundDisplay(Hb) + ' ' + state.unitLabel,
+      origin: gen.shapeOriginOffset('rectangle', params),
+      // The bottom edge (a trapezoid's top one too) and the height; a
+      // triangle's sides and angles.
+      dims: function(c) {
+        if (params.triangle) return triangleDims(c);
+        var Tw = c.Tw, Th = c.Th, o = c.o, L = c.L, s = c.s, ext = c.ext, dimSvg = c.dimSvg;
+        var bl = smooth ? box.x0 : part[0].x, br = smooth ? box.x1 : part[1].x;
+        var out = ext(L(Tw, bl, box.y0 - 1 / s), L(Tw, bl, box.y0 - o - 1.5 / s)) + ext(L(Tw, br, box.y0 - 1 / s), L(Tw, br, box.y0 - o - 1.5 / s)) +
+          dimSvg(L(Tw, bl, box.y0 - o), L(Tw, br, box.y0 - o), roundDisplay(br - bl)) +
+          ext(L(Th, box.x0 - 1 / s, box.y0), L(Th, box.x0 - o - 1.5 / s, box.y0)) + ext(L(Th, box.x0 - 1 / s, box.y1), L(Th, box.x0 - o - 1.5 / s, box.y1)) +
+          dimSvg(L(Th, box.x0 - o, box.y0), L(Th, box.x0 - o, box.y1), roundDisplay(Hb));
+        if (params.kind === 'trapezoid') {
+          // The top width over the back-most copy, clear of the others.
+          var tl = part[3].x, tr = part[2].x, Tt = c.Tt;
+          out += ext(L(Tt, tl, box.y1 + 1 / s), L(Tt, tl, box.y1 + o + 1.5 / s)) + ext(L(Tt, tr, box.y1 + 1 / s), L(Tt, tr, box.y1 + o + 1.5 / s)) +
+            dimSvg(L(Tt, tl, box.y1 + o), L(Tt, tr, box.y1 + o), roundDisplay(tr - tl));
+        }
+        return out;
+      },
+      // The tool path (real lengths, as tabIntervals spaces the tabs along
+      // it) moved back onto the outline, on every copy.
+      tabs: function(c) {
+        var out = [], back = (cutType === 'outer' ? 1 : -1) * c.bitD / 2;
+        c.copies.forEach(function(q, i) {
+          var Ti = c.Tc(i);
+          (geo.segs || []).forEach(function(sg) {
+            var ends = sg.type === 'line' ? [{ x: sg.x0, y: sg.y0 }, { x: sg.x1, y: sg.y1 }]
+              : [sg.a0, sg.a1].map(function(a) { return { x: sg.cx + (sg.r - back) * Math.cos(a), y: sg.cy + (sg.r - back) * Math.sin(a) }; });
+            if (sg.type === 'line') {
+              var nx = (sg.y1 - sg.y0) / sg.len, ny = -(sg.x1 - sg.x0) / sg.len;
+              ends = ends.map(function(e) { return { x: e.x - back * nx, y: e.y - back * ny }; });
+            }
+            var a = c.L(Ti, ends[0].x, ends[0].y), e2 = c.L(Ti, ends[1].x, ends[1].y);
+            out.push({ type: 'line', x0: a.x, y0: a.y, x1: e2.x, y1: e2.y, len: sg.len });
+          });
+        });
+        return out;
+      },
+      // Corners in the generator's order, then the center.
+      nodes: function(c) {
+        rectPreviewNodes = ownPreviewNodes('rect', gen.trapezoidCorners(params)(0).map(function(q, i) {
+          var t = c.L(c.T, q.x, q.y);
+          return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
+        }).concat([{ x: c.T(0, 0).x, y: c.T(0, 0).y, value: 'center' }]), 'shape-center');
+      }
+    });
+    // A triangle: each side's length along it, outside it, and each angle
+    // inside its corner, marked by a small arc; what Defined By worked out
+    // (not typed) is fainter. Base + Height adds the height, dashed down
+    // from the peak.
+    function triangleDims(c) {
+      var F = c.F, Tw = c.Tw, o = c.o, L = c.L, s = c.s, ext = c.ext, dimSvg = c.dimSvg, u = c.u;
+      var m = gen.triangleMeasures(params.triangle), by = $('qc-rect-tri-by').value;
+      var sideTyped = { sss: [1, 1, 1], sas: [1, 0, 1], asa: [1, 0, 0], height: [1, 0, 0] }[by] || [1, 1, 1];
+      var angleTyped = { sss: [0, 0, 0], sas: [1, 0, 0], asa: [1, 1, 0], height: [0, 0, 0] }[by] || [0, 0, 0];
+      var sides = [params.triangle.base, params.triangle.right, params.triangle.left];
+      var angles = [m.leftAngle, m.rightAngle, m.topAngle];
+      var v = part, mx = (v[0].x + v[1].x + v[2].x) / 3, my = (v[0].y + v[1].y + v[2].y) / 3, out = '';
+      var faint = function(svgText, typed) { return typed ? svgText : '<g class="qc-tri-derived">' + svgText + '</g>'; };
+      v.forEach(function(a, i) {
+        var e = v[(i + 1) % 3], ex = e.x - a.x, ey = e.y - a.y, len = Math.hypot(ex, ey) || 1, nx = ey / len, ny = -ex / len;
+        if (nx * ((a.x + e.x) / 2 - mx) + ny * ((a.y + e.y) / 2 - my) < 0) { nx = -nx; ny = -ny; }
+        var at = function(p, k) { return L(Tw, p.x + nx * k, p.y + ny * k); };
+        out += ext(at(a, 1 / s), at(a, o + 1.5 / s)) + ext(at(e, 1 / s), at(e, o + 1.5 / s)) +
+          faint(dimSvg(at(a, o), at(e, o), roundDisplay(sides[i])), sideTyped[i]);
+      });
+      v.forEach(function(p, i) {
+        var a = v[(i + 2) % 3], e = v[(i + 1) % 3], la = Math.hypot(a.x - p.x, a.y - p.y) || 1, lb = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+        var ux = (a.x - p.x) / la + (e.x - p.x) / lb, uy = (a.y - p.y) / la + (e.y - p.y) / lb, ul = Math.hypot(ux, uy) || 1;
+        // In along the bisector, further in a sharp corner so it fits.
+        var half = angles[i] * Math.PI / 360, d = Math.min(18, 8 / Math.max(0.2, Math.sin(half))) / s, r = 4 / s;
+        var q = L(Tw, p.x + ux / ul * d, p.y + uy / ul * d);
+        var a1 = L(Tw, p.x + (a.x - p.x) / la * r, p.y + (a.y - p.y) / la * r), b1 = L(Tw, p.x + (e.x - p.x) / lb * r, p.y + (e.y - p.y) / lb * r), pc = L(Tw, p.x, p.y);
+        var sweep = (a1.x - pc.x) * (b1.y - pc.y) - (a1.y - pc.y) * (b1.x - pc.x) > 0 ? 1 : 0;
+        out += faint('<path class="qc-shp-ext" fill="none" d="M' + F(a1.x) + ',' + F(a1.y) + ' A' + F(r * s) + ',' + F(r * s) + ' 0 0 ' + sweep + ' ' + F(b1.x) + ',' + F(b1.y) + '"/>' +
+          '<text class="qc-shp-dimtext" x="' + F(q.x) + '" y="' + F(q.y) + '" text-anchor="middle" dominant-baseline="central">' +
+          parseFloat(angles[i].toFixed(1)) + '°</text>', angleTyped[i]);
+      });
+      if (by === 'height') {
+        var top = v[2], foot = { x: v[2].x, y: v[0].y }, t1 = L(Tw, top.x, top.y), f1 = L(Tw, foot.x, foot.y);
+        out += '<line class="qc-shp-ext qc-tri-drop" x1="' + F(t1.x) + '" y1="' + F(t1.y) + '" x2="' + F(f1.x) + '" y2="' + F(f1.y) + '"/>';
+        var end = m.peakOffset < 0 ? v[0] : v[1], e1 = L(Tw, end.x, end.y);
+        if (m.peakOffset < 0 || m.peakOffset > params.triangle.base) out += '<line class="qc-shp-ext qc-tri-drop" x1="' + F(e1.x) + '" y1="' + F(e1.y) + '" x2="' + F(f1.x) + '" y2="' + F(f1.y) + '"/>';
+        // Low on the drop, clear of X0 Y0's arrows in the middle, on the
+        // side away from the nearer base corner's angle.
+        var hc = L(Tw, foot.x, foot.y + (top.y - foot.y) * 0.22), right = foot.x - v[0].x < v[1].x - foot.x;
+        out += '<text class="qc-shp-dimtext" x="' + F(hc.x + (right ? 1.5 : -1.5)) + '" y="' + F(hc.y) + '" text-anchor="' + (right ? 'start' : 'end') + '" dominant-baseline="central">' + roundDisplay(m.height) + ' ' + u + '</text>';
+      }
+      return out;
+    }
   }
 
   // The most Corner Radius the shape takes: a slow search on a curve's
