@@ -1225,7 +1225,7 @@
     font-weight: 600;
     font-family: 'JetBrains Mono', monospace;
   }
-  .qc-preview-big .qc-inset-label { font-size: 2.5px; }
+  .qc-preview-big .qc-inset-label, .qc-shp-big .qc-inset-label { font-size: 2.5px; }
   .qc-drl-big .qc-inset-label { font-size: 2.6px; }
   .qc-shape-preview-cell .qc-shape-ideal {
     fill: none;
@@ -10914,8 +10914,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
     var topW = num('qc-rect-top-width', 0);
-    if (/^(triangle|arch|ellipse)$/.test(rectKind())) return updateTrapezoidPreview(svg);
-    if (rectKind() === 'trapezoid' && W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9) return updateTrapezoidPreview(svg);
+    // The other kinds: the same top view from the generator's outlines.
+    var other = /^(triangle|arch|ellipse)$/.test(rectKind()) || (rectKind() === 'trapezoid' && W > 0 && H > 0 && topW > 0 && Math.abs(topW - W) > 1e-9);
+    if (other) return updateConvexTopView(svg);
     var turn = num('qc-rect-start-angle', 0);
     var cutType = $('qc-rect-cut-type').value;
     // The corner you'll get: an inner cut can't be tighter than the bit.
@@ -11244,6 +11245,379 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var grow = (cutType === 'outer' ? 1 : -1) * Math.max(0, num('qc-bit', 0));
       var pw = Math.max(W + grow, 0.001), ph = Math.max(H + grow, 0.001);
       return [pw / 2, ph, pw, ph, pw / 2];
+    }
+  }
+
+  // The big top view the Rectangle has, for any shape: the stock, every
+  // copy of the pattern, the waste hatched, the bit's path cut as it goes
+  // round (Pocket: a helix, then rings from the inside out), the waste
+  // coming away, the bit, the sizes in pills and X0 Y0. The bit is drawn
+  // to scale, a small one at least big enough to see. A shape gives:
+  //   prefix, params, cutType, turn (degrees), copies (pattern positions)
+  //   box: { x0, x1, y0, y1 }, its size about its center (mm, y up)
+  //   offset(d, cr): its outline grown by d mm (negative: shrunk) as the
+  //     generator's segments (lines and CCW arcs, mm about its center),
+  //     corners of radius cr on the part, or null when nothing is left
+  //   CR, typedCR: the corner radius drawn / typed; smooth: no corners
+  //   relief, reliefPts: Corner Relief's style and the part's corners
+  //   deep: how far in it goes (mm), for a pocket's rings
+  //   dims(c), tabs(c), nodes(c): its pills, its tabs' path and its Origin
+  //     taps, from c (the drawing's helpers)
+  //   caption, origin (X0 Y0 about the first copy's center, mm), zoom
+  //     points for the enlarged view's magnified origin
+  function topView(svg, sh) {
+    var F = function(v) { return v.toFixed(2); };
+    var cutType = sh.cutType, copies = sh.copies, total = copies.length, turn = sh.turn || 0;
+    if (total > RECT_PREVIEW_MAX) copies = copies.slice(0, 1);
+    var p0 = copies[0], b = sh.box, Wb = b.x1 - b.x0, Hb = b.y1 - b.y0, CR = sh.CR, relief = sh.relief;
+    var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType);
+    var bitV = bitD;
+    var reach = Math.max(edgeDir > 0 ? bitV : 0, insetPad(sh.prefix));
+    // Chamfering (sh.chamfer), as the rectangle: the cut's already made (a
+    // slot round a part, or an opening) and a V-bit bevels its top edge,
+    // Chamfer Width wide, on the part's side (Outside) or the stock's
+    // (Inside); drawn like the bit, a thin band whatever the size.
+    var chf = !!sh.chamfer, cwV = 0;
+    var slotV = chf && cutType === 'outer' ? Math.min(Math.max(0, num('qc-chamfer-cut-bit', 0)), 0.06 * Math.max(Wb, Hb), 0.15 * Math.min(Wb, Hb)) : 0;
+    if (chf) reach = Math.max(cutType === 'outer' ? slotV : 0.03 * Math.max(Wb, Hb), insetPad(sh.prefix));
+    // Inside and Pocket: the bit's center goes right into a corner, so the
+    // cut it leaves is rounded by the bit (as drawn).
+    if (!relief && cutType !== 'outer' && !sh.smooth && !chf) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
+    function mpt(i, lx, ly) {
+      var q = copies[i], a = ((q.rotDeg || 0) + turn) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      return { x: q.x - p0.x + lx * ca - ly * sa, y: q.y - p0.y + lx * sa + ly * ca };
+    }
+    var mb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    copies.forEach(function(q, i) {
+      [[b.x0 - reach, b.y0 - reach], [b.x1 + reach, b.y0 - reach], [b.x1 + reach, b.y1 + reach], [b.x0 - reach, b.y1 + reach]].forEach(function(k) {
+        var m = mpt(i, k[0], k[1]);
+        mb.x0 = Math.min(mb.x0, m.x); mb.x1 = Math.max(mb.x1, m.x); mb.y0 = Math.min(mb.y0, m.y); mb.y1 = Math.max(mb.y1, m.y);
+      });
+    });
+    var s = Math.min(70 / Math.max(1e-6, mb.x1 - mb.x0), 52 / Math.max(1e-6, mb.y1 - mb.y0));
+    var mcx = (mb.x0 + mb.x1) / 2, mcy = (mb.y0 + mb.y1) / 2;
+    // A small bit is drawn bigger, to be seen; its path, its cut and its far
+    // edge go with it, so the cut stays wholly off the part's edge.
+    if (bitV > 0 && bitV * s < 1.6 && !chf) {
+      bitV = 1.6 / s;
+      if (!relief && cutType !== 'outer' && !sh.smooth) CR = Math.min(Math.max(sh.typedCR, bitV / 2), sh.mostCR || bitV / 2);
+    }
+    if (chf && num('qc-chamfer-width', 0) > 0) cwV = Math.min(0.8 / s, 0.12 * Math.min(Wb, Hb));
+    function V(m) { return { x: (m.x - mcx) * s, y: -(m.y - mcy) * s }; }
+    function Tc(i) { return function(px, py) { return V(mpt(i, px / s, -py / s)); }; }
+    var T = Tc(0);
+    function L(Ti, mx, my) { return Ti(mx * s, -my * s); }
+    // Segments on copy Ti; `close` ends with Z, else a line back to the
+    // start (Chrome's dashes skip a closing Z, so a cut would run ahead of
+    // the bit).
+    function segsD(segs, Ti, close) {
+      if (!segs || !segs.length) return '';
+      var P = function(mx, my) { var t = L(Ti, mx, my); return F(t.x) + ',' + F(t.y); };
+      var d = '';
+      segs.forEach(function(sg, i) {
+        if (i === 0) d += 'M' + (sg.type === 'line' ? P(sg.x0, sg.y0) : P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0)));
+        if (sg.type === 'line') { d += ' L' + P(sg.x1, sg.y1); return; }
+        d += ' A' + F(sg.r * s) + ',' + F(sg.r * s) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' + (sg.a1 > sg.a0 ? 0 : 1) + ' ' +
+          P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
+      });
+      return d + (close ? ' Z' : '');
+    }
+    function lenOf(segs) { return (segs || []).reduce(function(t, sg) { return t + sg.len; }, 0) * s; }
+    function outlineOf(Ti) {
+      return relief
+        ? reliefOutline(sh.reliefPts.map(function(q) { return L(Ti, q.x, q.y); }), bitD / 2 * s, sh.typedCR * s, relief)
+        : segsD(sh.offset(0, CR), Ti, true);
+    }
+    var outlines = copies.map(function(q, i) { return outlineOf(Tc(i)); });
+    var edges = edgeDir && bitV > 0 ? copies.map(function(q, i) { return segsD(sh.offset(edgeDir * bitV, CR), Tc(i), true); }) : [];
+    var outline = outlines[0], edgeD = edges[0] || '';
+    var ideal = CR > sh.typedCR + 1e-9 && !sh.smooth ? idealOutline(segsD(sh.offset(0, sh.typedCR), T, true)) : '';
+
+    // The stock, square to the machine, a margin round every copy.
+    var M = 11;
+    var sxA = (mb.x0 - mcx) * s - M, sxB = (mb.x1 - mcx) * s + M, syA = -(mb.y1 - mcy) * s - M, syB = -(mb.y0 - mcy) * s + M;
+    var stockD = 'M' + F(sxA) + ',' + F(syA) + ' H' + F(sxB) + ' V' + F(syB) + ' H' + F(sxA) + ' Z';
+    // The bit's center line, a half bit out (Outside) or in (Inside, Pocket).
+    var half = (edgeDir || (cutType === 'clearing' ? -1 : 0)) * bitV / 2 * s;
+    var cuts = [];
+    if (chf) copies.forEach(function(q, i) {
+      // The bevel's middle line, inside the part's edge or outside the
+      // opening, a hair past the edge as well, so no wood shows along it.
+      var e = 0.25, g = (cutType === 'outer' ? -1 : 1) * (cwV * s - e) / 2, ring = cwV > 0 ? sh.offset(g / s, CR) : null;
+      if (ring) cuts.push({ i: i, d: segsD(ring, Tc(i)), len: lenOf(ring), wid: cwV * s + e, cls: 'qc-shp-bevelcut' });
+    });
+    else if (bitV > 0) copies.forEach(function(q, i) {
+      var Ti = Tc(i);
+      if (cutType !== 'clearing') {
+        var loop = sh.offset(half / s, CR);
+        if (loop) cuts.push({ i: i, d: segsD(loop, Ti), len: lenOf(loop) });
+        return;
+      }
+      var rb = bitV / 2 * s, step = Math.min(Math.max(0.05, num('qc-' + sh.prefix + '-stepover', 40) / 100) * bitV * s, rb * (1 + Math.SQRT1_2));
+      var left = (sh.deep || 0) * s + half, rings = [], off = 0;
+      while (left - off > 0) {
+        rings.push(half - off);
+        if (left - off <= rb) break;
+        var gap = left - off;
+        off += gap - step <= 1e-9 && gap - rb > 1e-9 ? gap - rb : step;
+      }
+      var core = rings.length ? sh.offset(rings[rings.length - 1] / s, 0) : null;
+      if (core) {
+        var cx = 0, cy = 0, n = 0;
+        core.forEach(function(sg) {
+          var p = sg.type === 'line' ? { x: sg.x0, y: sg.y0 } : { x: sg.cx + sg.r * Math.cos(sg.a0), y: sg.cy + sg.r * Math.sin(sg.a0) };
+          cx += p.x; cy += p.y; n++;
+        });
+        var c0 = { x: cx / n, y: cy / n }, hr = Math.min(rb * 0.6, Math.max(0, left - off + rb) * 0.6);
+        if (hr > rb * 0.1) {
+          var ha = L(Ti, c0.x + hr / s, c0.y), hb = L(Ti, c0.x - hr / s, c0.y);
+          cuts.push({ i: i, d: 'M' + F(ha.x) + ',' + F(ha.y) + ' A' + F(hr) + ',' + F(hr) + ' 0 0 0 ' + F(hb.x) + ',' + F(hb.y) + ' A' + F(hr) + ',' + F(hr) + ' 0 0 0 ' + F(ha.x) + ',' + F(ha.y), len: 2 * Math.PI * hr });
+        }
+      }
+      rings.reverse().forEach(function(g, k) {
+        var ring = sh.offset(g / s, k === rings.length - 1 ? CR : 0);
+        if (ring) cuts.push({ i: i, d: segsD(ring, Ti), len: lenOf(ring) });
+      });
+    });
+    var paths = cuts.map(function(c) { return c.d; });
+    var live = !CUT_REDUCED && cuts.length > 0;
+    var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + 3 * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
+    var totalLen = cuts.reduce(function(t, c) { return t + c.len; }, 0) || 1, run = 0, doneAt = copies.map(function(q, i) { return cutF * (i + 1) / copies.length; });
+    cuts.forEach(function(c) { c.a = cutF * run / totalLen; run += c.len; c.b = cutF * run / totalLen; doneAt[c.i] = c.b; });
+    function goneAt(t, show) {
+      if (!live) return '';
+      var a = Math.min(0.998, t), e = Math.min(0.999, a + 0.35 / loopT);
+      return '<animate attributeName="opacity" values="' + (show ? '0;0;1;1' : '1;1;0;0') + '" keyTimes="0;' + a.toFixed(4) + ';' + e.toFixed(4) + ';1" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>';
+    }
+    function kerfOf(i) {
+      return cuts.filter(function(c) { return c.i === i; }).map(function(c) {
+        var kt = [0, c.a, c.b, 1].map(function(t, k, arr) { return k && t <= arr[k - 1] ? arr[k - 1] + 0.0001 : t; });
+        kt[3] = 1;
+        return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + c.d + '" pathLength="100" stroke-width="' + F(c.wid || bitV * s) + '"' +
+          (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
+            kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
+      }).join('');
+    }
+    var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-shp-wood)"/>' +
+      woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
+    var waste, clips = '', id = sh.prefix;
+    if (chf) {
+      // Already cut, the waste gone: Outside leaves just the parts, Inside
+      // the stock with its openings (with an Existing Depth, the floor
+      // shows, shaded). The bevel opens up behind the V-bit on what's left.
+      if (cutType === 'outer') {
+        clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
+        waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+      } else if (num('qc-chamfer-cut-depth', 0) > 0) {
+        waste = stockSvg + outlines.map(function(o, i) { return kerfOf(i) + '<path class="qc-shp-floor" d="' + o + '"/>'; }).join('');
+      } else {
+        clips = '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+        waste = '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg + copies.map(function(q, i) { return kerfOf(i); }).join('') + '</g>';
+      }
+    } else if (cutType === 'outer') {
+      clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
+        '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+      waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' +
+        '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg +
+          '<path fill="url(#qc-shp-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i); }).join('') +
+          goneAt(cutF) + '</g>';
+    } else {
+      waste = stockSvg + outlines.map(function(o, i) {
+        var at = doneAt[i];
+        return '<path class="qc-shp-hole" d="' + o + '"' + (live ? ' opacity="0"' : '') + '>' + goneAt(at, true) + '</path>' +
+          '<g><path fill="url(#qc-shp-waste)" d="' + o + '"/>' + kerfOf(i) + goneAt(at) + '</g>';
+      }).join('');
+    }
+    var parts = outlines.map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
+
+    // What a shape's pills and tabs work with: the front-most (iw),
+    // left-most (ih) and back-most (it) copies, so pills sit clear of the
+    // others, and the distance out to them.
+    var u = state.unitLabel, offV = (chf ? reach * s : edgeDir > 0 ? bitV * s : 0) + 5.5;
+    var ctr = copies.map(function(q, i) { return mpt(i, 0, 0); }), iw = 0, ih = 0, it = 0;
+    ctr.forEach(function(c, i) { if (c.y < ctr[iw].y - 1e-6) iw = i; if (c.x < ctr[ih].x - 1e-6) ih = i; if (c.y > ctr[it].y + 1e-6) it = i; });
+    function dimSvg(p, q, value) {
+      var mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
+      return '<line class="qc-shp-dim" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '" marker-start="url(#qc-shp-da)" marker-end="url(#qc-shp-da)"/>' +
+        '<text class="qc-shp-dimtext" x="' + F(mx) + '" y="' + F(my) + '" text-anchor="middle" dominant-baseline="central"' +
+        (Math.abs(ang) > 0.01 ? ' transform="rotate(' + F(ang) + ' ' + F(mx) + ' ' + F(my) + ')"' : '') + '>' + value + ' ' + u + '</text>';
+    }
+    function ext(p, q) { return '<line class="qc-shp-ext" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '"/>'; }
+    var c = { F: F, s: s, L: L, T: T, Tc: Tc, copies: copies, u: u, o: offV / s, dimSvg: dimSvg, ext: ext,
+              Tw: Tc(iw), Th: Tc(ih), Tt: Tc(it), segsD: segsD, cutType: cutType, bitD: bitD };
+    var dims = sh.dims(c);
+    var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + ' · ' +
+      (chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType]) +
+      (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
+    var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
+    sh.nodes(c);
+
+    var defs = '<defs>' + clips + '<linearGradient id="qc-shp-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+      '<pattern id="qc-shp-waste" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)"><rect width="2.2" height="2.2" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="2.2" style="stroke:var(--qc-m-hatch)" stroke-width="0.35"/></pattern>' +
+      '<marker id="qc-shp-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
+    var bit = '';
+    if (live) {
+      var brad = Math.max(0.8, chf ? 1.6 : bitV / 2 * s), ds = paths;
+      // Chamfering, the V-bit runs off the edge, over the cut: its rim on
+      // the bevel's inner line.
+      if (chf) {
+        var gb = cutType === 'outer' ? brad - cwV * s : cwV * s - brad;
+        ds = copies.map(function(q, i) { return segsD(sh.offset(gb / s, CR), Tc(i)); }).filter(Boolean);
+      }
+      // The bit's metal, this view's own (the class's points at the Rectangle's).
+      bit = '<defs><linearGradient id="qc-' + sh.prefix + '-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>' +
+        '<g class="qc-shp-bit-g" pointer-events="none"><circle r="' + F(brad) + '" class="qc-shp-bit" style="fill:url(#qc-' + sh.prefix + '-rod)"/>' +
+        '<g class="qc-fig-spin"><path d="M0 ' + F(-brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(brad * 0.82) + ' ' + F(brad * 0.55) + ' L0 0Z M0 ' + F(brad) + ' A' + F(brad) + ' ' + F(brad) + ' 0 0 1 ' + F(-brad * 0.82) + ' ' + F(-brad * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
+        '<animateMotion dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;' + cutF.toFixed(4) + ';1" path="' + ds.join(' ') + '"/></g>';
+    }
+    // X0 Y0 about the first copy's center. Enlarged, a small Inset or corner
+    // radius there is also shown magnified.
+    originZoomFrames[sh.prefix] = null;
+    var oq = V(sh.origin);
+    var z = previewIsBig(svg) ? detailZoom(sh.prefix, s, CR * s) : 0;
+    var zpts = [[b.x0, b.y1], [(b.x0 + b.x1) / 2, b.y1], [b.x1, b.y1], [b.x1, (b.y0 + b.y1) / 2], [b.x1, b.y0], [(b.x0 + b.x1) / 2, b.y0], [b.x0, b.y0], [b.x0, (b.y0 + b.y1) / 2]]
+      .map(function(p) { var t = L(T, p[0], p[1]); return [t.x, t.y]; });
+    var origin = figAxes(oq.x, oq.y) + insetMarks(sh.prefix, oq.x, oq.y, s) +
+      (z ? originZoom(sh.prefix, oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, zpts, z, sh.prefix, s) : '');
+    svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste + (chf ? '' : parts + ideal + tabMarks(sh.prefix, sh.tabs(c))) + dims + cap + bit + origin;
+    svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
+    figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
+  }
+
+  // Trapezoid, Triangle, Arch and Ellipse in the top view, from the
+  // generator's own outlines (convexOutline: the part grown or shrunk).
+  function updateConvexTopView(svg) {
+    var params = readRectangleForm(), cutType = params.cutType;
+    var gen = makeQuickCutGenerator(state.isImperial);
+    if (gen.convexShapeProblem(params)) {
+      rectPreviewNodes = null;
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not ' +
+        ({ triangle: 'a triangle', arch: 'an arch', ellipse: 'an ellipse' }[params.kind] || 'a shape') + ' yet</text>';
+      return;
+    }
+    var smooth = params.kind === 'arch' || params.kind === 'ellipse';
+    var geo = gen.computeTrapezoidGeom(params), part = geo.part, normals = geo.normals;
+    var most = params.kind === 'ellipse' ? 0 : convexCornerCap(gen, params);
+    var typedCR = Math.min(Math.max(0, params.cornerRadius || 0), most);
+    var relief = geo.allCorners ? reliefStyle('rect', cutType) : null;
+    var box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+    part.forEach(function(q) { box.x0 = Math.min(box.x0, q.x); box.x1 = Math.max(box.x1, q.x); box.y0 = Math.min(box.y0, q.y); box.y1 = Math.max(box.y1, q.y); });
+    var Wb = box.x1 - box.x0, Hb = box.y1 - box.y0;
+    var kindName = { trapezoid: 'trapezoid', triangle: 'triangle', arch: 'arch', ellipse: 'ellipse' }[params.kind] || 'shape';
+    topView(svg, {
+      prefix: 'rect', params: params, cutType: cutType, turn: params.startAngleDeg || 0, copies: gen.computePatternPositions(params.pattern),
+      chamfer: state.chamferMode === 'rectangle',
+      box: box, smooth: smooth, typedCR: typedCR, mostCR: most, relief: relief, reliefPts: part, deep: geo.maxInset,
+      CR: relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most),
+      offset: function(d, cr) { return gen.convexOutline(part, normals, d, cr); },
+      caption: kindName + ' ' + roundDisplay(Wb) + ' × ' + roundDisplay(Hb) + ' ' + state.unitLabel,
+      origin: gen.shapeOriginOffset('rectangle', params),
+      // The bottom edge (a trapezoid's top one too) and the height; a
+      // triangle's sides and angles.
+      dims: function(c) {
+        if (params.triangle) return triangleDims(c);
+        var Tw = c.Tw, Th = c.Th, o = c.o, L = c.L, s = c.s, ext = c.ext, dimSvg = c.dimSvg;
+        var bl = smooth ? box.x0 : part[0].x, br = smooth ? box.x1 : part[1].x;
+        var out = ext(L(Tw, bl, box.y0 - 1 / s), L(Tw, bl, box.y0 - o - 1.5 / s)) + ext(L(Tw, br, box.y0 - 1 / s), L(Tw, br, box.y0 - o - 1.5 / s)) +
+          dimSvg(L(Tw, bl, box.y0 - o), L(Tw, br, box.y0 - o), roundDisplay(br - bl)) +
+          ext(L(Th, box.x0 - 1 / s, box.y0), L(Th, box.x0 - o - 1.5 / s, box.y0)) + ext(L(Th, box.x0 - 1 / s, box.y1), L(Th, box.x0 - o - 1.5 / s, box.y1)) +
+          dimSvg(L(Th, box.x0 - o, box.y0), L(Th, box.x0 - o, box.y1), roundDisplay(Hb));
+        if (params.kind === 'trapezoid') {
+          // The top width over the back-most copy, clear of the others.
+          var tl = part[3].x, tr = part[2].x, Tt = c.Tt;
+          out += ext(L(Tt, tl, box.y1 + 1 / s), L(Tt, tl, box.y1 + o + 1.5 / s)) + ext(L(Tt, tr, box.y1 + 1 / s), L(Tt, tr, box.y1 + o + 1.5 / s)) +
+            dimSvg(L(Tt, tl, box.y1 + o), L(Tt, tr, box.y1 + o), roundDisplay(tr - tl));
+        }
+        return out;
+      },
+      // The tool path (real lengths, as tabIntervals spaces the tabs along
+      // it) moved back onto the outline, on every copy.
+      tabs: function(c) {
+        var out = [], back = (cutType === 'outer' ? 1 : -1) * c.bitD / 2;
+        c.copies.forEach(function(q, i) {
+          var Ti = c.Tc(i);
+          (geo.segs || []).forEach(function(sg) {
+            var ends = sg.type === 'line' ? [{ x: sg.x0, y: sg.y0 }, { x: sg.x1, y: sg.y1 }]
+              : [sg.a0, sg.a1].map(function(a) { return { x: sg.cx + (sg.r - back) * Math.cos(a), y: sg.cy + (sg.r - back) * Math.sin(a) }; });
+            if (sg.type === 'line') {
+              var nx = (sg.y1 - sg.y0) / sg.len, ny = -(sg.x1 - sg.x0) / sg.len;
+              ends = ends.map(function(e) { return { x: e.x - back * nx, y: e.y - back * ny }; });
+            }
+            var a = c.L(Ti, ends[0].x, ends[0].y), e2 = c.L(Ti, ends[1].x, ends[1].y);
+            out.push({ type: 'line', x0: a.x, y0: a.y, x1: e2.x, y1: e2.y, len: sg.len });
+          });
+        });
+        return out;
+      },
+      // Corners in the generator's order, then the center.
+      nodes: function(c) {
+        rectPreviewNodes = ownPreviewNodes('rect', gen.trapezoidCorners(params)(0).map(function(q, i) {
+          var t = c.L(c.T, q.x, q.y);
+          return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
+        }).concat([{ x: c.T(0, 0).x, y: c.T(0, 0).y, value: 'center' }]), 'shape-center');
+      }
+    });
+    // A triangle: each side's length along it, outside it, and each angle
+    // just outside its corner; what Defined By worked out (not typed) is
+    // fainter. Base + Height adds the height, dashed down from the peak.
+    // In a pattern each goes on the copy it faces open stock from (the
+    // base on the front row, the sloping sides on the back corners); among
+    // copies that face it about as well (within 30 % of their spacing),
+    // the nearest the pattern's middle, so the labels don't meet.
+    function triangleDims(c) {
+      var F = c.F, Tw = c.Tw, o = c.o, L = c.L, s = c.s, ext = c.ext, dimSvg = c.dimSvg, u = c.u;
+      var T0 = c.Tc(0), z0 = L(T0, 0, 0), mids = c.copies.map(function(q, i) { var p = L(c.Tc(i), 0, 0); return { x: p.x - z0.x, y: p.y - z0.y }; });
+      var gx = 0, gy = 0, gap = Infinity;
+      mids.forEach(function(p, i) {
+        gx += p.x / mids.length; gy += p.y / mids.length;
+        for (var j = 0; j < i; j++) gap = Math.min(gap, Math.hypot(p.x - mids[j].x, p.y - mids[j].y) || Infinity);
+      });
+      var tol = isFinite(gap) ? 0.3 * gap : 0;
+      var facing = function(nx, ny) {
+        var d = L(T0, nx, ny), dx = d.x - z0.x, dy = d.y - z0.y, dl = Math.hypot(dx, dy) || 1, top = -Infinity, best = 0, bd = Infinity;
+        var sc = mids.map(function(p) { return (p.x * dx + p.y * dy) / dl; });
+        sc.forEach(function(v) { top = Math.max(top, v); });
+        mids.forEach(function(p, i) {
+          var dist = Math.hypot(p.x - gx, p.y - gy);
+          if (sc[i] >= top - tol - 1e-6 && dist < bd - 1e-6) { best = i; bd = dist; }
+        });
+        return c.Tc(best);
+      };
+      var m = gen.triangleMeasures(params.triangle), by = $('qc-rect-tri-by').value;
+      var sideTyped = { sss: [1, 1, 1], sas: [1, 0, 1], asa: [1, 0, 0], height: [1, 0, 0] }[by] || [1, 1, 1];
+      var angleTyped = { sss: [0, 0, 0], sas: [1, 0, 0], asa: [1, 1, 0], height: [0, 0, 0] }[by] || [0, 0, 0];
+      var sides = [params.triangle.base, params.triangle.right, params.triangle.left];
+      var angles = [m.leftAngle, m.rightAngle, m.topAngle];
+      var v = part, mx = (v[0].x + v[1].x + v[2].x) / 3, my = (v[0].y + v[1].y + v[2].y) / 3, out = '';
+      var faint = function(svgText, typed) { return typed ? svgText : '<g class="qc-tri-derived">' + svgText + '</g>'; };
+      v.forEach(function(a, i) {
+        var e = v[(i + 1) % 3], ex = e.x - a.x, ey = e.y - a.y, len = Math.hypot(ex, ey) || 1, nx = ey / len, ny = -ex / len;
+        if (nx * ((a.x + e.x) / 2 - mx) + ny * ((a.y + e.y) / 2 - my) < 0) { nx = -nx; ny = -ny; }
+        var Ti = facing(nx, ny), at = function(p, k) { return L(Ti, p.x + nx * k, p.y + ny * k); };
+        out += ext(at(a, 1 / s), at(a, o + 1.5 / s)) + ext(at(e, 1 / s), at(e, o + 1.5 / s)) +
+          faint(dimSvg(at(a, o), at(e, o), roundDisplay(sides[i])), sideTyped[i]);
+      });
+      v.forEach(function(p, i) {
+        var a = v[(i + 2) % 3], e = v[(i + 1) % 3], la = Math.hypot(a.x - p.x, a.y - p.y) || 1, lb = Math.hypot(e.x - p.x, e.y - p.y) || 1;
+        var ux = (a.x - p.x) / la + (e.x - p.x) / lb, uy = (a.y - p.y) / la + (e.y - p.y) / lb, ul = Math.hypot(ux, uy) || 1;
+        // Just outside the corner, along its bisector.
+        var q = L(facing(-ux / ul, -uy / ul), p.x - ux / ul * 6 / s, p.y - uy / ul * 6 / s);
+        out += faint('<text class="qc-shp-dimtext" x="' + F(q.x) + '" y="' + F(q.y) + '" text-anchor="middle" dominant-baseline="central">' +
+          parseFloat(angles[i].toFixed(1)) + '°</text>', angleTyped[i]);
+      });
+      if (by === 'height') {
+        var top = v[2], foot = { x: v[2].x, y: v[0].y }, t1 = L(Tw, top.x, top.y), f1 = L(Tw, foot.x, foot.y);
+        out += '<line class="qc-shp-ext qc-tri-drop" x1="' + F(t1.x) + '" y1="' + F(t1.y) + '" x2="' + F(f1.x) + '" y2="' + F(f1.y) + '"/>';
+        var end = m.peakOffset < 0 ? v[0] : v[1], e1 = L(Tw, end.x, end.y);
+        if (m.peakOffset < 0 || m.peakOffset > params.triangle.base) out += '<line class="qc-shp-ext qc-tri-drop" x1="' + F(e1.x) + '" y1="' + F(e1.y) + '" x2="' + F(f1.x) + '" y2="' + F(f1.y) + '"/>';
+        // Low on the drop, clear of X0 Y0's arrows in the middle, on the
+        // side away from the nearer base corner's angle.
+        var hc = L(Tw, foot.x, foot.y + (top.y - foot.y) * 0.22), right = foot.x - v[0].x < v[1].x - foot.x;
+        out += '<text class="qc-shp-dimtext" x="' + F(hc.x + (right ? 1.5 : -1.5)) + '" y="' + F(hc.y) + '" text-anchor="' + (right ? 'start' : 'end') + '" dominant-baseline="central">' + roundDisplay(m.height) + ' ' + u + '</text>';
+      }
+      return out;
     }
   }
 
