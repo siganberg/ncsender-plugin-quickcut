@@ -4799,7 +4799,7 @@
     if (rules.blankOk && !String(value).trim()) return null;
     var unitKind = $(id) && $(id).getAttribute('data-unit');
     var n = unitKind ? parseUnitValue(value, state.isImperial, unitKind) : parseFloat(value);
-    if (n == null || isNaN(n))                                  return rules.label + ' must be a number';
+    if (n == null || isNaN(n))                                  return rules.label + (unitKind && NcUnitInput.unitValueProblem(value) ? ': ' + NcUnitInput.unitValueProblem(value) : ' must be a number');
     if (rules.integer && !Number.isInteger(n))     return rules.label + ' must be a whole number';
     var units = unitKind === 'length' ? ' ' + state.unitLabel : unitKind === 'feed' ? ' ' + state.unitLabel + '/min' : '';
     if (n < rules.min)                             return rules.label + ' must be at least ' + rules.min + units;
@@ -5140,7 +5140,7 @@
 
   // Parsing what's typed in a length or feed field (1/4", 6.35mm, 100ipm,
   // 8mm*2) comes from the shared ncsender-unit-input library.
-// BEGIN ncsender-unit-input 0.1.3 (54e37bc): pasted by node .scripts/sync-unit-input.mjs; edit the library, not this.
+// BEGIN ncsender-unit-input 0.1.4 (cf09fa9): pasted by node .scripts/sync-unit-input.mjs; edit the library, not this.
 // Generated from src/unit-input.js by build.mjs: edit that, then npm run build.
 var NcUnitInput = (function () {
 /**
@@ -5177,6 +5177,15 @@ function parseUnitValue(text, isImperial, kind) {
   text = text.replace(/,/g, '.');
   var one = parseUnitQuantity(text, isImperial, kind);
   return one !== null ? one : parseUnitMath(text, isImperial, kind);
+}
+// Why parseUnitValue can't read text, when it's a comma before exactly three
+// digits: a message to show the operator, e.g. "1,000 could be 1000 or
+// 1.000: write 1000, or 1,0 for a decimal". null otherwise.
+function unitValueProblem(text) {
+  var m = /(\d+),(\d{3})(?!\d)/.exec(String(text == null ? '' : text));
+  if (!m) return null;
+  return m[0] + ' could be ' + m[1] + m[2] + ' or ' + m[1] + '.' + m[2] + ': write ' + m[1] + m[2] + ', or ' +
+    m[1] + ',' + (m[2].replace(/0+$/, '') || '0') + ' for a decimal';
 }
 // mm per unit (per minute for feeds) of the units a field takes.
 function unitMmPer(kind) {
@@ -5408,7 +5417,7 @@ function wireUnitFields(root, opts) {
   };
 }
 
-return { MM_PER_INCH: MM_PER_INCH, parseUnitValue: parseUnitValue, unitMmPer: unitMmPer, parseUnitMath: parseUnitMath, parseUnitQuantity: parseUnitQuantity, roundDisplay: roundDisplay, mmToDisplay: mmToDisplay, displayToMm: displayToMm, formatMm: formatMm, textToMm: textToMm, roundInches: roundInches, wireUnitFields: wireUnitFields };
+return { MM_PER_INCH: MM_PER_INCH, parseUnitValue: parseUnitValue, unitValueProblem: unitValueProblem, unitMmPer: unitMmPer, parseUnitMath: parseUnitMath, parseUnitQuantity: parseUnitQuantity, roundDisplay: roundDisplay, mmToDisplay: mmToDisplay, displayToMm: displayToMm, formatMm: formatMm, textToMm: textToMm, roundInches: roundInches, wireUnitFields: wireUnitFields };
 })();
 if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 // END ncsender-unit-input
