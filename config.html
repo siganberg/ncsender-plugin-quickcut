@@ -2935,11 +2935,12 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-shp-panel">
         <form id="qc-slt-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid qc-shape-grid--origin">
+          <div class="qc-shp-layout">
+            <div class="qc-shp-side">
+              <div class="qc-card qc-section-card qc-shp-shape">
+                <h3 class="qc-card-title">Shape</h3>
               <div class="qc-shape-fields">
                 <div class="qc-row-3">
                   <div class="qc-field">
@@ -3015,30 +3016,7 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-origin-stack">
-                <div class="qc-field qc-origin-col">
-                  <label>Origin</label>
-                  <div id="qc-slt-origin-picker" title="Where X0 Y0 is: a corner, edge or the center of the box around the slot. Or tap the preview: an end, the middle, a corner of a straight slot or the middle of its long side. On a Center line cut the box includes the bit, so an edge point puts that edge of the cut on the origin line."></div>
-                </div>
-                <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-slt-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
-                    <option value="both" selected>Edge Inset</option>
-                    <option value="xy">Edge Inset XY</option>
-                    <option value="center">Center Inset</option>
-                    <option value="xy-center">Center Inset XY</option>
-                  </select>
-                  <div class="qc-inset-inputs">
-                    <input aria-labelledby="qc-slt-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
-                  </div>
-                </div>
               </div>
-              <div class="qc-shape-preview-cell">
-                <svg id="qc-slt-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
-              </div>
-            </div>
-          </div>
-
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Depth</h3>
@@ -3076,6 +3054,32 @@
             </div>
           </div>
 
+              <div class="qc-cut-fig qc-cut-fig--side qc-shp-sidefig"><svg id="qc-slt-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: depth passes"></svg></div>
+            </div>
+            <div class="qc-shp-stage">
+              <div class="qc-card qc-section-card qc-shp-top">
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-slt-origin-picker" title="Where X0 Y0 is: a corner, edge or the center of the box around the slot. Or tap the preview: an end, the middle, a corner of a straight slot or the middle of its long side. On a Center line cut the box includes the bit, so an edge point puts that edge of the cut on the origin line."></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <select class="qc-label-select" id="qc-slt-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset XY</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset XY</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-slt-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-slt-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
+                </div>
+              </div>
+                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                  <svg id="qc-slt-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                </div>
+              </div>
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
@@ -3157,6 +3161,8 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </form>
@@ -11486,8 +11492,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   //   deep: how far in it goes (mm), for a pocket's rings
   //   dims(c), tabs(c), nodes(c): its pills, its tabs' path and its Origin
   //     taps, from c (the drawing's helpers)
-  //   caption, origin (X0 Y0 about the first copy's center, mm), zoom
-  //     points for the enlarged view's magnified origin
+  //   center, centerWidth: a Center line cut's path (segments) and width
+  //   caption, origin (X0 Y0 about the first copy's center, mm)
   function topView(svg, sh) {
     var F = function(v) { return v.toFixed(2); };
     var cutType = sh.cutType, copies = sh.copies, total = copies.length, turn = sh.turn || 0;
@@ -11540,7 +11546,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       segs.forEach(function(sg, i) {
         if (i === 0) d += 'M' + (sg.type === 'line' ? P(sg.x0, sg.y0) : P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0)));
         if (sg.type === 'line') { d += ' L' + P(sg.x1, sg.y1); return; }
-        d += ' A' + F(sg.r * s) + ',' + F(sg.r * s) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' + (sg.a1 > sg.a0 ? 0 : 1) + ' ' +
+        // Machine CCW stays CCW on screen (sweep 0); dir -1 is CW.
+        d += ' A' + F(sg.r * s) + ',' + F(sg.r * s) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' + (sg.dir === -1 || sg.a1 < sg.a0 ? 1 : 0) + ' ' +
           P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
       });
       return d + (close ? ' Z' : '');
@@ -11571,6 +11578,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     else if (bitV > 0) copies.forEach(function(q, i) {
       var Ti = Tc(i);
+      // Center line: the bit runs along it, the cut as wide as the bit.
+      if (sh.center) { cuts.push({ i: i, d: segsD(sh.center, Ti), len: lenOf(sh.center), wid: sh.centerWidth * s }); return; }
       if (cutType !== 'clearing') {
         var loop = sh.offset(half / s, CR);
         if (loop) cuts.push({ i: i, d: segsD(loop, Ti), len: lenOf(loop) });
@@ -11674,7 +11683,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
               Tw: Tc(iw), Th: Tc(ih), Tt: Tc(it), segsD: segsD, cutType: cutType, bitD: bitD };
     var dims = sh.dims(c);
     var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + ' · ' +
-      (chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType]) +
+      (chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket', center: 'center line' }[cutType]) +
       (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
     sh.nodes(c);
@@ -11684,7 +11693,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<marker id="qc-' + id + '-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
     var bit = '';
     if (live) {
-      var brad = Math.max(0.8, chf ? 1.6 : bitV / 2 * s), ds = paths;
+      var brad = Math.max(0.8, chf ? 1.6 : (sh.center ? sh.centerWidth : bitV) / 2 * s), ds = paths;
       // Chamfering, the V-bit runs off the edge, over the cut: its rim on
       // the bevel's inner line.
       if (chf) {
@@ -11829,6 +11838,88 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
   }
 
+  // A straight or arc slot in the top view, from the generator's own
+  // outline (slotOutline: the slot at a half-width), placed as the
+  // generator places it. Center line: the bit runs along it.
+  function updateSlotTopView(svg) {
+    var params = readSlotForm(), cut = params.cutType, gen = makeQuickCutGenerator(state.isImperial);
+    var half = Math.max(0, slotWidthNow()) / 2, cl = gen.slotCenterline(params);
+    slotPreviewNodes = null;
+    slotSnapFrame = null;
+    if (!isFinite(half) || gen.slotProblem(params, cl, half)) {
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not a slot yet</text>';
+      return;
+    }
+    var pc = gen.placeSlot(cl, 0, 0, 0), outline = gen.slotOutline(pc, half), bb = gen.segmentsBbox(outline);
+    var box = { x0: bb.minX, x1: bb.maxX, y0: bb.minY, y1: bb.maxY };
+    var line = pc.type === 'line', acx = pc.cx || 0, acy = pc.cy || 0;
+    // An arc's center too, for its radius line, when that doesn't shrink
+    // the slot much.
+    var withCenter = !line && Math.max(Math.max(box.x1, acx) - Math.min(box.x0, acx), Math.max(box.y1, acy) - Math.min(box.y0, acy)) <=
+      Math.max(box.x1 - box.x0, box.y1 - box.y0) / 0.75;
+    if (withCenter) box = { x0: Math.min(box.x0, acx), x1: Math.max(box.x1, acx), y0: Math.min(box.y0, acy), y1: Math.max(box.y1, acy) };
+    var center = line ? [{ type: 'line', x0: pc.x0, y0: pc.y0, x1: pc.x1, y1: pc.y1, len: Math.hypot(pc.x1 - pc.x0, pc.y1 - pc.y0) }]
+      : [{ type: 'arc', cx: pc.cx || 0, cy: pc.cy || 0, r: pc.r, a0: pc.a0, a1: pc.a1, dir: pc.dir, len: pc.r * Math.abs(pc.a1 - pc.a0) }];
+    var offset = function(d) {
+      var h = half + d;
+      return h > 1e-6 && !(!line && h >= pc.r) ? gen.slotOutline(pc, h) : null;
+    };
+    topView(svg, {
+      prefix: 'slt', params: params, cutType: cut, copies: gen.computePatternPositions(params.pattern),
+      box: box, smooth: true, typedCR: 0, CR: 0, deep: half,
+      offset: offset, center: cut === 'center' ? center : null, centerWidth: 2 * half,
+      caption: line ? 'slot ' + roundDisplay(params.length) + ' × ' + roundDisplay(2 * half) + ' ' + state.unitLabel
+        : 'arc slot R' + roundDisplay(cl.r) + ', ' + roundDisplay(2 * half) + ' ' + state.unitLabel + ' wide',
+      origin: gen.shapeOriginOffset('slot', params),
+      // Straight: its length end to end, beside its upper long side. Arc:
+      // its radius from the center to the middle of the arc.
+      dims: function(c) {
+        var Tw = c.Tw, L = c.L, s = c.s, o = c.o;
+        if (line) {
+          var nx = -Math.sin(pc.t), ny = Math.cos(pc.t);
+          if (ny < 0) { nx = -nx; ny = -ny; }
+          var ux = Math.cos(pc.t) * half, uy = Math.sin(pc.t) * half, k = half + o;
+          var a = { x: pc.x0 - ux, y: pc.y0 - uy }, b = { x: pc.x1 + ux, y: pc.y1 + uy };
+          return c.ext(L(Tw, a.x + nx * half, a.y + ny * half), L(Tw, a.x + nx * (k + 1.5 / s), a.y + ny * (k + 1.5 / s))) +
+            c.ext(L(Tw, b.x + nx * half, b.y + ny * half), L(Tw, b.x + nx * (k + 1.5 / s), b.y + ny * (k + 1.5 / s))) +
+            c.dimSvg(L(Tw, a.x + nx * k, a.y + ny * k), L(Tw, b.x + nx * k, b.y + ny * k), roundDisplay(params.length));
+        }
+        var am = (pc.a0 + pc.a1) / 2, ctr = L(Tw, acx, acy), mid = L(Tw, acx + pc.r * Math.cos(am), acy + pc.r * Math.sin(am));
+        // Without the center in view: the radius in a pill inside the arc.
+        var inner = L(Tw, acx + (pc.r - half - 4 / s) * Math.cos(am), acy + (pc.r - half - 4 / s) * Math.sin(am));
+        var tx = withCenter ? (ctr.x + mid.x) / 2 : inner.x, ty = withCenter ? (ctr.y + mid.y) / 2 : inner.y;
+        var ang = withCenter ? Math.atan2(mid.y - ctr.y, mid.x - ctr.x) * 180 / Math.PI : 0;
+        if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
+        return (withCenter ? '<line class="qc-shp-dim" x1="' + c.F(ctr.x) + '" y1="' + c.F(ctr.y) + '" x2="' + c.F(mid.x) + '" y2="' + c.F(mid.y) + '" marker-end="url(#qc-slt-da)"/>' : '') +
+          '<text class="qc-shp-dimtext" x="' + c.F(tx) + '" y="' + c.F(ty) + '" text-anchor="middle" dominant-baseline="central" transform="rotate(' + c.F(ang) + ' ' + c.F(tx) + ' ' + c.F(ty) + ')">R' + roundDisplay(cl.r) + ' ' + c.u + '</text>';
+      },
+      tabs: function(c) {
+        var tr = c.bitD / 2;
+        if (!((cut === 'inner' && half - tr > 1e-9) || cut === 'outer')) return [];
+        return tabsAlong(c, gen.slotOutline(pc, cut === 'outer' ? half + tr : half - tr), cut);
+      },
+      // Its ends (corner:1, 2) and center; straight, also where the long
+      // sides meet the ends and their middles (corner:3-8), and the snap
+      // bands beside the long sides (slotPickAt).
+      nodes: function(c) {
+        var P = function(x, y) { return c.L(c.T, x, y); };
+        var e0 = line ? { x: pc.x0, y: pc.y0 } : { x: (pc.cx || 0) + pc.r * Math.cos(pc.a0), y: (pc.cy || 0) + pc.r * Math.sin(pc.a0) };
+        var e1 = line ? { x: pc.x1, y: pc.y1 } : { x: (pc.cx || 0) + pc.r * Math.cos(pc.a1), y: (pc.cy || 0) + pc.r * Math.sin(pc.a1) };
+        var o0 = P(0, 0), p0 = P(e0.x, e0.y), p1 = P(e1.x, e1.y);
+        slotPreviewNodes = [{ x: p0.x, y: p0.y, value: 'corner:1' }, { x: p1.x, y: p1.y, value: 'corner:2' }, { x: o0.x, y: o0.y, value: 'shape-center' }];
+        if (!line) return;
+        var snx = -Math.sin(pc.t) * half, sny = Math.cos(pc.t) * half, smx = (pc.x0 + pc.x1) / 2, smy = (pc.y0 + pc.y1) / 2;
+        [[pc.x0 - snx, pc.y0 - sny], [pc.x1 - snx, pc.y1 - sny], [pc.x1 + snx, pc.y1 + sny],
+         [pc.x0 + snx, pc.y0 + sny], [smx - snx, smy - sny], [smx + snx, smy + sny]].forEach(function(q, i) {
+          var t = P(q[0], q[1]);
+          slotPreviewNodes.push({ x: t.x, y: t.y, value: 'corner:' + (i + 3) });
+        });
+        var m = P(smx, smy);
+        slotSnapFrame = { mx: m.x, my: m.y, ux: Math.cos(pc.t), uy: -Math.sin(pc.t), nx: -Math.sin(pc.t), ny: -Math.cos(pc.t),
+                          h: half * c.s, len: Math.hypot(pc.x1 - pc.x0, pc.y1 - pc.y0) * c.s };
+      }
+    });
+  }
   // Trapezoid, Triangle, Arch and Ellipse in the top view, from the
   // generator's own outlines (convexOutline: the part grown or shrunk).
   function updateConvexTopView(svg) {
@@ -13991,11 +14082,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // by more than a quarter. Twist to turn it; tap an end, or an arc's
   // center, to make it the Origin.
   function updateSlotPreview() {
+    selectSeg('qc-slt-cut-type', [['outer', 'Outside'], ['inner', 'Inside'], ['clearing', 'Pocket'], ['center', 'Center']]);
+    syncSelectSegs();
     schedulePatternPreview();
     updateInsetState('slt');
     updateSlotFields();
+    var sideSvg = $('qc-slt-side');
+    if (sideSvg) passesSide(sideSvg, { depth: num('qc-slt-depth', 0), doc: num('qc-slt-step', 0), title: 'Side view · depth passes',
+      note2: $('qc-slt-tabs-enable').checked && !/^(center|clearing)$/.test($('qc-slt-cut-type').value) ? 'tabs ' + num('qc-slt-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = $('qc-slt-preview');
     if (!svg) return;
+    ['outer', 'inner', 'clearing', 'center'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-slt-cut-type').value === k); });
+    // The top view, as the Rectangle's (the older drawing still shows the
+    // chamfer).
+    if (state.chamferMode !== 'slot') return updateSlotTopView(svg);
     var params = readSlotForm();
     var gen = makeQuickCutGenerator(state.isImperial);
     var cut = params.cutType;
