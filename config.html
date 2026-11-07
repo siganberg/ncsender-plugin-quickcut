@@ -9873,6 +9873,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-flutes').addEventListener('change', function() {
       state.flutes = +$('qc-flutes').value;
       persistSettings({ common: { flutes: state.flutes } });
+      showBitTool();
       fillStartingFeeds(false);
     });
     // A new bit gets its own feeds, unless they've been changed by hand.
