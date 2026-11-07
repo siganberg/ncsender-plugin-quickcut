@@ -10888,15 +10888,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     selectSeg('qc-rect-corner-relief', [['none', 'None'], ['dogbone', 'Dog-bone'], ['tbone', 'T-bone']]);
     syncSelectSegs();
     var sideSvg = $('qc-rect-side');
-    // Chamfering, the Chamfer card heads the left column, so the side view
-    // goes under the top view; back beside the Depth card after.
+    // Chamfering, the side view goes under the Chamfer card, as it sits
+    // under the Depth card otherwise, so the top view keeps its full
+    // height; back beside the Depth card after.
     var sideFig = sideSvg && sideSvg.closest('.qc-shp-sidefig');
     if (sideFig) {
-      var stageTop = ROOT.querySelector('.qc-shp-stage > .qc-shp-top'), depthCard = $('qc-rect-depth').closest('.qc-card');
-      // In portrait it stays in the left column, under the Shape card.
-      var portrait = window.matchMedia && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches;
-      if (state.chamferMode === 'rectangle' && !portrait) { if (sideFig.previousElementSibling !== stageTop) stageTop.parentNode.insertBefore(sideFig, stageTop.nextSibling); }
-      else if (sideFig.previousElementSibling !== depthCard) depthCard.parentNode.insertBefore(sideFig, depthCard.nextSibling);
+      var depthCard = $('qc-rect-depth').closest('.qc-card'), chfCard = $('qc-chamfer-card');
+      var after = state.chamferMode === 'rectangle' && chfCard.parentNode === depthCard.parentNode ? chfCard : depthCard;
+      if (sideFig.previousElementSibling !== after) after.parentNode.insertBefore(sideFig, after.nextSibling);
     }
     if (sideSvg && state.chamferMode === 'rectangle') rectChamferSide(sideSvg);
     else if (sideSvg) {
