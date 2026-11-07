@@ -10241,8 +10241,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (Date.now() - _wcoAt > 3000) refreshWco();
   }
   // When Total Depth goes past the picked tool's flutes (its tool table
-  // entry's flute length), a note by Generate; it doesn't stop it.
+  // entry's flute length), a note by Generate; it doesn't stop it. Not
+  // while chamfering: the shape's Total Depth isn't cut then.
   function fluteDepthNote(prefix) {
+    if (state.chamferMode) return '';
     var n = bitToolNumber(), depth = prefix && $('qc-' + prefix + '-depth') ? num('qc-' + prefix + '-depth', 0) : 0;
     var t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
     var fl = t && t.dimensions && t.dimensions.flute_length;
