@@ -6781,21 +6781,42 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateTabsVisibility(prefix);
   }
 
-  // Holding tabs are hidden for clearing (a pocket frees nothing) and a
-  // slot's centre-line cut (one pass, no outline). The
+  // Holding tabs are hidden for clearing (a pocket frees nothing), a
+  // slot's centre-line cut (one pass, no outline) and an Inner cut that
+  // clears the whole inside (tabsHoldNothing). The
   // Tabs / Width / Height row shows only while the switch is on.
   function updateTabsVisibility(prefix) {
     var block = $('qc-' + prefix + '-tabs-block');
     if (!block) return;
-    var cut = $('qc-' + prefix + '-cut-type').value;
-    var allowed = cut !== 'clearing' && cut !== 'center';
+    var allowed = tabsApply(prefix);
     block.style.display = allowed ? '' : 'none';
     $('qc-' + prefix + '-tabs-fields').style.display = allowed && $('qc-' + prefix + '-tabs-enable').checked ? '' : 'none';
   }
 
-  // Generator tab settings, or null when the switch is off.
+  function tabsApply(prefix) {
+    var cut = $('qc-' + prefix + '-cut-type').value;
+    return cut !== 'clearing' && cut !== 'center' && !tabsHoldNothing(prefix);
+  }
+
+  // An Inner (perimeter) cut no more than two bit widths across: nothing
+  // left inside for tabs to hold (the generator's innerLeavesNoSlug).
+  function tabsHoldNothing(prefix) {
+    var v = function(id) { return $(id) ? num(id, 0) : undefined; };
+    return makeQuickCutGenerator(state.isImperial).innerLeavesNoSlug({
+      cutType: $('qc-' + prefix + '-cut-type').value,
+      bitDiameter: num('qc-bit', 0),
+      kind: prefix === 'rect' ? rectKind() : prefix === 'poly' ? 'polygon' : undefined,
+      slotType: prefix === 'slt' ? $('qc-slt-type').value : undefined,
+      width: v('qc-' + prefix + '-width'),
+      height: v('qc-' + prefix + '-height'),
+      diameter: v('qc-' + prefix + '-diameter')
+    });
+  }
+
+  // Generator tab settings, or null when the switch is off or there's
+  // nothing for them to hold.
   function readTabsForm(prefix) {
-    if (!$('qc-' + prefix + '-tabs-enable').checked) return null;
+    if (!$('qc-' + prefix + '-tabs-enable').checked || tabsHoldNothing(prefix)) return null;
     return {
       count:  Math.floor(num('qc-' + prefix + '-tabs-count', 4)),
       width:  num('qc-' + prefix + '-tabs-width', 0),
@@ -6830,6 +6851,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-' + prefix + '-tabs-count').addEventListener('input', updatePreview);
     $('qc-' + prefix + '-tabs-width').addEventListener('input', updatePreview);
     $('qc-bit').addEventListener('input', updatePreview);
+    // Tabs come and go as an Inner cut gets narrower or wider than two bits.
+    ['qc-bit', 'qc-' + prefix + '-width', 'qc-' + prefix + '-height', 'qc-' + prefix + '-diameter', 'qc-' + prefix + '-kind', 'qc-' + prefix + '-type'].forEach(function(id) {
+      if (!$(id)) return;
+      $(id).addEventListener('input', function() { updateTabsVisibility(prefix); });
+      $(id).addEventListener('change', function() { updateTabsVisibility(prefix); });
+    });
     updateTabsVisibility(prefix);
   }
 
@@ -10465,7 +10492,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var svg = pre && $('qc-' + pre + '-depth-pic');
     if (!svg) return;
     var depth = num('qc-' + pre + '-depth', 0), step = num('qc-' + pre + '-step', 0), u = ' ' + state.unitLabel;
-    var tabsOn = $('qc-' + pre + '-tabs-enable') && $('qc-' + pre + '-tabs-enable').checked;
+    var tabsOn = $('qc-' + pre + '-tabs-enable') && $('qc-' + pre + '-tabs-enable').checked && tabsApply(pre);
     var tabH = tabsOn ? num('qc-' + pre + '-tabs-height', 0) : 0;
     var tabTop = tabH > 0 && tabH < depth ? depth - tabH : null;
     var levels = [], cur = 0;
@@ -15455,9 +15482,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // lifted over it.
 
     // The tab settings to use, or null when tabs are off or don't apply.
+    // An Inner (perimeter) cut no more than two bit widths across clears
+    // the whole inside: no slug is left for tabs to hold, they'd only
+    // leave bridges in it. Slots (their width), circles, rectangles and
+    // ellipses (their narrower side); other shapes aren't checked.
+    function innerLeavesNoSlug(params) {
+      if (params.cutType !== 'inner' || !(params.bitDiameter > 0)) return false;
+      var across = params.kind === 'rectangle' || params.kind === 'ellipse' ? Math.min(params.width, params.height)
+        : params.slotType ? params.width
+        : params.sides == null && !params.kind ? params.diameter : 0;
+      return across > 0 && across <= 2 * params.bitDiameter + 1e-9;
+    }
+
     function tabSettings(params) {
       var t = params.tabs;
-      if (!t || (params.cutType || 'inner') === 'clearing') return null;
+      if (!t || (params.cutType || 'inner') === 'clearing' || innerLeavesNoSlug(params)) return null;
       var count = Math.floor(t.count || 0);
       if (!(count >= 1) || !(t.width > 0) || !(t.height > 0) || !(t.height < params.depth)) return null;
       return { count: count, width: t.width, height: t.height };
@@ -19058,6 +19097,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       computePatternPositions: computePatternPositions,
       computePatternAnchorShift: computePatternAnchorShift,
       tabIntervals: tabIntervals,
+      innerLeavesNoSlug: innerLeavesNoSlug,
       patternPositionKeys: patternPositionKeys,
       resolveDrillOrigin: resolveDrillOrigin,
       rectangleCorners: rectangleCorners,
