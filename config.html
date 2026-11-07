@@ -1620,7 +1620,7 @@
   .qc-soon p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
 
   /* ============ Cutter: fields on the left, figures large on the right ============ */
-  .qc-content[data-view="cutter"] .qc-panel.qc-cut-panel { overflow: hidden; }
+  .qc-panel.qc-cut-panel { overflow: hidden; }
   .qc-cut-panel > form { flex: 1 1 auto; min-height: 0; }
   .qc-cut-panel > form > .qc-cut-layout { flex: 1 1 0; }
   .qc-cut-layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 18px; }
@@ -1634,14 +1634,16 @@
   .qc-cut-fig svg { flex: 1; width: 100%; height: 100%; min-height: 0; overflow: visible; }
   .qc-cut-small { margin: 0; font-size: 0.85rem; }
   @media (orientation: portrait), (max-width: 1100px) {
-    .qc-content[data-view="cutter"] .qc-panel.qc-cut-panel { overflow-y: auto; }
+    .qc-panel.qc-cut-panel { overflow-y: auto; }
     .qc-cut-layout { grid-template-columns: minmax(0, 1fr); height: auto; flex: 0 0 auto; align-content: start; }
     .qc-cut-side { overflow: visible; }
     .qc-cut-stage { order: -1; }
     .qc-cut-fig { height: 48vh; }
     /* Portrait: the Cut card and the side view side by side under the top view. */
     .qc-cut-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); align-items: stretch; }
-    .qc-cut-fig--side { height: auto; min-height: 0; }
+    .qc-cut-side > .qc-card:first-child { grid-column: 1; grid-row: 1 / span 2; }
+    .qc-cut-side > :not(:first-child) { grid-column: 2; }
+    .qc-cut-fig--side { height: auto; min-height: 220px; }
   }
   /* Segmented choice: one solid pick, the rest plain. */
   .qc-seg { display: grid; gap: 4px; padding: 4px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-border); }
@@ -1661,8 +1663,8 @@
   .qc-fig-pill--muted { stroke: var(--color-text-secondary); }
   .qc-fig-pill-text { fill: var(--color-text-primary); font-size: 12.5px; font-weight: 600; text-anchor: middle; font-variant-numeric: tabular-nums; }
   .qc-fig-cap { fill: var(--color-text-secondary); font-size: 11px; text-anchor: middle; letter-spacing: 0.06em; text-transform: uppercase; }
-  .qc-fig-on-wood { fill: #6b5a40; }
-  .qc-fig-keep { fill: #4a3d2a; font-weight: 700; }
+  .qc-fig-on-wood { fill: var(--qc-m-ink2); }
+  .qc-fig-keep { fill: var(--qc-m-ink); font-weight: 700; }
   .qc-fig-note { fill: var(--color-text-secondary); font-size: 12.5px; text-anchor: middle; }
   .qc-fig-accent-text { fill: var(--color-accent); font-size: 11px; font-weight: 600; }
   .qc-fig-path { stroke: var(--color-accent); stroke-width: 1.6; stroke-dasharray: 4 5; fill: none; opacity: 0.75; }
@@ -1786,19 +1788,19 @@
   .qc-drl-stage > .qc-drl-top { flex: 1 1 0; min-height: 260px; flex-direction: row; align-items: stretch; gap: 16px; }
   .qc-drl-top > .qc-origin-stack { flex: 0 0 auto; align-self: center; }
   .qc-drl-top > .qc-shape-preview-cell.qc-drl-big { flex: 1 1 auto; width: auto; height: auto; min-height: 0; border: 0; background: transparent; }
-  .qc-drl-done { fill: #3a2e1e; }
+  .qc-drl-done { fill: var(--qc-m-hole); }
   /* Chamfering on Drill: the Hole card's fields are all hidden, so the card
      goes too; the Chamfer card says what the Hole card would. */
   .qc-drl-side:has(#qc-chamfer-enable:checked) > .qc-card:first-child { display: none; }
   /* Chamfer in the narrow Drill column: its fields three to a row. */
   .qc-drl-side #qc-chamfer-card .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .qc-drl-bevel { fill: none; stroke: #6b5536; }
-  .qc-drl-bevel-guide { fill: none; stroke: rgba(90, 70, 40, 0.55); stroke-width: 0.35; stroke-dasharray: 1 1; }
+  .qc-drl-bevel { fill: none; stroke: var(--qc-m-bevel); }
+  .qc-drl-bevel-guide { fill: none; stroke: var(--qc-m-hatch); stroke-width: 0.35; stroke-dasharray: 1 1; }
   /* Drilling only moves in Z, at the Plunge Rate: no Feed Rate to ask for. */
-  .qc-content[data-view="drill"] .qc-field:has(> #qc-feed) { display: none; }
+  .qc-content[data-view="drill"]:not(.qc-chamfer-mode) .qc-field:has(> #qc-feed) { display: none; }
   .qc-drl-stock { stroke: color-mix(in srgb, var(--color-text-primary) 28%, transparent); stroke-width: 0.3; }
   /* The big top view: holes in the stock, small label, thin marks. */
-  .qc-drl-big .qc-shape-fill { fill: rgba(58, 46, 30, 0.16); stroke: rgba(90, 70, 40, 0.65); stroke-width: 0.35; }
+  .qc-drl-big .qc-shape-fill { fill: var(--qc-m-hatch-bg); stroke: var(--qc-m-hatch); stroke-width: 0.35; }
   .qc-drl-big .qc-drl-cap { fill: var(--color-text-secondary); font-size: 3.4px; font-weight: 600; letter-spacing: 0.02em; }
   .qc-drl-big .qc-drl-dim { stroke: var(--color-accent); stroke-width: 0.45; fill: none; }
   .qc-drl-big .qc-drl-dimtext { font-size: 2.6px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1809,12 +1811,18 @@
   .qc-drl-big .qc-origin-mark { stroke-width: 0.6; }
   @media (orientation: portrait), (max-width: 1100px) {
     .qc-drl-layout { grid-template-columns: minmax(0, 1fr); height: auto; flex: 0 0 auto; align-content: start; }
-    .qc-drl-stage { order: -1; }
+    /* The top view first, the settings, then Pattern at the bottom. */
+    .qc-drl-stage { display: contents; }
+    .qc-drl-stage > .qc-drl-top { order: -1; }
+    .qc-drl-stage > .qc-card:not(.qc-drl-top) { order: 1; }
     .qc-drl-stage > .qc-drl-top { height: 34vh; flex: 0 0 auto; }
     /* Hole on the left; Chamfer, then the side view, on the right. */
     .qc-drl-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; }
     .qc-drl-side > .qc-card:first-child { grid-column: 1; grid-row: 1 / span 2; }
     .qc-drl-side > #qc-chamfer-card { grid-column: 2; grid-row: 1; }
+    /* Chamfering: no Hole card, so the Chamfer card takes the wide column. */
+    .qc-drl-side:has(#qc-chamfer-enable:checked) > #qc-chamfer-card { grid-column: 1; grid-row: 1 / span 2; }
+    .qc-drl-side:has(#qc-chamfer-enable:checked) > .qc-drl-sidefig { grid-row: 1 / span 2; }
     .qc-drl-sidefig { grid-column: 2; grid-row: 2; height: auto; min-height: 220px; }
   }
   /* Inset, spelled out (see wireInsetUI). */
@@ -1838,6 +1846,152 @@
   .qc-axes-y { stroke: #57ab5a; } .qc-axes-yh, .qc-axes-yt { fill: #57ab5a; }
   .qc-axes-xt, .qc-axes-yt { font-size: 22px; font-weight: 700; font-family: inherit; }
   .qc-axes-o { fill: none; stroke: var(--color-text-primary); stroke-width: 2.6; }
+  /* Pattern card, balanced: Style switch | Angle | the honeycomb / rotate
+     switches, then the four counts and spacings in an even row. */
+  .qc-pattern-top-row.qc-row-3 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); align-items: end; }
+  .qc-pattern-seg button { font-size: 0.82rem; }
+  .qc-pattern-toggle-cell { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-height: 40px; }
+  .qc-pattern-toggle-cell .qc-switch-label { justify-content: space-between; display: flex; }
+  .qc-pattern-copies[hidden] { display: none; }
+  .qc-pattern-toggle-cell .qc-pattern-copies { min-width: 0; }
+  .qc-pattern-toggle-cell:has(> .qc-pattern-copies:not([hidden])) { padding-bottom: 0; }
+  /* Circular has no Angle: the Copies switch takes its room too. */
+  .qc-pattern-top-row .qc-pattern-toggle-cell:has(> .qc-pattern-copies:not([hidden])) { grid-column: span 2; }
+  /* ---- Chamfer tab ---- */
+  .qc-content.qc-chamfer-mode .qc-panel-header > .qc-panel-title-row:not(.qc-chf-head) { display: none; }
+  .qc-chf-edge label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary); }
+  .qc-chf-edge .qc-seg button { font-size: 0.82rem; }
+  .qc-chf-edge .qc-seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+  #qc-chamfer-card:not(:has(#qc-chamfer-enable:checked)) .qc-chf-edge { display: none; }
+  .qc-shp-shape > .qc-chf-edge { margin-bottom: 10px; }
+  .qc-chamfer-mode #qc-chamfer-card .qc-card-header .qc-switch { display: none; }
+  .qc-chamfer-mode .qc-split-more { display: none !important; }
+  .qc-chamfer-mode .qc-split > .qc-primary-btn:first-child { border-radius: 10px !important; }
+  /* Split Generate: the main part generates, the arrow offers Chamfer. */
+  .qc-split { position: relative; display: inline-flex; }
+  .qc-split > .qc-primary-btn:first-child { border-radius: 10px 0 0 10px !important; }
+  .qc-split-more { border-radius: 0 10px 10px 0 !important; padding: 10px 12px !important; margin-left: 1px !important; }
+  .qc-split-menu { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 30; min-width: 280px; padding: 6px; border-radius: 10px; border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: 0 12px 28px rgba(0,0,0,.35); display: flex; flex-direction: column; gap: 2px; }
+  .qc-split-menu[hidden] { display: none; }
+  .qc-split-menu button { -webkit-appearance: none; appearance: none; text-align: left; padding: 9px 12px !important; border: 0 !important; border-radius: 8px !important; background: transparent !important; color: var(--color-text-primary) !important; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+  .qc-split-menu button:hover { background: color-mix(in srgb, var(--color-accent) 14%, transparent) !important; }
+  .qc-split-menu b { font-size: 0.92rem; } .qc-split-menu small { color: var(--color-text-secondary); font-size: 0.8rem; }
+  /* Planer / Jointer figures */
+  /* Solid, so overlapping passes don't stack up lighter. */
+  .qc-plan-surfaced { fill: none; stroke: color-mix(in srgb, var(--qc-m-a) 75%, #ffffff); stroke-linecap: square; stroke-linejoin: miter; }
+  /* The step down to the cut face, and faint tool marks along each pass. */
+  .qc-plan-step { fill: none; stroke: var(--qc-m-ink2); stroke-opacity: 0.55; stroke-linecap: square; stroke-linejoin: miter; }
+  .qc-plan-stock-edge { stroke: color-mix(in srgb, var(--qc-m-ink2) 80%, transparent); stroke-width: 1.4; }
+  .qc-plan-marks { fill: none; stroke: var(--qc-m-ink2); stroke-opacity: 0.16; }
+  .qc-plan-removed { fill: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)); stroke: var(--color-accent); stroke-width: 1; }
+  .qc-join-gone { fill: var(--color-surface-muted); }
+  .qc-plan-keepout { fill: rgba(229, 83, 75, 0.18); stroke: #e5534b; stroke-width: 1.4; stroke-dasharray: 5 3; }
+  .qc-plan-keep-note { margin: 0; padding: 10px 14px; border-radius: 10px; font-size: 0.92rem; line-height: 1.45; color: var(--color-text-primary); background: rgba(229, 83, 75, 0.12); border: 1px solid rgba(229, 83, 75, 0.45); }
+  .qc-plan-keep-note[hidden] { display: none; }
+  /* In the top view card, along its bottom edge. */
+  .qc-plan-topfig { position: relative; }
+  .qc-plan-topfig > .qc-plan-keep-note { position: absolute; left: 12px; right: 12px; bottom: 12px; }
+  .qc-plan-keepout-label { fill: #e5534b; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+  .qc-plan-topfig { flex-direction: row; align-items: center; gap: 12px; }
+  .qc-plan-topfig > .qc-origin-stack { flex: 0 0 auto; }
+  .qc-plan-topfig > svg { flex: 1 1 0; width: 0; min-width: 0; height: 100%; }
+  .qc-cut-figs:has(> .qc-plan-topfig) { grid-template-columns: minmax(0, 1fr); }
+  .qc-cut-panel .qc-depth-pic { display: none; }
+  .qc-cut-figs:has(> .qc-cut-fig:only-child) { grid-template-columns: minmax(0, 1fr); }
+  /* No side view in the column (Planer): its cards share the height,
+     fields spread through them. */
+  .qc-cut-side:not(:has(> .qc-cut-fig)) > .qc-card:first-child { flex: 1 1 auto; justify-content: flex-start; }
+  /* Sliding two-way switch (as Tool Library | Type a Size). */
+  .qc-slide { position: relative; isolation: isolate; }
+  .qc-slide .qc-slide-thumb { position: absolute; z-index: -1; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 6px); border-radius: 7px; background: var(--color-accent); transition: transform 0.25s ease; }
+  .qc-slide.qc-slide-right .qc-slide-thumb { transform: translateX(calc(100% + 4px)); }
+  .qc-slide button.on { background: transparent !important; }
+  .qc-slide button { transition: color 0.25s ease; }
+  /* Origin picked on the drawing. */
+  /* Wood grain (woodGrain): only for Softwood / Hardwood. */
+  .qc-grain, .qc-grain-soft, .qc-grain-hard { display: none; }
+  .qc-wood-soft .qc-grain, .qc-wood-hard .qc-grain, .qc-wood-soft .qc-grain-soft, .qc-wood-hard .qc-grain-hard { display: inline; }
+  .qc-grain rect { fill: var(--qc-m-ink2); }
+  .qc-join-lane { stroke: var(--color-accent); stroke-width: 1.6; fill: none; }
+  .qc-join-chip { fill: var(--color-surface); stroke: var(--color-accent); stroke-width: 1.3; }
+  .qc-join-chip-t { fill: var(--color-accent); font-size: 8px; font-weight: 800; }
+
+  /* ============ Shapes (Rectangle first): Shape + Depth + side view | top view + Pattern ============ */
+  .qc-panel.qc-shp-panel > form { flex: 1 1 auto; min-height: 0; }
+  .qc-shp-layout { flex: 1 1 auto; min-height: 0; height: 100%; display: grid; grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 18px; }
+  .qc-shp-side, .qc-shp-stage { display: flex; flex-direction: column; gap: var(--qc-section-gap); min-height: 0; }
+  .qc-shp-side > .qc-card, .qc-shp-stage > .qc-card { flex: 0 0 auto; }
+  .qc-shp-sidefig { flex: 1 1 0; min-height: 180px; }
+  .qc-shp-stage > .qc-shp-sidefig { flex: 0 0 auto; height: 280px; }
+  .qc-shp-stage > .qc-shp-top { flex: 1 1 0; min-height: 280px; flex-direction: row; align-items: stretch; gap: 16px; }
+  .qc-shp-top > .qc-origin-stack { flex: 0 0 auto; align-self: center; }
+  .qc-shp-top > .qc-shape-preview-cell.qc-shp-big { flex: 1 1 auto; width: auto; height: auto; min-height: 0; border: 0; background: transparent; }
+  .qc-shp-big svg { width: 100%; height: 100%; overflow: visible; }
+  .qc-shp-shape .qc-shape-fields { display: flex; flex-direction: column; gap: 10px; }
+  .qc-shp-shape .qc-type-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qc-shp-shape .qc-type-row > .qc-field:first-child { grid-column: 1 / -1; }
+  .qc-shp-side .qc-row-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qc-shp-side .qc-tabs-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: inherit; }
+  .qc-shp-side .qc-tabs-fields[style*="none"] { display: none !important; }
+  /* A select shown as a switch (selectSeg): the select stays for the code. */
+  .qc-seg-hidden { display: none !important; }
+  /* The kind is the sidebar's: the title is plain text. */
+  /* The side view replaces the Depth card's small picture here. */
+  .qc-shp-side .qc-depth-pic { display: none; }
+  /* The big top view: the drawing's labels and lines at a size for it. */
+  .qc-shp-big .qc-shape-dim-label { font-size: 3.6px; }
+  .qc-shp-big .qc-shape-dim-line { stroke-width: 0.4; }
+  .qc-shp-big .qc-shape-fill { fill: var(--qc-m-a); stroke: color-mix(in srgb, var(--color-text-primary) 35%, transparent); stroke-width: 0.35; }
+  /* Inside / Pocket: the shape is the hole, the hatch (what comes out) shows through. */
+  .qc-shp-big svg.qc-shp-cut-inner .qc-shape-fill, .qc-shp-big svg.qc-shp-cut-clearing .qc-shape-fill { fill: color-mix(in srgb, var(--qc-m-hole) 30%, transparent); }
+  .qc-shp-shape .qc-relief-field { width: 100%; max-width: none; }
+  .qc-shp-big .qc-shp-stock { stroke: color-mix(in srgb, var(--color-text-primary) 25%, transparent); stroke-width: 0.3; }
+  .qc-shp-bit { fill: url(#qc-rect-rod); stroke: rgba(0,0,0,.35); stroke-width: 0.4; }
+  /* Cutter's look: the waste hatched; the slot the bit cuts opens behind it. */
+  .qc-shp-big .qc-shp-hole { fill: var(--qc-m-hole); }
+  .qc-shp-big .qc-shp-kerfcut { fill: none; stroke: var(--qc-m-hole); stroke-linejoin: round; }
+  /* Chamfering, a pocket's edge is an Inside cut's: no Pocket choice. */
+  .qc-chamfer-mode .qc-seg:has(+ #qc-rect-cut-type) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .qc-chamfer-mode .qc-seg:has(+ #qc-rect-cut-type) button[data-v="clearing"] { display: none; }
+  .qc-shp-big .qc-shp-floor { fill: var(--qc-m-b); opacity: 0.55; stroke: var(--qc-m-ink2); stroke-width: 0.3; }
+  .qc-shp-big .qc-shp-bevelcut { fill: none; stroke: var(--qc-m-bevel); stroke-linejoin: round; }
+  .qc-shp-big .qc-shp-outline { fill: none; stroke: color-mix(in srgb, var(--color-text-primary) 35%, transparent); stroke-width: 0.35; }
+  /* Dimensions as on Drill: accent arrows, the value in a pill. */
+  .qc-shp-big .qc-shp-dim { stroke: var(--color-accent); stroke-width: 0.45; fill: none; }
+  .qc-shp-big .qc-shp-ext { stroke: var(--color-text-secondary); stroke-width: 0.25; opacity: 0.7; }
+  .qc-shp-big .qc-shp-dimtext { font-size: 2.6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .qc-shp-big .qc-shp-cap { fill: var(--color-text-secondary); font-size: 3.4px; font-weight: 600; letter-spacing: 0.02em; }
+  .qc-shp-big .qc-fig-pill--small { stroke-width: 0.4; }
+  .qc-shp-big .qc-on-pill { fill: var(--color-text-primary) !important; font-weight: 600; }
+  .qc-shp-big .qc-tab-mark { r: 1.4px; stroke-width: 0.4; }
+  .qc-shp-big .qc-shape-ideal { stroke-width: 0.3; stroke-dasharray: 0.9 0.9; }
+  /* The Pattern card's small preview: the copies are on the big view. */
+  #qc-rect-pattern-body .qc-shape-preview-cell { display: none; }
+  @media (orientation: portrait), (max-width: 1100px) {
+    .qc-shp-layout { grid-template-columns: minmax(0, 1fr); height: auto; flex: 0 0 auto; align-content: start; }
+    .qc-shp-stage { display: contents; }
+    .qc-shp-stage > .qc-shp-top { order: -1; }
+    .qc-shp-stage > .qc-card:not(.qc-shp-top) { order: 1; }
+    .qc-shp-stage > .qc-shp-top { height: 36vh; flex: 0 0 auto; }
+    .qc-shp-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); grid-template-rows: auto auto minmax(0, 1fr); align-items: stretch; }
+    .qc-shp-side > .qc-shp-shape { grid-column: 1; grid-row: 1 / span 3; }
+    .qc-shp-side > .qc-card:not(.qc-shp-shape) { grid-column: 2; grid-row: 1; }
+    .qc-shp-side > .qc-shp-sidefig { grid-column: 2; grid-row: 2 / span 2; height: auto; min-height: 200px; }
+    /* Chamfering: the top view across, then Shape with Pattern under it on
+       the left and the (tall) Chamfer card on the right; no side view. */
+    .qc-chamfer-mode .qc-shp-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "top top" "shape chamfer" "pattern chamfer"; grid-template-rows: auto auto 1fr; }
+    .qc-chamfer-mode .qc-shp-side { display: contents; }
+    .qc-chamfer-mode .qc-shp-side > .qc-shp-shape { grid-area: shape; }
+    .qc-chamfer-mode .qc-shp-side > #qc-chamfer-card { grid-area: chamfer; align-self: start; }
+    .qc-chamfer-mode .qc-shp-sidefig { display: none; }
+    .qc-chamfer-mode .qc-shp-stage > .qc-shp-top { grid-area: top; }
+    .qc-chamfer-mode .qc-shp-stage > .qc-card:not(.qc-shp-top) { grid-area: pattern; align-self: start; }
+    .qc-chamfer-mode .qc-shp-stage > .qc-shp-top { height: 42vh; }
+    /* Half width: Pattern Style on its own row. */
+    .qc-chamfer-mode #qc-rect-pattern-body .qc-pattern-top-row.qc-row-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .qc-chamfer-mode #qc-rect-pattern-body .qc-pattern-top-row.qc-row-3 > :first-child { grid-column: 1 / -1; }
+    .qc-shp-stage > .qc-shp-sidefig { height: 240px; }
+  }
 </style>
 
 <div class="qc-wrapper">
@@ -1865,6 +2019,10 @@
         <button type="button" class="qc-nav-btn" data-tab="cutter">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><line x1="15" y1="4" x2="15" y2="20" stroke-dasharray="2 2"/></svg></span>
           <span class="qc-nav-label">Cutter</span>
+        </button>
+        <button type="button" class="qc-nav-btn" id="qc-nav-chamfer">
+          <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h5l4 6 4-6h5"/><path d="M10 15h4v6h-4z"/></svg></span>
+          <span class="qc-nav-label">Chamfer</span>
         </button>
         <button type="button" class="qc-nav-btn qc-nav-parent" id="qc-shapes-toggle" aria-expanded="false" aria-controls="qc-shapes-sub">
           <span class="qc-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><circle cx="17" cy="7" r="4"/><path d="M7 13.5 11.5 21h-9Z"/><path d="M14 14h7v7h-7z"/></svg></span>
@@ -2044,11 +2202,12 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-shp-panel">
         <form id="qc-rect-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Shape</h3>
-            <div class="qc-shape-grid qc-shape-grid--origin">
+          <div class="qc-shp-layout">
+            <div class="qc-shp-side">
+              <div class="qc-card qc-section-card qc-shp-shape">
+                <h3 class="qc-card-title">Shape</h3>
               <div class="qc-shape-fields">
                 <div class="qc-field qc-relief-field qc-rect-tri-only qc-tri-by-field" style="display: none;">
                   <label for="qc-rect-tri-by">Defined By</label>
@@ -2144,30 +2303,7 @@
                   </select>
                 </div>
               </div>
-              <div class="qc-origin-stack">
-                <div class="qc-field qc-origin-col">
-                  <label>Origin</label>
-                  <div id="qc-rect-origin-picker"></div>
-                </div>
-                <div class="qc-field qc-inset-field">
-                  <select class="qc-label-select" id="qc-rect-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
-                    <option value="both" selected>Edge Inset</option>
-                    <option value="xy">Edge Inset XY</option>
-                    <option value="center">Center Inset</option>
-                    <option value="xy-center">Center Inset XY</option>
-                  </select>
-                  <div class="qc-inset-inputs">
-                    <input aria-labelledby="qc-rect-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
-                  </div>
-                </div>
               </div>
-              <div class="qc-shape-preview-cell">
-                <svg id="qc-rect-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
-              </div>
-            </div>
-          </div>
-
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Depth</h3>
@@ -2205,6 +2341,32 @@
             </div>
           </div>
 
+              <div class="qc-cut-fig qc-cut-fig--side qc-shp-sidefig"><svg id="qc-rect-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: depth passes"></svg></div>
+            </div>
+            <div class="qc-shp-stage">
+              <div class="qc-card qc-section-card qc-shp-top">
+              <div class="qc-origin-stack">
+                <div class="qc-field qc-origin-col">
+                  <label>Origin</label>
+                  <div id="qc-rect-origin-picker"></div>
+                </div>
+                <div class="qc-field qc-inset-field">
+                  <select class="qc-label-select" id="qc-rect-inset-mode" aria-label="Inset" title="Edge Inset: from the origin point to the edge of the cut. Center Inset: to the copies&rsquo; centers (e.g. the first hole&rsquo;s center, whatever the bit). Either as one number for both directions, or X and Y apart (X from a left or right origin point, Y from a front or back one). Changing it converts the number so nothing moves.">
+                    <option value="both" selected>Edge Inset</option>
+                    <option value="xy">Edge Inset XY</option>
+                    <option value="center">Center Inset</option>
+                    <option value="xy-center">Center Inset XY</option>
+                  </select>
+                  <div class="qc-inset-inputs">
+                    <input aria-labelledby="qc-rect-inset-mode" class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset" step="0.1" value="0" title="Keeps the cut this far in from the origin point, toward the shape; negative moves it out past the origin. Only for a corner or edge origin.">
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-rect-inset-y" step="0.1" value="0" title="Inset along Y: from a front or back origin point. Negative moves the cut out past it." style="display: none;">
+                  </div>
+                </div>
+              </div>
+                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                  <svg id="qc-rect-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                </div>
+              </div>
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
@@ -2285,6 +2447,8 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </form>
@@ -3290,26 +3454,30 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-cut-panel">
         <form id="qc-plan-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Region</h3>
-            <div class="qc-shape-grid">
-              <div class="qc-shape-fields">
-                <div class="qc-row-3 qc-plan-mode-row">
-                  <div class="qc-field">
-                    <label for="qc-plan-mode">Mode</label>
-                    <select class="qc-select" id="qc-plan-mode" title="Target Depth surfaces down from Z0 on top of the stock. Target Thickness leaves a set thickness above the wasteboard. Wasteboard Surfacing flattens the whole machine bed.">
+          <div class="qc-cut-layout">
+            <div class="qc-cut-side">
+              <div class="qc-card qc-section-card">
+                <h3 class="qc-card-title">Region</h3>
+                <div class="qc-field">
+                  <label>Mode</label>
+                  <div class="qc-seg qc-seg--3" id="qc-plan-mode-seg" role="radiogroup" aria-label="Mode">
+                    <button type="button" role="radio" data-v="depth">Target Depth</button>
+                    <button type="button" role="radio" data-v="thickness">Thickness</button>
+                    <button type="button" role="radio" data-v="wasteboard">Wasteboard</button>
+                  </div>
+                  <div hidden><select class="qc-select" id="qc-plan-mode" title="Target Depth surfaces down from Z0 on top of the stock. Target Thickness leaves a set thickness above the wasteboard. Wasteboard Surfacing flattens the whole machine bed.">
                       <option value="depth" selected>Target Depth</option>
                       <option value="thickness">Target Thickness</option>
                       <option value="wasteboard">Wasteboard Surfacing</option>
-                    </select>
-                  </div>
-                  <div class="qc-field qc-plan-thickness-only" style="display: none;">
+                    </select></div>
+                </div>
+                <div class="qc-field qc-plan-thickness-only" style="display: none;">
                     <label for="qc-plan-start-thickness">Starting Thickness</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20" title="Current height of the stock, measured from the wasteboard.">
                   </div>
-                  <div class="qc-field qc-plan-keepout-field" style="display: none;">
+                <div class="qc-field qc-plan-keepout-field" style="display: none;">
                     <label class="qc-switch-label" title="Leave out the keepout zones that are on (ncSender's in Settings › Advanced, and the ATCi tool rack's, $684-$687), plus the bit radius, so the cutter never enters them">
                       <span>Avoid Keepout Zone</span>
                       <span class="qc-switch">
@@ -3318,9 +3486,8 @@
                       </span>
                     </label>
                   </div>
-                </div>
                 <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
-                <div class="qc-row-3">
+                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-plan-width">Width (X)</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-width" min="0.001" step="0.01" value="100" required title="Size of the area to surface along X, before Overrun.">
@@ -3329,19 +3496,42 @@
                     <label for="qc-plan-height">Height (Y)</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-height" min="0.001" step="0.01" value="80" required title="Size of the area to surface along Y, before Overrun.">
                   </div>
-                  <div class="qc-field qc-plan-overrun-field">
-                    <label for="qc-plan-overrun">Overrun</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-overrun" min="0" step="0.1" value="2" title="Extra distance the passes run past every edge, so the bit fully clears the stock.">
-                  </div>
                 </div>
-                <div class="qc-row-3">
-                  <div class="qc-field">
-                    <label for="qc-plan-pattern">Pattern</label>
-                    <select class="qc-select" id="qc-plan-pattern" title="Path the bit follows: back-and-forth rows running along Y or X, or a spiral from the outside in.">
+                <div class="qc-field">
+                  <label>Pattern</label>
+                  <div class="qc-seg qc-seg--3" id="qc-plan-pattern-seg" role="radiogroup" aria-label="Pattern">
+                    <button type="button" role="radio" data-v="zigzagY">Along Y</button>
+                    <button type="button" role="radio" data-v="zigzagX">Along X</button>
+                    <button type="button" role="radio" data-v="spiral">Spiral</button>
+                  </div>
+                  <div hidden><select class="qc-select" id="qc-plan-pattern" title="Path the bit follows: back-and-forth rows running along Y or X, or a spiral from the outside in.">
                       <option value="zigzagY" selected>Zigzag (long-Y)</option>
                       <option value="zigzagX">Zigzag (long-X)</option>
                       <option value="spiral">Spiral (outside-in)</option>
-                    </select>
+                    </select></div>
+                </div>
+                <div class="qc-field qc-plan-spiral-field">
+                  <label>Spiral</label>
+                  <div class="qc-seg qc-seg--2 qc-slide" id="qc-plan-spiral-seg" role="radiogroup" aria-label="Spiral">
+                    <span class="qc-slide-thumb" aria-hidden="true"></span>
+                    <button type="button" role="radio" data-v="outside">From Outside</button>
+                    <button type="button" role="radio" data-v="inside">From Inside</button>
+                  </div>
+                  <input type="hidden" id="qc-plan-spiral-from" value="outside">
+                </div>
+                <div class="qc-field qc-plan-dir-field">
+                  <label>Cut Direction</label>
+                  <div class="qc-seg qc-seg--3" id="qc-plan-dir-seg" role="radiogroup" aria-label="Cut Direction">
+                    <button type="button" role="radio" data-v="both">Both Ways</button>
+                    <button type="button" role="radio" data-v="conventional">Conventional</button>
+                    <button type="button" role="radio" data-v="climb">Climb</button>
+                  </div>
+                  <input type="hidden" id="qc-plan-direction" value="both">
+                </div>
+                <div class="qc-row-2">
+                  <div class="qc-field qc-plan-overrun-field">
+                    <label for="qc-plan-overrun">Overrun</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-overrun" min="0" step="0.1" value="2" title="Extra distance the passes run past every edge, so the bit fully clears the stock.">
                   </div>
                   <div class="qc-field">
                     <label for="qc-plan-stepover">Stepover (% of bit)</label>
@@ -3349,28 +3539,31 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-plan-side">
-                <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless">
-                  <svg id="qc-plan-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
-                </div>
-                <div class="qc-field">
-                  <label>Origin</label>
-                  <div id="qc-plan-origin-picker"></div>
+              <div class="qc-card qc-section-card">
+                <h3 class="qc-card-title" id="qc-plan-depth-title">Depth</h3>
+                <div class="qc-row-2">
+                  <div class="qc-field">
+                    <label for="qc-plan-depth" id="qc-plan-depth-label">Total Depth</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-depth" min="0.001" step="0.01" value="2" required title="How far below Z0 to surface. In Target Thickness mode, how much comes off the top.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-plan-step">Depth of Cut</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title" id="qc-plan-depth-title">Depth</h3>
-            <div class="qc-row-2">
-              <div class="qc-field">
-                <label for="qc-plan-depth" id="qc-plan-depth-label">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-depth" min="0.001" step="0.01" value="2" required title="How far below Z0 to surface. In Target Thickness mode, how much comes off the top.">
-              </div>
-              <div class="qc-field">
-                <label for="qc-plan-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-step" min="0.001" step="0.01" value="1" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
+            <div class="qc-cut-stage">
+              <div class="qc-cut-figs">
+                <div class="qc-cut-fig qc-plan-topfig">
+                  <div class="qc-origin-stack">
+                    <div class="qc-field">
+                      <label>Origin</label>
+                      <div id="qc-plan-origin-picker"></div>
+                    </div>
+                  </div>
+                  <svg id="qc-plan-top" viewBox="0 0 440 320" role="img" aria-label="Top view: the surfacing path"></svg>
+                </div>
               </div>
             </div>
           </div>
@@ -3389,17 +3582,22 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-cut-panel">
         <form id="qc-join-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Trim</h3>
-            <div class="qc-shape-grid">
-              <div class="qc-shape-fields">
-                <div class="qc-row-4">
-                  <div class="qc-field">
-                    <label for="qc-join-length">Length</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-length" min="0.001" step="0.01" value="150" required title="Length of the edge being straightened.">
+          <div class="qc-cut-layout">
+            <div class="qc-cut-side">
+              <div class="qc-card qc-section-card">
+                <h3 class="qc-card-title">Trim</h3>
+                <div class="qc-field">
+                  <label>Edge to trim</label>
+                  <div class="qc-seg qc-seg--4" id="qc-join-edge" role="radiogroup" aria-label="Edge to trim">
+                    <button type="button" data-side="front" role="radio">Front</button>
+                    <button type="button" data-side="back" role="radio">Back</button>
+                    <button type="button" data-side="left" role="radio">Left</button>
+                    <button type="button" data-side="right" role="radio">Right</button>
                   </div>
+                </div>
+                <div class="qc-row-2">
                   <div class="qc-field">
                     <label for="qc-join-width">Trim Width</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-width" min="0.001" step="0.01" value="1" required title="How much each trim takes off the edge. Number of Trims sets how many.">
@@ -3409,49 +3607,50 @@
                     <input class="qc-input" type="number" id="qc-join-trims" aria-label="Number of Trims" min="1" max="50" step="1" value="3" required title="How many trims to take. Each removes Trim Width.">
                   </div>
                   <div class="qc-field">
+                    <label for="qc-join-length">Length</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-length" min="0.001" step="0.01" value="150" required title="Length of the edge being straightened.">
+                  </div>
+                  <div class="qc-field">
                     <label for="qc-join-overrun">Overrun</label>
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-overrun" min="0" step="0.1" value="2" title="Extra travel past both ends of the edge, so each cut starts and finishes clear of the stock.">
                   </div>
-                </div>
-                <div class="qc-row-2">
                   <div class="qc-field">
-                    <label for="qc-join-axis">Trim Axis</label>
-                    <select class="qc-select" id="qc-join-axis" title="Axis the edge runs along. The bit travels along it.">
+                    <label for="qc-join-depth">Total Depth</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
+                  </div>
+                  <div class="qc-field">
+                    <label for="qc-join-step">Depth of Cut</label>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-step" min="0.001" step="0.01" value="5" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
+                  </div>
+                </div>
+                <div class="qc-field">
+                  <label>Cut Direction</label>
+                  <div class="qc-seg qc-seg--3" id="qc-join-dir" role="radiogroup" aria-label="Cut Direction">
+                    <button type="button" data-dir="conventional" role="radio">Conventional</button>
+                    <button type="button" data-dir="climb" role="radio">Climb</button>
+                    <button type="button" data-dir="both" role="radio">Both Ways</button>
+                  </div>
+                </div>
+                <div hidden>
+                  <select class="qc-select" id="qc-join-axis" title="Axis the edge runs along. The bit travels along it.">
                       <option value="x" selected>X-axis</option>
                       <option value="y">Y-axis</option>
                     </select>
-                  </div>
-                  <div class="qc-field">
-                    <label for="qc-join-direction">Cut Direction</label>
-                    <select class="qc-select" id="qc-join-direction" title="Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. Both Ways: trims alternate, saving the trip back. The arrows in the preview show the way the bit travels; tap one to switch.">
+                  <select class="qc-select" id="qc-join-direction" title="Conventional: each tooth's chip starts thin; gentler on lighter machines. Climb: chips start thick; can leave a cleaner edge. Both Ways: trims alternate, saving the trip back. The arrows in the preview show the way the bit travels; tap one to switch.">
                       <option value="conventional" selected>Conventional</option>
                       <option value="climb">Climb</option>
                       <option value="both">Both Ways</option>
                     </select>
-                  </div>
+                  <input type="hidden" id="qc-join-origin" value="front">
                 </div>
-                <!-- Picked by clicking an edge of the preview; the edge also
-                     sets Trim Axis (front/back = X, left/right = Y). -->
-                <input type="hidden" id="qc-join-origin" value="front">
-                <p class="qc-mode-hint" id="qc-join-hint"></p>
               </div>
-              <div class="qc-shape-preview-cell qc-shape-preview-cell--frameless qc-join-preview-cell">
-                <svg id="qc-join-preview" viewBox="-50 -50 100 100" aria-label="Click the edge to trim"></svg>
-              </div>
+              <div class="qc-cut-fig qc-cut-fig--side"><svg id="qc-join-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: the depth passes"></svg></div>
             </div>
-          </div>
-
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-2">
-              <div class="qc-field">
-                <label for="qc-join-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-depth" min="0.001" step="0.01" value="5" required title="How far below Z0, the top of the stock, the cut goes. To cut right through, a little more than the stock is thick.">
+            <div class="qc-cut-stage">
+              <div class="qc-cut-figs">
+                <div class="qc-cut-fig"><svg id="qc-join-preview" viewBox="0 0 440 310" role="img" aria-label="Top view of the trims. Click an edge to trim it."></svg></div>
               </div>
-              <div class="qc-field">
-                <label for="qc-join-step">Depth of Cut</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-join-step" min="0.001" step="0.01" value="5" required title="How deep each pass goes. Passes repeat until Total Depth is reached.">
-              </div>
+              <p class="qc-mode-hint" id="qc-join-hint"></p>
             </div>
           </div>
         </form>
@@ -3762,7 +3961,11 @@
     wireFocusTips();
     wireInsetModes();
     wireInsetUI();
+    applyMaterialLook();
+    $('qc-material').addEventListener('change', applyMaterialLook);
+    wirePatternStyleSwitches();
     watchAxes();
+    watchAutosave();
     $('qc-bit').parentNode.querySelector('.qc-bit-label').addEventListener('click', function(evt) {
       evt.preventDefault();
       if (!state.atc) useLoadedToolDiameter();
@@ -3794,6 +3997,7 @@
     wireHelp();
     wireOriginCrosshairs();
     wireCloseButton();
+    wireChamferTab();
     // First open in this browser (no remembered tab): start on All help
     // topics; Back goes to Rectangle. The tab is remembered at once, so
     // this shows only once even if the dialog is closed from Help.
@@ -3821,8 +4025,11 @@
     // over to the new tab — otherwise the new tab would inherit the
     // previous tab's edits.
     if (TOOL_SHAPES.indexOf(state.currentTab) >= 0) {
-      state.toolByShape[state.currentTab] = readToolFromInputs();
+      // Chamfering, the Tool card holds the Chamfer tab's V-bit.
+      state.toolByShape[state.chamferMode ? 'chamfer' : state.currentTab] = readToolFromInputs();
     }
+    // Any other tab (not a change of Edge on the Chamfer tab) leaves it.
+    if (state.chamferMode && !state.enteringChamfer && target !== 'help' && target !== 'measure') exitChamferMode();
     if (target !== 'measure') highlightNav(target);
     var helpBtn = $('qc-help-btn');
     if (helpBtn) helpBtn.classList.toggle('active', target === 'help');
@@ -3830,6 +4037,7 @@
     relocateCommonCards(target);
     var shown = document.querySelector('.qc-content[data-view="' + target + '"]');
     if (shown) fitLabelSelects(shown);
+    applyMaterialLook();
     // Arrows drawn while the tab was hidden couldn't be sized yet.
     if (shown) setTimeout(function() { shown.querySelectorAll('svg').forEach(fitAxes); }, 0);
     setTimeout(updateToolSummary, 0);
@@ -3846,6 +4054,8 @@
     if (target === 'rectangle') updateRectanglePreview();
     if (target === 'polygon') updatePolygonPreview();
     if (target === 'slot') updateSlotPreview();
+    if (target === 'planer') setTimeout(updatePlanerPreview, 0);
+    if (target === 'jointer') updateJointerPreview();
     state.currentTab = target;
     showBitTool();
     scheduleRunNote();
@@ -3912,6 +4122,13 @@
     var parent = $('qc-shapes-toggle');
     if (parent) parent.classList.toggle('has-active', !!shapeOn);
     if (view !== 'help') setShapesOpen(!!shapeOn);
+    if (state.chamferMode) {
+      document.querySelectorAll('.qc-nav-btn[data-tab]').forEach(function(b) { b.classList.remove('active'); });
+      if (parent) parent.classList.remove('has-active');
+      setShapesOpen(false);
+    }
+    var cb = $('qc-nav-chamfer');
+    if (cb) cb.classList.toggle('active', !!state.chamferMode);
   }
   var lastShapeBtn = null;
   function setShapesOpen(open) {
@@ -3923,6 +4140,7 @@
     sub.querySelectorAll('.qc-nav-btn').forEach(function(b) { b.tabIndex = open ? 0 : -1; });
   }
   function rememberTab() {
+    if (state.chamferMode) { try { localStorage.setItem(LAST_TAB_KEY, 'chamfer:' + state.chamferMode); } catch (e) {} return; }
     var active = document.querySelector('.qc-nav-btn.active[data-tab]');
     try { if (active) localStorage.setItem(LAST_TAB_KEY, navKey(active)); } catch (e) {}
   }
@@ -5393,6 +5611,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       overrun:      mode === 'wasteboard' ? 0 : num('qc-plan-overrun', 0),
       origin:       $('qc-plan-origin').value,
       pattern:      $('qc-plan-pattern').value,
+      cutDirection: $('qc-plan-direction').value,
+      spiralFrom:   $('qc-plan-spiral-from').value,
       stepoverPct:  num('qc-plan-stepover', 40),
       depth:        num('qc-plan-depth', 0),
       depthOfCut:   num('qc-plan-step', 0),
@@ -5453,8 +5673,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     document.querySelector('.qc-plan-keepout-field').style.display = isWasteboard && state.keepoutZonesMm.length ? '' : 'none';
     // Wasteboard: auto-fill width/height from grblHAL $130/$131 and lock
     // the fields so the user can't drift off machine limits. Origin
-    // selector also loses meaning here (start is always machine 0,0), so
-    // dim it visually.
+    // selector is locked to front-left: G54 zero goes on the travel's
+    // front-left corner.
     var widthEl = $('qc-plan-width'), heightEl = $('qc-plan-height');
     var originWrap = $('qc-plan-origin').closest('.qc-field');
     if (isWasteboard) {
@@ -5478,59 +5698,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (hint) hint.innerHTML = planerModeHint(mode);
   }
 
+  // Short: the top view shows the region, path and keepout zones.
   function planerModeHint(mode) {
-    var u = state.unitLabel;
     function z0(target) {
-      return '<span class="qc-z0-callout">' +
-             '<span class="qc-z0-tag">Set Z0 on</span>' +
-             '<span class="qc-z0-target">' + target + '</span>' +
-             '</span>';
+      return '<span class="qc-z0-callout"><span class="qc-z0-tag">Set Z0 on</span><span class="qc-z0-target">' + target + '</span></span>';
     }
-    if (mode === 'thickness') {
-      return z0('the wasteboard (bottom of stock)') + '<br>' +
-             '<strong>Target Thickness</strong> tells the generator the stock’s current height ' +
-             'and how much to remove — passes land at a guaranteed final thickness above the ' +
-             'wasteboard. Use when the top is uneven and you want a known final thickness.';
-    }
-    if (mode === 'wasteboard') {
-      var haveLimits = state.machineLimitXmm > 0 && state.machineLimitYmm > 0;
-      // The travel in machine coordinates: from the homing settings when
-      // they tell (machineTravelMin), else 0…$130 × 0…$131.
-      var minX = mmToDisplay(state.machineMinXmm || 0), minY = mmToDisplay(state.machineMinYmm || 0);
-      var areaX = mmToDisplay(state.machineLimitXmm), areaY = mmToDisplay(state.machineLimitYmm);
-      var rangeText = 'X ' + roundDisplay(minX) + ' to ' + roundDisplay(minX + areaX) + ', Y ' + roundDisplay(minY) + ' to ' + roundDisplay(minY + areaY);
-      var limitsText = haveLimits
-        ? ('Uses your machine’s full travel (<strong>$130 × $131 = ' +
-           roundDisplay(areaX) + ' × ' + roundDisplay(areaY) + ' ' + u + '</strong>, ' +
-           (state.machineMinXmm != null ? 'machine ' + rangeText + ' from its homing settings' : 'assumed to be machine ' + rangeText) +
-           '), inset by bit radius so the cutter’s outer edge stops at the machine limits.')
-        : 'Uses your machine’s full travel from grblHAL <strong>$130</strong> / <strong>$131</strong> (not yet reported), inset by bit radius so the cutter stays within machine limits.';
-      // Only a zone that reaches the surfacing area (the travel less the
-      // bit radius) is left out; one beyond it is named as not avoided.
-      var zoneText = function(list) {
-        return list.map(function(k) {
-          return k.name + ': X ' + k.minX + '–' + k.maxX + ', Y ' + k.minY + '–' + k.maxY;
-        }).join('; ') + ' ' + u;
-      };
-      var r = Math.max(0, num('qc-bit', 0)) / 2;
-      var zones = planerKeepouts(), inside = [], outside = [];
-      zones.forEach(function(k) {
-        var hits = !haveLimits || (k.maxX + r > minX + r && k.minX - r < minX + areaX - r && k.maxY + r > minY + r && k.minY - r < minY + areaY - r);
-        (hits ? inside : outside).push(k);
-      });
-      var keepoutText =
-        (inside.length ? ' Leaves out the keepout zone' + (inside.length > 1 ? 's' : '') + ' (' + zoneText(inside) + ') plus the bit radius.' : '') +
-        (outside.length ? ' The keepout zone' + (outside.length > 1 ? 's' : '') + ' (' + zoneText(outside) + ') ' +
-          (outside.length > 1 ? 'are' : 'is') + ' outside the machine’s travel, so ' +
-          (outside.length > 1 ? 'they aren’t' : 'it isn’t') + ' avoided.' : '');
-      return z0('the highest spot of the wasteboard') + '<br>' +
-             '<strong>Wasteboard Surfacing.</strong> ' + limitsText + keepoutText +
-             ' Set G54 X0/Y0 at machine zero — the g-code treats WCS X/Y as machine coords — ' +
-             'and zero Z on the wasteboard itself, not at machine Z0.';
-    }
-    return z0('the highest spot of the stock') + '<br>' +
-           '<strong>Target Depth</strong> flattens an uneven top. Zero on the highest spot, ' +
-           'cut a bit at a time — keep running until no low spots remain.';
+    if (mode === 'thickness') return z0('the wasteboard (bottom of stock)') + '<br>Remove a set amount and end at a known thickness.';
+    if (mode === 'wasteboard') return z0('the highest spot of the wasteboard') + '<br>Surfaces the machine’s whole travel. Set G54 X0 Y0 at the front-left corner of the travel.';
+    return z0('the highest spot of the stock') + '<br>Flattens an uneven top, a pass at a time.';
   }
 
   function readCutterForm() {
@@ -5666,22 +5841,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function updateJointerHint() {
     var hint = $('qc-join-hint');
     if (!hint) return;
-    var length = num('qc-join-length', 0);
-    var trim = num('qc-join-width', 0), n = Math.max(1, Math.floor(num('qc-join-trims', 1)));
-    var total = (trim * n).toFixed(3);
-    var axis = $('qc-join-axis').value;
-    var dir = $('qc-join-direction').value;
-    var dirText = (dir === 'climb')
-      ? '<strong>Climb</strong> — cutter teeth engage <em>with</em> the feed direction. Cleaner finish, but needs a rigid machine (climb tries to pull the workpiece).'
-      : dir === 'both'
-      ? '<strong>Both Ways</strong> — trims alternate direction, each starting where the last ended, so there’s no trip back; every other trim is a climb cut.'
-      : '<strong>Conventional</strong> — cutter teeth engage <em>against</em> the feed direction. Safer and less chatter; standard for hand routers and hobbyist CNCs.';
-    hint.innerHTML =
-      '<strong>Trim:</strong> removes <strong>' + trim + ' ' + state.unitLabel +
-      '</strong> per pass × <strong>' + n + '</strong> pass' + (n === 1 ? '' : 'es') +
-      ' = <strong>' + total + ' ' + state.unitLabel + '</strong> total off the edge. Each pass ' +
-      'travels <strong>' + length + ' ' + state.unitLabel + '</strong> along the ' + axis.toUpperCase() +
-      '-axis. Click an edge in the preview to pick the side to trim.<br>' + dirText;
+    var u = state.unitLabel, trim = num('qc-join-width', 0), n = Math.max(1, Math.floor(num('qc-join-trims', 1)));
+    var side = $('qc-join-origin').value, dir = $('qc-join-direction').value, along = side === 'front' || side === 'back' ? 'X' : 'Y';
+    var corner = { front: 'front-left', back: 'back-left', left: 'front-left', right: 'front-right' }[side] || 'front-left';
+    var dirText = dir === 'climb' ? 'Climb leaves a cleaner edge on a rigid machine.'
+      : dir === 'both' ? 'Both Ways turns round each trim, so there is no trip back.'
+      : 'Conventional is gentler on a lighter machine.';
+    hint.innerHTML = 'Zero X and Y on the <strong>' + corner + ' corner</strong> and Z on top of the stock. ' +
+      n + (n === 1 ? ' trim' : ' trims') + ' of <strong>' + trim + ' ' + u + '</strong> along <strong>' + along + '</strong> take <strong>' +
+      roundDisplay(trim * n) + ' ' + u + '</strong> off the ' + side + ' edge. ' + dirText;
   }
 
   // Pattern form is in DISPLAY units for distances; angle/counts unitless.
@@ -6690,7 +6858,64 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return segs;
   }
 
+  // Pattern Style as a switch: Linear, Grid (Slot), Honeycomb, Circular.
+  // Where a tab has both circular kinds, Circular shows a Copies:
+  // Identical | Follow path switch with the circle's fields. Both drive
+  // the hidden style menu, so everything else is unchanged.
+  function wirePatternStyleSwitches() {
+    ['rect', 'circ', 'poly', 'slt', 'key', 'drl'].forEach(function(prefix) {
+      var sel = $('qc-' + prefix + '-pattern-style');
+      if (!sel) return;
+      var vals = [].map.call(sel.options, function(o) { return o.value; });
+      var kinds = [['linear', 'Linear'], ['grid', 'Grid'], ['honeycomb', 'Honeycomb'], ['circular', 'Circular']]
+        .filter(function(k) { return vals.indexOf(k[0]) >= 0; });
+      var seg = document.createElement('div');
+      seg.className = 'qc-seg qc-pattern-seg';
+      seg.style.gridTemplateColumns = 'repeat(' + kinds.length + ', minmax(0, 1fr))';
+      seg.setAttribute('role', 'radiogroup');
+      seg.setAttribute('aria-label', 'Pattern Style');
+      seg.innerHTML = kinds.map(function(k) { return '<button type="button" role="radio" data-k="' + k[0] + '">' + k[1] + '</button>'; }).join('');
+      sel.parentNode.insertBefore(seg, sel);
+      sel.hidden = true;
+      var follow = vals.indexOf('circular-follow') >= 0, copies = null;
+      if (follow) {
+        copies = document.createElement('div');
+        copies.className = 'qc-field qc-pattern-copies';
+        copies.innerHTML = '<label>Copies</label><div class="qc-seg qc-seg--2" role="radiogroup" aria-label="Copies">' +
+          '<button type="button" role="radio" data-c="circular">Identical</button><button type="button" role="radio" data-c="circular-follow">Follow path</button></div>';
+        // In the top row's spare slot, shown only for Circular.
+        var cell = $('qc-' + prefix + '-pattern-body').querySelector('.qc-pattern-toggle-cell');
+        cell.insertBefore(copies, cell.firstChild);
+      }
+      var lastCirc = sel.value === 'circular-follow' ? 'circular-follow' : 'circular';
+      var set = function(v) {
+        if (sel.value === v) return;
+        sel.value = v;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      seg.querySelectorAll('button').forEach(function(b) {
+        b.addEventListener('click', function() { var k = b.getAttribute('data-k'); set(k === 'circular' ? lastCirc : k); });
+      });
+      if (copies) copies.querySelectorAll('button').forEach(function(b) {
+        b.addEventListener('click', function() { lastCirc = b.getAttribute('data-c'); set(lastCirc); });
+      });
+      var sync = function() {
+        var v = sel.value, kind = /^circular/.test(v) ? 'circular' : v;
+        if (/^circular/.test(v)) lastCirc = v;
+        seg.querySelectorAll('button').forEach(function(b) { var on = b.getAttribute('data-k') === kind; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+        if (copies) {
+          copies.hidden = kind !== 'circular';
+          copies.querySelectorAll('button').forEach(function(b) { var on = b.getAttribute('data-c') === v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+        }
+      };
+      sel.addEventListener('change', sync);
+      sel._qcSync = sync;
+      sync();
+    });
+  }
   function updatePatternVisibility(prefix) {
+    var styleSel = $('qc-' + prefix + '-pattern-style');
+    if (styleSel && styleSel._qcSync) styleSel._qcSync();
     var enabled = $('qc-' + prefix + '-pattern-enable').checked;
     $('qc-' + prefix + '-pattern-body').style.display = enabled ? '' : 'none';
     if (enabled) {
@@ -7445,10 +7670,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var isGrid = style === 'linear' || style === 'honeycomb' || isLineGrid;
     var rotate = body.querySelector('.qc-pattern-angled-only');
     if (rotate) rotate.style.display = angle && isGrid && !isLineGrid ? '' : 'none';
-    // The switch cell (Symmetric Ends, Rotate shapes) is for the grid
-    // styles only; Circular hides it with the Angle field.
+    // The switch cell holds Symmetric Ends / Rotate shapes (grid styles)
+    // and Circular's Copies switch; hidden only when it has nothing.
     var toggles = body.querySelector('.qc-pattern-toggle-cell');
-    if (toggles) toggles.style.display = isGrid ? '' : 'none';
+    if (toggles) toggles.style.display = isGrid || toggles.querySelector('.qc-pattern-copies') ? '' : 'none';
   }
 
   // Feed and plunge rates show whole numbers (one decimal under 10), far
@@ -7742,6 +7967,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (plan.overrun != null)    $('qc-plan-overrun').value  = roundDisplay(mmToDisplay(plan.overrun));
     if (plan.origin)             setOriginPickerValue('qc-plan-origin', migrateOrigin(plan.origin));
     if (plan.pattern)            $('qc-plan-pattern').value  = plan.pattern;
+    if (plan.cutDirection)       $('qc-plan-direction').value = plan.cutDirection;
+    if (plan.spiralFrom)         $('qc-plan-spiral-from').value = plan.spiralFrom;
     if (plan.stepoverPct != null) $('qc-plan-stepover').value = plan.stepoverPct;
     if (plan.depth != null)      $('qc-plan-depth').value    = roundDisplay(mmToDisplay(plan.depth));
     if (plan.depthOfCut != null) $('qc-plan-step').value     = roundDisplay(mmToDisplay(plan.depthOfCut));
@@ -8004,6 +8231,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         overrun:      displayToMm(params.overrun),
         origin:       params.origin,
         pattern:      params.pattern,
+        spiralFrom:   params.spiralFrom,
+        cutDirection: params.cutDirection,
         stepoverPct:  params.stepoverPct,
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
@@ -8330,6 +8559,41 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
   }
 
+  // Settings are saved as you go, not only on Generate: a field you changed,
+  // once you leave it, or a switch or button you tap saves the tab you're
+  // on (as Generate does). Only your own edits count (isTrusted), not the
+  // events the page fires itself while loading or updating, and nothing is
+  // saved while a field on the tab shows an error.
+  var AUTOSAVE_READERS = {
+    rectangle: function() { return readRectangleForm(); }, circle: function() { return readCircleForm(); },
+    polygon: function() { return readPolygonForm(); }, slot: function() { return readSlotForm(); },
+    keyhole: function() { return readKeyholeForm(); }, drill: function() { return readDrillForm(); },
+    planer: function() { return readPlanerForm(); }, cutter: function() { return readCutterForm(); },
+    jointer: function() { return readJointerForm(); }
+  };
+  var autosaveTimer = null;
+  function autosaveSoon() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(function() {
+      if (!rootAlive()) return;
+      var tab = state.currentTab, read = AUTOSAVE_READERS[tab];
+      if (!read) return;
+      var page = ROOT.querySelector('.qc-content.active');
+      if (page && page.querySelector('.qc-input-error')) return;
+      try {
+        var params = read();
+        params.shape = tab;
+        saveSettings(params);
+      } catch (e) { console.warn('[QuickCut] autosave skipped:', e); }
+    }, 400);
+  }
+  function watchAutosave() {
+    ROOT.addEventListener('change', function(ev) { if (ev.isTrusted) autosaveSoon(); });
+    ROOT.addEventListener('click', function(ev) {
+      if (ev.isTrusted && ev.target.closest && ev.target.closest('.qc-content button, .qc-content .qc-switch, .qc-content [role="radio"]')) autosaveSoon();
+    });
+  }
+
   // The server replaces the whole settings file on every save. Sending only the
   // shape that was generated therefore wiped every other shape's saved values,
   // so each change is merged into the full saved copy and that is sent instead.
@@ -8563,13 +8827,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       updateClearingVisibility('rect');
       updateRectanglePreview();
     });
-    $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); });
-    $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); });
+    $('qc-rect-pattern-enable').addEventListener('change', function() { updatePatternVisibility('rect'); updateRectanglePreview(); });
+    $('qc-rect-pattern-style').addEventListener('change', function() { updatePatternVisibility('rect'); updateRectanglePreview(); });
+    $('qc-rect-pattern-body').addEventListener('input', updateRectanglePreview);
+    $('qc-rect-pattern-body').addEventListener('change', updateRectanglePreview);
     $('qc-rect-pattern-angle').addEventListener('input', function() { updatePatternAngleLabels('rect'); });
-    wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, function(pt) {
-      pickPreviewNode(rectPreviewNodes, 'qc-rect-origin', pt, updateRectanglePreview);
-    }, null, snapMiterAngle);
-    wirePickCursor($('qc-rect-preview'), function(pt) { return !!nearestPreviewNode(rectPreviewNodes, pt); });
+    wirePreviewAngleDrag('qc-rect-preview', 'qc-rect-start-angle', true, null, null, snapMiterAngle);
     ['qc-rect-width', 'qc-rect-height', 'qc-rect-top-width', 'qc-rect-corner', 'qc-rect-start-angle'].forEach(function(id) {
       $(id).addEventListener('input', updateRectanglePreview);
     });
@@ -8592,6 +8855,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     showRectKind(false);
     $('qc-rect-corner-relief').addEventListener('change', updateRectanglePreview);
+    // The side view follows the depth and the tabs.
+    ['qc-rect-depth', 'qc-rect-step', 'qc-rect-tabs-height'].forEach(function(id) { $(id).addEventListener('input', updateRectanglePreview); });
+    // Turning the screen moves the chamfer side view (see updateRectanglePreview).
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(orientation: portrait), (max-width: 1100px)');
+      var onTurn = function() { if (state.currentTab === 'rectangle') updateRectanglePreview(); };
+      if (mq.addEventListener) mq.addEventListener('change', onTurn); else if (mq.addListener) mq.addListener(onTurn);
+    }
+    // The Chamfer card, when it's on this page.
+    ['qc-chamfer-width', 'qc-chamfer-angle', 'qc-chamfer-cut-bit', 'qc-chamfer-cut-depth'].forEach(function(id) {
+      $(id).addEventListener('input', function() { if (state.chamferMode === 'rectangle') updateRectanglePreview(); });
+    });
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
     updateRectanglePreview();
@@ -8628,6 +8903,23 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var el = $(id);
       if (el) el.addEventListener('input', updatePlanerPreview);
     });
+    ROOT.querySelectorAll('#qc-plan-mode-seg button').forEach(function(b) {
+      b.addEventListener('click', function() { var m = $('qc-plan-mode'); m.value = b.getAttribute('data-v'); m.dispatchEvent(new Event('change', { bubbles: true })); });
+    });
+    ROOT.querySelectorAll('#qc-plan-pattern-seg button').forEach(function(b) {
+      b.addEventListener('click', function() { var m = $('qc-plan-pattern'); m.value = b.getAttribute('data-v'); m.dispatchEvent(new Event('change', { bubbles: true })); });
+    });
+    ROOT.querySelectorAll('#qc-plan-spiral-seg button').forEach(function(b) {
+      b.addEventListener('click', function() { var m = $('qc-plan-spiral-from'); m.value = b.getAttribute('data-v'); m.dispatchEvent(new Event('change', { bubbles: true })); });
+    });
+    ROOT.querySelectorAll('#qc-plan-dir-seg button').forEach(function(b) {
+      b.addEventListener('click', function() { var m = $('qc-plan-direction'); m.value = b.getAttribute('data-v'); m.dispatchEvent(new Event('change', { bubbles: true })); });
+    });
+    // Any change redraws the figures (the top view runs the generator).
+    var planTimer = null, planRedraw = function() { clearTimeout(planTimer); planTimer = setTimeout(updatePlanerPreview, 60); };
+    $('qc-plan-form').addEventListener('input', planRedraw);
+    $('qc-plan-form').addEventListener('change', planRedraw);
+    $('qc-bit').addEventListener('input', function() { if (state.currentTab === 'planer') planRedraw(); });
     updatePlanerModeVisibility();
     updatePlanerPreview();
 
@@ -8728,6 +9020,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var el = $(id);
       if (el) el.addEventListener('input', updateJointerPreview);
     });
+    ROOT.querySelectorAll('#qc-join-edge button').forEach(function(b) {
+      b.addEventListener('click', function() { setSide('qc-join-origin', 'qc-join-axis', b.getAttribute('data-side')); updateJointerHint(); updateJointerPreview(); });
+    });
+    ROOT.querySelectorAll('#qc-join-dir button').forEach(function(b) {
+      b.addEventListener('click', function() { var d = $('qc-join-direction'); d.value = b.getAttribute('data-dir'); d.dispatchEvent(new Event('change', { bubbles: true })); });
+    });
+    ['qc-join-depth', 'qc-join-step', 'qc-join-overrun'].forEach(function(id) { $(id).addEventListener('input', updateJointerPreview); });
     syncSideToAxis('qc-join-origin', $('qc-join-axis').value);
     updateJointerHint();
     updateJointerPreview();
@@ -8770,9 +9069,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function placeChamferCard(view) {
     var card = $('qc-chamfer-card'), prefix = CHAMFER_TABS[view];
-    if (!prefix) { card.style.display = 'none'; return; }
+    // Only on the Chamfer tab now; the shape tabs send their numbers there.
+    if (!prefix || state.chamferMode !== view) { card.style.display = 'none'; return; }
     var depthCard = $('qc-' + prefix + '-depth').closest('.qc-card');
-    depthCard.parentNode.insertBefore(card, depthCard.nextSibling);
+    // Chamfer card first, so the Edge switch heads the page (Drill: after
+    // the Hole card, which chamfering hides).
+    if (prefix === 'drl') depthCard.parentNode.insertBefore(card, depthCard.nextSibling);
+    // Rect: after the Shape card, which heads with the Edge switch.
+    else if (prefix === 'rect') depthCard.parentNode.insertBefore(card, depthCard.parentNode.querySelector('.qc-shp-shape').nextSibling);
+    else depthCard.parentNode.insertBefore(card, depthCard.parentNode.firstChild);
     card.style.display = '';
     // After the switch has made this the current tab.
     setTimeout(updateChamferVisibility, 0);
@@ -8881,7 +9186,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // any other bit off.
   function chamferForPickedTool(t) {
     var angle = vBitOf(t);
-    $('qc-chamfer-enable').checked = angle != null;
+    if (!state.chamferMode) return;
     if (angle) $('qc-chamfer-angle').value = String(angle);
     state.chamferSource = '';
     updateChamferVisibility();
@@ -8890,11 +9195,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function chamferFromLoadedTool(t, n) {
     var angle = vBitOf(t);
     if (angle == null) {
-      $('qc-chamfer-enable').checked = false;
       state.chamferSource = '';
       state.loadedVBit = 0;
     } else {
-      $('qc-chamfer-enable').checked = true;
       if (angle) $('qc-chamfer-angle').value = String(angle);
       state.chamferSource = 'T' + n + ', a V-bit, is in the spindle.';
       state.loadedVBit = n;
@@ -8910,6 +9213,152 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (bitTool().n === state.loadedVBit) return;
     var t = (state.tools || []).filter(function(x) { return x.n === state.loadedVBit; })[0];
     if (t) applyBitTool(t);
+  }
+
+  // ---- The Chamfer tab ----
+  // It is the chosen shape's page (Drill's holes, a circle, rectangle,
+  // polygon or slot) in chamfer mode: the shape's sizes, origin and
+  // pattern, the Chamfer card, its own V-bit in the Tool card, and its
+  // own header with an Edge switch. Generate makes only the chamfer.
+  var CHAMFER_EDGES = [['drill', 'Holes'], ['circle', 'Circle'], ['rectangle', 'Rect'], ['polygon', 'Polygon'], ['slot', 'Slot']];
+  // Only Holes has the new layout so far; the others come with their tabs.
+  var CHAMFER_READY = { drill: true, rectangle: true };
+  var chamferHead = null;
+  function chamferHeader() {
+    if (chamferHead) return chamferHead;
+    chamferHead = document.createElement('div');
+    chamferHead.className = 'qc-panel-title-row qc-chf-head';
+    chamferHead.innerHTML = '<h2 class="qc-panel-title">Chamfer</h2>' +
+      '<p class="qc-panel-sub">Bevel the top edge of holes or shapes already cut, with a V-bit.</p>';
+    // The Edge switch heads the Chamfer card, in the content.
+    var edge = document.createElement('div');
+    edge.className = 'qc-field qc-chf-edge';
+    edge.innerHTML = '<label>Edge</label><div class="qc-seg" role="radiogroup" aria-label="Edge" style="grid-template-columns: repeat(' + CHAMFER_EDGES.length + ', minmax(0, 1fr))">' +
+      CHAMFER_EDGES.map(function(e) { return '<button type="button" role="radio" data-edge="' + e[0] + '"' + (CHAMFER_READY[e[0]] ? '' : ' disabled title="Coming soon"') + '>' + e[1] + '</button>'; }).join('') + '</div>';
+    var card = $('qc-chamfer-card'), cardHead = card.querySelector('.qc-card-header');
+    card.insertBefore(edge, cardHead.nextSibling);
+    edge.querySelectorAll('[data-edge]').forEach(function(b) {
+      b.addEventListener('click', function() { enterChamfer(b.getAttribute('data-edge')); });
+    });
+    return chamferHead;
+  }
+  function enterChamfer(target, source) {
+    if (!CHAMFER_TABS[target] || !CHAMFER_READY[target]) target = 'drill';
+    state.enteringChamfer = true;
+    switchTab(target);
+    state.enteringChamfer = false;
+    var first = !state.chamferMode;
+    state.chamferMode = target;
+    // The Chamfer tab's own V-bit (kept apart from the drill or end mill).
+    if (state.toolByShape.chamfer) writeToolToInputs(state.toolByShape.chamfer);
+    else if (first) { var n = state.loadedVBit, t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0]; if (t) applyBitTool(t); }
+    state.chamferSource = source || '';
+    var en = $('qc-chamfer-enable');
+    en.checked = true;
+    en.dispatchEvent(new Event('change', { bubbles: true }));
+    placeChamferCard(target);
+    ROOT.querySelectorAll('.qc-content').forEach(function(c) { c.classList.remove('qc-chamfer-mode'); });
+    var section = ROOT.querySelector('.qc-content[data-view="' + target + '"]');
+    section.classList.add('qc-chamfer-mode');
+    var head = section.querySelector('.qc-panel-header'), row = head.querySelector('.qc-panel-title-row:not(.qc-chf-head)');
+    head.insertBefore(chamferHeader(), row);
+    placeChamferEdge(target);
+    ROOT.querySelectorAll('.qc-chf-edge [data-edge]').forEach(function(b) {
+      var on = b.getAttribute('data-edge') === target;
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    highlightNav(target);
+    rememberTab();
+    showBitTool();
+    updateChamferVisibility();
+    if (target === 'drill') updateDrillPreview();
+    if (target === 'rectangle') {
+      // A pocket's edge is chamfered as an Inside cut's; Pocket comes back
+      // on the Rectangle tab.
+      var ct = $('qc-rect-cut-type');
+      if (ct.value === 'clearing') { state.rectWasPocket = true; ct.value = 'inner'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
+      updateRectanglePreview();
+    }
+  }
+  // The Edge switch heads the Shape card on the shapes with the new layout
+  // (Rect), where it picks what's chamfered; elsewhere the Chamfer card.
+  function placeChamferEdge(target) {
+    var edge = ROOT.querySelector('.qc-chf-edge');
+    if (!edge) return;
+    var shapeCard = target === 'rectangle' ? ROOT.querySelector('.qc-content[data-view="rectangle"] .qc-shp-shape') : null;
+    if (shapeCard) shapeCard.insertBefore(edge, shapeCard.querySelector('.qc-card-title').nextSibling);
+    else { var card = $('qc-chamfer-card'); card.insertBefore(edge, card.querySelector('.qc-card-header').nextSibling); }
+  }
+  function exitChamferMode() {
+    placeChamferEdge(null);
+    var target = state.chamferMode;
+    state.chamferMode = null;
+    var en = $('qc-chamfer-enable');
+    en.checked = false;
+    en.dispatchEvent(new Event('change', { bubbles: true }));
+    state.chamferSource = '';
+    ROOT.querySelectorAll('.qc-content').forEach(function(c) { c.classList.remove('qc-chamfer-mode'); });
+    if (chamferHead && chamferHead.parentNode) chamferHead.parentNode.removeChild(chamferHead);
+    $('qc-chamfer-card').style.display = 'none';
+    if (state.rectWasPocket) {
+      state.rectWasPocket = false;
+      var ct = $('qc-rect-cut-type');
+      if (ct.value === 'inner') { ct.value = 'clearing'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
+    }
+    // Back on the shape's own tool.
+    if (target && state.toolByShape[target]) writeToolToInputs(state.toolByShape[target]);
+  }
+  // From a shape tab: the Chamfer tab with that shape's numbers.
+  function chamferFromTab(tab) {
+    var name = tab === 'drill' ? 'holes' : 'shape';
+    enterChamfer(tab, 'The ' + name + ' from ' + ({ drill: 'Drill', circle: 'Circle', rectangle: 'Rectangle', polygon: 'Polygon', slot: 'Slot' }[tab] || tab) + '.');
+  }
+  // Generate on the shape tabs is a split button: its arrow offers
+  // "Chamfer these holes / this shape" (T3).
+  function wireChamferTab() {
+    $('qc-nav-chamfer').addEventListener('click', function() {
+      if (state.chamferMode) return;
+      enterChamfer(CHAMFER_READY[state.currentTab] ? state.currentTab : 'drill');
+    });
+    Object.keys(CHAMFER_TABS).forEach(function(tab) {
+      if (!CHAMFER_READY[tab]) return;
+      var gen = $('qc-' + CHAMFER_TABS[tab] + '-generate');
+      if (!gen) return;
+      var wrap = document.createElement('span');
+      wrap.className = 'qc-split';
+      gen.parentNode.insertBefore(wrap, gen);
+      wrap.appendChild(gen);
+      var more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'qc-primary-btn qc-split-more';
+      more.setAttribute('aria-haspopup', 'menu');
+      more.setAttribute('aria-label', 'More ways to generate');
+      more.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      wrap.appendChild(more);
+      var menu = document.createElement('div');
+      menu.className = 'qc-split-menu';
+      menu.hidden = true;
+      var what = tab === 'drill' ? 'these holes' : 'this shape';
+      menu.innerHTML = '<button type="button" data-a="gen"><b>Generate</b><small>' + (tab === 'drill' ? 'Drill the holes' : 'Cut the shape') + '</small></button>' +
+        '<button type="button" data-a="chamfer"><b>Chamfer ' + what + ' \u2192</b><small>Open Chamfer with these sizes, origin and pattern</small></button>';
+      wrap.appendChild(menu);
+      more.addEventListener('click', function(e) { e.stopPropagation(); menu.hidden = !menu.hidden; });
+      menu.addEventListener('click', function(e) {
+        var b = e.target.closest('button'); if (!b) return;
+        menu.hidden = true;
+        if (b.getAttribute('data-a') === 'gen') gen.click(); else chamferFromTab(tab);
+      });
+      document.addEventListener('pointerdown', function(e) { if (!menu.hidden && !wrap.contains(e.target)) menu.hidden = true; }, true);
+    });
+    // Saved state: on the Chamfer tab last time, or an old chamfer switch.
+    var saved = null;
+    try { saved = localStorage.getItem(LAST_TAB_KEY); } catch (e) {}
+    if (saved && saved.indexOf('chamfer:') === 0) enterChamfer(saved.slice(8));
+    else if ($('qc-chamfer-enable').checked) {
+      if (CHAMFER_TABS[state.currentTab]) enterChamfer(state.currentTab);
+      else { $('qc-chamfer-enable').checked = false; updateChamferVisibility(); }
+    }
+    placeChamferCard(state.currentTab);
   }
 
   function wireCircleForm() {
@@ -9020,6 +9469,40 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // and a hollow ring. Drawn in screen pixels inside .qc-axes-s, which
   // fitAxes scales to the SVG it lands in, so it looks the same size on a
   // small preview and a big figure.
+  // A select shown as a segmented switch: the switch sits where the select
+  // was, the select stays (hidden) for the code that reads it. Kept in
+  // step by syncSelectSegs (called from the previews).
+  var SELECT_SEGS = [];
+  function selectSeg(selId, opts) {
+    var sel = $(selId);
+    if (!sel || sel.dataset.seg) return;
+    sel.dataset.seg = '1';
+    var seg = document.createElement('div');
+    seg.className = 'qc-seg qc-seg--' + opts.length;
+    seg.setAttribute('role', 'radiogroup');
+    seg.innerHTML = opts.map(function(o) { return '<button type="button" role="radio" data-v="' + o[0] + '">' + o[1] + '</button>'; }).join('');
+    sel.parentNode.insertBefore(seg, sel);
+    sel.classList.add('qc-seg-hidden');
+    var lbl = sel.parentNode.querySelector('label[for="' + selId + '"]');
+    if (lbl) { lbl.removeAttribute('for'); seg.setAttribute('aria-label', lbl.textContent); }
+    seg.title = sel.title;
+    seg.querySelectorAll('button').forEach(function(b) {
+      b.addEventListener('click', function() {
+        if (sel.value === b.getAttribute('data-v')) return;
+        sel.value = b.getAttribute('data-v');
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        syncSelectSegs();
+      });
+    });
+    sel.addEventListener('change', syncSelectSegs);
+    SELECT_SEGS.push([sel, seg]);
+    syncSelectSegs();
+  }
+  function syncSelectSegs() {
+    SELECT_SEGS.forEach(function(p) {
+      p[1].querySelectorAll('button').forEach(function(b) { var on = b.getAttribute('data-v') === p[0].value; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    });
+  }
   function figAxes(x, y) {
     var L = 58, h = 12, w = 7;
     return '<g class="qc-axes" pointer-events="none" transform="translate(' + (+x).toFixed(2) + ' ' + (+y).toFixed(2) + ')"><g class="qc-axes-s">' +
@@ -9539,7 +10022,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function renderToolList() {
     var list = $('qc-tool-list'), n = bitToolNumber(), u = state.unitLabel;
     var words = String($('qc-tool-filter').value).toLowerCase().split(/\s+/).filter(Boolean);
+    var vOnly = state.chamferMode && (state.tools || []).some(function(t) { return vBitOf(t) != null; });
     var tools = (state.tools || []).filter(function(t) {
+      if (vOnly && vBitOf(t) == null) return false;
       var hay = ('t' + t.n + ' ' + t.name + ' ' + t.notes + ' ' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ' in the spindle' : '')).toLowerCase();
       return words.every(function(w) { return hay.indexOf(w) >= 0; });
     });
@@ -9601,11 +10086,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var chamferMsg = '';
     if (t) {
       fl = applyBitTool(t);
-      if (chamferTab()) {
-        var was = $('qc-chamfer-enable').checked;
+      if (state.chamferMode) {
         chamferForPickedTool(t);
-        var now = $('qc-chamfer-enable').checked;
-        if (now !== was) chamferMsg = now ? ' A V-bit: Chamfer on.' : ' Not a V-bit: Chamfer off.';
+        if (vBitOf(t) == null) chamferMsg = ' This isn\u2019t a V-bit: chamfer with a V-bit.';
       }
     }
     else setBitTool(0, 0);
@@ -10401,11 +10884,33 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
 
   function updateRectanglePreview() {
+    selectSeg('qc-rect-cut-type', [['outer', 'Outside'], ['inner', 'Inside'], ['clearing', 'Pocket']]);
+    selectSeg('qc-rect-corner-relief', [['none', 'None'], ['dogbone', 'Dog-bone'], ['tbone', 'T-bone']]);
+    syncSelectSegs();
+    var sideSvg = $('qc-rect-side');
+    // Chamfering, the Chamfer card heads the left column, so the side view
+    // goes under the top view; back beside the Depth card after.
+    var sideFig = sideSvg && sideSvg.closest('.qc-shp-sidefig');
+    if (sideFig) {
+      var stageTop = ROOT.querySelector('.qc-shp-stage > .qc-shp-top'), depthCard = $('qc-rect-depth').closest('.qc-card');
+      // In portrait it stays in the left column, under the Shape card.
+      var portrait = window.matchMedia && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches;
+      if (state.chamferMode === 'rectangle' && !portrait) { if (sideFig.previousElementSibling !== stageTop) stageTop.parentNode.insertBefore(sideFig, stageTop.nextSibling); }
+      else if (sideFig.previousElementSibling !== depthCard) depthCard.parentNode.insertBefore(sideFig, depthCard.nextSibling);
+    }
+    if (sideSvg && state.chamferMode === 'rectangle') rectChamferSide(sideSvg);
+    else if (sideSvg) {
+      var tabsOn = $('qc-rect-tabs-enable').checked;
+      passesSide(sideSvg, { depth: num('qc-rect-depth', 0), doc: num('qc-rect-step', 0), title: 'Side view · depth passes',
+        note2: tabsOn ? 'tabs ' + num('qc-rect-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
+    }
     schedulePatternPreview();
     updateInsetState('rect');
     updateReliefState('rect');
     var svg = document.getElementById('qc-rect-preview');
     if (!svg) return;
+    svg.setAttribute('viewBox', '-50 -50 100 100');
+    ['outer', 'inner', 'clearing'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-rect-cut-type').value === k); });
     var W = num('qc-rect-width', 0);
     var H = num('qc-rect-height', 0);
     var topW = num('qc-rect-top-width', 0);
@@ -10417,105 +10922,270 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var relief = reliefStyle('rect', cutType);
     var CR = relief ? Math.max(0, num('qc-rect-corner', 0)) : previewCornerRadius(num('qc-rect-corner', 0), cutType);
 
-    // Drawn to the shape's proportions, fitted into the box with room for
-    // the dimension arrows (at most 76 wide by 60 tall, or an 80 diagonal
-    // when turned, so every corner stays inside). A side never goes below
-    // 14, so very thin rectangles still show their arrows. The corner
-    // radius is drawn in proportion too, and the Start Angle turns the
-    // whole drawing (CCW, like the machine). Dim labels show the real
-    // values.
-    // An inset adds that much room on every side, so X0 Y0 stays in view.
-    var pad = insetPad('rect') + bitEdgePad(cutType);
-    var Wp = W > 0 && H > 0 ? W + 2 * pad : 76, Hp = W > 0 && H > 0 ? H + 2 * pad : 46;
-    var fit = Math.min(76 / Wp, 60 / Hp);
-    if (turn % 180) fit = Math.min(fit, 80 / Math.hypot(Wp, Hp));
-    var w = Math.max(14, (W > 0 && H > 0 ? W : 76) * fit), h = Math.max(14, (W > 0 && H > 0 ? H : 46) * fit);
-    var shortSide = Math.min(W, H);
-    var cr = CR > 0 && shortSide > 0 ? Math.min(CR / shortSide * Math.min(w, h), Math.min(w, h) / 2) : 0;
-    var centerY = 0;
-    var x = -w / 2;
-    var y = centerY - h / 2;
-    // SVG y points down, so a CCW machine turn is this on screen.
-    var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
-    function T(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
-    var outline = relief && shortSide > 0
-      ? reliefOutline([T(x, y), T(x + w, y), T(x + w, y + h), T(x, y + h)],
-          Math.max(0, num('qc-bit', 0)) / 2 * Math.min(w, h) / shortSide, cr, relief)
-      : roundedRectPath(x, y, w, h, cr, T);
-    // Each axis to its own scale (a thin side is drawn at least 14).
-    var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType), edgeD = '';
-    if (edgeDir && bitD > 0 && W > 0 && H > 0) {
-      var bx = bitD * w / W, by = bitD * h / H, bc = shortSide > 0 ? bitD * Math.min(w, h) / shortSide : 0;
-      var ew = w + 2 * edgeDir * bx, eh = h + 2 * edgeDir * by;
-      if (ew > 0.5 && eh > 0.5) {
-        edgeD = roundedRectPath(x - edgeDir * bx, y - edgeDir * by, ew, eh, Math.min(Math.max(0, cr + edgeDir * bc), Math.min(ew, eh) / 2), T);
-      }
+    // The big top view, as on Drill and Cutter: the stock, every copy of
+    // the pattern (turned by the Start Angle and the pattern, as the
+    // generator places them), Cutter's hatch on the waste, the bit's band
+    // and path, Width and Height in pills, X0 Y0 as the X / Y arrows. One
+    // scale for both axes, fitted to the whole pattern.
+    var F = function(v) { return v.toFixed(2); };
+    var gen = makeQuickCutGenerator(state.isImperial), params = readRectangleForm();
+    var sized = W > 0 && H > 0, Wm = sized ? W : 50, Hm = sized ? H : 30;
+    var copies = sized ? gen.computePatternPositions(params.pattern) : [{ x: 0, y: 0, rotDeg: 0 }];
+    var total = copies.length;
+    if (total > RECT_PREVIEW_MAX) copies = copies.slice(0, 1);
+    var p0 = copies[0];
+    var bitD = Math.max(0, num('qc-bit', 0)), edgeDir = bitEdgeDir(cutType);
+    // The bit, its band and path are drawn as on Cutter, a hint of the
+    // cut rather than to scale: never wider than about a sixteenth of the
+    // part's long side or a seventh of its short one.
+    var bitV = sized ? Math.min(bitD, 0.06 * Math.max(W, H), 0.15 * Math.min(W, H)) : bitD;
+    // On the Chamfer tab: the cut is already made (a slot round a part, or
+    // the opening of an Inside cut / Pocket) and a V-bit bevels its top
+    // edge, Chamfer Width wide, on the part's side (Outside) or the
+    // stock's (Inside / Pocket). Drawn like the bit, a hint not to scale.
+    var chf = state.chamferMode === 'rectangle';
+    // The bevel is a thin band of the same width whatever the size (the
+    // caption gives the real one).
+    var cwV = 0;
+    var slotV = chf && sized && cutType === 'outer' ? Math.min(Math.max(0, num('qc-chamfer-cut-bit', 0)), 0.06 * Math.max(W, H), 0.15 * Math.min(W, H)) : 0;
+    var reach = chf ? (cutType === 'outer' ? slotV : 0.03 * Math.max(Wm, Hm)) : Math.max(edgeDir > 0 ? bitV : 0, insetPad('rect'));
+    // Inside and Pocket: the bit's center goes right into a square corner,
+    // so its path stays square and the cut it leaves is rounded by the
+    // bit (as drawn).
+    if (!relief && cutType !== 'outer') CR = Math.max(Math.max(0, num('qc-rect-corner', 0)), bitV / 2);
+    // Machine point of copy i from a point about its own center (unturned).
+    function mpt(i, lx, ly) {
+      var q = copies[i], a = ((q.rotDeg || 0) + turn) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      return { x: q.x - p0.x + lx * ca - ly * sa, y: q.y - p0.y + lx * sa + ly * ca };
     }
+    var mb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    copies.forEach(function(q, i) {
+      [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function(k) {
+        var m = mpt(i, k[0] * (Wm / 2 + reach), k[1] * (Hm / 2 + reach));
+        mb.x0 = Math.min(mb.x0, m.x); mb.x1 = Math.max(mb.x1, m.x); mb.y0 = Math.min(mb.y0, m.y); mb.y1 = Math.max(mb.y1, m.y);
+      });
+    });
+    var s = Math.min(70 / Math.max(1e-6, mb.x1 - mb.x0), 52 / Math.max(1e-6, mb.y1 - mb.y0));
+    var mcx = (mb.x0 + mb.x1) / 2, mcy = (mb.y0 + mb.y1) / 2;
+    if (chf && sized && num('qc-chamfer-width', 0) > 0) cwV = Math.min(0.8 / s, 0.12 * Math.min(W, H));
+    function V(m) { return { x: (m.x - mcx) * s, y: -(m.y - mcy) * s }; }
+    // Copy i's drawing transform: SVG units about its center, y down.
+    function Tc(i) { return function(px, py) { return V(mpt(i, px / s, -py / s)); }; }
+    var T = Tc(0), fit = s;
+    var w = Wm * s, h = Hm * s, x = -w / 2, y = -h / 2;
+    var shortSide = Math.min(W, H);
+    var cr = CR > 0 ? Math.min(CR * s, Math.min(w, h) / 2) : 0;
+    var rP = bitD / 2 * s;
+    function outlineOf(Ti) {
+      return relief && shortSide > 0
+        ? reliefOutline([Ti(x, y), Ti(x + w, y), Ti(x + w, y + h), Ti(x, y + h)], rP, cr, relief)
+        : roundedRectPath(x, y, w, h, cr, Ti);
+    }
+    // grown by g SVG units (negative: shrunk), corners kept concentric.
+    function grownOf(Ti, g) {
+      var gw = w + 2 * g, gh = h + 2 * g;
+      if (!(gw > 0.3 && gh > 0.3)) return '';
+      return roundedRectPath(x - g, y - g, gw, gh, Math.min(Math.max(0, cr + g), Math.min(gw, gh) / 2), Ti);
+    }
+    var outlines = copies.map(function(q, i) { return outlineOf(Tc(i)); });
+    var edges = edgeDir && bitV > 0 ? copies.map(function(q, i) { return grownOf(Tc(i), edgeDir * bitV * s); }) : [];
+    var outline = outlines[0], edgeD = edges[0] || '';
     var typedCR = Math.max(0, num('qc-rect-corner', 0));
     var ideal = CR > typedCR + 1e-9 && shortSide > 0
-      ? idealOutline(roundedRectPath(x, y, w, h, Math.min(typedCR / shortSide * Math.min(w, h), Math.min(w, h) / 2), T)) : '';
+      ? idealOutline(roundedRectPath(x, y, w, h, Math.min(typedCR * s, Math.min(w, h) / 2), T)) : '';
 
-    // Hatched waste area.
-    var hatchFill = 'fill="url(#qc-rect-hatch)"';
-    var hatched;
-    if (cutType === 'clearing') {
-      hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
-    } else if (cutType === 'inner') {
-      hatched = '';
+    // The stock, square to the machine, a margin round every copy.
+    var M = 11;
+    var sxA = (mb.x0 - mcx) * s - M, sxB = (mb.x1 - mcx) * s + M, syA = -(mb.y1 - mcy) * s - M, syB = -(mb.y0 - mcy) * s + M;
+    var stockD = 'M' + sxA.toFixed(2) + ',' + syA.toFixed(2) + ' H' + sxB.toFixed(2) + ' V' + syB.toFixed(2) + ' H' + sxA.toFixed(2) + ' Z';
+    // The bit's center line on each copy, dashed, as on Cutter.
+    var half = (edgeDir || (cutType === 'clearing' ? -1 : 0)) * bitV / 2 * s;
+    // What the bit cuts, in order: on Inside / Outside one loop per copy;
+    // on Pocket it clears the middle first (a slot along the long side),
+    // then works outward in rings Stepover apart, as the generator does.
+    function loopLen(g) {
+      var gw = w + 2 * g, gh = h + 2 * g, rc = Math.min(Math.max(0, cr + g), Math.min(gw, gh) / 2);
+      return 2 * (gw + gh) - (8 - 2 * Math.PI) * rc;
+    }
+    // A loop as the generator runs it: from the middle of the front edge,
+    // CCW (right along the front), grown by g with corner radius rc.
+    function ringPath(Ti, g, rc) {
+      var X0 = x - g, X1 = x + w + g, Y0 = y - g, Y1 = y + h + g;
+      if (!(X1 - X0 > 0.05 && Y1 - Y0 > 0.05)) return '';
+      rc = Math.min(Math.max(0, rc), (X1 - X0) / 2, (Y1 - Y0) / 2);
+      var P = function(px, py) { var t = Ti(px, py); return F(t.x) + ',' + F(t.y); };
+      // Ends back at the start with a line, not Z: Chrome's dashes skip
+      // a closing Z, so the cut would run ahead of the bit.
+      if (!(rc > 0.01)) return 'M' + P((X0 + X1) / 2, Y1) + ' L' + P(X1, Y1) + ' L' + P(X1, Y0) + ' L' + P(X0, Y0) + ' L' + P(X0, Y1) + ' L' + P((X0 + X1) / 2, Y1);
+      var A = function(px, py) { return ' A' + F(rc) + ',' + F(rc) + ' 0 0 0 ' + P(px, py); };
+      return 'M' + P((X0 + X1) / 2, Y1) + ' L' + P(X1 - rc, Y1) + A(X1, Y1 - rc) + ' L' + P(X1, Y0 + rc) + A(X1 - rc, Y0) +
+        ' L' + P(X0 + rc, Y0) + A(X0, Y0 + rc) + ' L' + P(X0, Y1 - rc) + A(X0 + rc, Y1) + ' L' + P((X0 + X1) / 2, Y1);
+    }
+    var cuts = [];
+    if (chf) copies.forEach(function(q, i) {
+      // The bevel's middle line, inside the part's edge or outside the opening.
+      // A hair past the edge as well, so no wood shows along it.
+      var e = 0.25, g = (cutType === 'outer' ? -1 : 1) * (cwV * s - e) / 2, d = cwV > 0 ? ringPath(Tc(i), g, cr + g) : '';
+      if (d) cuts.push({ i: i, d: d, len: loopLen(g), wid: cwV * s + e, cls: 'qc-shp-bevelcut' });
+    });
+    else if (bitV > 0 && sized) copies.forEach(function(q, i) {
+      var Ti = Tc(i);
+      if (cutType !== 'clearing') { var d = ringPath(Ti, half, cr + half); if (d) cuts.push({ i: i, d: d, len: loopLen(half) }); return; }
+      // Pocket: a helix bores the middle, then rings from the inside out,
+      // Stepover apart; only the last keeps the corner radius.
+      var rb = bitV / 2 * s, step = Math.min(Math.max(0.05, num('qc-rect-stepover', 40) / 100) * bitV * s, rb * (1 + Math.SQRT1_2));
+      var hr = Math.min(rb * 0.6, w / 2 + half - 0.01, h / 2 + half - 0.01), c0 = Ti(0, 0);
+      if (hr > rb * 0.1) {
+        var ha = Ti(hr, 0), hb = Ti(-hr, 0);
+        cuts.push({ i: i, d: 'M' + F(ha.x) + ',' + F(ha.y) + ' A' + F(hr) + ',' + F(hr) + ' 0 0 0 ' + F(hb.x) + ',' + F(hb.y) + ' A' + F(hr) + ',' + F(hr) + ' 0 0 0 ' + F(ha.x) + ',' + F(ha.y), len: 2 * Math.PI * hr });
+      }
+      var rings = [], off = 0, hw = w / 2 + half, hh = h / 2 + half;
+      while (hw - off > 0 && hh - off > 0) {
+        rings.push(half - off);
+        if (hw - off <= rb && hh - off <= rb) break;
+        var sh = Math.min(hw - off, hh - off);
+        off += sh - step <= 1e-9 && sh - rb > 1e-9 ? sh - rb : step;
+      }
+      rings.reverse().forEach(function(g, k) {
+        var d = ringPath(Ti, g, k === rings.length - 1 ? cr + half : 0);
+        if (d) cuts.push({ i: i, d: d, len: loopLen(g) });
+      });
+    });
+    var paths = cuts.map(function(c) { return c.d; });
+    // Every cut is taken as going right through: the bit goes round each
+    // copy in turn, and as each loop closes its waste comes away (Inside
+    // and Pocket: the middle drops out; Outside: once the last part is
+    // free, the stock round them goes). A pause, then it starts over.
+    var F = function(v) { return v.toFixed(2); };
+    var live = !CUT_REDUCED && cuts.length > 0;
+    var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + 3 * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
+    // When each cut starts and ends (a share of the run by its length), and
+    // when each copy is done.
+    var totalLen = cuts.reduce(function(t, c) { return t + c.len; }, 0) || 1, run = 0, doneAt = copies.map(function(q, i) { return cutF * (i + 1) / copies.length; });
+    cuts.forEach(function(c) { c.a = cutF * run / totalLen; run += c.len; c.b = cutF * run / totalLen; doneAt[c.i] = c.b; });
+    function goneAt(t, show) {
+      if (!live) return '';
+      var a = Math.min(0.998, t), b = Math.min(0.999, a + 0.35 / loopT);
+      return '<animate attributeName="opacity" values="' + (show ? '0;0;1;1' : '1;1;0;0') + '" keyTimes="0;' + a.toFixed(4) + ';' + b.toFixed(4) + ';1" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>';
+    }
+    // The slot the bit cuts, opening up behind it as it goes round each
+    // copy (stroke drawn along the bit's path, a bit wide).
+    function kerfOf(i) {
+      return cuts.filter(function(c) { return c.i === i; }).map(kerfCut).join('');
+    }
+    function kerfCut(c) {
+      var d = c.d, a = c.a, b = c.b;
+      var kt = [0, a, b, 1].map(function(t, k, arr) { return k && t <= arr[k - 1] ? arr[k - 1] + 0.0001 : t; });
+      kt[3] = 1;
+      return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + d + '" pathLength="100" stroke-width="' + F(c.wid || bitV * s) + '"' +
+        (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
+          kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
+    }
+    var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-rect-wood)"/>' +
+      woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
+    var waste, clips = '';
+    if (chf) {
+      // Already cut, the waste gone: Outside leaves just the parts, Inside /
+      // Pocket the stock with its openings. The bevel opens up behind the
+      // V-bit on what's left.
+      if (cutType === 'outer') {
+        clips = '<clipPath id="qc-shp-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
+        waste = '<g clip-path="url(#qc-shp-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+      } else {
+        // Through: nothing in the openings (the stock is clipped round
+        // them); with an Existing Depth, the floor shows, shaded.
+        if (num('qc-chamfer-cut-depth', 0) > 0) {
+          waste = stockSvg + outlines.map(function(o, i) { return kerfOf(i) + '<path class="qc-shp-floor" d="' + o + '"/>'; }).join('');
+        } else {
+          clips = '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+          waste = '<g clip-path="url(#qc-shp-away)">' + stockSvg + copies.map(function(q, i) { return kerfOf(i); }).join('') + '</g>';
+        }
+      }
+    } else if (cutType === 'outer') {
+      // Outside: the parts keep their wood; everything round them (the
+      // stock, its hatch, the bit's bands) is one piece that goes at the end.
+      clips = '<clipPath id="qc-shp-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
+        '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+      waste = '<g clip-path="url(#qc-shp-keep)">' + stockSvg + '</g>' +
+        '<g clip-path="url(#qc-shp-away)">' + stockSvg +
+          '<path fill="url(#qc-shp-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i); }).join('') +
+          goneAt(cutF) + '</g>';
     } else {
-      // Outer: only the band the bit takes, out to its far edge.
-      hatched = edgeD ? '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>' : '';
+      // Inside / Pocket: each copy's middle, over the hole it leaves.
+      waste = stockSvg + outlines.map(function(o, i) {
+        var at = doneAt[i];
+        return '<path class="qc-shp-hole" d="' + o + '"' + (live ? ' opacity="0"' : '') + '>' + goneAt(at, true) + '</path>' +
+          '<g><path fill="url(#qc-shp-waste)" d="' + o + '"/>' +
+          kerfOf(i) +
+          goneAt(at) + '</g>';
+      }).join('');
     }
+    var parts = outlines.map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
 
-    // Dimension arrows placed asymmetrically to keep them from crossing:
-    //   Width arrow OUTSIDE, below the bottom edge; label further below the line.
-    //   Height arrow INSIDE, near the right edge; label to the LEFT of the arrow.
-    // Both arrow lines are inset from the shape edges so the arrow
-    // tips (which extend past the line endpoints) don't touch the
-    // container border. They turn with the shape; the labels stay
-    // upright.
-    var dimGap = 4;
-    var arrowInset = 5;
-    var wY = y + h + dimGap;
-    var hX = x + w - arrowInset;
-    function line(x1, y1, x2, y2) {
-      var p1 = T(x1, y1), p2 = T(x2, y2);
-      return '<line class="qc-shape-dim-line" x1="' + p1.x.toFixed(2) + '" y1="' + p1.y.toFixed(2) +
-             '" x2="' + p2.x.toFixed(2) + '" y2="' + p2.y.toFixed(2) + '" ' +
-             'marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
+    // Width and Height of the first copy, outside its edges, in pills.
+    var u = state.unitLabel, F = function(v) { return v.toFixed(2); };
+    var off = (chf ? reach * s : edgeDir > 0 ? bitV * s : 0) + 5.5;
+    // On the front-most copy (Width) and the left-most (Height), so they
+    // sit in the stock's margin, clear of the other copies.
+    var ctr = copies.map(function(q, i) { return mpt(i, 0, 0); }), iw = 0, ih = 0;
+    ctr.forEach(function(c, i) { if (c.y < ctr[iw].y - 1e-6) iw = i; if (c.x < ctr[ih].x - 1e-6) ih = i; });
+    function dimSvg(a, b, value, Ti) {
+      var p = Ti(a[0], a[1]), q = Ti(b[0], b[1]), mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+      var ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
+      return '<line class="qc-shp-dim" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '" marker-start="url(#qc-shp-da)" marker-end="url(#qc-shp-da)"/>' +
+        '<text class="qc-shp-dimtext" x="' + F(mx) + '" y="' + F(my) + '" text-anchor="middle" dominant-baseline="central"' +
+        (Math.abs(ang) > 0.01 ? ' transform="rotate(' + F(ang) + ' ' + F(mx) + ' ' + F(my) + ')"' : '') + '>' + value + ' ' + u + '</text>';
     }
-    function text(px, py, anchor, baseline, value) {
-      var q = T(px, py);
-      return '<text class="qc-shape-dim-label" x="' + q.x.toFixed(2) + '" y="' + q.y.toFixed(2) +
-             '" text-anchor="' + anchor + '" dominant-baseline="' + baseline + '">' + value + '</text>';
+    function ext(a, b, Ti) {
+      var p = Ti(a[0], a[1]), q = Ti(b[0], b[1]);
+      return '<line class="qc-shp-ext" x1="' + F(p.x) + '" y1="' + F(p.y) + '" x2="' + F(q.x) + '" y2="' + F(q.y) + '"/>';
     }
-    // The arrows run just inside the outline with their tips on it (where
-    // a rounded corner has curved in), so they measure the outline, not
-    // the far edge of an inner cut.
-    function cornerIn(dist) {
-      return dist >= cr ? 0 : cr - Math.sqrt(Math.max(0, cr * cr - (cr - dist) * (cr - dist)));
+    var dims = '';
+    if (sized) {
+      var Tw = Tc(iw), Th = Tc(ih);
+      dims = ext([x, y + h + 1], [x, y + h + off + 1.5], Tw) + ext([x + w, y + h + 1], [x + w, y + h + off + 1.5], Tw) +
+        dimSvg([x, y + h + off], [x + w, y + h + off], roundDisplay(W), Tw) +
+        ext([x - 1, y], [x - off - 1.5, y], Th) + ext([x - 1, y + h], [x - off - 1.5, y + h], Th) +
+        dimSvg([x - off, y + h], [x - off, y], roundDisplay(H), Th);
     }
-    // On an inner cut they sit inside its dashed far edge, not on it.
-    var inBand = edgeDir < 0 && edgeD ? 4 : 0;
-    var wGap = Math.min(h / 2, Math.max(arrowInset, inBand && bitD * h / H + inBand));
-    var hGap = Math.min(w / 2, Math.max(arrowInset, inBand && bitD * w / W + inBand));
-    var wIn = y + h - wGap;
-    hX = x + w - hGap;
-    var wLine = line(x + cornerIn(wGap), wIn, x + w - cornerIn(wGap), wIn);
-    var hLine = line(hX, y + cornerIn(hGap), hX, y + h - cornerIn(hGap));
-    // Square to the axes: the original anchoring (label below the width
-    // arrow, left of the height arrow). Turned: centered on a point a
-    // little further out, since the text no longer lines up with them.
-    var wLabel = turn
-      ? text(x + w / 2, wY + 7, 'middle', 'middle', W > 0 ? W : '?')
-      : text(x + w / 2, wY + 2, 'middle', 'hanging', W > 0 ? W : '?');
-    var hLabel = turn
-      ? text(hX - 10, centerY, 'middle', 'middle', H > 0 ? H : '?')
-      : text(hX - 4, centerY, 'end', 'middle', H > 0 ? H : '?');
+    // A straight grid's X / Y spacing between the first copies' centers,
+    // in the stock's top and right margins (as Drill shows its spacing).
+    var pat = params.pattern;
+    if (copies.length > 1 && pat && (pat.style || 'linear') === 'linear' && !(+pat.angle)) {
+      var cs = copies.map(function(q, i) { return V(mpt(i, 0, 0)); });
+      var xs = Array.from(new Set(cs.map(function(c) { return +c.x.toFixed(3); }))).sort(function(a, b) { return a - b; });
+      var ys = Array.from(new Set(cs.map(function(c) { return +c.y.toFixed(3); }))).sort(function(a, b) { return a - b; });
+      var sd = function(p, q, value) {
+        var mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, vert = p[0] === q[0];
+        return '<line class="qc-shp-dim" x1="' + F(p[0]) + '" y1="' + F(p[1]) + '" x2="' + F(q[0]) + '" y2="' + F(q[1]) + '" marker-start="url(#qc-shp-da)" marker-end="url(#qc-shp-da)"/>' +
+          '<text class="qc-shp-dimtext" x="' + F(mx) + '" y="' + F(my) + '" text-anchor="middle" dominant-baseline="central"' +
+          (vert ? ' transform="rotate(-90 ' + F(mx) + ' ' + F(my) + ')"' : '') + '>' + value + ' ' + u + '</text>';
+      };
+      var ty = syA + M / 2, rx = sxB - M / 2;
+      if (xs.length > 1) dims += '<line class="qc-shp-ext" x1="' + F(xs[0]) + '" y1="' + F(ty - 1.5) + '" x2="' + F(xs[0]) + '" y2="' + F(ys[0]) + '"/>' +
+        '<line class="qc-shp-ext" x1="' + F(xs[1]) + '" y1="' + F(ty - 1.5) + '" x2="' + F(xs[1]) + '" y2="' + F(ys[0]) + '"/>' +
+        sd([xs[0], ty], [xs[1], ty], roundDisplay(+(Math.abs(xs[1] - xs[0]) / s).toFixed(2)));
+      if (ys.length > 1) dims += '<line class="qc-shp-ext" x1="' + F(rx + 1.5) + '" y1="' + F(ys[ys.length - 1]) + '" x2="' + F(xs[xs.length - 1]) + '" y2="' + F(ys[ys.length - 1]) + '"/>' +
+        '<line class="qc-shp-ext" x1="' + F(rx + 1.5) + '" y1="' + F(ys[ys.length - 2]) + '" x2="' + F(xs[xs.length - 1]) + '" y2="' + F(ys[ys.length - 2]) + '"/>' +
+        sd([rx, ys[ys.length - 1]], [rx, ys[ys.length - 2]], roundDisplay(+(Math.abs(ys[ys.length - 1] - ys[ys.length - 2]) / s).toFixed(2)));
+    }
+    var capText = (total > 1 ? total + ' copies · ' : '') + (sized ? roundDisplay(W) + ' × ' + roundDisplay(H) + ' ' + u : '') +
+      (chf ? ' · ' + roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer'
+        : ' · ' + { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType]) +
+      (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
+    var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
 
-    // The cut starts mid-bottom and runs CCW (right along the bottom).
-    var tabPts = [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
-                  { x: x, y: y + h }, { x: 0, y: y + h }].map(function(q) { return T(q.x, q.y); });
+    // Tabs on every copy. The cut starts mid-bottom and runs CCW (right
+    // along the bottom).
+    var tabSegs = [];
+    copies.forEach(function(q, i) {
+      var Ti = Tc(i);
+      var tp = [{ x: 0, y: y + h }, { x: x + w, y: y + h }, { x: x + w, y: y }, { x: x, y: y },
+                { x: x, y: y + h }, { x: 0, y: y + h }].map(function(p) { return Ti(p.x, p.y); });
+      tabSegs = tabSegs.concat(previewLines(tp, rectTabLens()));
+    });
 
     // Corners in the generator's order (front-left, front-right,
     // back-right, back-left, before turning), the middles of the front,
@@ -10524,35 +11194,50 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
                         [x + w / 2, y + h], [x + w, y + h / 2], [x + w / 2, y], [x, y + h / 2]].map(function(q, i) {
       var t = T(q[0], q[1]);
       return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
-    }).concat([{ x: 0, y: 0, value: 'center' }]), 'shape-center');
+    }).concat([{ x: T(0, 0).x, y: T(0, 0).y, value: 'center' }]), 'shape-center');
 
+    var defs = '<defs>' + clips + '<linearGradient id="qc-rect-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+      '<pattern id="qc-shp-waste" patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(45)"><rect width="2.2" height="2.2" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="2.2" style="stroke:var(--qc-m-hatch)" stroke-width="0.35"/></pattern>' +
+      '<marker id="qc-shp-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+      '<linearGradient id="qc-rect-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>';
     svg.innerHTML =
-      shapePreviewDefs('qc-rect') +
-      hatched +
-      bitEdge(edgeD, cutType) +
-      '<path class="qc-shape-fill" d="' + outline + '"/>' +
-      ideal +
-      wLine + hLine + wLabel + hLabel +
-      tabMarks('rect', previewLines(tabPts, rectTabLens())) +
-      pickHints(rectPreviewNodes) +
+      shapePreviewDefs('qc-rect') + defs +
+      waste + (chf ? '' : parts + ideal) +
+      tabMarks('rect', tabSegs) +
+      dims + cap +
+      rectBit() +
       rectOriginCross();
+    svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
+    figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
 
-    // X0 Y0, from the generator: undo the turn, scale each local axis
-    // as drawn, then turn back. Enlarged, a small Inset or corner radius
-    // there is also shown magnified (detailZoom).
+    // The bit going round each copy in turn, on its center line.
+    function rectBit() {
+      if (!live) return '';
+      var br = Math.max(0.8, chf ? 1.6 : bitV / 2 * s), ds = paths;
+      // Chamfering, the V-bit runs off the edge, over the cut: its rim on
+      // the bevel's inner line (Outside: centered outside the part;
+      // Inside: inside the opening).
+      if (chf) {
+        var gb = cutType === 'outer' ? br - cwV * s : cwV * s - br;
+        ds = copies.map(function(q, i) { return ringPath(Tc(i), gb, cr + gb); }).filter(Boolean);
+      }
+      return '<g class="qc-shp-bit-g" pointer-events="none"><circle r="' + F(br) + '" class="qc-shp-bit"/>' +
+        '<g class="qc-fig-spin"><path d="M0 ' + F(-br) + ' A' + F(br) + ' ' + F(br) + ' 0 0 1 ' + F(br * 0.82) + ' ' + F(br * 0.55) + ' L0 0Z M0 ' + F(br) + ' A' + F(br) + ' ' + F(br) + ' 0 0 1 ' + F(-br * 0.82) + ' ' + F(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
+        '<animateMotion dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;' + cutF.toFixed(4) + ';1" path="' + ds.join(' ') + '"/></g>';
+    }
+
+    // X0 Y0, from the generator, about the first copy's center. Enlarged,
+    // a small Inset or corner radius there is also shown magnified.
     function rectOriginCross() {
       originZoomFrames.rect = null;
-      if (!(W > 0 && H > 0)) return '';
-      var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('rectangle', readRectangleForm());
-      var lx = off.x * c + off.y * sn, ly = -off.x * sn + off.y * c;
-      var q = T(lx * w / W, -ly * h / H);
+      if (!sized) return '';
+      var o = gen.shapeOriginOffset('rectangle', params), q = V(o);
       var z = previewIsBig(svg) ? detailZoom('rect', fit, cr) : 0;
       var pts = [[x, y], [x + w / 2, y], [x + w, y], [x + w, y + h / 2], [x + w, y + h], [x + w / 2, y + h], [x, y + h], [x, y + h / 2]]
         .map(function(p) { var t = T(p[0], p[1]); return [t.x, t.y]; });
-      return originCross(q.x, q.y, 'rect', fit) +
+      return figAxes(q.x, q.y) + insetMarks('rect', q.x, q.y, fit) +
         (z ? originZoom('rect', q.x, q.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, pts, z, 'rect', fit) : '');
     }
-
     // Edge lengths of the tool path (the part size grown or shrunk by
     // the bit), which is what the generator spaces the tabs along.
     function rectTabLens() {
@@ -10734,7 +11419,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<path class="qc-shape-fill" d="' + outline + '"/>' +
       ideal + dims +
       tabMarks('rect', tabLines()) +
-      pickHints(rectPreviewNodes) +
       originCross(o.x, o.y, 'rect', scale);
 
     // The tool path, as tabIntervals spaces the tabs along it (real
@@ -10766,109 +11450,136 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // the label carries the real numeric value.
   function updatePlanerPreview() {
     var svg = document.getElementById('qc-plan-preview');
-    if (!svg) return;
     var mode = $('qc-plan-mode') ? $('qc-plan-mode').value : 'depth';
-    var totalDepth = num('qc-plan-depth', 0);
-    var startThick = num('qc-plan-start-thickness', 0);
-
-    // Material biased to the left of the viewBox to leave the right
-    // side open for the thickness-mode dim arrow + label. The
-    // wasteboard/ground line still spans the full width.
-    var matW = 68, matH = 46;
-    var matX = -42, matY = -18;
-    // Ground line coincides with the material's bottom edge so the
-    // stock sits on the wasteboard instead of floating above it.
-    var groundY = matY + matH;
-    var groundHalf = 46;
-
-    // Fixed-proportion hatched cut layer. The preview's job is to
-    // depict WHAT is being cut, not to be an accurate scale drawing —
-    // mode switches only change labels and the Z0 accent, never the
-    // rectangle's geometry. Sized to leave room for the depth label
-    // centered inside.
-    var cutH = matH * 0.22;
-
-    var shapeAttrs = 'x="' + matX.toFixed(2) + '" y="' + matY.toFixed(2) +
-                     '" width="' + matW.toFixed(2) + '" height="' + matH.toFixed(2) + '"';
-    var hatchAttrs = 'x="' + matX.toFixed(2) + '" y="' + matY.toFixed(2) +
-                     '" width="' + matW.toFixed(2) + '" height="' + cutH.toFixed(2) + '"';
-
-    // Horizontal border at the bottom of the hatched strip — marks
-    // the final planing surface (where the cut stops).
-    var cutBorderY = matY + cutH;
-    var cutBorder = '<line class="qc-plan-cut-border" x1="' + matX.toFixed(2) +
-                    '" y1="' + cutBorderY.toFixed(2) +
-                    '" x2="' + (matX + matW).toFixed(2) +
-                    '" y2="' + cutBorderY.toFixed(2) + '"/>';
-
-    // Total Depth / Amount to Remove label — centered inside the
-    // hatched cut layer so it sits with the region it describes and
-    // never risks clipping past the viewBox left edge.
-    var dimGap = 4;
-    var arrowInset = 4;
-    var dLine = '';
-    var dLabelX = matX + matW / 2;
-    var dLabel = '<text class="qc-shape-dim-label qc-plan-depth-label" x="' +
-                 dLabelX.toFixed(2) + '" y="' + (matY + cutH / 2).toFixed(2) +
-                 '" text-anchor="middle" dominant-baseline="central">' +
-                 (totalDepth > 0 ? totalDepth : '?') + '</text>';
-
-    // Right dim arrow (Target Thickness mode only) spans the full
-    // material height and labels the Starting Thickness — the stock
-    // going in, which the mode is measured against.
-    var rightDim = '';
-    if (mode === 'thickness') {
-      var rightDimX = matX + matW + dimGap;
-      // Span the full box height so the arrow reads as "this whole
-      // thickness" rather than a subset of it.
-      var rLine = '<line class="qc-shape-dim-line" x1="' + rightDimX.toFixed(2) +
-                  '" y1="' + matY.toFixed(2) +
-                  '" x2="' + rightDimX.toFixed(2) + '" y2="' + (matY + matH).toFixed(2) + '" ' +
-                  'marker-start="url(#qc-plan-arr)" marker-end="url(#qc-plan-arr)"/>';
-      var rLabel = '<text class="qc-shape-dim-label" x="' + (rightDimX + 2).toFixed(2) +
-                   '" y="' + (matY + matH / 2).toFixed(2) + '" text-anchor="start" ' +
-                   'dominant-baseline="central">' +
-                   (startThick > 0 ? startThick : '?') + '</text>';
-      rightDim = rLine + rLabel;
+    ROOT.querySelectorAll('#qc-plan-mode-seg button').forEach(function(b) { var on = b.getAttribute('data-v') === mode; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    var pat = $('qc-plan-pattern').value;
+    ROOT.querySelectorAll('#qc-plan-pattern-seg button').forEach(function(b) { var on = b.getAttribute('data-v') === pat; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    // Spiral runs one way round: no direction to pick.
+    var dirF = ROOT.querySelector('.qc-plan-dir-field'), dir = $('qc-plan-direction').value;
+    if (dirF) dirF.style.display = pat === 'spiral' ? 'none' : '';
+    var spF = ROOT.querySelector('.qc-plan-spiral-field'), from = $('qc-plan-spiral-from').value;
+    if (spF) spF.style.display = pat === 'spiral' ? '' : 'none';
+    var spSeg = $('qc-plan-spiral-seg');
+    if (spSeg) {
+      spSeg.classList.toggle('qc-slide-right', from === 'inside');
+      spSeg.querySelectorAll('button').forEach(function(b) { var on = b.getAttribute('data-v') === from; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
     }
-
-    // Ground line under the material (neutral). Spans the full width
-    // of the viewBox regardless of where the material sits.
-    var groundLine = '<line class="qc-plan-ground" x1="' + (-groundHalf) +
-                     '" y1="' + groundY.toFixed(2) +
-                     '" x2="' + groundHalf + '" y2="' + groundY.toFixed(2) + '"/>';
-
-    // Z0 marker — accent overlay on the edge the user probes against.
-    // Target Depth and Wasteboard Surfacing both probe the top surface
-    // (stock top and wasteboard top, respectively). Target Thickness
-    // probes the wasteboard (bottom of stock). Matches the "Set Z0 on
-    // …" callout under Mode.
-    var z0;
-    if (mode === 'thickness') {
-      z0 = '<line class="qc-plan-z0" x1="' + (-groundHalf) +
-           '" y1="' + groundY.toFixed(2) +
-           '" x2="' + groundHalf + '" y2="' + groundY.toFixed(2) + '"/>';
-    } else {
-      z0 = '<line class="qc-plan-z0" x1="' + matX.toFixed(2) +
-           '" y1="' + matY.toFixed(2) +
-           '" x2="' + (matX + matW).toFixed(2) +
-           '" y2="' + matY.toFixed(2) + '"/>';
+    ROOT.querySelectorAll('#qc-plan-dir-seg button').forEach(function(b) { var on = b.getAttribute('data-v') === dir; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    var thick = mode === 'thickness' ? num('qc-plan-start-thickness', 0) : 0;
+    if (svg) passesSide(svg, {
+      depth: num('qc-plan-depth', 0), doc: num('qc-plan-step', 0), sweep: true, thick: thick,
+      z0Bottom: mode === 'thickness',
+      z0Label: mode === 'thickness' ? 'Z0 = wasteboard' : mode === 'wasteboard' ? 'Z0 = wasteboard top' : 'Z0 = top of stock',
+      title: mode === 'wasteboard' ? 'Side view · wasteboard' : 'Side view · surfacing passes',
+      note2: mode === 'thickness' && thick > 0 ? 'leaves ' + roundDisplay(thick - num('qc-plan-depth', 0)) + ' ' + state.unitLabel + ' thick' : ''
+    });
+    updatePlanerTop();
+  }
+  // Top view: the region on the stock and the surfacing path the program
+  // takes (one pass, from the generator), the bit running it and leaving
+  // the surfaced band behind.
+  function updatePlanerTop() {
+    var svg = document.getElementById('qc-plan-top');
+    if (!svg || !svg.closest('.qc-content.active')) return;
+    var p = readPlanerForm(), u = state.unitLabel, f = function(v) { return v.toFixed(1); };
+    // Say so when Wasteboard leaves keepout zones out (easy to miss).
+    var note = $('qc-plan-keep-note'), ko = p.mode === 'wasteboard' ? (p.keepouts || []) : [];
+    if (note) {
+      note.hidden = !ko.length;
+      var esc = function(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+      note.innerHTML = ko.length ? '<strong>' + (ko.length === 1 ? 'A keepout zone is' : ko.length + ' keepout zones are') + ' left unsurfaced</strong>: ' +
+        ko.map(function(k) { return esc(k.name || 'Keepout'); }).join(', ') + '. Turn off <strong>Avoid Keepout Zone</strong> to surface the whole board.' : '';
     }
-
-    // Caption below the ground line, centered in the viewBox.
-    var caption = '<text class="qc-plan-caption" x="0" y="42" ' +
-                  'text-anchor="middle" dominant-baseline="central">Side View</text>';
-
+    var bitR = Math.max(0.01, (p.bitDiameter || 0) / 2), trace = null;
+    try {
+      // Thickness cuts above a Z0 on the wasteboard; the path in XY is
+      // the same as Target Depth's, which the tracer can follow.
+      if (p.mode === 'thickness') p.mode = 'depth';
+      p.depth = p.depthOfCut > 0 ? p.depthOfCut : 1;
+      p.depthOfCut = p.depth;
+      trace = traceProgram(makeQuickCutGenerator(state.isImperial).generatePlanerProgram(p));
+    } catch (e) { trace = null; }
+    if (!trace || !trace.moves.length || !(p.width > 0) || !(p.height > 0)) { svg.innerHTML = '<text x="220" y="160" class="qc-fig-note">Set the region and the bit</text>'; return; }
+    var pts = [[trace.moves[0].x0, trace.moves[0].y0]];
+    trace.moves.forEach(function(m) { pts.push([m.x1, m.y1]); });
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pts.forEach(function(q) { minX = Math.min(minX, q[0]); maxX = Math.max(maxX, q[0]); minY = Math.min(minY, q[1]); maxY = Math.max(maxY, q[1]); });
+    // The region (the stock surfaced), from the origin corner.
+    var o = p.origin || 'front-left', W = p.width, Hh = p.height, rx, ry;
+    if (p.mode === 'wasteboard') { rx = minX - bitR; ry = minY - bitR; W = maxX - minX + 2 * bitR; Hh = maxY - minY + 2 * bitR; }
+    else if (o === 'center') { rx = -W / 2; ry = -Hh / 2; }
+    else { rx = /right/.test(o) ? -W : 0; ry = /back/.test(o) ? -Hh : 0; }
+    // Drawn to scale: the region's shape, the path and zones in it.
+    var vw = 440, vh = 320, ml = 60, mr = 60, mt = 34, mb = 56;
+    var sc = Math.min((vw - ml - mr) / W, (vh - mt - mb) / Hh), kx = sc, ky = sc;
+    var SX0 = ml + ((vw - ml - mr) - W * sc) / 2, SY0 = mt + ((vh - mt - mb) - Hh * sc) / 2, SX1 = SX0 + W * sc, SY1 = SY0 + Hh * sc;
+    var X = function(x) { return SX0 + (x - rx) * kx; }, Y = function(y) { return SY1 - (y - ry) * ky; };
+    // A new subpath where the program lifts and moves (between the areas
+    // left around a keepout zone), so no band is drawn across them.
+    var d = '', L = 0, parts = [];
+    trace.moves.forEach(function(m, i) {
+      var prev = trace.moves[i - 1];
+      if (!prev || Math.abs(prev.x1 - m.x0) > 1e-6 || Math.abs(prev.y1 - m.y0) > 1e-6) {
+        d += 'M' + f(X(m.x0)) + ' ' + f(Y(m.y0));
+        parts.push({ d: 'M' + f(X(m.x0)) + ' ' + f(Y(m.y0)), len: 0, start: L });
+      }
+      var seg = ' L' + f(X(m.x1)) + ' ' + f(Y(m.y1)), sl = Math.hypot(X(m.x1) - X(m.x0), Y(m.y1) - Y(m.y0));
+      d += seg; parts[parts.length - 1].d += seg; parts[parts.length - 1].len += sl;
+      L += sl;
+    });
+    var bk = p.pattern === 'zigzagY' ? kx : p.pattern === 'zigzagX' ? ky : Math.max(kx, ky);
+    var dur = Math.max(12, Math.min(30, L / 70)), bw = Math.max(2, 2 * bitR * bk);
+    // One trail per area, each drawn only while the bit is in it (a dash
+    // pattern restarts on every subpath of a single path).
+    // Each area drawn three times: a darker step edge, the cut face, faint
+    // tool marks; all reveal together as the bit passes (per area, since a
+    // dash pattern restarts on every subpath).
+    var tw = Math.max(2, 2 * bitR * (p.pattern === 'zigzagY' ? kx : p.pattern === 'zigzagX' ? ky : Math.max(kx, ky)));
+    var layer = function(cls, width) {
+      return parts.map(function(pt) {
+        var a = (pt.start / (L || 1)) * 0.92, b = ((pt.start + pt.len) / (L || 1)) * 0.92, n = f(pt.len + 1);
+        return '<path d="' + pt.d + '" class="' + cls + '" stroke-width="' + f(width) + '"' +
+          (CUT_REDUCED ? '/>' : ' stroke-dasharray="' + n + '" stroke-dashoffset="' + n + '"><animate attributeName="stroke-dashoffset" values="' + n + ';' + n + ';0;0" keyTimes="0;' + a.toFixed(4) + ';' + Math.max(a + 0.0001, b).toFixed(4) + ';1" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/></path>');
+      }).join('');
+    };
+    // The face is see-through as one layer (group opacity), so the wood
+    // shows under it evenly, with no build-up where passes overlap.
+    var trails = '<g opacity="0.55">' + layer('qc-plan-surfaced', tw) + '</g>';
+    var sx = SX0, sy = SY0, sw = SX1 - SX0, sh = SY1 - SY0;
+    var br = Math.max(5, Math.min(11, bitR * sc));
     svg.innerHTML =
-      shapePreviewDefs('qc-plan') +
-      '<rect class="qc-shape-fill" ' + shapeAttrs + '/>' +
-      '<rect class="qc-shape-hatch" fill="url(#qc-plan-hatch)" ' + hatchAttrs + '/>' +
-      cutBorder +
-      groundLine +
-      z0 +
-      dLine + dLabel +
-      rightDim +
-      caption;
+      '<defs>' +
+        '<linearGradient id="qc-plan-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+        '<linearGradient id="qc-plan-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<clipPath id="qc-plan-clip"><rect x="' + f(sx) + '" y="' + f(sy) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="3"/></clipPath>' +
+        '<marker id="qc-plan-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+      '</defs>' +
+      '<text x="220" y="18" class="qc-fig-cap">Top view · ' + ({ zigzagY: 'along Y', zigzagX: 'along X', spiral: p.spiralFrom === 'inside' ? 'spiral, inside out' : 'spiral, outside in' }[p.pattern] || '') + '</text>' +
+      '<rect x="' + f(sx) + '" y="' + f(sy) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="3" fill="url(#qc-plan-wood)" class="qc-fig-edge"/>' + woodGrain(sx, sy, sw, sh, 3) +
+      (p.keepouts || []).map(function(k) {
+        // Zones are in machine coordinates; the drawing is in work ones,
+        // zero on the travel's front-left corner.
+        var tm = p.travelMin || { x: 0, y: 0 };
+        k = { name: k.name, minX: k.minX - tm.x, maxX: k.maxX - tm.x, minY: k.minY - tm.y, maxY: k.maxY - tm.y };
+        var kx = X(Math.max(k.minX, rx)), ky = Y(Math.min(k.maxY, ry + Hh)), kw = X(Math.min(k.maxX, rx + W)) - kx, kh = Y(Math.max(k.minY, ry)) - ky;
+        if (!(kw > 0 && kh > 0)) return '';
+        return '<rect x="' + f(kx) + '" y="' + f(ky) + '" width="' + f(kw) + '" height="' + f(kh) + '" class="qc-plan-keepout"/>' +
+          '<text x="' + f(kx + kw / 2) + '" y="' + f(ky + kh / 2) + '" class="qc-plan-keepout-label" text-anchor="middle" dominant-baseline="central"' +
+          (kh > kw * 1.5 ? ' transform="rotate(-90 ' + f(kx + kw / 2) + ' ' + f(ky + kh / 2) + ')"' : '') + '>' + String(k.name || 'Keepout').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</text>';
+      }).join('') +
+      '<g clip-path="url(#qc-plan-clip)">' + trails + '</g>' +
+      // The stock's own edge, over the cut.
+      '<rect x="' + f(sx) + '" y="' + f(sy) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="3" fill="none" class="qc-plan-stock-edge"/>' +
+      (trace.moves.length <= 14 ? '<path d="' + d + '" class="qc-fig-path"/>' : '') +
+      '<g pointer-events="none"><circle r="' + f(br) + '" fill="url(#qc-plan-rod)" class="qc-fig-edge"/>' +
+        '<g class="qc-fig-spin"><path d="M0 ' + f(-br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(br * 0.82) + ' ' + f(br * 0.55) + ' L0 0Z M0 ' + f(br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(-br * 0.82) + ' ' + f(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
+        (CUT_REDUCED ? '' : '<animateMotion dur="' + dur.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.92;1" path="' + d + '"/>') + '</g>' +
+      '<line x1="' + f(sx) + '" y1="' + f(sy + sh + 18) + '" x2="' + f(sx + sw) + '" y2="' + f(sy + sh + 18) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
+      cutPill(f(sx + sw / 2), f(sy + sh + 18), roundDisplay(p.width) + ' ' + u, false) +
+      '<line x1="' + f(sx + sw + 18) + '" y1="' + f(sy) + '" x2="' + f(sx + sw + 18) + '" y2="' + f(sy + sh) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
+      cutPill(f(sx + sw + 18), f(sy + sh / 2), roundDisplay(p.height) + ' ' + u, true) +
+      figAxes(X(0), Y(0)) +
+      '<text x="220" y="' + f(vh - 8) + '" class="qc-fig-cap">Front (Y−)</text>';
   }
 
   // Jointer preview — top view of the workpiece with a hatched strip
@@ -10885,89 +11596,183 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function updateJointerPreview() {
     var svg = document.getElementById('qc-join-preview');
     if (!svg) return;
-    var axis   = $('qc-join-axis').value;
-    var side   = $('qc-join-origin').value;
-    var length = num('qc-join-length', 0);
-    var trimW  = num('qc-join-width', 0);
-    var trims  = Math.max(1, Math.floor(num('qc-join-trims', 1)));
+    var axis = $('qc-join-axis').value, side = $('qc-join-origin').value, direction = $('qc-join-direction').value;
+    var u = state.unitLabel, length = num('qc-join-length', 0), trimW = num('qc-join-width', 0);
+    var trims = Math.max(1, Math.floor(num('qc-join-trims', 1)));
+    ROOT.querySelectorAll('#qc-join-edge button').forEach(function(b) { var on = b.getAttribute('data-side') === side; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    ROOT.querySelectorAll('#qc-join-dir button').forEach(function(b) { var on = b.getAttribute('data-dir') === direction; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
     var plusIsConventional = axis === 'x' ? side === 'front' : side === 'right';
-    var direction = $('qc-join-direction').value;
-    var climb = direction === 'climb';
-    var feedPlus = plusIsConventional !== climb;
-
-    // Narrower along Y, so the turned labels beside it stay in the box.
-    var w = axis === 'x' ? 88 : 80, h = 52, cy = -4;
-    var matL = -w / 2, matR = w / 2;
-    var matT = cy - h / 2, matB = cy + h / 2;
-    var lines = Math.min(trims, JOIN_MAX_LINES);
-    var stripThickness = Math.min(24, Math.max(8, 5 * lines));
-    var overshoot = 3, labelGap = 6;
-
-    // The trimmed edge at `edge` along the axis across it; `inward` points
-    // into the material (SVG units, y down; +Y is up).
-    var alongX = axis === 'x';
-    var edge = alongX ? (side === 'back' ? matT : matB) : (side === 'left' ? matL : matR);
-    var inward = alongX ? (side === 'back' ? 1 : -1) : (side === 'left' ? 1 : -1);
-    var border = edge + inward * stripThickness;
-    var from = alongX ? (feedPlus ? matL - overshoot : matR + overshoot) : (feedPlus ? matB + overshoot : matT - overshoot);
-    var to   = alongX ? (feedPlus ? matR + overshoot : matL - overshoot) : (feedPlus ? matT - overshoot : matB + overshoot);
-    // Both Ways: every other trim runs back.
-    function seg(cls, at, back, extra) {
-      var a = back ? to : from, b = back ? from : to;
-      var xy = alongX
-        ? 'x1="' + a.toFixed(2) + '" y1="' + at.toFixed(2) + '" x2="' + b.toFixed(2) + '" y2="' + at.toFixed(2) + '"'
-        : 'x1="' + at.toFixed(2) + '" y1="' + a.toFixed(2) + '" x2="' + at.toFixed(2) + '" y2="' + b.toFixed(2) + '"';
-      return '<line class="' + cls + '" ' + xy + extra;
+    var feedPlus = plusIsConventional !== (direction === 'climb');
+    // Stock 300 x 190 at 70..370, 50..240 (as on the Cutter).
+    var x0 = 70, x1 = 370, y0 = 50, y1 = 240, along = side === 'front' || side === 'back', f = function(v) { return v.toFixed(1); };
+    var edge = { front: y1, back: y0, left: x0, right: x1 }[side], inward = side === 'front' || side === 'right' ? -1 : 1;
+    var shown = Math.min(trims, 6), T = Math.max(8, Math.min(24, 5 * shown)), t = T / shown, br = 10;
+    // Each trim: the bit's edge on the line where that trim stops.
+    var lines = [];
+    for (var i = 0; i < shown; i++) {
+      var at = edge + inward * t * (i + 1) - inward * br;
+      var fwd = direction === 'both' ? (i % 2 === 0) === feedPlus : feedPlus;
+      var a = along ? [fwd ? 45 : 395, at] : [at, fwd ? 258 : 32], b = along ? [fwd ? 395 : 45, at] : [at, fwd ? 32 : 258];
+      lines.push([a, b]);
     }
-    var tip = { conventional: 'Conventional', climb: 'Climb', both: 'Both Ways' }[direction] + ' — click to switch';
-    var cuts = '', hits = '';
-    for (var i = 0; i < lines; i++) {
-      var at = edge + inward * stripThickness * i / lines;
-      var back = direction === 'both' && i % 2 === 1;
-      cuts += i === 0
-        ? seg('qc-side-active', at, back, ' marker-end="url(#qc-join-edgearr)"/>')
-        : seg('qc-cut-feed', at, back, ' marker-end="url(#qc-join-feedarr)"/>');
-      hits += seg('qc-feed-hit', at, back, '><title>' + tip + '</title></line>');
+    // Motion: cut each trim; between them (not Both Ways) a quick return.
+    var pts = [], kp = [], segLen = [], total = 0;
+    lines.forEach(function(ln, i) {
+      if (i > 0) pts.push(ln[0]);
+      if (i === 0) pts.push(ln[0]);
+      pts.push(ln[1]);
+    });
+    for (var k = 1; k < pts.length; k++) { var l = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); segLen.push(l); total += l; }
+    var dur = Math.max(3, shown * 1.6), path = 'M' + pts.map(function(q) { return f(q[0]) + ' ' + f(q[1]); }).join(' L');
+    // Time per segment: cuts (even) at feed; between trims either a short
+    // step over (Both Ways) or, one way, a quick lifted trip back.
+    var oneWay = direction !== 'both', segT = segLen.map(function(l, i) { return i % 2 === 0 ? 1 : (oneWay ? 0.3 : 0.12); });
+    var tSum = segT.reduce(function(a, b) { return a + b; }, 0) / 0.92, kt = [0], kp = [0], ct = 0, cl = 0;
+    segT.forEach(function(tt, i) { ct += tt; cl += segLen[i]; kt.push(ct / tSum); kp.push(total ? cl / total : 1); });
+    kt.push(1); kp.push(1);
+    var segEnd = function(i) { return kt[i + 1]; };
+    // Trims done one by one: the strip each removes turns to waste.
+    var strips = '', acc = 0, cutIdx = 0;
+    for (var s2 = 0; s2 < shown; s2++) {
+      // Each strip grows behind the bit (its far edge) as it passes.
+      var segIdx = s2 * 2, ta = kt[segIdx], tb = kt[segIdx + 1];
+      var sa = edge + inward * t * s2, sb = edge + inward * t * (s2 + 1);
+      var cAx = along ? 0 : 1, cs = lines[s2][0][cAx], ce = lines[s2][1][cAx], up = ce > cs;
+      var lo = along ? x0 : y0, hi = along ? x1 : y1, len = hi - lo;
+      var frac = function(c) { return Math.max(0, Math.min(1, (c - cs) / (ce - cs))); };
+      var tIn = ta + (tb - ta) * frac(up ? lo - br : hi + br), tOut = ta + (tb - ta) * frac(up ? hi - br : lo + br);
+      var ktS = '0;' + tIn.toFixed(4) + ';' + Math.max(tIn + 0.0001, tOut).toFixed(4) + ';1';
+      var posA = along ? 'x' : 'y', sizeA = along ? 'width' : 'height';
+      var cross = along ? 'y="' + f(Math.min(sa, sb)) + '" height="' + f(t) + '"' : 'x="' + f(Math.min(sa, sb)) + '" width="' + f(t) + '"';
+      if (CUT_REDUCED) {
+        strips += '<rect ' + posA + '="' + lo + '" ' + sizeA + '="' + len + '" ' + cross + ' class="qc-join-gone"/>';
+        continue;
+      }
+      var an = function(attr, vals) { return '<animate attributeName="' + attr + '" values="' + vals + '" keyTimes="' + ktS + '" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/>'; };
+      strips += '<rect ' + posA + '="' + (up ? lo : hi) + '" ' + sizeA + '="0" ' + cross + ' class="qc-join-gone">' +
+        an(sizeA, '0;0;' + len + ';' + len) + (up ? '' : an(posA, hi + ';' + hi + ';' + lo + ';' + lo)) + '</rect>';
     }
-
-    var strip = alongX
-      ? 'x="' + matL + '" y="' + Math.min(edge, border) + '" width="' + w + '" height="' + stripThickness + '"'
-      : 'x="' + Math.min(edge, border) + '" y="' + matT + '" width="' + stripThickness + '" height="' + h + '"';
-    var cutBorder = alongX
-      ? '<line class="qc-plan-cut-border" x1="' + matL + '" y1="' + border + '" x2="' + matR + '" y2="' + border + '"/>'
-      : '<line class="qc-plan-cut-border" x1="' + border + '" y1="' + matT + '" x2="' + border + '" y2="' + matB + '"/>';
-    // Labels: horizontal along X, turned to read along Y.
-    function label(pos, text) {
-      var x = alongX ? 0 : pos, y = alongX ? pos : cy;
-      return '<text class="qc-shape-dim-label" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
-             '" text-anchor="middle" dominant-baseline="central"' +
-             (alongX ? '' : ' transform="rotate(-90 ' + x.toFixed(2) + ' ' + y.toFixed(2) + ')"') + '>' + text + '</text>';
-    }
-    var lengthLabel = label(edge - inward * labelGap, length > 0 ? length : '?');
-    var trimText = trimW > 0 ? trimW : '?';
-    var trimLabel = label(border + inward * labelGap, trims > 1 ? trims + ' × ' + trimText : trimText);
-
-    // Caption below the material — this is a top-down view, spelled
-    // out so nobody confuses it with the side-view previews.
-    var caption = '<text class="qc-plan-caption" x="0" y="42" ' +
-                  'text-anchor="middle" dominant-baseline="central">Top View</text>';
-
+    var stripRect = along ? 'x="' + x0 + '" y="' + f(Math.min(edge, edge + inward * T)) + '" width="' + (x1 - x0) + '" height="' + f(T) + '"'
+                          : 'x="' + f(Math.min(edge, edge + inward * T)) + '" y="' + y0 + '" width="' + f(T) + '" height="' + (y1 - y0) + '"';
+    var edges = { back: [x0, y0, x1, y0], front: [x0, y1, x1, y1], left: [x0, y0, x0, y1], right: [x1, y0, x1, y1] };
+    // Length on the far side; the trim lanes take the edge's side.
+    var ldim = along ? [x0, side === 'front' ? 30 : 266, x1, side === 'front' ? 30 : 266] : [side === 'right' ? 40 : 400, y0, side === 'right' ? 40 : 400, y1];
+    // One numbered lane per trim just outside the edge, an arrow the way it
+    // cuts; numbers at the start, every other one a step in so they don't
+    // stack when every trim starts at the same end.
+    var lanes = '', gap = Math.min(12, 44 / shown), out = -inward;
+    lines.forEach(function(ln, i) {
+      var off = br + 8 + gap * (i + 0.5), c = edge + out * off;
+      var a = along ? ln[0][0] : ln[0][1], b = along ? ln[1][0] : ln[1][1], plus = b > a;
+      var lo = along ? x0 : y0, hi = along ? x1 : y1, s0 = plus ? lo + 18 : hi - 18, s1 = plus ? hi - 6 : lo + 6;
+      var chipAt = (plus ? lo - 10 : hi + 10) + (plus ? 1 : -1) * (i % 2 ? 16 : 0);
+      var P1 = along ? [s0, c] : [c, s0], P2 = along ? [s1, c] : [c, s1], C = along ? [chipAt, c] : [c, chipAt];
+      lanes += '<line x1="' + f(P1[0]) + '" y1="' + f(P1[1]) + '" x2="' + f(P2[0]) + '" y2="' + f(P2[1]) + '" class="qc-join-lane" marker-end="url(#qc-join-dir-a)"/>' +
+        '<circle cx="' + f(C[0]) + '" cy="' + f(C[1]) + '" r="' + f(Math.min(6, gap / 2 + 1)) + '" class="qc-join-chip"/>' +
+        '<text x="' + f(C[0]) + '" y="' + f(C[1]) + '" class="qc-join-chip-t" text-anchor="middle" dominant-baseline="central">' + (i + 1) + '</text>';
+    });
+    var lmid = [(ldim[0] + ldim[2]) / 2, (ldim[1] + ldim[3]) / 2];
+    var tLabel = (trims > 1 ? trims + ' × ' : '') + (trimW > 0 ? trimW : '?') + ' ' + u;
+    var tPos = along ? [220, edge + inward * (T + 16)] : [edge + inward * (T + 16), 145];
+    var feedA = lines[0][0], feedB = lines[0][1];
     svg.innerHTML =
-      shapePreviewDefs('qc-join') +
-      // Heads sized from each line's stroke (3 on the edge, 1.8 on the
-      // other trims), so they come out the same size and clear of it.
-      '<defs>' + [['edgearr', 2], ['feedarr', 3.3]].map(function(m) {
-        return '<marker id="qc-join-' + m[0] + '" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="' + m[1] +
-               '" markerHeight="' + m[1] + '" orient="auto" markerUnits="strokeWidth">' +
-               '<path class="qc-arrowhead" d="M0,0 L10,5 L0,10 z" style="fill: var(--color-accent)"/></marker>';
-      }).join('') + '</defs>' +
-      '<rect class="qc-shape-fill" x="' + matL + '" y="' + matT + '" width="' + w + '" height="' + h + '"/>' +
-      '<rect class="qc-shape-hatch" fill="url(#qc-join-hatch)" ' + strip + '/>' +
-      cutBorder +
-      lengthLabel + trimLabel +
-      caption +
-      sideEdgesSvg(null, rectEdges(matL, matR, matT, matB)) +
-      cuts + hits;
+      '<defs>' +
+        '<linearGradient id="qc-join-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+        '<linearGradient id="qc-join-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<pattern id="qc-join-waste" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)"><rect width="9" height="9" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="9" style="stroke:var(--qc-m-hatch)" stroke-width="1.4"/></pattern>' +
+        '<marker id="qc-join-dir-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+        '<marker id="qc-join-am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-muted-fill"/></marker>' +
+      '</defs>' +
+      '<text x="220" y="16" class="qc-fig-cap">Top view · Back (Y+)</text>' +
+      '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x1 - x0) + '" height="' + (y1 - y0) + '" rx="3" fill="url(#qc-join-wood)" class="qc-fig-edge"/>' + woodGrain(x0, y0, x1 - x0, y1 - y0, 3) +
+      '<rect ' + stripRect + ' fill="url(#qc-join-waste)"/>' + strips +
+      lanes +
+      '<line x1="' + ldim[0] + '" y1="' + ldim[1] + '" x2="' + ldim[2] + '" y2="' + ldim[3] + '" class="qc-fig-dim qc-fig-dim--muted" marker-start="url(#qc-join-am)" marker-end="url(#qc-join-am)"/>' +
+      cutPill(f(lmid[0]), f(lmid[1]), (length > 0 ? length : '?') + ' ' + u, !along, true) +
+      cutPill(f(tPos[0]), f(tPos[1]), tLabel, !along) +
+      '<g pointer-events="none"><circle r="' + br + '" fill="url(#qc-join-rod)" class="qc-fig-edge"/>' +
+        '<g class="qc-fig-spin"><path d="M0 -10 A10 10 0 0 1 8.2 5.5 L0 0Z M0 10 A10 10 0 0 1 -8.2 -5.5 L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
+        (CUT_REDUCED ? '' : '<animateMotion dur="' + dur.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="' + kp.map(function(v) { return v.toFixed(4); }).join(';') + '" keyTimes="' + kt.map(function(v) { return v.toFixed(4); }).join(';') + '" path="' + path + '"/>' +
+          // Lifted (faded) on the way back.
+          (oneWay ? '<animate attributeName="opacity" calcMode="discrete" values="' + kt.map(function(v, i) { return i < kt.length - 1 && i % 2 === 1 && i < segLen.length ? '0.35' : '1'; }).join(';') + '" keyTimes="' + kt.map(function(v) { return v.toFixed(4); }).join(';') + '" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/>' : '')) + '</g>' +
+      figAxes(side === 'right' ? x1 : x0, side === 'back' ? y0 : y1) +
+      '<text x="220" y="304" class="qc-fig-cap">Front (Y−)</text>' +
+      sideEdgesSvg(side, edges) +
+      '<line class="qc-feed-hit" x1="' + f(feedA[0]) + '" y1="' + f(feedA[1]) + '" x2="' + f(feedB[0]) + '" y2="' + f(feedB[1]) + '"><title>Cut direction: click to change</title></line>';
+    updateJointerSide();
+  }
+  // Side view, looking at the edge being trimmed: the bit drops beside the
+  // stock (cutting nothing), feeds along the edge taking the face down to
+  // that pass's depth, and either comes back lifted (one way) or cuts on
+  // the way back (Both Ways), a depth of cut at a time.
+  function updateJointerSide() {
+    var svg = document.getElementById('qc-join-side');
+    if (!svg) return;
+    var P = 'qc-js-', u = state.unitLabel, depth = num('qc-join-depth', 0), doc = num('qc-join-step', 0), dir = $('qc-join-direction').value;
+    var n = depth > 0 && doc > 0 ? Math.ceil(depth / doc - 1e-9) : 0, shown = Math.max(1, Math.min(n || 1, 6));
+    var top = 152, H = 80, sx0 = 70, sx1 = 240, OUT = 100, UP = -26, f = function(v) { return v.toFixed(1); };
+    // Keyframes: [tx, ty, seconds to get there].
+    // The way the bit feeds, as in the top view, seen from outside the
+    // edge (from the back or the left, +X / +Y run right to left).
+    var side = $('qc-join-origin').value, axis = $('qc-join-axis').value;
+    var plusIsConv = axis === 'x' ? side === 'front' : side === 'right';
+    var feedPlus = plusIsConv !== (dir === 'climb');
+    var S = (feedPlus !== (side === 'back' || side === 'left')) ? -OUT : OUT;
+    var kf = [[S, UP, 0]], cuts = [];
+    var dAt = function(i) { return H * Math.min(1, n ? (i * doc) / depth : 1); };
+    var at = S;
+    for (var i = 1; i <= shown; i++) {
+      var d = dAt(i), from = dir === 'both' ? at : S, to = -from;
+      if (dir !== 'both' && at !== S) { kf.push([at, UP, 0.25]); kf.push([S, UP, 0.45]); }
+      kf.push([from, d, 0.5]);
+      cuts.push({ k: kf.length, from: from, d0: dAt(i - 1), d1: d });
+      kf.push([to, d, 1.6]);
+      at = to;
+    }
+    kf.push([at, UP, 0.4]); kf.push([S, UP, at === S ? 0.1 : 0.5]); kf.push([S, UP, 0.6]);
+    var tot = kf.reduce(function(a, k) { return a + k[2]; }, 0), acc = 0, times = kf.map(function(k) { acc += k[2]; return acc / tot; });
+    var keys = times.map(function(v) { return v.toFixed(4); }).join(';');
+    var anim = CUT_REDUCED ? '' : '<animateTransform attributeName="transform" type="translate" values="' + kf.map(function(k) { return k[0] + ' ' + f(k[1]); }).join(';') + '" keyTimes="' + keys + '" dur="' + tot.toFixed(2) + 's" repeatCount="indefinite"/>';
+    // Each pass's band: hatched (still to come off) until the bit passes,
+    // then gone behind it, leaving the fresh face.
+    var bands = cuts.map(function(c) {
+      var t0 = times[c.k - 1], t1 = times[c.k], ltr = c.from < 0;
+      // The bit (x 146..164 at tx 0) touches the stock and leaves it.
+      var enter = ltr ? (sx0 - 164) : (sx1 - 146), leave = ltr ? (sx1 - 164) : (sx0 - 146);
+      var fr = function(tx) { return Math.max(0, Math.min(1, (tx - c.from) / (-c.from - c.from))); };
+      var a = t0 + (t1 - t0) * fr(enter), b = t0 + (t1 - t0) * fr(leave), W = sx1 - sx0;
+      var kt = '0;' + a.toFixed(4) + ';' + Math.max(a + 0.0001, b).toFixed(4) + ';1';
+      var y = top + c.d0, h = Math.max(0.5, c.d1 - c.d0);
+      if (CUT_REDUCED) return '<rect x="' + sx0 + '" y="' + f(y) + '" width="' + W + '" height="' + f(h) + '" fill="url(#' + P + 'waste)"/>';
+      return '<rect x="' + sx0 + '" y="' + f(y) + '" width="' + W + '" height="' + f(h) + '" fill="url(#' + P + 'waste)">' +
+        '<animate attributeName="width" values="' + W + ';' + W + ';0;0" keyTimes="' + kt + '" dur="' + tot.toFixed(2) + 's" repeatCount="indefinite"/>' +
+        (ltr ? '<animate attributeName="x" values="' + sx0 + ';' + sx0 + ';' + sx1 + ';' + sx1 + '" keyTimes="' + kt + '" dur="' + tot.toFixed(2) + 's" repeatCount="indefinite"/>' : '') + '</rect>';
+    }).join('');
+    var D = n ? H : 0, dl = (depth > 0 ? depth : '?') + ' ' + u;
+    svg.innerHTML =
+      '<defs>' +
+        '<linearGradient id="' + P + 'body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="' + P + 'rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="' + P + 'wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+        '<marker id="' + P + 'a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+        '<pattern id="' + P + 'waste" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)"><rect width="9" height="9" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="9" style="stroke:var(--qc-m-hatch)" stroke-width="1.4"/></pattern>' +
+      '</defs>' +
+      '<text x="150" y="-46" class="qc-fig-cap">Side view · the edge, a pass at a time</text>' +
+      '<line x1="20" y1="' + (top + H) + '" x2="280" y2="' + (top + H) + '" class="qc-fig-table"/>' +
+      '<rect x="' + sx0 + '" y="' + top + '" width="' + (sx1 - sx0) + '" height="' + H + '" fill="url(#' + P + 'wood)" class="qc-fig-edge"/>' + woodGrain(sx0, top, sx1 - sx0, H) +
+      bands +
+      '<line x1="' + sx0 + '" y1="' + top + '" x2="' + sx1 + '" y2="' + top + '" class="qc-fig-z0"/>' +
+      '<text x="' + (sx0 + 4) + '" y="' + (top - 6) + '" class="qc-fig-accent-text">Z0 = top of stock</text>' +
+      '<g><g>' +
+        '<rect x="121" y="-24" width="68" height="50" fill="url(#' + P + 'body)"/>' +
+        '<path d="M127 26 H183 L175 42 H135 Z" fill="url(#' + P + 'rod)"/>' +
+        '<rect x="146" y="42" width="18" height="110" rx="2" fill="url(#' + P + 'rod)"/>' +
+        anim +
+      '</g></g>' +
+      (D ? '<line x1="276" y1="' + top + '" x2="296" y2="' + top + '" class="qc-fig-ext"/><line x1="276" y1="' + (top + D) + '" x2="296" y2="' + (top + D) + '" class="qc-fig-ext"/>' +
+        '<line x1="288" y1="' + (top + 4) + '" x2="288" y2="' + (top + D - 4) + '" class="qc-fig-dim" marker-start="url(#' + P + 'a)" marker-end="url(#' + P + 'a)"/>' + cutPill(288, top + D / 2, dl, true) : '') +
+      '<text x="150" y="' + (top + H + 26) + '" class="qc-fig-note">' + (n ? n + (n === 1 ? ' pass' : ' passes') + ' of up to ' + doc + ' ' + u + (n > shown ? ' (first ' + shown + ' shown)' : '') : 'Set the depth and Depth of Cut') + '</text>' +
+      '<text x="150" y="' + (top + H + 44) + '" class="qc-fig-note">' + (dir === 'both' ? 'cutting both ways' : 'one way, back lifted') + ', down beside the stock, never into it</text>';
   }
 
   // Cutter preview — the stock seen from the front, above and in
@@ -10979,6 +11784,49 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Cutter figures, drawn like the 3D probe calibration ones: the top view
   // with the bit running along the cut, the side view with the passes.
   var CUT_REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The stock in the figures looks like the Material picked.
+  var MATERIAL_LOOK = {
+    '':            ['#e9dcc6', '#c9b493', '#3a2e1e', '#4a3d2a', '#6b5a40', '#5c4628'],
+    mdf:           ['#e9dcc6', '#c9b493', '#3a2e1e', '#4a3d2a', '#6b5a40', '#5c4628'],
+    softwood:      ['#f4e3b8', '#dbb878', '#4a3720', '#5a4220', '#7a5d30', '#8a6a3a'],
+    hardwood:      ['#c99a6b', '#8f6640', '#2a1b0f', '#2f1f10', '#4a3420', '#5a3d22'],
+    hdpe:          ['#f6f7f4', '#d9dcd8', '#8a9196', '#3f464c', '#5d656c', '#b0b6ba'],
+    acrylic:       ['#e2f2f7', '#aed3e0', '#5f8796', '#2c4d5a', '#46697a', '#8fb8c6'],
+    polycarbonate: ['#eef3f4', '#c3d0d4', '#6e7f86', '#334247', '#55666d', '#9eaeb4'],
+    aluminum:      ['#e7ebef', '#a7b0b9', '#4a525b', '#2a3138', '#454e57', '#7d8792'],
+    foam:          ['#eccb92', '#cfa258', '#6a4a20', '#5a3d14', '#7a5826', '#9a7438']
+  };
+  function applyMaterialLook() {
+    var m = $('qc-material'), look = MATERIAL_LOOK[m ? m.value : ''] || MATERIAL_LOOK[''];
+    var hex = look[4], rgb = [1, 3, 5].map(function(i) { return parseInt(hex.substr(i, 2), 16); }).join(',');
+    var set = function(k, v) { ROOT.style.setProperty(k, v); };
+    set('--qc-m-a', look[0]); set('--qc-m-b', look[1]); set('--qc-m-hole', look[2]);
+    set('--qc-m-ink', look[3]); set('--qc-m-ink2', look[4]); set('--qc-m-bevel', look[5]);
+    set('--qc-m-hatch', 'rgba(' + rgb + ',.4)'); set('--qc-m-hatch-bg', 'rgba(' + rgb + ',.12)');
+    ROOT.classList.toggle('qc-wood-soft', !!m && m.value === 'softwood');
+    ROOT.classList.toggle('qc-wood-hard', !!m && m.value === 'hardwood');
+  }
+  // Wood grain over the stock: quiet straight streaks along X of varying
+  // width. Both sets are drawn; the Material picks one (ROOT class):
+  // softwood broad and pale, hardwood fine and close.
+  var grainSeq = 0;
+  function woodGrain(x, y, w, h, rx) {
+    x = +x; y = +y; w = +w; h = +h;
+    if (!(w > 0 && h > 0)) return '';
+    var id = 'qc-grain-clip-' + (++grainSeq), u = h / 200, f = function(v) { return v.toFixed(2); };
+    var set = function(cls, hard) {
+      var seed = hard ? 5 : 3, rnd = function() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+      var out = '', yy = y;
+      while (yy < y + h) {
+        var sw = (hard ? 1 + rnd() * 2.5 : 3 + rnd() * 9) * u, op = hard ? 0.1 + rnd() * 0.16 : 0.05 + rnd() * 0.09;
+        out += '<rect x="' + f(x) + '" y="' + f(yy) + '" width="' + f(w) + '" height="' + f(sw) + '" opacity="' + op.toFixed(3) + '"/>';
+        yy += sw + (hard ? 2 + rnd() * 5 : 6 + rnd() * 14) * u;
+      }
+      return '<g class="' + cls + '">' + out + '</g>';
+    };
+    return '<g class="qc-grain" pointer-events="none"><clipPath id="' + id + '"><rect x="' + f(x) + '" y="' + f(y) + '" width="' + f(w) + '" height="' + f(h) + '" rx="' + (rx || 0) + '"/></clipPath>' +
+      '<g clip-path="url(#' + id + ')">' + set('qc-grain-soft', false) + set('qc-grain-hard', true) + '</g></g>';
+  }
   function pillW(t) { return String(t).length * 7.4 + 20; }
   function cutPill(x, y, text, rotate, muted) {
     var w = pillW(text);
@@ -11034,15 +11882,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var zx = zero[0], zy = zero[1], xdir = 1, ydir = -1;
     svg.innerHTML =
       '<defs>' +
-        '<linearGradient id="qc-cut-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c9b493"/></linearGradient>' +
+        '<linearGradient id="qc-cut-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
         '<linearGradient id="qc-cut-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
-        '<pattern id="qc-cut-waste" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)"><rect width="9" height="9" fill="rgba(90,70,40,.10)"/><line x1="0" y1="0" x2="0" y2="9" stroke="rgba(90,70,40,.35)" stroke-width="1.4"/></pattern>' +
+        '<pattern id="qc-cut-waste" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)"><rect width="9" height="9" style="fill:var(--qc-m-hatch-bg)"/><line x1="0" y1="0" x2="0" y2="9" style="stroke:var(--qc-m-hatch)" stroke-width="1.4"/></pattern>' +
         '<marker id="qc-cut-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
         '<marker id="qc-cut-am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-muted-fill"/></marker>' +
         '<marker id="qc-cut-ax" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="context-stroke"/></marker>' +
       '</defs>' +
       '<text x="220" y="18" class="qc-fig-cap">Top view · Back (Y+)</text>' +
-      '<rect x="70" y="50" width="300" height="190" rx="3" fill="url(#qc-cut-wood)" class="qc-fig-edge"/>' +
+      '<rect x="70" y="50" width="300" height="190" rx="3" fill="url(#qc-cut-wood)" class="qc-fig-edge"/>' + woodGrain(70, 50, 300, 190, 3) +
       '<rect x="' + f(waste[0]) + '" y="' + f(waste[1]) + '" width="' + f(waste[2]) + '" height="' + f(waste[3]) + '" fill="url(#qc-cut-waste)"/>' +
       '<text x="' + f(wasteAt[0]) + '" y="' + f(wasteAt[1]) + '" class="qc-fig-cap qc-fig-on-wood">waste</text>' +
       '<text x="' + f(keepAt[0]) + '" y="' + f(keepAt[1]) + '" class="qc-fig-cap qc-fig-on-wood qc-fig-keep">' + keepLabel + '</text>' +
@@ -11080,6 +11928,63 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     updateCutterSide();
   }
+  // A side view in the figure style: stock on the table, the tool stepping
+  // down a pass at a time (sweeping across with o.sweep, as a planer pass),
+  // the removed layer growing. o: depth, doc, z0Bottom (Z0 on the table),
+  // thick (stock thickness to label), title, note2.
+  function passesSide(svg, o) {
+    // Ids per drawing: the same name in a hidden tab's SVG paints nothing.
+    var P = svg.id + '-';
+    var u = state.unitLabel, depth = o.depth, doc = o.doc;
+    var n = depth > 0 && doc > 0 ? Math.ceil(depth / doc - 1e-9) : 0;
+    var top = 152, H = 80, D = o.sweep ? 30 : 80, bx = 0;
+    var sx1 = 260;
+    var dur = Math.max(3, (n || 1) * (o.sweep ? 1.6 : 1) + 1.2);
+    // Tool: per pass, down to the pass depth (and across, sweeping).
+    var tv = [], bv = [], kt = [], t = 0, step = dur / ((n || 1) * (o.sweep ? 3 : 2) + 2);
+    var push = function(x, y, b) { kt.push(t); tv.push(x + ' ' + y); bv.push(b); t += step; };
+    push(o.sweep ? -96 : 0, -26, 0);
+    for (var i = 1; i <= (n || 1); i++) {
+      var d = D * Math.min(1, n ? (i * doc) / depth : 1);
+      if (o.sweep) { push(-96, d, D * Math.min(1, ((i - 1) * doc) / depth)); push(96, d, d); push(96, -26, d); }
+      else { push(0, d, d); push(0, d, d); }
+    }
+    t = dur; kt.push(t); tv.push((o.sweep ? -96 : 0) + ' -26'); bv.push(D);
+    var keys = kt.map(function(x) { return (x / dur).toFixed(4); }).join(';');
+    var anim = CUT_REDUCED ? '' : '<animateTransform attributeName="transform" type="translate" values="' + tv.join(';') + '" keyTimes="' + keys + '" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/>';
+    var grow = CUT_REDUCED ? '' : '<animate attributeName="height" values="' + bv.map(function(v) { return v.toFixed(1); }).join(';') + '" keyTimes="' + keys + '" dur="' + dur.toFixed(2) + 's" repeatCount="indefinite"/>';
+    var removed = o.sweep
+      ? '<rect x="40" y="' + top + '" width="220" height="' + (CUT_REDUCED ? D : 0) + '" class="qc-plan-removed">' + grow + '</rect>'
+      : '<rect x="146" y="' + top + '" width="18" height="' + (CUT_REDUCED ? D : 0) + '" class="qc-fig-kerf-box">' + grow + '</rect>';
+    var dl = (depth > 0 ? depth : '?') + ' ' + u;
+    var z0y = o.z0Bottom ? top + H : top;
+    var thickDim = o.thick > 0 ? '<line x1="22" y1="' + (top + 4) + '" x2="22" y2="' + (top + H - 4) + '" class="qc-fig-dim qc-fig-dim--muted" marker-start="url(#' + P + 'qc-side-am)" marker-end="url(#' + P + 'qc-side-am)"/>' + cutPill(22, top + H / 2, o.thick + ' ' + u, true, true) : '';
+    svg.innerHTML =
+      '<defs>' +
+        '<linearGradient id="' + P + 'qc-side-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="' + P + 'qc-side-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="' + P + 'qc-side-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+        '<marker id="' + P + 'qc-side-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
+        '<marker id="' + P + 'qc-side-am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-muted-fill"/></marker>' +
+      '</defs>' +
+      '<text x="150" y="-46" class="qc-fig-cap">' + o.title + '</text>' +
+      '<line x1="20" y1="' + (top + H) + '" x2="280" y2="' + (top + H) + '" class="qc-fig-table"/>' +
+      '<rect x="40" y="' + top + '" width="' + (sx1 - 40) + '" height="' + H + '" fill="url(#' + P + 'qc-side-wood)" class="qc-fig-edge"/>' + woodGrain(40, top, sx1 - 40, H) +
+      removed +
+      '<line x1="40" y1="' + z0y + '" x2="' + sx1 + '" y2="' + z0y + '" class="qc-fig-z0"/>' +
+      '<text x="256" y="' + (o.z0Bottom ? z0y + 14 : z0y - 6) + '" class="qc-fig-accent-text" text-anchor="end">' + (o.z0Label || 'Z0 = top of stock') + '</text>' +
+      '<g transform="translate(' + bx + ' 0)"><g>' +
+        '<rect x="121" y="-24" width="68" height="50" fill="url(#' + P + 'qc-side-body)"/>' +
+        '<path d="M127 26 H183 L175 42 H135 Z" fill="url(#' + P + 'qc-side-rod)"/>' +
+        '<rect x="146" y="42" width="18" height="110" rx="2" fill="url(#' + P + 'qc-side-rod)"/>' +
+        anim +
+      '</g></g>' +
+      '<line x1="276" y1="' + top + '" x2="296" y2="' + top + '" class="qc-fig-ext"/><line x1="276" y1="' + (top + D) + '" x2="296" y2="' + (top + D) + '" class="qc-fig-ext"/>' +
+      '<line x1="288" y1="' + (top + 4) + '" x2="288" y2="' + (top + D - 4) + '" class="qc-fig-dim" marker-start="url(#' + P + 'qc-side-a)" marker-end="url(#' + P + 'qc-side-a)"/>' +
+      cutPill(288, top + D / 2, dl, D > 40) + thickDim +
+      '<text x="150" y="' + (top + H + 26) + '" class="qc-fig-note">' + (n ? n + (n === 1 ? ' pass' : ' passes') + ' of up to ' + doc + ' ' + u : 'Set the depth and Depth of Cut') + '</text>' +
+      (o.note2 ? '<text x="150" y="' + (top + H + 44) + '" class="qc-fig-note">' + o.note2 + '</text>' : '');
+  }
   // Side view: the bit stepping down a pass at a time.
   function updateCutterSide() {
     var svg = document.getElementById('qc-cut-side');
@@ -11091,12 +11996,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<defs>' +
         '<linearGradient id="qc-cut-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
         '<linearGradient id="qc-cut-rod2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
-        '<linearGradient id="qc-cut-wood2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c2ab88"/></linearGradient>' +
+        '<linearGradient id="qc-cut-wood2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
         '<marker id="qc-cut-a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
       '</defs>' +
       '<text x="150" y="-46" class="qc-fig-cap">Side view · depth passes</text>' +
       '<line x1="20" y1="230" x2="280" y2="230" class="qc-fig-table"/>' +
-      '<rect x="40" y="152" width="220" height="78" fill="url(#qc-cut-wood2)" class="qc-fig-edge"/>' +
+      '<rect x="40" y="152" width="220" height="78" fill="url(#qc-cut-wood2)" class="qc-fig-edge"/>' + woodGrain(40, 152, 220, 78) +
       '<rect x="146" y="152" width="18" height="80" class="qc-fig-kerf-box qc-fig-a-kerf"/>' +
       '<line x1="40" y1="152" x2="260" y2="152" class="qc-fig-z0"/>' +
       '<text x="44" y="146" class="qc-fig-accent-text">Z0 = top of stock</text>' +
@@ -11560,6 +12465,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // is kept in drillPreviewMap so the tap can be mapped back to a hole.
   var drillPreviewMap = null;
   var DRILL_PREVIEW_MAX = 2500;
+  // Past this many copies the Rectangle's top view shows the first one only.
+  var RECT_PREVIEW_MAX = 400;
   function updateDrillPreview() {
     // Drawn when Drill is in view (switchTab draws it on the way in).
     if (!$('qc-drl-preview') || !$('qc-drl-preview').closest('.qc-content.active')) return;
@@ -11694,8 +12601,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function drillStock(minX, maxX, minY, maxY, cx, cy, scale, r) {
     var pad = Math.max(r * 3, 7);
     var x0 = (minX - cx) * scale - pad, x1 = (maxX - cx) * scale + pad, y0 = -(maxY - cy) * scale - pad, y1 = -(minY - cy) * scale + pad;
-    return '<defs><linearGradient id="qc-drl-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c9b493"/></linearGradient></defs>' +
-      '<rect class="qc-drl-stock" x="' + x0.toFixed(2) + '" y="' + y0.toFixed(2) + '" width="' + (x1 - x0).toFixed(2) + '" height="' + (y1 - y0).toFixed(2) + '" rx="1" fill="url(#qc-drl-wood)"/>';
+    return '<defs><linearGradient id="qc-drl-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient></defs>' +
+      '<rect class="qc-drl-stock" x="' + x0.toFixed(2) + '" y="' + y0.toFixed(2) + '" width="' + (x1 - x0).toFixed(2) + '" height="' + (y1 - y0).toFixed(2) + '" rx="1" fill="url(#qc-drl-wood)"/>' + woodGrain(x0, y0, x1 - x0, y1 - y0, 1);
   }
   // The drill going round the holes in order, each left drilled as it
   // goes (SMIL, so it runs inside the redrawn SVG). Skipped for big grids
@@ -11730,11 +12637,54 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     out += '<g class="qc-drl-bit" pointer-events="none"><circle r="' + f(br) + '" fill="url(#qc-drl-rod)" stroke="rgba(0,0,0,.35)" stroke-width="0.4"/>' +
       '<g class="qc-fig-spin"><path d="M0 ' + f(-br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(br * 0.82) + ' ' + f(br * 0.55) + ' L0 0Z M0 ' + f(br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(-br * 0.82) + ' ' + f(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
       '<animateMotion dur="' + dur + 's" repeatCount="indefinite" calcMode="linear" path="' + path + '" keyPoints="' + kp.map(function(v) { return v.toFixed(5); }).join(';') + '" keyTimes="' + kt.map(function(t) { return t.toFixed(4); }).join(';') + '"/></g>';
-    var csk = inner ? '<radialGradient id="qc-drl-csk"><stop offset="0" stop-color="#3a2e1e"/><stop offset="' + (inner / (r + 0.3)).toFixed(3) + '" stop-color="#3a2e1e"/><stop offset="' + (inner / (r + 0.3) + 0.02).toFixed(3) + '" stop-color="#5c4628"/><stop offset="1" stop-color="#b59a72"/></radialGradient>' : '';
+    var csk = inner ? '<radialGradient id="qc-drl-csk"><stop offset="0" style="stop-color:var(--qc-m-hole)"/><stop offset="' + (inner / (r + 0.3)).toFixed(3) + '" style="stop-color:var(--qc-m-hole)"/><stop offset="' + (inner / (r + 0.3) + 0.02).toFixed(3) + '" style="stop-color:var(--qc-m-bevel)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></radialGradient>' : '';
     return '<defs>' + csk + '<linearGradient id="qc-drl-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>' + out;
   }
   // Side view while chamfering: a V-bit comes down into the drilled hole and
   // cuts the bevel round its top edge.
+  // Rectangle on the Chamfer tab, side view: the cut already made beside
+  // the part (Outside: the slot, the offcut past it; Inside / Pocket: the
+  // opening) and a V-bit coming down onto its top edge to cut the bevel.
+  function rectChamferSide(svg) {
+    var u = state.unitLabel, w = num('qc-chamfer-width', 0), ang = num('qc-chamfer-angle', 90);
+    var outer = $('qc-rect-cut-type').value === 'outer', pocket = $('qc-rect-cut-type').value === 'clearing';
+    var exist = num('qc-chamfer-cut-depth', 0), through = !(exist > 0);
+    var dur = 4, an = CUT_REDUCED ? '' :
+      '<animateTransform attributeName="transform" type="translate" values="0 -28;0 -28;0 0;0 0;0 -28" keyTimes="0;0.12;0.45;0.75;1" dur="' + dur + 's" repeatCount="indefinite"/>';
+    var bev = CUT_REDUCED ? '' : '<animate attributeName="opacity" values="0;0;1;1;1" keyTimes="0;0.3;0.45;0.75;1" dur="' + dur + 's" repeatCount="indefinite"/>';
+    // The material left: the part (Outside) or the stock beside the
+    // opening (Inside), x 40 to 150; past it nothing, the waste is gone,
+    // unless the opening has a floor (an Existing Depth).
+    var floorSvg = !outer && !through
+      ? '<rect x="150" y="222" width="110" height="28" fill="url(#qc-rcs-wood)" class="qc-fig-edge"/>' + woodGrain(150, 222, 110, 28) : '';
+    var what = outer ? 'round the part' : pocket ? 'round the pocket' : 'round the opening';
+    svg.innerHTML =
+      '<defs>' +
+        '<linearGradient id="qc-rcs-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="qc-rcs-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="qc-rcs-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+      '</defs>' +
+      '<text x="150" y="-46" class="qc-fig-cap">Side view · chamfer</text>' +
+      '<line x1="20" y1="250" x2="280" y2="250" class="qc-fig-table"/>' +
+      '<rect x="40" y="152" width="110" height="98" fill="url(#qc-rcs-wood)" class="qc-fig-edge"/>' + woodGrain(40, 152, 110, 98) +
+      floorSvg +
+      // The bevel cut off the top edge (nothing left there).
+      '<path d="M136 151 H151 V166 Z" style="fill:var(--color-surface-muted)" opacity="' + (CUT_REDUCED ? 1 : 0) + '">' + bev + '</path>' +
+      '<line x1="40" y1="152" x2="150" y2="152" class="qc-fig-z0"/>' +
+      '<text x="44" y="146" class="qc-fig-accent-text">Z0 = top of stock</text>' +
+      // V-bit: its cone's side on the bevel.
+      '<g>' +
+        '<rect x="130" y="-6" width="68" height="50" fill="url(#qc-rcs-body)"/>' +
+        '<path d="M136 44 H192 L184 60 H144 Z" fill="url(#qc-rcs-rod)"/>' +
+        '<rect x="155" y="60" width="18" height="91" fill="url(#qc-rcs-rod)"/>' +
+        '<path d="M135 151 H193 L164 180 Z" fill="url(#qc-rcs-rod)"/>' +
+        an +
+      '</g>' +
+      '<line x1="136" y1="108" x2="136" y2="150" class="qc-fig-ext"/><line x1="150" y1="108" x2="150" y2="150" class="qc-fig-ext"/>' +
+      '<line x1="100" y1="112" x2="150" y2="112" class="qc-fig-dim"/>' +
+      cutPill(76, 112, (w > 0 ? w : '?') + ' ' + u, false) +
+      '<text x="150" y="276" class="qc-fig-note">' + (w > 0 ? w : '?') + ' ' + u + ' chamfer at ' + ang + '° ' + what + '</text>';
+  }
   function drillChamferSide(svg) {
     var u = state.unitLabel, w = num('qc-chamfer-width', 0), ang = num('qc-chamfer-angle', 90), hole = num('qc-chamfer-hole', 0);
     var dur = 4, an = CUT_REDUCED ? '' :
@@ -11744,14 +12694,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<defs>' +
         '<linearGradient id="qc-drl-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
         '<linearGradient id="qc-drl-rod2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
-        '<linearGradient id="qc-drl-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c2ab88"/></linearGradient>' +
+        '<linearGradient id="qc-drl-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
       '</defs>' +
       '<text x="150" y="-46" class="qc-fig-cap">Side view · chamfer</text>' +
       '<line x1="20" y1="250" x2="280" y2="250" class="qc-fig-table"/>' +
-      '<rect x="40" y="152" width="220" height="98" fill="url(#qc-drl-wood)" class="qc-fig-edge"/>' +
+      '<rect x="40" y="152" width="220" height="98" fill="url(#qc-drl-wood)" class="qc-fig-edge"/>' + woodGrain(40, 152, 220, 98) +
       // The hole drilled before, then the bevel round its top.
-      '<rect x="135" y="152" width="30" height="98" fill="#3a2e1e"/>' +
-      '<path d="M121 152 H135 V166 Z M179 152 H165 V166 Z" fill="#3a2e1e" opacity="' + (CUT_REDUCED ? 1 : 0) + '">' + bev + '</path>' +
+      '<rect x="135" y="152" width="30" height="98" style="fill:var(--qc-m-hole)"/>' +
+      '<path d="M121 152 H135 V166 Z M179 152 H165 V166 Z" style="fill:var(--qc-m-hole)" opacity="' + (CUT_REDUCED ? 1 : 0) + '">' + bev + '</path>' +
       '<line x1="40" y1="152" x2="260" y2="152" class="qc-fig-z0"/>' +
       '<text x="256" y="146" class="qc-fig-accent-text" text-anchor="end">Z0 = top of stock</text>' +
       // V-bit: body, shank, cone; at rest its cone cuts the bevel.
@@ -11799,13 +12749,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<defs>' +
         '<linearGradient id="qc-drl-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
         '<linearGradient id="qc-drl-rod2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
-        '<linearGradient id="qc-drl-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9dcc6"/><stop offset="1" stop-color="#c2ab88"/></linearGradient>' +
+        '<linearGradient id="qc-drl-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
         '<marker id="qc-drl-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker>' +
       '</defs>' +
       '<text x="150" y="-46" class="qc-fig-cap">Side view · ' + (pecking ? 'pecking' : 'plunge') + '</text>' +
       '<line x1="20" y1="250" x2="280" y2="250" class="qc-fig-table"/>' +
-      '<rect x="40" y="152" width="220" height="98" fill="url(#qc-drl-wood)" class="qc-fig-edge"/>' +
-      '<rect x="141" y="152" width="18" height="' + (CUT_REDUCED ? D : 0) + '" fill="#3a2e1e">' + bore + '</rect>' +
+      '<rect x="40" y="152" width="220" height="98" fill="url(#qc-drl-wood)" class="qc-fig-edge"/>' + woodGrain(40, 152, 220, 98) +
+      '<rect x="141" y="152" width="18" height="' + (CUT_REDUCED ? D : 0) + '" style="fill:var(--qc-m-hole)">' + bore + '</rect>' +
       marks +
       '<line x1="40" y1="152" x2="260" y2="152" class="qc-fig-z0"/>' +
       '<text x="44" y="146" class="qc-fig-accent-text">Z0 = top of stock</text>' +
@@ -15287,12 +16237,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return out;
     }
 
-    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate) {
+    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay) {
       if (pattern === 'spiral') {
         emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate);
         return;
       }
       var invert = (pattern === 'zigzagX');
+      if (oneWay) { emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, oneWay); return; }
       var stepDim = invert ? cutH : cutW;
       var numPasses = Math.ceil(stepDim / step) + 1;
       var direction = 1;
@@ -15309,6 +16260,58 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           lines.push('G1 Y' + yEnd.toFixed(3) + ' F' + feedRate);
         }
         direction *= -1;
+      }
+    }
+
+    // Every pass the same way. Passes step +X (along Y) or +Y (along X), so
+    // the uncut stock is on that side; with the spindle clockwise, cutting
+    // with it on the bit's left is conventional (as on the Jointer): along Y
+    // that runs -Y, along X +X. Climb runs the other way. Between passes:
+    // up to the hop height, across to the next start, down at the plunge rate.
+    function emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, o) {
+      var stepDim = invert ? cutH : cutW;
+      var numPasses = Math.ceil(stepDim / step) + 1;
+      var plus = invert ? !o.climb : o.climb;
+      var lo = invert ? startX : startY, hi = invert ? startX + cutW : startY + cutH;
+      var from = plus ? lo : hi, to = plus ? hi : lo;
+      // The bit arrives at the area's corner at the hop height, not plunged.
+      var at = { x: startX, y: startY }, down = false;
+      for (var p = 0; p < numPasses; p++) {
+        var across = Math.min((invert ? startY : startX) + p * step, (invert ? startY + cutH : startX + cutW));
+        var sx = invert ? from : across, sy = invert ? across : from;
+        var moved = Math.abs(at.x - sx) > 1e-9 || Math.abs(at.y - sy) > 1e-9;
+        if (moved || !down) {
+          if (moved) {
+            if (down) lines.push('G0 Z' + o.hop);
+            lines.push('G0 X' + sx.toFixed(xyDp) + ' Y' + sy.toFixed(xyDp));
+          }
+          lines.push('G0 Z' + o.approach);
+          lines.push('G1 Z' + o.z + ' F' + o.plunge);
+          down = true;
+        }
+        var ex = invert ? to : across, ey = invert ? across : to;
+        lines.push('G1 X' + ex.toFixed(xyDp) + ' Y' + ey.toFixed(xyDp) + ' F' + feedRate);
+        at = { x: ex, y: ey };
+      }
+    }
+
+    // The outside-in spiral run backwards: plunge where it would end, in the
+    // middle, and work out to the corner. Still conventional (the uncut
+    // stock stays on the bit's left, now outside it as it turns clockwise).
+    function emitSpiralFromInside(lines, startX, startY, cutW, cutH, step, feedRate, o) {
+      var fwd = [];
+      emitSpiral(fwd, startX, startY, cutW, cutH, step, feedRate);
+      var pts = [[startX, startY]];
+      fwd.forEach(function(l) {
+        var mx = /X(-?[\d.]+)/.exec(l), my = /Y(-?[\d.]+)/.exec(l), prev = pts[pts.length - 1];
+        pts.push([mx ? +mx[1] : prev[0], my ? +my[1] : prev[1]]);
+      });
+      pts.reverse();
+      lines.push('G0 X' + pts[0][0].toFixed(xyDp) + ' Y' + pts[0][1].toFixed(xyDp));
+      lines.push('G0 Z' + o.approach);
+      lines.push('G1 Z' + o.z + ' F' + o.plunge);
+      for (var i = 1; i < pts.length; i++) {
+        lines.push('G1 X' + pts[i][0].toFixed(xyDp) + ' Y' + pts[i][1].toFixed(xyDp) + ' F' + feedRate);
       }
     }
 
@@ -15348,14 +16351,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var stepoverPct = params.stepoverPct || 40;
       var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
       var pattern = params.pattern || 'zigzagY';
+      // Zigzag passes alternate (Both Ways); Conventional / Climb cut every
+      // pass the same way, lifting to go back between them. Spiral ignores it.
+      var cutDirection = pattern === 'spiral' ? 'both' : (params.cutDirection || 'both');
+      // Spiral from the outside in (default) or the inside out.
+      var fromInside = pattern === 'spiral' && params.spiralFrom === 'inside';
 
-      // Wasteboard: the front-left corner of the machine's travel. That's
-      // machine 0,0 when homing sets the origin there (travel runs 0…$130),
-      // or -$130,-$131 on machines whose coordinates run negative, which
-      // travelMin gives; without it, 0,0 as before.
-      var bl = isWasteboard && params.travelMin
-        ? { x: params.travelMin.x, y: params.travelMin.y }
-        : regionBottomLeft(params.origin || 'front-left', width, height);
+      // Wasteboard: G54 X0 Y0 is set at the front-left corner of the
+      // machine's travel, and the program runs 0…$130 × 0…$131 from it.
+      // That corner is machine travelMin (0,0 when homing sets the origin
+      // there, -$130/-$131 on machines whose coordinates run negative); the
+      // keepout zones, kept in machine coordinates, are moved by it.
+      var travelMin = isWasteboard && params.travelMin ? { x: params.travelMin.x, y: params.travelMin.y } : { x: 0, y: 0 };
+      // Wasteboard zero is always the travel's front-left corner.
+      var origin = isWasteboard ? 'front-left' : (params.origin || 'front-left');
+      var bl = regionBottomLeft(origin, width, height);
       var startX = bl.x - overrun;
       var startY = bl.y - overrun;
       var cutW = width + overrun * 2;
@@ -15374,7 +16384,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // bit radius; what's left is up to four rectangles.
       // Each zone (ncSender's, the ATCi's) is taken out of what's left of
       // the last; keepoutsHit are those that removed something.
-      var keepouts = isWasteboard && params.keepouts ? params.keepouts : [];
+      var keepouts = isWasteboard && params.keepouts ? params.keepouts.map(function(k) {
+        var dx = bl.x - travelMin.x, dy = bl.y - travelMin.y;
+        return { name: k.name, minX: k.minX + dx, maxX: k.maxX + dx, minY: k.minY + dy, maxY: k.maxY + dy, m: k };
+      }) : [];
       var areas = [{ x: startX, y: startY, w: cutW, h: cutH }];
       var keepoutsHit = [];
       keepouts.forEach(function(k) {
@@ -15390,10 +16403,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         'Region: ' + width + ' x ' + height + ' ' + unitsLabel
       ];
       if (isWasteboard) {
-        extras.push('Machine coordinates — set G54 X0/Y0 at machine zero (0,0); Z0 on the wasteboard surface');
-        if (bl.x || bl.y) {
-          extras.push('Machine travel: X ' + bl.x + ' to ' + +(bl.x + width).toFixed(4) + ', Y ' + bl.y + ' to ' + +(bl.y + height).toFixed(4) + ' ' + unitsLabel);
-        }
+        extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
       }
       if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + cutW + ' x ' + cutH + ')');
       if (isThickness) {
@@ -15405,9 +16415,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       extras.push('Stepover: ' + stepoverPct + '% (' + stepoverDist.toFixed(3) + unitsLabel + ')');
       extras.push('Pattern: ' + pattern);
+      if (cutDirection !== 'both') extras.push('Cut direction: ' + cutDirection + ' (every pass the same way)');
+      if (fromInside) extras.push('Spiral: from the inside out');
       keepoutsHit.forEach(function(k) {
-        extras.push('Keepout zone left out: ' + (k.name ? k.name + ', ' : '') + 'X ' + k.minX + '-' + k.maxX +
-                    ', Y ' + k.minY + '-' + k.maxY + unitsLabel + ' plus the bit radius');
+        var mk = k.m || k;
+        extras.push('Keepout zone left out: ' + (k.name ? k.name + ', ' : '') + 'machine X ' + mk.minX + '-' + mk.maxX +
+                    ', Y ' + mk.minY + '-' + mk.maxY + unitsLabel + ' plus the bit radius');
       });
       if (keepoutsHit.length) extras.push('Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
       // A zone that's on but outside the surfacing area, e.g. on a machine
@@ -15415,10 +16428,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // let it look avoided.
       keepouts.forEach(function(k) {
         if (keepoutsHit.indexOf(k) >= 0) return;
-        extras.push('Keepout zone outside the surfacing area, not avoided: ' + (k.name ? k.name + ', ' : '') + 'X ' + k.minX + '-' + k.maxX +
-                    ', Y ' + k.minY + '-' + k.maxY + unitsLabel);
+        var mo = k.m || k;
+        extras.push('Keepout zone outside the surfacing area, not avoided: ' + (k.name ? k.name + ', ' : '') + 'machine X ' + mo.minX + '-' + mo.maxX +
+                    ', Y ' + mo.minY + '-' + mo.maxY + unitsLabel);
       });
-      extras.push('Origin: ' + (params.origin || 'front-left'));
+      extras.push('Origin: ' + origin);
 
       var lines = programHeader(params, {
         shapeLabel: 'Planer' + (isThickness ? ' (thickness)' : isWasteboard ? ' (wasteboard)' : ''),
@@ -15459,9 +16473,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var approachZ = isThickness
             ? (startingThickness - currentDepth + 0.5).toFixed(3)
             : (parseFloat(slowPlungeStart) - currentDepth).toFixed(3);   // depth mode: just above the previous pass's floor
-          lines.push('G0 Z' + approachZ);
-          lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
-          emitPlanerLap(lines, pattern, a.x, a.y, a.w, a.h, stepoverDist, feedRate);
+          // One way: the lap plunges at its first pass's start itself.
+          if (cutDirection === 'both' && !fromInside) {
+            lines.push('G0 Z' + approachZ);
+            lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
+          }
+          if (fromInside) emitSpiralFromInside(lines, a.x, a.y, a.w, a.h, stepoverDist, feedRate, { approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
+          else emitPlanerLap(lines, pattern, a.x, a.y, a.w, a.h, stepoverDist, feedRate,
+            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
           lines.push('G0 Z' + safeHopWork);
         }
         currentDepth = nextDepth;
