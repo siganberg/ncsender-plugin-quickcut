@@ -1668,7 +1668,7 @@
   .qc-fig-note { fill: var(--color-text-secondary); font-size: 12.5px; text-anchor: middle; }
   .qc-fig-accent-text { fill: var(--color-accent); font-size: 11px; font-weight: 600; }
   .qc-fig-path { stroke: var(--color-accent); stroke-width: 1.6; stroke-dasharray: 4 5; fill: none; opacity: 0.75; }
-  .qc-fig-kerf { stroke: color-mix(in srgb, var(--color-accent) 35%, transparent); stroke-width: 12; }
+  .qc-fig-kerf { stroke: color-mix(in srgb, var(--color-accent) 35%, transparent); stroke-width: 22; }
   .qc-fig-kerf-box { fill: color-mix(in srgb, var(--color-accent) 25%, var(--color-surface)); stroke: var(--color-accent); stroke-width: 1; }
   .qc-fig-zero { stroke: var(--color-accent); stroke-width: 4; stroke-linecap: round; }
   .qc-fig-z0 { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 7 5; }
@@ -11859,6 +11859,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // generator does: conventional runs + from a back or left zero.
     if (along) { A = [45, cut]; B = [395, cut]; ldim = [45, 272, 395, 272]; }
     else { A = [cut, 258]; B = [cut, 32]; ldim = side === 'right' ? [36, 32, 36, 258] : [404, 32, 404, 258]; }
+    // The bit's center runs one radius into the waste, so its edge (and the
+    // kerf's) is on the cut line and the part keeps its Target Size.
+    var BIT_R = 11, wx = feedOff[0] ? Math.sign(feedOff[0]) * BIT_R : 0, wy = feedOff[1] ? Math.sign(feedOff[1]) * BIT_R : 0;
+    A = [A[0] + wx, A[1] + wy]; B = [B[0] + wx, B[1] + wy];
     var plusIsConventional = side === 'back' || side === 'left';
     if ((direction === 'climb') === plusIsConventional) { var t = A; A = B; B = t; }
     var L = Math.hypot(B[0] - A[0], B[1] - A[1]);
