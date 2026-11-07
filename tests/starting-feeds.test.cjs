@@ -104,10 +104,12 @@ test('deep passes: a compression bit cuts in the fewest passes its flutes and 3x
   const q = startingFeeds(6.35, 2, 'mdf', null, null, { compression: true, depthMm: 19.05, fluteMm: 22 });
   assert.equal(q.passes, 1);
   assert.ok(Math.abs(q.stepMm - 19.05) < 1e-9);
-  // 1/8" at the same depth: 6x the bit, so two passes of 3x.
+  // 1/8" at the same depth: a small bit goes no deeper than 2x a pass, so three of 6.35.
   const e = startingFeeds(3.175, 2, 'mdf', null, null, { compression: true, depthMm: 19.05, fluteMm: 12.7 });
-  assert.equal(e.passes, 2);
-  assert.ok(Math.abs(e.stepMm - 9.525) < 1e-9);
+  assert.equal(e.passes, 3);
+  assert.ok(Math.abs(e.stepMm - 6.35) < 1e-9);
+  // 1/16": 1x.
+  assert.equal(startingFeeds(1.5875, 2, 'mdf', null, null, { compression: true, depthMm: 6.35 }).passes, 4);
   // Short flutes take more passes.
   assert.equal(startingFeeds(6.35, 2, 'mdf', null, null, { compression: true, depthMm: 19.05, fluteMm: 9 }).passes, 3);
   // Not a compression bit: Depth of Cut as before.
@@ -135,4 +137,23 @@ test('deep passes ease the chip a little, not under the style\'s least chip, nor
   assert.equal(startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 6.35 }).feedMm, base.feedMm);
   // Acrylic keeps its chip, a thin one melts it.
   assert.equal(startingFeeds(6.35, 2, 'acrylic', null, null, { stepMm: 19.05 }).feedMm, startingFeeds(6.35, 2, 'acrylic').feedMm);
+});
+
+test('compression passes are for wood only: metals and plastics keep their shallow passes', () => {
+  for (const m of ['aluminum', 'acrylic', 'hdpe', 'polycarbonate', 'foam']) {
+    const f = startingFeeds(6.35, 2, m, null, null, { compression: true, depthMm: 12, fluteMm: 25.4 });
+    assert.equal(f.passes, 0, m);
+    assert.ok(Math.abs(f.stepMm - startingFeeds(6.35, 2, m).stepMm) < 1e-9, m);
+  }
+  assert.equal(startingFeeds(6.35, 2, 'hardwood', null, null, { compression: true, depthMm: 12, fluteMm: 25.4 }).passes, 1);
+});
+
+test('deepChip is what the deep pass took off the feed, after the caps', () => {
+  // A 1/4" 4-flute, Aggressive: held at 4000 shallow or deep, so nothing taken off.
+  const f = startingFeeds(6.35, 4, 'mdf', null, 'aggressive', { stepMm: 19 });
+  assert.equal(f.feedMm, 4000);
+  assert.equal(f.deepChip, 1);
+  // Not held: the feed it took off.
+  const g = startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 19.05 });
+  assert.ok(Math.abs(g.deepChip - g.feedMm / startingFeeds(6.35, 2, 'mdf').feedMm) < 1e-3);
 });
