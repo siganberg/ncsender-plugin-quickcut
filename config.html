@@ -1862,6 +1862,7 @@
   .qc-chf-edge label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-secondary); }
   .qc-chf-edge .qc-seg button { font-size: 0.82rem; }
   .qc-chf-edge .qc-seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .qc-chf-edge .qc-chf-kind { margin-top: 8px; }
   #qc-chamfer-card:not(:has(#qc-chamfer-enable:checked)) .qc-chf-edge { display: none; }
   .qc-shp-shape > .qc-chf-edge { margin-bottom: 10px; }
   .qc-chamfer-mode #qc-chamfer-card .qc-card-header .qc-switch { display: none; }
@@ -9235,12 +9236,31 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     edge.className = 'qc-field qc-chf-edge';
     edge.innerHTML = '<label>Edge</label><div class="qc-seg" role="radiogroup" aria-label="Edge" style="grid-template-columns: repeat(' + CHAMFER_EDGES.length + ', minmax(0, 1fr))">' +
       CHAMFER_EDGES.map(function(e) { return '<button type="button" role="radio" data-edge="' + e[0] + '"' + (CHAMFER_READY[e[0]] ? '' : ' disabled title="Coming soon"') + '>' + e[1] + '</button>'; }).join('') + '</div>';
+    // Rect: which of the Rectangle card's shapes, as its title menu does
+    // (hidden while chamfering).
+    edge.insertAdjacentHTML('beforeend', '<div class="qc-field qc-chf-kind"><label for="qc-chf-kind">Edge shape</label><select class="qc-select" id="qc-chf-kind">' +
+      [].map.call($('qc-rect-kind').options, function(o) { return '<option value="' + o.value + '">' + o.textContent + '</option>'; }).join('') + '</select></div>');
     var card = $('qc-chamfer-card'), cardHead = card.querySelector('.qc-card-header');
     card.insertBefore(edge, cardHead.nextSibling);
     edge.querySelectorAll('[data-edge]').forEach(function(b) {
       b.addEventListener('click', function() { enterChamfer(b.getAttribute('data-edge')); });
     });
+    $('qc-chf-kind').addEventListener('change', function() {
+      var k = $('qc-rect-kind');
+      k.value = this.value;
+      k.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    $('qc-rect-kind').addEventListener('change', syncChamferKind);
     return chamferHead;
+  }
+  // The Rect button and the Shape menu name the Rectangle card's shape.
+  function syncChamferKind() {
+    var k = $('qc-rect-kind'), sel = $('qc-chf-kind');
+    if (!sel) return;
+    sel.value = k.value;
+    sel.closest('.qc-chf-kind').style.display = state.chamferMode === 'rectangle' ? '' : 'none';
+    var b = ROOT.querySelector('.qc-chf-edge [data-edge="rectangle"]');
+    if (b) b.textContent = k.value === 'rectangle' ? 'Rect' : k.options[k.selectedIndex].textContent;
   }
   function enterChamfer(target, source) {
     if (!CHAMFER_TABS[target] || !CHAMFER_READY[target]) target = 'drill';
@@ -9267,6 +9287,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var on = b.getAttribute('data-edge') === target;
       b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
+    syncChamferKind();
     highlightNav(target);
     rememberTab();
     showBitTool();
