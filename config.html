@@ -9873,6 +9873,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-flutes').addEventListener('change', function() {
       state.flutes = +$('qc-flutes').value;
       persistSettings({ common: { flutes: state.flutes } });
+      showBitTool();
       fillStartingFeeds(false);
     });
     // A new bit gets its own feeds, unless they've been changed by hand.
@@ -10058,10 +10059,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // From the table: the picked tool (or a prompt) in place of the field.
     btn.hidden = !table;
     $('qc-bit').closest('.qc-field').classList.toggle('qc-bit-hidden', table);
-    // The tool table has the flutes: asked only for a typed size.
-    $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table);
     var esc = function(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
     var t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
+    // The tool table has the flutes: asked for a typed size, or for a picked
+    // tool whose table entry doesn't give them (guessed from its name, else 2).
+    $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table && !(t && !(t.flutes > 0)));
     btn.innerHTML = t
       ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + $('qc-flutes').value + ' fl</em>'
       : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
