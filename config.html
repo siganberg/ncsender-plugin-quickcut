@@ -626,12 +626,11 @@
     border: 1px solid var(--color-border);
     border-radius: 10px;
   }
+  /* As the cards' titles, so the column reads as one of them. */
   .qc-header-card-title {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
     margin: 0;
   }
 
@@ -1731,9 +1730,18 @@
     .qc-panel:has(> .qc-header-cards) > :not(.qc-header-cards) { grid-column: 2; }
     .qc-panel.qc-cut-panel:has(> .qc-header-cards) { grid-template-rows: minmax(0, 1fr); align-content: stretch; }
     .qc-panel.qc-cut-panel > .qc-header-cards { grid-row: 1; }
-    /* One field per row down the column, spread over its height. */
+    /* One field per row down the column, from the top, its rows level
+       with the cards' beside it: the title with theirs (12 px above the
+       first label, as theirs), each field a label (21 px) below. The
+       Library / Size switch and the tool picker have no label and take
+       that space; the switch gives back the 6 px it's taller than a
+       field. */
     .qc-panel > .qc-header-cards .qc-row-3, .qc-panel > .qc-header-cards .qc-row-2 { grid-template-columns: minmax(0, 1fr); }
-    .qc-panel > .qc-header-cards .qc-header-card { justify-content: space-evenly; gap: 10px; }
+    .qc-panel > .qc-header-cards .qc-header-card { justify-content: flex-start; gap: 10px; }
+    .qc-panel > .qc-header-cards > div.qc-header-card:first-child { padding-top: 29px; }
+    .qc-panel > .qc-header-cards .qc-header-card-title { margin-bottom: 2px; }
+    .qc-panel > .qc-header-cards > div.qc-header-card:first-child > .qc-seg { margin-top: 21px; margin-bottom: -6px; }
+    .qc-panel > .qc-header-cards #qc-bit-tool { margin-top: 21px !important; }
     .qc-panel > .qc-header-cards .qc-header-card > .qc-row-3, .qc-panel > .qc-header-cards .qc-header-card > .qc-row-2 { display: contents; }
     .qc-panel > .qc-header-cards .qc-coolant-toggles { flex-direction: column; align-items: stretch; gap: 14px; padding: 4px 0 0; }
     .qc-panel > .qc-header-cards .qc-switch-label { display: flex; justify-content: space-between; font-size: 0.9rem; }
