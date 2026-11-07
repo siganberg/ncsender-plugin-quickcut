@@ -3167,11 +3167,12 @@
         </div>
       </header>
 
-      <div class="qc-panel">
+      <div class="qc-panel qc-shp-panel">
         <form id="qc-key-form" onsubmit="return false">
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Slot</h3>
-            <div class="qc-shape-grid qc-shape-grid--origin">
+          <div class="qc-shp-layout">
+            <div class="qc-shp-side">
+              <div class="qc-card qc-section-card qc-shp-shape">
+                <h3 class="qc-card-title">Slot</h3>
               <div class="qc-shape-fields">
                 <div class="qc-row-2">
                   <div class="qc-field">
@@ -3191,6 +3192,22 @@
                   Set <strong>Bit Diameter</strong> to the keyhole bit&rsquo;s head diameter.
                 </p>
               </div>
+              </div>
+          <div class="qc-card qc-section-card">
+            <h3 class="qc-card-title">Depth</h3>
+            <div class="qc-row-5">
+              <div class="qc-field">
+                <label for="qc-key-depth">Total Depth</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required title="Depth to the bottom of the keyhole head, cut in one pass.">
+              </div>
+              <p class="qc-mode-hint qc-side-hint">One plunge to full depth at the Plunge Rate. The slot is always a single pass &mdash; a shallower pass would cut the narrow neck slot out to the full head width. Depth is to the bottom of the head.</p>
+            </div>
+          </div>
+
+              <div class="qc-cut-fig qc-cut-fig--side qc-shp-sidefig"><svg id="qc-key-side" viewBox="0 -62 300 362" role="img" aria-label="Side view: depth"></svg></div>
+            </div>
+            <div class="qc-shp-stage">
+              <div class="qc-card qc-section-card qc-shp-top">
               <div class="qc-origin-stack">
                 <div class="qc-field qc-origin-col">
                   <label>Origin</label>
@@ -3209,23 +3226,10 @@
                   </div>
                 </div>
               </div>
-              <div class="qc-shape-preview-cell">
-                <svg id="qc-key-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                  <svg id="qc-key-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class="qc-card qc-section-card">
-            <h3 class="qc-card-title">Depth</h3>
-            <div class="qc-row-5">
-              <div class="qc-field">
-                <label for="qc-key-depth">Total Depth</label>
-                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-key-depth" min="0.001" step="0.01" value="8" required title="Depth to the bottom of the keyhole head, cut in one pass.">
-              </div>
-              <p class="qc-mode-hint qc-side-hint">One plunge to full depth at the Plunge Rate. The slot is always a single pass &mdash; a shallower pass would cut the narrow neck slot out to the full head width. Depth is to the bottom of the head.</p>
-            </div>
-          </div>
-
           <div class="qc-card qc-section-card">
             <div class="qc-card-header">
               <h3 class="qc-card-title">Pattern</h3>
@@ -3306,6 +3310,8 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </form>
@@ -11285,6 +11291,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   //   dims(c), tabs(c), nodes(c): its pills, its tabs' path and its Origin
   //     taps, from c (the drawing's helpers)
   //   center, centerWidth: a Center line cut's path (segments) and width
+  //   cuts(): a shape's own cuts in order, [{ segs, wid }]; bitWidth;
+  //     overlay(c, Ti): drawn over each copy (Keyhole's undercut)
   //   caption, origin (X0 Y0 about the first copy's center, mm)
   function topView(svg, sh) {
     var F = function(v) { return v.toFixed(2); };
@@ -11370,6 +11378,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     else if (bitV > 0) copies.forEach(function(q, i) {
       var Ti = Tc(i);
+      // A shape's own cuts (Keyhole), each { d (segments), wid (mm) }.
+      if (sh.cuts) { sh.cuts().forEach(function(k) { cuts.push({ i: i, d: segsD(k.segs, Ti), len: lenOf(k.segs), wid: k.wid * s }); }); return; }
       // Center line: the bit runs along it, the cut as wide as the bit.
       if (sh.center) { cuts.push({ i: i, d: segsD(sh.center, Ti), len: lenOf(sh.center), wid: sh.centerWidth * s }); return; }
       if (cutType !== 'clearing') {
@@ -11474,8 +11484,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var c = { F: F, s: s, L: L, T: T, Tc: Tc, copies: copies, u: u, o: offV / s, dimSvg: dimSvg, ext: ext,
               Tw: Tc(iw), Th: Tc(ih), Tt: Tc(it), segsD: segsD, cutType: cutType, bitD: bitD };
     var dims = sh.dims(c);
-    var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + ' · ' +
-      (chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket', center: 'center line' }[cutType]) +
+    var kind = chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket', center: 'center line' }[cutType];
+    var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + (kind ? ' · ' + kind : '') +
       (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
     sh.nodes(c);
@@ -11485,7 +11495,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<marker id="qc-' + id + '-da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="qc-fig-accent-fill"/></marker></defs>';
     var bit = '';
     if (live) {
-      var brad = Math.max(0.8, chf ? 1.6 : (sh.center ? sh.centerWidth : bitV) / 2 * s), ds = paths;
+      var brad = Math.max(0.8, chf ? 1.6 : (sh.bitWidth || (sh.center ? sh.centerWidth : bitV)) / 2 * s), ds = paths;
       // Chamfering, the V-bit runs off the edge, over the cut: its rim on
       // the bevel's inner line.
       if (chf) {
@@ -11507,7 +11517,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       .map(function(p) { var t = L(T, p[0], p[1]); return [t.x, t.y]; });
     var origin = figAxes(oq.x, oq.y) + insetMarks(sh.prefix, oq.x, oq.y, s) +
       (z ? originZoom(sh.prefix, oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, zpts, z, sh.prefix, s) : '');
-    svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste + (chf ? '' : parts + ideal + tabMarks(sh.prefix, sh.tabs(c))) + dims + cap + bit + origin;
+    var over = sh.overlay ? copies.map(function(q, i) { return sh.overlay(c, Tc(i)); }).join('') : '';
+    svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste +
+      (chf ? '' : parts + over + ideal + ($('qc-' + sh.prefix + '-tabs-enable') ? tabMarks(sh.prefix, sh.tabs(c)) : '')) + dims + cap + bit + origin;
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
   }
@@ -11709,6 +11721,75 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var m = P(smx, smy);
         slotSnapFrame = { mx: m.x, my: m.y, ux: Math.cos(pc.t), uy: -Math.sin(pc.t), nx: -Math.sin(pc.t), ny: -Math.cos(pc.t),
                           h: half * c.s, len: Math.hypot(pc.x1 - pc.x0, pc.y1 - pc.y0) * c.s };
+      }
+    });
+  }
+  // A keyhole in the top view: the bit plunges at the hole, runs out to
+  // the slot's end and back. At the surface only the hole (the head's
+  // width) and the shank's slot open up; the head's undercut below is
+  // dashed. Centered on the slot's middle, so dragging turns it about that.
+  function updateKeyholeTopView(svg) {
+    var params = readKeyholeForm(), gen = makeQuickCutGenerator(state.isImperial);
+    var Ls = Math.max(0, params.slotLength), D = Math.max(0, num('qc-bit', 0)), r = D / 2, rs = r * KEYHOLE_SHANK_RATIO;
+    if (!(D > 0)) {
+      keyPreviewNodes = null;
+      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Set the bit</text>';
+      return;
+    }
+    var a = (params.startAngleDeg || 0) * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+    var H = { x: -Ls / 2 * ux, y: -Ls / 2 * uy }, E = { x: Ls / 2 * ux, y: Ls / 2 * uy };
+    var arc = function(c0, rr, a0, a1) { return { type: 'arc', cx: c0.x, cy: c0.y, r: rr, a0: a0, a1: a1, dir: a1 < a0 ? -1 : 1, len: rr * Math.abs(a1 - a0) }; };
+    var seg = function(p, q) { return { type: 'line', x0: p.x, y0: p.y, x1: q.x, y1: q.y, len: Math.hypot(q.x - p.x, q.y - p.y) }; };
+    var circle = function(c0, rr) { return [arc(c0, rr, 0, Math.PI), arc(c0, rr, Math.PI, 2 * Math.PI)]; };
+    // The opening at the surface: the hole joined to the shank's slot.
+    function top() {
+      if (!(Ls > r - rs)) return circle(H, r);
+      var b = Math.asin(rs / r), ca = Math.sqrt(r * r - rs * rs);
+      var p1 = { x: H.x + rs * nx + ca * ux, y: H.y + rs * ny + ca * uy }, p2 = { x: E.x + rs * nx, y: E.y + rs * ny };
+      var p3 = { x: E.x - rs * nx, y: E.y - rs * ny }, p4 = { x: H.x - rs * nx + ca * ux, y: H.y - rs * ny + ca * uy };
+      return [seg(p1, p2), arc(E, rs, a + Math.PI / 2, a - Math.PI / 2), seg(p2 === p3 ? p2 : p3, p4), arc(H, r, a - b, a + b - 2 * Math.PI)];
+    }
+    var ext = Ls / 2;
+    var box = { x0: -ext * Math.abs(ux) - r, x1: ext * Math.abs(ux) + r, y0: -ext * Math.abs(uy) - r, y1: ext * Math.abs(uy) + r };
+    topView(svg, {
+      prefix: 'key', params: params, cutType: 'keyhole', copies: gen.computePatternPositions(params.pattern),
+      box: box, smooth: true, typedCR: 0, CR: 0, deep: 0, bitWidth: D,
+      offset: function(d) { return d === 0 ? top() : null; },
+      // Plunge (the hole), out along the slot and back, the shank's width.
+      cuts: function() {
+        var out = [{ segs: circle(H, r / 2), wid: r }];
+        if (Ls > 0) out.push({ segs: [seg(H, E)], wid: 2 * rs }, { segs: [seg(E, H)], wid: 2 * rs });
+        return out;
+      },
+      overlay: function(c, Ti) {
+        if (!(Ls > 0)) return '';
+        var d = c.segsD([seg({ x: H.x + r * nx, y: H.y + r * ny }, { x: E.x + r * nx, y: E.y + r * ny }), arc(E, r, a + Math.PI / 2, a - Math.PI / 2),
+                         seg({ x: E.x - r * nx, y: E.y - r * ny }, { x: H.x - r * nx, y: H.y - r * ny }), arc(H, r, a - Math.PI / 2, a - 3 * Math.PI / 2)], Ti, true);
+        return '<path class="qc-shp-ext qc-shp-dimcircle" fill="none" d="' + d + '"/>';
+      },
+      caption: 'keyhole ' + roundDisplay(Ls) + ' ' + state.unitLabel + ' slot, ⌀' + roundDisplay(D) + ' bit',
+      origin: (function() { var o = gen.shapeOriginOffset('keyhole', params); return { x: H.x + o.x, y: H.y + o.y }; })(),
+      // The slot's length, hole to end, beside it; the bit's size past the
+      // hole, away from the slot.
+      dims: function(c) {
+        var Tw = c.Tw, L = c.L, s = c.s, k = r + c.o, out = '';
+        if (Ls > 0) {
+          var at = function(p, d) { return L(Tw, p.x + nx * d, p.y + ny * d); };
+          out += c.ext(at(H, r + 1 / s), at(H, k + 1.5 / s)) + c.ext(at(E, rs + 1 / s), at(E, k + 1.5 / s)) + c.dimSvg(at(H, k), at(E, k), roundDisplay(Ls));
+        }
+        var q = L(Tw, H.x - ux * (r + 5 / s), H.y - uy * (r + 5 / s));
+        return out + '<text class="qc-shp-dimtext" x="' + c.F(q.x) + '" y="' + c.F(q.y) + '" text-anchor="middle" dominant-baseline="central">⌀' + roundDisplay(D) + ' ' + c.u + '</text>';
+      },
+      tabs: function() { return []; },
+      // The hole, and the nine points of the box round the cut.
+      nodes: function(c) {
+        var P = function(x, y) { return c.L(c.T, x, y); }, xm = (box.x0 + box.x1) / 2, ym = (box.y0 + box.y1) / 2;
+        keyPreviewNodes = ownPreviewNodes('key', [
+          ['hole', H.x, H.y],
+          ['back-left', box.x0, box.y1], ['back-center', xm, box.y1], ['back-right', box.x1, box.y1],
+          ['left-center', box.x0, ym], ['center', xm, ym], ['right-center', box.x1, ym],
+          ['front-left', box.x0, box.y0], ['front-center', xm, box.y0], ['front-right', box.x1, box.y0]
+        ].map(function(q) { var t = P(q[1], q[2]); return { value: q[0], x: t.x, y: t.y }; }), 'corner:9');
       }
     });
   }
@@ -12814,8 +12895,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function updateKeyholePreview() {
     schedulePatternPreview();
     updateInsetState('key');
+    var sideSvg = $('qc-key-side');
+    if (sideSvg) passesSide(sideSvg, { depth: num('qc-key-depth', 0), doc: num('qc-key-depth', 0), title: 'Side view · one pass' });
     var svg = document.getElementById('qc-key-preview');
     if (!svg) return;
+    return updateKeyholeTopView(svg);
     var len = keyholeSlotLength();
     var dia = num('qc-bit', 0);
     var angle = num('qc-key-start-angle', 90);
