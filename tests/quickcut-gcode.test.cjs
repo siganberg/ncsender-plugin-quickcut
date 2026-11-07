@@ -2433,12 +2433,50 @@ test('slot header notes its holding tabs like the other shapes', () => {
     origin: 'center', slotType: 'straight', length: 60, width: 12, tabs: { count: 4, width: 8, height: 2 } };
   const header = (p) => g.generateSlotProgram(Object.assign({}, base, p)).split('\n').filter(l => /^\((Tabs|WARNING)/.test(l));
   assert.deepEqual(header({ cutType: 'outer' }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
-  assert.deepEqual(header({ cutType: 'inner', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90 }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
+  assert.deepEqual(header({ cutType: 'inner', slotType: 'arc', radius: 40, startAngleDeg: 0, sweepDeg: 90, width: 20 }), ['(Tabs: 4 x 8mm wide, 2mm high)']);
   assert.deepEqual(header({ cutType: 'center' }), []);
   assert.deepEqual(header({ cutType: 'clearing' }), []);
   assert.deepEqual(header({ cutType: 'outer', tabs: null }), []);
   assert.deepEqual(header({ cutType: 'outer', length: 30, tabs: { count: 20, width: 8, height: 2 } }),
     ['(Tabs: 20 x 8mm wide, 2mm high)', '(WARNING: only 6 of 20 tabs fit; using 6)']);
+});
+
+test('an Inner cut no more than two bits across has no tabs: nothing is left to hold', () => {
+  const g = makeQuickCutGenerator(false);
+  const common = { bitDiameter: 6, feedRate: 800, plungeFeedRate: 200, spindleRpm: 15000, spindleDelay: 1, depth: 6, depthOfCut: 2,
+    origin: 'center', cutType: 'inner', tabs: { count: 4, width: 4, height: 2 } };
+  const tabbed = (prog) => /\(Tabs:/.test(prog);
+  const slot = (p) => g.generateSlotProgram(Object.assign({ slotType: 'straight', length: 60 }, common, p));
+  assert.equal(tabbed(slot({ width: 12 })), false);
+  assert.equal(tabbed(slot({ width: 12.5 })), true);
+  assert.equal(tabbed(slot({ width: 12, cutType: 'outer' })), true);
+  const circle = (d) => g.generateCircleProgram(Object.assign({ diameter: d }, common));
+  assert.equal(tabbed(circle(10)), false);
+  assert.equal(tabbed(circle(30)), true);
+  const rect = (w, h) => g.generateRectangleProgram(Object.assign({ width: w, height: h, kind: 'rectangle' }, common));
+  assert.equal(tabbed(rect(60, 11)), false);
+  assert.equal(tabbed(rect(60, 30)), true);
+  assert.equal(g.innerLeavesNoSlug({ cutType: 'inner', bitDiameter: 6, kind: 'polygon', sides: 6, diameter: 10 }), false);
+});
+
+test('a tab the full-depth passes cut through is dropped, with a warning', () => {
+  const g = makeQuickCutGenerator(false);
+  const base = { bitDiameter: 6.35, feedRate: 1000, plungeFeedRate: 300, spindleRpm: 18000, spindleDelay: 0, depth: 6, depthOfCut: 2,
+    origin: 'center', tabs: { count: 4, width: 6, height: 2 } };
+  const notes = (p) => g.generatePolygonProgram(Object.assign({}, base, p)).split('\n').filter(l => /^\(WARNING: (only|tabs)/.test(l));
+  const star = (D, d, cutType) => notes({ kind: 'star', sides: 6, diameter: D, radius: D / 2, innerDiameter: d, startAngleDeg: 90, cornerRadius: 0, cutType });
+  // A small star: its edges are too short for a tab, so they land on its
+  // points (touching only the tip) and inner corners (cut through by the
+  // passes along the next edges).
+  assert.deepEqual(star(40, 16, 'outer'), ['(WARNING: tabs too wide for this path; no tabs cut)']);
+  assert.deepEqual(star(120, 50, 'outer'), []);
+  // Inside its narrow arms, both walls' passes clear what a tab would hold.
+  assert.deepEqual(star(40, 16, 'inner'), ['(WARNING: tabs too wide for this path; no tabs cut)']);
+  // Open corners keep their tabs, even where they land on a corner: a
+  // small hexagon, a small rectangle.
+  assert.deepEqual(notes({ kind: 'polygon', sides: 6, diameter: 30, radius: 15, startAngleDeg: 0, cornerRadius: 0, cutType: 'inner' }), []);
+  assert.deepEqual(g.generateRectangleProgram(Object.assign({}, base, { kind: 'rectangle', width: 20, height: 14, cornerRadius: 0, cutType: 'inner' }))
+    .split('\n').filter(l => /^\(WARNING: (only|tabs)/.test(l)), ['(WARNING: only 3 of 4 tabs fit; using 3)']);
 });
 
 test('grid center lines go back and forth: each starts where the last one finished', () => {
