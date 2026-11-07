@@ -667,6 +667,13 @@
      the unit badge, label halos) flip to the surface colour so they
      still read as separate from the card. */
   .qc-section-card { background: var(--color-surface-muted); }
+  /* The Tool column's fields sit on the panel's own color: they take the
+     cards' color instead, so they stand out as the cards' fields do. */
+  #qc-common-cards .qc-input,
+  #qc-common-cards .qc-select,
+  #qc-common-cards .qc-seg { background-color: var(--color-surface-muted); }
+  /* Its own rule sets the whole background !important, over ncSender's buttons. */
+  #qc-common-cards button.qc-tool-row { background-color: var(--color-surface-muted) !important; }
   .qc-section-card .qc-shape-preview-cell,
   .qc-section-card .qc-origin-grid,
   .qc-section-card .qc-unit-badge {
