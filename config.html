@@ -11185,15 +11185,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     selectSeg('qc-rect-corner-relief', [['none', 'None'], ['dogbone', 'Dog-bone'], ['tbone', 'T-bone']]);
     syncSelectSegs();
     var sideSvg = $('qc-rect-side');
-    // Chamfering, the Chamfer card heads the left column, so the side view
-    // goes under the top view; back beside the Depth card after.
+    // Chamfering, the side view goes under the Chamfer card, as it sits
+    // under the Depth card otherwise, so the top view keeps its full
+    // height; back beside the Depth card after.
     var sideFig = sideSvg && sideSvg.closest('.qc-shp-sidefig');
     if (sideFig) {
-      var stageTop = ROOT.querySelector('.qc-shp-stage > .qc-shp-top'), depthCard = $('qc-rect-depth').closest('.qc-card');
-      // In portrait it stays in the left column, under the Shape card.
-      var portrait = window.matchMedia && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches;
-      if (state.chamferMode === 'rectangle' && !portrait) { if (sideFig.previousElementSibling !== stageTop) stageTop.parentNode.insertBefore(sideFig, stageTop.nextSibling); }
-      else if (sideFig.previousElementSibling !== depthCard) depthCard.parentNode.insertBefore(sideFig, depthCard.nextSibling);
+      var depthCard = $('qc-rect-depth').closest('.qc-card'), chfCard = $('qc-chamfer-card');
+      var after = state.chamferMode === 'rectangle' && chfCard.parentNode === depthCard.parentNode ? chfCard : depthCard;
+      if (sideFig.previousElementSibling !== after) after.parentNode.insertBefore(sideFig, after.nextSibling);
     }
     if (sideSvg && state.chamferMode === 'rectangle') rectChamferSide(sideSvg);
     else if (sideSvg) {
@@ -11407,12 +11406,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
     var waste, clips = '';
     if (chf) {
-      // Already cut, the waste gone: Outside leaves just the parts, Inside /
-      // Pocket the stock with its openings. The bevel opens up behind the
-      // V-bit on what's left.
+      // Already cut: Outside leaves the parts in the stock, the cut bit's
+      // slot round them (as the Shapes tab's preview ends); Inside / Pocket
+      // the stock with its openings. The bevel opens up behind the V-bit
+      // on what's left.
       if (cutType === 'outer') {
-        clips = '<clipPath id="qc-shp-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
-        waste = '<g clip-path="url(#qc-shp-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+        clips = '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+        waste = stockSvg + '<path class="qc-shp-kerfcut" clip-path="url(#qc-shp-away)" d="' + outlines.join(' ') + '" stroke-width="' + F(2 * slotV * s) + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i); }).join('');
       } else {
         // Through: nothing in the openings (the stock is clipped round
         // them); with an Existing Depth, the floor shows, shaded.
@@ -11721,12 +11722,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
     var waste, clips = '', id = sh.prefix;
     if (chf) {
-      // Already cut, the waste gone: Outside leaves just the parts, Inside
-      // the stock with its openings (with an Existing Depth, the floor
-      // shows, shaded). The bevel opens up behind the V-bit on what's left.
+      // Already cut: Outside leaves the parts in the stock, the cut bit's
+      // slot round them (as the Shapes tab's preview ends); Inside the
+      // stock with its openings (with an Existing Depth, the floor shows,
+      // shaded). The bevel opens up behind the V-bit on what's left.
       if (cutType === 'outer') {
-        clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>';
-        waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' + copies.map(function(q, i) { return kerfOf(i); }).join('');
+        clips = '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+        waste = stockSvg + '<path class="qc-shp-kerfcut" clip-path="url(#qc-' + id + '-away)" d="' + outlines.join(' ') + '" stroke-width="' + F(2 * slotV * s) + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i); }).join('');
       } else if (num('qc-chamfer-cut-depth', 0) > 0) {
         waste = stockSvg + outlines.map(function(o, i) { return kerfOf(i) + '<path class="qc-shp-floor" d="' + o + '"/>'; }).join('');
       } else {
