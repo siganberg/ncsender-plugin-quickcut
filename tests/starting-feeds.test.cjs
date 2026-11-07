@@ -157,3 +157,11 @@ test('deepChip is what the deep pass took off the feed, after the caps', () => {
   const g = startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 19.05 });
   assert.ok(Math.abs(g.deepChip - g.feedMm / startingFeeds(6.35, 2, 'mdf').feedMm) < 1e-3);
 });
+
+test('a big compression bit cuts full depth only on Aggressive', () => {
+  const half = (style) => startingFeeds(12.7, 2, 'hardwood', null, style, { compression: true, depthMm: 19.05, fluteMm: 31.75 }).passes;
+  assert.deepEqual([half('conservative'), half('average'), half('aggressive')], [2, 2, 1]);
+  // 1/4" is unchanged: full depth in every style.
+  const q = (style) => startingFeeds(6.35, 2, 'mdf', null, style, { compression: true, depthMm: 19.05, fluteMm: 25.4 }).passes;
+  assert.deepEqual([q('conservative'), q('average'), q('aggressive')], [1, 1, 1]);
+});
