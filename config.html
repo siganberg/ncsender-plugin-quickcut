@@ -9858,9 +9858,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-rpm').value = f.rpm;
     writeFeed('qc-feed', f.feedMm);
     writeFeed('qc-plunge', f.plungeMm);
-    // Depth of Cut too (not on Planer, whose bit is a surfacing one), and
-    // Stepover for the shapes that clear pockets.
-    var pre = TAB_PREFIX[state.currentTab], filled = ['qc-rpm', 'qc-feed', 'qc-plunge'];
+    // Depth of Cut too (not on Planer, whose bit is a surfacing one, nor
+    // while chamfering, which has its own), and Stepover for the shapes
+    // that clear pockets.
+    var pre = state.chamferMode ? null : TAB_PREFIX[state.currentTab], filled = ['qc-rpm', 'qc-feed', 'qc-plunge'];
     if (pre && pre !== 'plan' && $('qc-' + pre + '-step')) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(f.stepMm)); filled.push('qc-' + pre + '-step'); }
     if (pre && $('qc-' + pre + '-stepover') && pre !== 'plan') { $('qc-' + pre + '-stepover').value = f.stepoverPct; filled.push('qc-' + pre + '-stepover'); }
     filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
