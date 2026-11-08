@@ -10337,10 +10337,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var st = await (await fetch(BASE_URL + '/api/server-state')).json();
       var loaded = Number(st && st.machineState && st.machineState.tool);
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
-        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0, type: t.type, dimensions: t.dimensions }; })
+        .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, slot: state.toolById && t.toolNumber > 0 ? t.toolNumber : 0, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0, type: t.type, dimensions: t.dimensions }; })
         .filter(function(t) { return t.n > 0 && t.mm > 0; })
-        // The tool in the spindle first, then the rest by number.
-        .sort(function(a, b) { return (b.n === loaded) - (a.n === loaded) || a.n - b.n; });
+        // Numbered by Tool ID, the tools in the magazine first, by slot;
+        // in each group the tool in the spindle first, then by number.
+        .sort(function(a, b) { return (b.slot > 0) - (a.slot > 0) || (b.n === loaded) - (a.n === loaded) || a.slot - b.slot || a.n - b.n; });
       state.loadedTool = loaded > 0 ? loaded : 0;
       var inSpindle = loaded > 0 && (tools || []).filter(function(t) { return (state.toolById ? t.toolId : t.toolNumber) === loaded; })[0];
       // A tool the table doesn't have says nothing about the chamfer.
@@ -10383,7 +10384,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var vOnly = state.chamferMode && (state.tools || []).some(function(t) { return vBitOf(t) != null; });
     var tools = (state.tools || []).filter(function(t) {
       if (vOnly && vBitOf(t) == null) return false;
-      var hay = ('t' + t.n + ' ' + t.name + ' ' + t.notes + ' ' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ' in the spindle' : '')).toLowerCase();
+      var hay = ('t' + t.n + ' ' + t.name + ' ' + t.notes + ' ' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ' slot ' + t.slot : '') + (t.n === state.loadedTool ? ' in the spindle' : '')).toLowerCase();
       return words.every(function(w) { return hay.indexOf(w) >= 0; });
     });
     toolPop.items = tools.map(function(t) { return { value: String(t.n), t: t }; });
@@ -10393,11 +10394,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!state.tools) html = '<div class="qc-tool-empty">Reading the tool table…</div>';
     else if (!state.tools.length) html = '<div class="qc-tool-empty">No tools with a diameter in the tool table.</div>';
     else if (!tools.length) html = '<div class="qc-tool-empty">No tool matches “' + esc($('qc-tool-filter').value) + '”.</div>';
-    else html = '<div class="qc-tool-head">Tool change to</div>';
+    // Headed In the magazine and Tool table when both have tools.
+    var grouped = tools.some(function(t) { return t.slot; }) && tools.some(function(t) { return !t.slot; });
+    if (state.tools && tools.length && !grouped) html = '<div class="qc-tool-head">Tool change to</div>';
     html += toolPop.items.map(function(it, i) {
-      var t = it.t, text = t ? (t.n === n ? '✓ ' : '') + 'T' + t.n + (t.name ? ' ' + esc(t.name) : '') + ' <span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
+      var t = it.t, text = t ? (t.n === n ? '✓ ' : '') + 'T' + t.n + (t.name ? ' ' + esc(t.name) : '') + ' <span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
         : 'No tool change';
-      return '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
+      var prev = i > 0 && toolPop.items[i - 1].t, head = grouped && t && (i === 0 || !!prev.slot !== !!t.slot) ? '<div class="qc-tool-head">' + (t.slot ? 'In the magazine' : 'Tool table') + '</div>' : '';
+      return head + '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
     }).join('');
     list.innerHTML = html;
     list.querySelectorAll('.qc-tool-item').forEach(function(b) { b.addEventListener('click', function() { pickBitTool(b.getAttribute('data-v')); }); });
