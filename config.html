@@ -914,6 +914,8 @@
   /* Beside Generate: about how long it runs, and the travel check. */
   .qc-run-note { margin-right: auto; font-size: 0.82rem; color: var(--color-text-secondary); }
   .qc-run-note.qc-run-bad { color: var(--color-danger, #e74c3c); font-weight: 600; }
+  /* A note worth a look, not a problem: the tabs note's amber. */
+  .qc-run-note.qc-run-warn { color: color-mix(in srgb, var(--color-warning, #d9a441) 70%, var(--color-text-primary)); }
   /* A field's problem, at most two lines; a tap goes to the field. */
   .qc-run-note.qc-run-fix { cursor: pointer; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .qc-run-note .qc-run-more { font-weight: 500; opacity: 0.8; white-space: nowrap; }
@@ -10232,7 +10234,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateToolSummary();
     var note = section && section.querySelector('.qc-run-note');
     if (!note) return;
-    var problems = fieldProblems(), ready = problems.length === 0, text = '', bad = false;
+    var problems = fieldProblems(), ready = problems.length === 0, text = '', bad = false, warn = false;
     updateDepthPicture(TAB_PREFIX[view], ready);
     note.classList.toggle('qc-run-fix', !ready);
     note.title = problems.map(function(pr) { return pr.msg; }).join('\n');
@@ -10258,12 +10260,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (t) { text += '. ' + t.text; bad = t.bad; }
         text += '.';
         var cn = chamferToolNote();
-        if (cn) { text += ' ' + cn; bad = true; }
+        if (cn) { text += ' ' + cn; warn = true; }
       } catch (e) { text = ''; }
     }
     if (ready) {
       note.textContent = text;
       note.classList.toggle('qc-run-bad', bad);
+      note.classList.toggle('qc-run-warn', warn && !bad);
     }
     var gen = section.querySelector('.qc-panel-footer [id$="-generate"]');
     if (gen) gen.classList.toggle('qc-gen-blocked', !ready);
