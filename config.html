@@ -9344,7 +9344,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // A pocket's edge is chamfered as an Inside cut's; Pocket comes back
     // on the shape's tab.
     var ct = $('qc-' + CHAMFER_TABS[target] + '-cut-type');
-    if (ct && ct.value === 'clearing') { state.wasPocket = ct.id; ct.value = 'inner'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (ct && ct.value === 'clearing') { (state.wasPocket = state.wasPocket || {})[ct.id] = true; ct.value = 'inner'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
     updateChamferPreview();
   }
   // The Edge switch heads the Shape card on the shapes with the new layout,
@@ -9367,11 +9367,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     ROOT.querySelectorAll('.qc-content').forEach(function(c) { c.classList.remove('qc-chamfer-mode'); });
     if (chamferHead && chamferHead.parentNode) chamferHead.parentNode.removeChild(chamferHead);
     $('qc-chamfer-card').style.display = 'none';
-    if (state.wasPocket) {
-      var ct = $(state.wasPocket);
-      state.wasPocket = null;
+    // Every shape whose Pocket was chamfered as Inside goes back to Pocket.
+    Object.keys(state.wasPocket || {}).forEach(function(id) {
+      var ct = $(id);
       if (ct.value === 'inner') { ct.value = 'clearing'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
-    }
+    });
+    state.wasPocket = null;
     // Back on the shape's own tool.
     if (target && state.toolByShape[target]) writeToolToInputs(state.toolByShape[target]);
   }
@@ -12009,184 +12010,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return _capValue;
   }
 
-  // Rectangle with a Top Width, or a Triangle: drawn from the generator's
-  // own outlines (the shape, and the bit's far edge on an Inner or Outer
-  // cut), to scale, turned by the Start Angle. Taps on a corner, an
-  // edge's middle or the center pick the Origin, as on the rectangle.
-  function updateTrapezoidPreview(svg) {
-    var params = readRectangleForm(), cutType = params.cutType;
-    var gen = makeQuickCutGenerator(state.isImperial);
-    var tri = !!params.triangle, smooth = params.kind === 'arch' || params.kind === 'ellipse';
-    if (gen.convexShapeProblem(params)) {
-      rectPreviewNodes = null;
-      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not ' +
-        ({ triangle: 'a triangle', arch: 'an arch', ellipse: 'an ellipse' }[params.kind] || 'a shape') + ' yet</text>';
-      return;
-    }
-    var W = params.width, T = params.topWidth, H = params.height, turn = params.startAngleDeg || 0;
-    var geo = gen.computeTrapezoidGeom(params);
-    var most = params.kind === 'ellipse' ? 0 : convexCornerCap(gen, params);
-    var typedCR = Math.min(Math.max(0, params.cornerRadius || 0), most);
-    var relief = geo.allCorners ? reliefStyle('rect', cutType) : null;
-    var CR = relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most);
-    var bitD = Math.max(0, params.bitDiameter || 0);
-
-    // Fitted as the rectangle is, a thin shape drawn at least 14 tall (so
-    // each axis has its own scale, fx and fy).
-    // A triangle is drawn true, so its angles look as they are.
-    var pad = insetPad('rect') + bitEdgePad(cutType), boxW = Math.max(W, T);
-    if (tri) {
-      boxW = H = 0;
-      geo.part.forEach(function(q) { boxW = Math.max(boxW, 2 * Math.abs(q.x)); H = Math.max(H, 2 * Math.abs(q.y)); });
-    }
-    var fit = tri ? Math.min(60 / (boxW + 2 * pad), 54 / (H + 2 * pad)) : Math.min(54 / (boxW + 2 * pad), 52 / (H + 2 * pad));
-    if (turn % 180) fit = Math.min(fit, (tri ? 64 : 60) / Math.hypot(boxW + 2 * pad, H + 2 * pad));
-    var fx = fit, fy = tri ? fit : Math.max(fit, Math.min(14, 52 * H / (H + 2 * pad)) / H);
-    // SVG y points down, so a CCW machine turn is this on screen.
-    var rad = turn * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
-    function T2(px, py) { return { x: px * c + py * sn, y: -px * sn + py * c }; }
-    function S(mx, my) { return T2(mx * fx, -my * fy); }
-    function P(mx, my) { var q = S(mx, my); return q.x.toFixed(2) + ',' + q.y.toFixed(2); }
-    // A generator outline (lines and CCW arcs) as an SVG path. Flipping Y
-    // keeps it turning left on screen, so the arcs are sweep 0.
-    function pathOf(segs) {
-      if (!segs || !segs.length) return '';
-      var d = '';
-      segs.forEach(function(sg, i) {
-        if (i === 0) d += sg.type === 'line' ? 'M' + P(sg.x0, sg.y0) : 'M' + P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0));
-        if (sg.type === 'line') { d += ' L' + P(sg.x1, sg.y1); return; }
-        d += ' A' + (sg.r * fx).toFixed(2) + ',' + (sg.r * fy).toFixed(2) + ' ' + (-turn) + ' ' + (sg.a1 - sg.a0 > Math.PI ? 1 : 0) + ' 0 ' +
-          P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
-      });
-      return d + ' Z';
-    }
-    var outline = relief
-      ? reliefOutline(geo.part.map(function(q) { return S(q.x, q.y); }), bitD / 2 * Math.min(fx, fy), typedCR * Math.min(fx, fy), relief)
-      : pathOf(gen.convexOutline(geo.part, geo.normals, 0, CR));
-    var edgeDir = bitEdgeDir(cutType);
-    var edgeD = edgeDir && bitD > 0 ? pathOf(gen.convexOutline(geo.part, geo.normals, edgeDir * bitD, CR)) : '';
-    var ideal = CR > typedCR + 1e-9 ? idealOutline(pathOf(gen.convexOutline(geo.part, geo.normals, 0, typedCR))) : '';
-
-    var hatchFill = 'fill="url(#qc-rect-hatch)"', hatched = '';
-    if (cutType === 'clearing') hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
-    else if (cutType === 'outer' && edgeD) hatched = '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>';
-
-    // Bottom and top widths outside their edges, the height outside the
-    // right end; the labels stay upright.
-    var v = geo.part, gap = 4 / fy, gapX = 4 / fx;
-    function line(a, b) {
-      var p1 = S(a[0], a[1]), p2 = S(b[0], b[1]);
-      return '<line class="qc-shape-dim-line" x1="' + p1.x.toFixed(2) + '" y1="' + p1.y.toFixed(2) +
-             '" x2="' + p2.x.toFixed(2) + '" y2="' + p2.y.toFixed(2) + '" marker-start="url(#qc-rect-arr)" marker-end="url(#qc-rect-arr)"/>';
-    }
-    function text(mx, my, anchor, baseline, value) {
-      var q = S(mx, my);
-      return '<text class="qc-shape-dim-label" x="' + q.x.toFixed(2) + '" y="' + q.y.toFixed(2) +
-             '" text-anchor="' + anchor + '" dominant-baseline="' + baseline + '">' + value + '</text>';
-    }
-    var yB = v[0].y - gap, yT = v[2].y + gap, xH = Math.max(v[1].x, v[2].x) + gapX;
-    var dims = tri ? triangleDims() : smooth ? smoothDims() : line([v[0].x, yB], [v[1].x, yB]) + text((v[0].x + v[1].x) / 2, yB - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
-               line([v[3].x, yT], [v[2].x, yT]) + text((v[2].x + v[3].x) / 2, yT + 3 / fy, 'middle', turn ? 'middle' : 'auto', T) +
-               line([xH, v[0].y], [xH, v[2].y]) + text(xH + 2 / fx, 0, 'start', 'middle', H);
-
-    // Each side's length beside it, each angle inside its corner; what
-    // Defined By worked out (not typed) is fainter. Base + Height adds the
-    // height, dashed down from the peak.
-    function triangleDims() {
-      var m = gen.triangleMeasures(params.triangle), by = $('qc-rect-tri-by').value;
-      var sideTyped = { sss: [1, 1, 1], sas: [1, 0, 1], asa: [1, 0, 0], height: [1, 0, 0] }[by];
-      var angleTyped = { sss: [0, 0], sas: [1, 0], asa: [1, 1], height: [0, 0] }[by];
-      var sides = [params.triangle.base, params.triangle.right, params.triangle.left];
-      var angles = [m.leftAngle, m.rightAngle, m.topAngle];
-      var pts = v.map(function(q) { return S(q.x, q.y); });
-      var mid = { x: (pts[0].x + pts[1].x + pts[2].x) / 3, y: (pts[0].y + pts[1].y + pts[2].y) / 3 };
-      // Kept inside the preview's box (100 square about 0), as a label
-      // beside a far corner would run off it.
-      function label(x, y, value, typed, cls) {
-        var half = String(value).length * (cls ? 2.1 : 2.7) + 1;
-        x = Math.max(-50 + half, Math.min(50 - half, x));
-        y = Math.max(-45, Math.min(45, y));
-        return '<text class="qc-shape-dim-label' + (typed ? '' : ' qc-tri-derived') + (cls ? ' ' + cls : '') + '" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
-               '" text-anchor="middle" dominant-baseline="middle">' + value + '</text>';
-      }
-      var out = '';
-      pts.forEach(function(a, i) {
-        var b = pts[(i + 1) % 3], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey) || 1;
-        var nx = -ey / len, ny = ex / len, cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-        if (nx * (cx - mid.x) + ny * (cy - mid.y) < 0) { nx = -nx; ny = -ny; }
-        var text = String(roundDisplay(sides[i])), away = 5 + Math.abs(nx) * text.length * 2.4;
-        out += label(cx + nx * away, cy + ny * away, text, sideTyped[i]);
-      });
-      pts.forEach(function(p, i) {
-        var a = pts[(i + 2) % 3], b = pts[(i + 1) % 3];
-        var ux = (a.x - p.x) / Math.hypot(a.x - p.x, a.y - p.y) + (b.x - p.x) / Math.hypot(b.x - p.x, b.y - p.y);
-        var uy = (a.y - p.y) / Math.hypot(a.x - p.x, a.y - p.y) + (b.y - p.y) / Math.hypot(b.x - p.x, b.y - p.y);
-        // Just outside the corner, along its bisector.
-        var ul = Math.hypot(ux, uy) || 1, text = parseFloat(angles[i].toFixed(1)) + '°';
-        var d = 4 + Math.abs(ux / ul) * text.length * 2.1 + Math.abs(uy / ul) * 3;
-        out += label(p.x - ux / ul * d, p.y - uy / ul * d, text, angleTyped[i], 'qc-tri-angle');
-      });
-      if (by === 'height') {
-        var foot = S(v[2].x, v[0].y), top = pts[2], baseEnd = m.peakOffset < 0 ? pts[0] : pts[1];
-        out += '<line class="qc-shape-dim-line qc-tri-drop" x1="' + top.x.toFixed(2) + '" y1="' + top.y.toFixed(2) + '" x2="' + foot.x.toFixed(2) + '" y2="' + foot.y.toFixed(2) + '"/>';
-        if (m.peakOffset < 0 || m.peakOffset > params.triangle.base) {
-          out += '<line class="qc-shape-dim-line qc-tri-drop" x1="' + baseEnd.x.toFixed(2) + '" y1="' + baseEnd.y.toFixed(2) + '" x2="' + foot.x.toFixed(2) + '" y2="' + foot.y.toFixed(2) + '"/>';
-        }
-        out += label((top.x + foot.x) / 2 + 3 + String(roundDisplay(m.height)).length * 2.2, (top.y + foot.y) / 2, roundDisplay(m.height), true);
-      }
-      return out;
-    }
-
-    // An ellipse's or arch's width under it and height beside it; an
-    // arch's rise beside its top, on the left.
-    function smoothDims() {
-      var hw = W / 2, hh = H / 2, yb = -hh - gap, xr = hw + gapX;
-      var out = line([-hw, yb], [hw, yb]) + text(0, yb - 3 / fy, 'middle', turn ? 'middle' : 'hanging', W) +
-                line([xr, -hh], [xr, hh]) + text(xr + 2 / fx, 0, 'start', 'middle', H);
-      if (params.kind === 'arch') {
-        var xl = -hw - gapX, ys = hh - Math.min(params.archRise, H);
-        out += line([xl, ys], [xl, hh]) + text(xl - 2 / fx, (ys + hh) / 2, 'end', 'middle', params.archRise);
-      }
-      return out;
-    }
-
-    // Corners in the generator's order, then the edge middles, then the center.
-    rectPreviewNodes = ownPreviewNodes('rect', gen.trapezoidCorners(params)(0).map(function(q, i) {
-      var t = S(q.x, q.y);
-      return { x: t.x, y: t.y, value: 'corner:' + (i + 1) };
-    }).concat([{ x: 0, y: 0, value: 'center' }]), 'shape-center');
-
-    var off = gen.shapeOriginOffset('rectangle', params);
-    var o = S(off.x * c + off.y * sn, -off.x * sn + off.y * c);
-    var scale = Math.min(fx, fy);
-    originZoomFrames.rect = null;
-
-    svg.innerHTML =
-      shapePreviewDefs('qc-rect') +
-      hatched +
-      bitEdge(edgeD, cutType) +
-      '<path class="qc-shape-fill" d="' + outline + '"/>' +
-      ideal + dims +
-      tabMarks('rect', tabLines()) +
-      originCross(o.x, o.y, 'rect', scale);
-
-    // The tool path, as tabIntervals spaces the tabs along it (real
-    // lengths), moved back onto the shape's outline (a bit radius in or
-    // out) and drawn there.
-    function tabLines() {
-      var d = (cutType === 'outer' ? 1 : -1) * bitD / 2;
-      return (geo.segs || []).map(function(sg) {
-        var ends = sg.type === 'line' ? [{ x: sg.x0, y: sg.y0 }, { x: sg.x1, y: sg.y1 }]
-          : [sg.a0, sg.a1].map(function(a) { return { x: sg.cx + (sg.r - d) * Math.cos(a), y: sg.cy + (sg.r - d) * Math.sin(a) }; });
-        if (sg.type === 'line') {
-          var nx = (sg.y1 - sg.y0) / sg.len, ny = -(sg.x1 - sg.x0) / sg.len;
-          ends = ends.map(function(q) { return { x: q.x - d * nx, y: q.y - d * ny }; });
-        }
-        var a = S(ends[0].x, ends[0].y), b = S(ends[1].x, ends[1].y);
-        return { type: 'line', x0: a.x, y0: a.y, x1: b.x, y1: b.y, len: sg.len };
-      });
-    }
-  }
 
   // Planer preview — side view of the material being surfaced. The
   // top strip is hatched to mark the layer being removed (Total Depth),
