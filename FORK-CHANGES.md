@@ -8,12 +8,13 @@ from siganberg's `main` at **0fd08fe** (Planer/Jointer/Rectangle redesign), with
 **Merging them all:** a few touch the same lines. `fix/tabs-fit-edges` and `fix/tab-markers` (the `tabIntervals`
 call in `tabPlaces`: keep `var bit` and pass `real || segs`), and `feat/flute-depth-note`, `fix/chamfer-vbit` and
 `fix/tab-markers` (the notes added to the run note: keep all). In the flute note merge, check `showTabsNote` keeps its
-closing brace: without it the page still parses, but the note by Generate disappears. `combined/0.1.23` has them
+closing brace: without it the page still parses, but the note by Generate disappears. #31 and #40 both place the chamfer side view: keep #31's (under the Chamfer card) through #40's
+`placeShapeSideFig`, and #29's tab notes where #40 to #42 rewrite the previews. `combined/0.1.23` has them
 resolved.
 
 ## Open on siganberg/ncsender-plugin-quickcut
 
-#19 to #23 are stacked: each builds on the one before. #29, #31 and #32 build on them too.
+#19 to #23 are stacked: each builds on the one before. #29, #31 and #32 build on them too, and #40 to #42 are stacked on #23.
 
 | PR | Branch | What it does |
 | --- | --- | --- |
@@ -46,4 +47,7 @@ resolved.
 | #37 | `feat/st-stock-depth` | A Stock button by Total Depth with Spoilboard Toolbox's stock thickness, when it's installed and has one. |
 | #38 | `fix/reopen-last-tab` | Reopens on the remembered tab, not Chamfer. |
 | #39 | `feat/tool-menu-magazine` | Tool menu: the tools in the magazine first, by slot, with their Tool ID. |
+| #40 | `feat/chamfer-slot-keyhole` | Chamfer: the Slot edge, and a Keyhole edge (round the opening, with the Keyhole Bit and its Neck) (builds on #23). |
+| #41 | `feat/chamfer-circle-polygon` | Chamfer: the Circle and Polygon/Star edges; every Pocket chamfered as Inside goes back to Pocket (builds on #40). |
+| #42 | `feat/chamfer-drill-plunge` | Chamfer holes: Method Around or Plunge, straight down at each center like a countersink (builds on #41). |
 
