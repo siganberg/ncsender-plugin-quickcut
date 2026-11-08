@@ -8384,6 +8384,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         pattern:       packPattern(params.pattern)
       };
     }
+    // A chamfer program keeps the shape's settings in its block (for
+    // Load), but its V-bit and the cut type it chamfers aren't the shape's
+    // own: only the Chamfer card is remembered.
+    if (state.chamferMode) {
+      persistSettings({ common: { chamfer: common.chamfer || packChamfer() } });
+      return { shape: params.shape, settings: body[params.shape], common: common };
+    }
     // Mirror to state so a tab-switch away doesn't lose the fresh values.
     if (TOOL_SHAPES.indexOf(params.shape) >= 0) {
       state.toolByShape[params.shape] = toolForShape;
@@ -9374,6 +9381,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // From a shape tab: the Chamfer tab with that shape's numbers.
   function chamferFromTab(tab) {
     var name = tab === 'drill' ? 'holes' : 'shape';
+    // The bit that made the holes or keyholes, before the Tool card takes
+    // the V-bit.
+    var made = { drill: 'qc-chamfer-hole', keyhole: 'qc-chamfer-key-bit' }[tab];
+    if (made && num('qc-bit', 0) > 0) $(made).value = roundDisplay(num('qc-bit', 0));
     enterChamfer(tab, 'The ' + name + ' from ' + ({ drill: 'Drill', circle: 'Circle', rectangle: 'Rectangle', polygon: 'Polygon', slot: 'Slot', keyhole: 'Keyhole' }[tab] || tab) + '.');
   }
   // Generate on the shape tabs is a split button: its arrow offers
@@ -14134,15 +14145,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return { x: zf.ox + (pt.x - zf.cx) / zf.z, y: zf.oy + (pt.y - zf.cy) / zf.z };
   }
 
-  // The Slot's magnified view: always in the enlarged preview, and in the
-  // small one for a picked corner or long-side point of a straight slot
-  // (corner:3-8), which on a thin slot is only a bit radius from the
-  // middle. The slot's width fills about a third of the box.
-  function slotOriginZoom(ox, oy, d, centre, pts, h, big, k, edge) {
-    if (!(big || /^corner:[3-8]$/.test($('qc-slt-origin').value))) { originZoomFrames.slt = null; return ''; }
-    var z = Math.max(2, ORIGIN_ZOOM_SIZE / 3 / Math.max(2 * h, 1e-6));
-    return originZoom('slt', ox, oy, (edge || '') + '<path class="qc-shape-fill" d="' + d + '"/>' + centre, pts, z, 'slt', k);
-  }
 
   // How far a Rectangle or Polygon preview's magnified view zooms: only
   // when the detail at X0 Y0 is too small to see there, an Inset under 5
@@ -14182,7 +14184,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         : /as wide as its radius/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-radius')
         : /overlap/.test(problem) ? (chord ? 'qc-slt-rise' : 'qc-slt-sweep')
         : (arc ? (chord ? 'qc-slt-chord' : 'qc-slt-radius') : 'qc-slt-length');
-    } else if ((params.cutType === 'inner' || params.cutType === 'clearing') && half - params.bitDiameter / 2 <= 1e-9) {
+    } else if (!state.chamferMode && (params.cutType === 'inner' || params.cutType === 'clearing') && half - params.bitDiameter / 2 <= 1e-9) {
+      // (Chamfering, the Tool card's bit is the V-bit, not the slot's.)
       problem = 'the slot is no wider than the bit; use the Center line cut type';
       field = 'qc-slt-width';
     }
