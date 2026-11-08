@@ -5692,7 +5692,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       spindleDelay:   num('qc-delay', 0),
       mistM7:         $('qc-mist').checked,
       floodM8:        $('qc-flood').checked,
-      toolNumber:     bitToolNumber()
+      toolNumber:     bitToolNumber(),
+      toolType:       bitToolType()
     };
   }
 
@@ -8061,6 +8062,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else { bit.removeAttribute('data-tool'); bit.removeAttribute('data-tool-mm'); }
     showBitTool();
   }
+  // The bit's Tool Library type: the tool picked from the table, or
+  // (no tool changer) the loaded tool Bit Diameter was read from, while the
+  // field still shows its diameter. A pen or drag knife gets no M3.
+  function bitToolType() {
+    var n = bitToolNumber();
+    if (n) return (toolEntry(n) || {}).type || '';
+    var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm'));
+    return !state.atc && mm > 0 && Math.abs(displayToMm(num('qc-bit', 0)) - mm) < 0.002 ? bit.getAttribute('data-loaded-type') || '' : '';
+  }
   function bitToolNumber() {
     var t = bitTool();
     var near = function(mm) { return Math.abs(mm - t.mm) < 0.002; };
@@ -10245,10 +10255,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       var fl = flutesFromTool({ name: tool.name, notes: tool.metadata && tool.metadata.notes, flutes: tool.metadata && tool.metadata.flutes });
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
+      bit.setAttribute('data-loaded-mm', String(tool.diameter));
+      bit.setAttribute('data-loaded-type', tool.type || '');
+      var still = /^(pen|drag[-_ ]?knife)$/i.test(String(tool.type || '').trim());
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
       var name = (tool.name || '').length > 40 ? tool.name.slice(0, 39) + '\u2026' : tool.name || '';
-      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
+      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (still ? ', a ' + (/^pen$/i.test(tool.type.trim()) ? 'pen' : 'drag knife') + ': the spindle stays off' : fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
     } catch (e) {
       showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
     }
@@ -10612,8 +10625,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // The tool table has the flutes: asked for a typed size, or for a picked
     // tool whose table entry doesn't give them (guessed from its name, else 2).
     $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table && !(t && !(t.flutes > 0)));
+    // A pen or drag knife gets no M3 (ncSender refuses it while one is loaded).
+    var still = t && /^(pen|drag[-_ ]?knife)$/i.test(String(t.type || '').trim());
     btn.innerHTML = t
-      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + $('qc-flutes').value + ' fl</em>'
+      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + (still ? (/^pen$/i.test(t.type.trim()) ? 'pen' : 'drag knife') + ', spindle stays off' : $('qc-flutes').value + ' fl') + '</em>'
       : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
     if (toolPop.open) renderToolList();
   }
@@ -15038,6 +15053,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return '(' + String(text).replace(/\(/g, '[').replace(/\)/g, ']') + ')';
     }
 
+    // A pen or a drag knife (ncSender's tool types) doesn't spin: ncSender
+    // refuses M3/M4 while one is loaded and stops the job, so its program
+    // has no spindle start, wait or stop. Older ncSender ignores the type.
+    function toolSpins(params) {
+      return !/^(pen|drag[-_ ]?knife)$/i.test(String((params && params.toolType) || '').trim());
+    }
+
     function programHeader(params, opts) {
       var unitsCode = isImperial ? 'G20' : 'G21';
       var unitsLabel = isImperial ? 'inch' : 'mm';
@@ -15049,7 +15071,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
       lines.push(comment('Z0: ' + (opts.z0 || 'the top of the stock')));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
-      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
+      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + (toolSpins(params) ? params.spindleRpm + 'RPM' : 'off, the tool does not spin') + ')');
       lines.push('');
       lines.push(unitsCode + ' ; ' + (isImperial ? 'Imperial' : 'Metric') + ' units');
       lines.push('G17 ; XY plane selection');
@@ -15080,7 +15102,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (csz) lines.push(csz + ' ; Return to safe Z');
       else lines.push('G53 G0 Z0 ; Return to machine Z0');
       if (params.mistM7 || params.floodM8) lines.push('M9 ; Coolant off');
-      if (params.spindleRpm > 0) lines.push('M5 ; Stop spindle');
+      if (params.spindleRpm > 0 && toolSpins(params)) lines.push('M5 ; Stop spindle');
       lines.push('M30 ; Program end');
       return lines;
     }
@@ -15089,7 +15111,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var lines = [];
       if (params.mistM7) lines.push('M7 ; Mist coolant on');
       if (params.floodM8) lines.push('M8 ; Flood coolant on');
-      if (params.spindleRpm > 0) {
+      if (params.spindleRpm > 0 && toolSpins(params)) {
         lines.push('M3 S' + params.spindleRpm + ' ; Start spindle');
         if (params.spindleDelay > 0) {
           lines.push('G4 P' + params.spindleDelay + ' ; Wait ' + params.spindleDelay + ' seconds');

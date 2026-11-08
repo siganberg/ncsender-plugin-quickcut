@@ -3903,3 +3903,41 @@ test('planer wasteboard: zero is always the travel front-left corner, zones foll
   assert.match(fl, /Surfacing 2 areas around the keepout/);
   assert.ok(!/^G1 X7[5-9]\d\.\d+ Y5\d\d\./m.test(fl), 'never cuts inside the zone');
 });
+
+// ncSender refuses M3/M4 while a pen or drag knife is loaded and stops the
+// job: their programs leave the spindle alone; other tools keep M3 / M5.
+test('a pen or drag knife: no spindle start, wait or stop in any program', () => {
+  const g = makeQuickCutGenerator(false);
+  const programs = (extra) => [
+    g.generateRectangleProgram(baseParams(extra)),
+    g.generateRectangleClearingProgram(baseParams(Object.assign({ cutType: 'clearing', stepoverPct: 40 }, extra))),
+    g.generateCircleProgram(circleBase(extra)),
+    g.generatePolygonProgram(polygonBase(extra)),
+    g.generateKeyholeProgram(keyholeBase(extra)),
+    g.generateDrillProgram(drillBase(extra)),
+    g.generateSlotProgram(slotBase(extra)),
+    g.generatePlanerProgram(planerBase(extra)),
+    g.generateJointerProgram(jointerBase(extra)),
+    g.generateCutterProgram(cutterBase(extra)),
+  ];
+  for (const toolType of ['pen', 'drag-knife', 'Drag_Knife', 'drag knife']) {
+    for (const gcode of programs({ toolType: toolType, spindleRpm: 15000, spindleDelay: 2 })) {
+      const code = gcode.split('\n').map((l) => l.replace(/\(.*?\)|;.*$/g, '')).join('\n');
+      assert.ok(!/\bM0?[345]\b/.test(code), toolType + ': spindle word in\n' + gcode.slice(0, 600));
+      assert.ok(!/\bS\d/.test(code) && !/^G4 P2\b/m.test(code), toolType + ': S word or spindle wait');
+      assert.ok(/\bG[123]\b/.test(code) && /\bM30\b/.test(code), toolType + ": still cuts and ends\n" + gcode.slice(0, 400));
+      assert.match(gcode, /Spindle: off/);
+    }
+  }
+  for (const toolType of ['', 'flat', 'v-bit', 'compression', undefined]) {
+    for (const gcode of programs({ toolType: toolType })) {
+      assert.match(gcode, /^M3 S\d+ ; Start spindle$/m);
+      assert.match(gcode, /^M5 ; Stop spindle$/m);
+    }
+  }
+  // Only the spindle lines differ from an end mill's program
+  const drop = (s) => s.split('\n').filter((l) => !/^(M3 |M5 |G4 P1 ; Wait|\(Feed Rate)/.test(l)).join('\n');
+  assert.equal(drop(g.generateRectangleProgram(baseParams({ toolType: 'pen' }))), drop(g.generateRectangleProgram(baseParams())));
+  assert.equal(g.toolSpins({ toolType: 'pen' }), false);
+  assert.equal(g.toolSpins({ toolType: 'penetrator' }), true);
+});
