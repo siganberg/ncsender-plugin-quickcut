@@ -1622,6 +1622,15 @@
   }
   /* "Measure" link beside each pattern Angle label. */
   /* Bit Diameter's label reads the loaded tool's diameter when clicked. */
+  /* Spoilboard Toolbox's stock thickness, beside Total Depth. */
+  .qc-field > label:has(> .qc-stock-depth) { display: flex; align-items: center; gap: 6px; }
+  button.qc-stock-depth {
+    margin: 0 0 0 auto !important; padding: 0 8px !important; min-height: 0 !important; height: 18px; line-height: 16px;
+    font-size: 0.72rem !important; font-weight: 600; border-radius: 999px !important; cursor: pointer;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent) !important;
+    background: transparent !important; color: var(--color-accent) !important;
+  }
+  button.qc-stock-depth:hover { background: color-mix(in srgb, var(--color-accent) 14%, transparent) !important; }
   .qc-bit-label {
     cursor: pointer;
     text-decoration: underline dotted;
@@ -4072,6 +4081,7 @@
     wireOriginCrosshairs();
     wireCloseButton();
     wireChamferTab();
+    wireStockDepth();
     // First open in this browser (no remembered tab): start on All help
     // topics; Back goes to Rectangle. The tab is remembered at once, so
     // this shows only once even if the dialog is closed from Help.
@@ -10046,6 +10056,41 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else x.value = roundDisplay(nx != null ? ix : iy);
     sel._insetBack = { origin: o, was: was, values: /^xy/.test(was) ? [keep.x, keep.y] : [keep.x, keep.x], shown: pair(insetSplit(prefix)) };
   }
+  // With Spoilboard Toolbox installed and on, the stock thickness it keeps
+  // (its Stock T, saved in its own units): a Stock button by each cut's
+  // Total Depth puts it in. Hidden otherwise.
+  var STOCK_DEPTH_IDS = ['qc-rect-depth', 'qc-circ-depth', 'qc-poly-depth', 'qc-slt-depth', 'qc-drl-depth', 'qc-join-depth', 'qc-cut-depth'];
+  async function wireStockDepth() {
+    var mm = 0;
+    try {
+      var plugins = await (await fetch(BASE_URL + '/api/plugins')).json();
+      var sbt = (plugins || []).filter(function(p) { return p.id === 'com.tmuka.spoilboard-toolbox'; })[0];
+      if (!sbt || sbt.enabled === false) return;
+      var s = await (await fetch(BASE_URL + '/api/plugins/com.tmuka.spoilboard-toolbox/settings')).json();
+      var t = parseFloat(s && s.stockT);
+      mm = t > 0 ? t * (s.units === 'imperial' ? 25.4 : 1) : 0;
+    } catch (e) { return; }
+    if (!(mm > 0)) return;
+    var shown = roundDisplay(mmToDisplay(mm)) + ' ' + state.unitLabel;
+    STOCK_DEPTH_IDS.forEach(function(id) {
+      var input = $(id), label = input && ROOT.querySelector('label[for="' + id + '"]');
+      if (!label) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'qc-stock-depth';
+      b.textContent = 'Stock';
+      b.title = 'Total Depth = ' + shown + ', the stock thickness in Spoilboard Toolbox. To cut right through, add a little.';
+      b.setAttribute('aria-label', 'Use the stock thickness from Spoilboard Toolbox, ' + shown);
+      b.addEventListener('click', function(e) {
+        e.preventDefault();
+        input.value = roundDisplay(mmToDisplay(mm));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      label.appendChild(b);
+    });
+  }
+
   // Bit Diameter's label: the loaded tool's diameter from ncSender's tool
   // table. The loaded tool is T<n>, which names a magazine slot or a Tool ID
   // depending on Settings -> Tool Changer -> Tool Numbering; /api/tools/active
