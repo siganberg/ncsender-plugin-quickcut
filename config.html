@@ -1685,6 +1685,8 @@
   .qc-fig-a-kerf { transform-box: fill-box; transform-origin: top; animation: qc-fig-kerf 7s ease-in-out infinite; }
   @keyframes qc-fig-kerf { 0%, 14% { transform: scaleY(0); } 22%, 40% { transform: scaleY(0.33); } 41%, 58% { transform: scaleY(0.65); } 59%, 92% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .qc-fig-spin, .qc-fig-a-tool, .qc-fig-a-kerf { animation: none !important; } }
+  /* Idle (wireIdlePause): every animation holds where it is. */
+  .qc-anim-paused * { animation-play-state: paused !important; }
 
   /* Landscape: Tool and Spindle stand in a column beside the tab's own
      settings, so no input row stretches across the whole dialog. Portrait
@@ -3998,6 +4000,7 @@
     wireOriginCrosshairs();
     wireCloseButton();
     wireChamferTab();
+    wireIdlePause();
     // First open in this browser (no remembered tab): start on All help
     // topics; Back goes to Rectangle. The tab is remembered at once, so
     // this shows only once even if the dialog is closed from Help.
@@ -4309,6 +4312,38 @@
     return all[all.length - 1];
   })();
   function rootAlive() { return !!(ROOT && ROOT.isConnected); }
+
+  // The previews' animations stop after two minutes without a touch, a
+  // click or a key, or while the page is hidden, and carry on from there
+  // at the next one: nobody watches them that long, and on a Pi they keep
+  // a core about 7% busy (1% held).
+  var IDLE_PAUSE_MS = 2 * 60 * 1000;
+  function wireIdlePause() {
+    var timer = null, paused = false, events = ['pointerdown', 'keydown', 'wheel'];
+    function setPaused(on) {
+      if (paused === on) return;
+      paused = on;
+      ROOT.classList.toggle('qc-anim-paused', on);
+      ROOT.querySelectorAll('svg').forEach(function(svg) {
+        if (svg.pauseAnimations) { if (on) svg.pauseAnimations(); else svg.unpauseAnimations(); }
+      });
+    }
+    function wake() {
+      if (!rootAlive()) {
+        events.forEach(function(t) { document.removeEventListener(t, wake, true); });
+        document.removeEventListener('visibilitychange', onShown);
+        clearTimeout(timer);
+        return;
+      }
+      setPaused(false);
+      clearTimeout(timer);
+      timer = setTimeout(function() { if (rootAlive()) setPaused(true); }, IDLE_PAUSE_MS);
+    }
+    function onShown() { if (document.hidden) setPaused(true); else wake(); }
+    events.forEach(function(t) { document.addEventListener(t, wake, true); });
+    document.addEventListener('visibilitychange', onShown);
+    wake();
+  }
   var num = function(id, def) {
     var el = $(id);
     var v = el.getAttribute('data-unit')
