@@ -4313,11 +4313,11 @@
   })();
   function rootAlive() { return !!(ROOT && ROOT.isConnected); }
 
-  // The previews' animations stop after two minutes without a touch, a
+  // The previews' animations stop after ten minutes without a touch, a
   // click or a key, or while the page is hidden, and carry on from there
   // at the next one: nobody watches them that long, and on a Pi they keep
   // a core about 7% busy (1% held).
-  var IDLE_PAUSE_MS = 2 * 60 * 1000;
+  var IDLE_PAUSE_MS = 10 * 60 * 1000;
   function wireIdlePause() {
     var timer = null, paused = false, events = ['pointerdown', 'keydown', 'wheel'];
     function setPaused(on) {
