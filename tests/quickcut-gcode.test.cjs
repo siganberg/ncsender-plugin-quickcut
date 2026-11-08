@@ -3710,6 +3710,83 @@ test('a Centre line slot, or a shape that can\'t be drawn, refuses the chamfer',
   assert.doesNotMatch(star, /^G[0123] [XYZ]/m);
 });
 
+test('keyhole chamfer: round the opening the keyhole bit left, the head and neck at the tip\'s inset, each keyhole where the program put it', () => {
+  const g = makeQuickCutGenerator(false);
+  const key = (o, c) => chamferOf(Object.assign({ slotLength: 15, startAngleDeg: 90, origin: 'hole' }, o),
+    Object.assign({ cutDepth: 0, keyholeBit: 9.5, keyholeNeck: 4.75 }, c));
+  const params = key({ pattern: { enabled: true, style: 'linear', xCount: 2, yCount: 1, xDist: 50, yDist: 0 } });
+  const plan = g.chamferPlanFor('keyhole', params);
+  assert.ok(plan.tipOffset > 0 && !plan.noKeyhole);
+  const gcode = g.generateKeyholeProgram(params);
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  assert.equal((gcode.match(/^\(Instance /gm) || []).length, 2);
+  near(lowestZ(gcode), -Math.round(plan.deepest * 1000) / 1000);
+  // Arcs round the head (centered on each plunge hole) and the neck's end, at the inset.
+  const arcs = gcode.split('\n').filter(l => /^G3\b/.test(l) && !/Z/.test(l)).map(l => {
+    const a = parseArc(l);
+    return { r: Math.round(Math.hypot(a.i, a.j) * 1000) / 1000 };
+  });
+  const head = Math.round((4.75 - plan.inset) * 1000) / 1000, neck = Math.round((2.375 - plan.inset) * 1000) / 1000;
+  assert.deepEqual([...new Set(arcs.map(a => a.r))].sort(), [head, neck].sort());
+  assert.match(gcode, /^\(Origin: plunge hole center\)$/m);
+  // The neck runs up +Y from the hole: its sides at x = ±(neck half width less the inset).
+  assert.match(gcode, new RegExp('^G1 X' + neck.toFixed(3).replace('.', '\\.') + '\\d* Y15\\.000', 'm'));
+  // A box origin places them as the keyhole program does with the keyhole bit.
+  const corner = { origin: 'front-left' };
+  const program = g.generateKeyholeProgram(keyholeBase({ ...corner, bitDiameter: 9.5, slotLength: 15 }));
+  const hole = keyholeMoves(program).find(m => m.cmd === 'G1' && m.z === -8);
+  // The head's arc: its center (where it starts, plus I J) is the plunge hole.
+  const lines = g.generateKeyholeProgram(key(corner)).split('\n');
+  const k = lines.findIndex(l => /^G3\b/.test(l) && Math.abs(Math.hypot(parseArc(l).i, parseArc(l).j) - head) < 2e-3);
+  const from = parseXY(lines[k - 1], {}), a = parseArc(lines[k]);
+  const at = { x: from.x + a.i, y: from.y + a.j };
+  assert.ok(Math.hypot(at.x - hole.x, at.y - hole.y) < 0.01, JSON.stringify([at, hole]));
+});
+
+test('keyhole chamfer: refused without the keyhole bit, a short slot is just the head\'s circle', () => {
+  const g = makeQuickCutGenerator(false);
+  const key = (o, c) => chamferOf(Object.assign({ slotLength: 15, startAngleDeg: 0, origin: 'hole' }, o), Object.assign({ keyholeBit: 9.5, keyholeNeck: 4.75 }, c));
+  assert.match(g.generateKeyholeProgram(key({}, { keyholeBit: 0 })), /WARNING: no Keyhole Bit.*nothing to cut/);
+  assert.match(g.generateKeyholeProgram(key({}, { keyholeNeck: 9.5 })), /WARNING: no Keyhole Bit.*nothing to cut/);
+  // Slot Length 3: the neck's end (to 3 + w) bulges past the head's circle (r), so the path reaches it.
+  const bulge = g.generateKeyholeProgram(key({ slotLength: 3 }, { cutDepth: 0 }));
+  const plan = g.chamferPlanFor('keyhole', key({ slotLength: 3 }, { cutDepth: 0 }));
+  assert.doesNotMatch(bulge, /WARNING|NaN/);
+  // The farthest any arc reaches along the slot (+X): its center (start plus I) plus its radius.
+  let at = {}, far = -Infinity;
+  for (const l of bulge.split('\n')) {
+    if (/^G3 /.test(l)) { const a = parseArc(l); far = Math.max(far, at.x + a.i + Math.hypot(a.i, a.j)); }
+    if (/^G[0-3] /.test(l)) at = parseXY(l, at);
+  }
+  assert.ok(Math.abs(far - (3 + 2.375 - plan.inset)) < 2e-3, 'neck end ' + far);
+  const short = g.generateKeyholeProgram(key({ slotLength: 1 }));
+  assert.doesNotMatch(short, /WARNING|NaN/);
+  assert.doesNotMatch(short.replace(/^G1 [XY][^\n]*Z[^\n]*$/gm, ''), /^G1 X/m);
+});
+
+test('drill chamfer plunge: straight down at each hole\'s center until the cone meets the chamfer\'s edge, like a countersink', () => {
+  const g = makeQuickCutGenerator(false);
+  const drill = (c, o) => chamferOf(Object.assign({ depth: 10, pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 20, yDist: 0 } }, o),
+    Object.assign({ cutDepth: 0, holeDiameter: 5, plunge: true, depthOfCut: 0.4 }, c));
+  const gcode = g.generateDrillProgram(drill());
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  assert.match(gcode, /^\(Plunged at each hole's center, like a countersink\)$/m);
+  // 90°: the cone's edge at the surface is the hole's radius plus the chamfer, 3.5 down.
+  near(lowestZ(gcode), -3.5);
+  // No moves sideways below the surface: only plunges, in passes about a Depth of Cut apart (3 for a 1 mm deep chamfer).
+  const below = gcode.split('\n').filter(l => /^G[123] /.test(l) && /Z-/.test(l));
+  assert.ok(below.every(l => !/[XYIJ]/.test(l)), below.join(' | '));
+  assert.equal(below.length, 3 * 3);
+  // Each hole at its own center, as the lap chamfer and the drill program put it.
+  const lap = g.generateDrillProgram(drill({ plunge: false }));
+  const holes = (code) => code.split('\n').filter(l => /^\(Hole /.test(l));
+  assert.deepEqual(holes(gcode), holes(lap));
+  // A V-bit too small to reach past the chamfer, or holes not that deep, refuse it.
+  assert.match(g.generateDrillProgram(drill({ holeDiameter: 10 }, { bitDiameter: 10 })), /WARNING: hole and chamfer wider than the V-bit reaches, to plunge/);
+  assert.match(g.generateDrillProgram(drill({ cutDepth: 3 })), /WARNING: the plunge goes deeper than the holes/);
+  assert.doesNotMatch(g.generateDrillProgram(drill({ cutDepth: 4 })), /WARNING/);
+});
+
 // Cut Direction on the planer: Conventional / Climb cut every pass the
 // same way, lifting between passes; Both Ways is the zigzag.
 function planerCuts(gcode) {
