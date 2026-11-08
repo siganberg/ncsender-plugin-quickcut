@@ -3726,6 +3726,29 @@ test('keyhole chamfer: refused without the keyhole bit, a short slot is just the
   assert.doesNotMatch(short.replace(/^G1 [XY][^\n]*Z[^\n]*$/gm, ''), /^G1 X/m);
 });
 
+test('drill chamfer plunge: straight down at each hole\'s center until the cone meets the chamfer\'s edge, like a countersink', () => {
+  const g = makeQuickCutGenerator(false);
+  const drill = (c, o) => chamferOf(Object.assign({ depth: 10, pattern: { enabled: true, style: 'linear', xCount: 3, yCount: 1, xDist: 20, yDist: 0 } }, o),
+    Object.assign({ cutDepth: 0, holeDiameter: 5, plunge: true, depthOfCut: 0.4 }, c));
+  const gcode = g.generateDrillProgram(drill());
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  assert.match(gcode, /^\(Plunged at each hole's center, like a countersink\)$/m);
+  // 90°: the cone's edge at the surface is the hole's radius plus the chamfer, 3.5 down.
+  near(lowestZ(gcode), -3.5);
+  // No moves sideways below the surface: only plunges, in passes about a Depth of Cut apart (3 for a 1 mm deep chamfer).
+  const below = gcode.split('\n').filter(l => /^G[123] /.test(l) && /Z-/.test(l));
+  assert.ok(below.every(l => !/[XYIJ]/.test(l)), below.join(' | '));
+  assert.equal(below.length, 3 * 3);
+  // Each hole at its own center, as the lap chamfer and the drill program put it.
+  const lap = g.generateDrillProgram(drill({ plunge: false }));
+  const holes = (code) => code.split('\n').filter(l => /^\(Hole /.test(l));
+  assert.deepEqual(holes(gcode), holes(lap));
+  // A V-bit too small to reach past the chamfer, or holes not that deep, refuse it.
+  assert.match(g.generateDrillProgram(drill({ holeDiameter: 10 }, { bitDiameter: 10 })), /WARNING: hole and chamfer wider than the V-bit reaches, to plunge/);
+  assert.match(g.generateDrillProgram(drill({ cutDepth: 3 })), /WARNING: the plunge goes deeper than the holes/);
+  assert.doesNotMatch(g.generateDrillProgram(drill({ cutDepth: 4 })), /WARNING/);
+});
+
 // Cut Direction on the planer: Conventional / Climb cut every pass the
 // same way, lifting between passes; Both Ways is the zigzag.
 function planerCuts(gcode) {

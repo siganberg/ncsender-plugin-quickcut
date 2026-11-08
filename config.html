@@ -1794,6 +1794,7 @@
   .qc-drl-side:has(#qc-chamfer-enable:checked) > .qc-card:first-child { display: none; }
   /* Chamfer in the narrow Drill column: its fields three to a row. */
   .qc-drl-side #qc-chamfer-card .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #qc-chamfer-card .qc-field:has(> #qc-chamfer-method) { grid-column: 1 / -1; }
   .qc-drl-bevel { fill: none; stroke: var(--qc-m-bevel); }
   .qc-drl-bevel-guide { fill: none; stroke: var(--qc-m-hatch); stroke-width: 0.35; stroke-dasharray: 1 1; }
   /* Drilling only moves in Z, at the Plunge Rate: no Feed Rate to ask for. */
@@ -2558,6 +2559,13 @@
               <div class="qc-field qc-chamfer-drill">
                 <label for="qc-chamfer-hole">Hole Diameter</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-hole" step="0.1" value="5" title="The size of the holes already drilled: the drill's diameter. The Tool card holds the V-bit while chamfering.">
+              </div>
+              <div class="qc-field qc-chamfer-drill">
+                <label for="qc-chamfer-method">Method</label>
+                <select class="qc-select" id="qc-chamfer-method" title="Around: the V-bit's tip goes down into each hole and laps round inside its edge. Plunge: straight down at each hole's center, like a countersink, until its cone meets the chamfer's edge; quicker, but the V-bit has to be wider than the hole and chamfer, and its tip goes deeper.">
+                  <option value="lap" selected>Around</option>
+                  <option value="plunge">Plunge</option>
+                </select>
               </div>
               <div class="qc-field qc-chamfer-key">
                 <label for="qc-chamfer-key-bit">Keyhole Bit</label>
@@ -5606,6 +5614,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       cutDepth:   num('qc-chamfer-cut-depth', 0),
       cutBit:     prefix === 'drl' ? 0 : num('qc-chamfer-cut-bit', 0),
       holeDiameter: num('qc-chamfer-hole', 0),
+      plunge:     prefix === 'drl' && $('qc-chamfer-method').value === 'plunge',
       keyholeBit: num('qc-chamfer-key-bit', 0),
       keyholeNeck: keyholeNeck(),
       depthOfCut: num('qc-chamfer-step', 0)
@@ -5626,6 +5635,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       cutDepth: cutDepth > 0 ? displayToMm(cutDepth) : null,
       cutBit:   displayToMm(num('qc-chamfer-cut-bit', 0)),
       hole:     displayToMm(num('qc-chamfer-hole', 0)),
+      method:   $('qc-chamfer-method').value,
       keyholeBit: displayToMm(num('qc-chamfer-key-bit', 0)),
       keyholeNeck: neck > 0 ? displayToMm(neck) : null,
       step:     displayToMm(num('qc-chamfer-step', 0))
@@ -8006,6 +8016,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (cutBit > 0)               $('qc-chamfer-cut-bit').value = roundDisplay(mmToDisplay(cutBit));
       if (ch.step > 0)              $('qc-chamfer-step').value = roundDisplay(mmToDisplay(ch.step));
       if (ch.hole > 0)              $('qc-chamfer-hole').value = roundDisplay(mmToDisplay(ch.hole));
+      if (ch.method === 'plunge' || ch.method === 'lap') $('qc-chamfer-method').value = ch.method;
       if (ch.keyholeBit > 0)        $('qc-chamfer-key-bit').value = roundDisplay(mmToDisplay(ch.keyholeBit));
       if (ch.keyholeNeck !== undefined) $('qc-chamfer-key-neck').value = ch.keyholeNeck > 0 ? roundDisplay(mmToDisplay(ch.keyholeNeck)) : '';
     }
@@ -9158,7 +9169,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var smooth = prefix === 'circ' || prefix === 'slt' || prefix === 'key' || (prefix === 'rect' && rectKind() === 'ellipse');
     ROOT.querySelector('.qc-chamfer-cut').style.display = prefix !== 'drl' && (outer || !smooth) ? '' : 'none';
     ROOT.querySelectorAll('.qc-chamfer-key').forEach(function(el) { el.style.display = prefix === 'key' ? '' : 'none'; });
-    ROOT.querySelector('.qc-chamfer-drill').style.display = prefix === 'drl' ? '' : 'none';
+    ROOT.querySelectorAll('.qc-chamfer-drill').forEach(function(el) { el.style.display = prefix === 'drl' ? '' : 'none'; });
     // Without a tool changer, the Tool card's label says which bit it is.
     var bitLabel = ROOT.querySelector('.qc-bit-label');
     if (bitLabel) {
@@ -9170,11 +9181,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     hint.innerHTML = on ? 'Chamfers holes already drilled: <strong>Hole Diameter</strong> is the drill\u2019s size, and the Tool card\u2019s bit is the V-bit. ' +
       'Keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' : hint.dataset.cut;
     if (state.currentTab === 'drill') updateDrillPreview();
-    // Drilling only plunges, at the Plunge Rate; a chamfer's laps use the Feed Rate.
+    // Drilling only plunges, at the Plunge Rate; a chamfer's laps use the
+    // Feed Rate, a plunged one doesn't.
     if (state.currentTab === 'drill') {
-      var feed = $('qc-feed');
-      feed.disabled = !on;
-      feed.title = on ? feed.dataset.tip : 'Not used for drilling: every move is at the Plunge Rate.';
+      var feed = $('qc-feed'), plunge = $('qc-chamfer-method').value === 'plunge';
+      feed.disabled = !on || plunge;
+      feed.title = feed.disabled ? 'Not used ' + (on ? 'to plunge the chamfer' : 'for drilling') + ': every move is at the Plunge Rate.' : feed.dataset.tip;
     }
   }
   // The open chamfer's own drawing, after a Chamfer card field changes.
@@ -9194,7 +9206,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (plan.noKeyhole) return { id: num('qc-chamfer-key-bit', 0) > 0 ? 'qc-chamfer-key-neck' : 'qc-chamfer-key-bit', msg: 'Keyhole Bit: its head\u2019s diameter, wider than its Neck' };
     if (plan.centerSlot) return { id: 'qc-slt-cut-type', msg: 'A Centre line slot is as wide as the bit that cut it, not the V-bit: set Cut Type to Inner and the slot\u2019s Width' };
     if (plan.shapeProblem) return { id: 'qc-chamfer-width', msg: 'The shape can\u2019t be drawn (' + plan.shapeProblem + ')' };
+    if (plan.tooWide && plan.plunge) return { id: 'qc-chamfer-method', msg: 'To plunge, the V-bit has to reach past the chamfer: a ' + f(p.bitDiameter) + u + ' V-bit plunges holes up to ' + f(Math.max(0, p.bitDiameter * 0.9 - 2 * plan.width)) + u + ' with this chamfer. Use Around, or a wider V-bit' };
     if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit chamfers up to ' + f(p.bitDiameter * 0.45) + u + ' wide (its edge is weakest)' };
+    if (plan.tooDeep && plan.plunge) return { id: 'qc-chamfer-method', msg: 'The plunge goes to Z\u2212' + f(plan.deepest) + ', deeper than the ' + f(plan.floor) + u + ' holes: use Around, or the Existing Depth deeper' };
     if (plan.tooDeep) return { id: 'qc-chamfer-width', msg: 'The chamfer is ' + f(plan.height) + u + ' deep, deeper than the ' + f(plan.floor) + u + ' cut: make it narrower, or the Existing Depth deeper' };
     if (plan.noRoom) return { id: 'qc-chamfer-cut-bit', msg: 'Cut Bit: the bit the slot around the part was cut with' };
     return null;
@@ -9226,8 +9240,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (problem) { note.textContent = from + problem.msg + '.'; return; }
     note.textContent = from + 'Chamfers the ' + chamferShapeName(tab, p) + ' already ' + (tab === 'drill' ? 'drilled' : 'cut') + ', with the ' + f(p.bitDiameter) + u + ' V-bit in the Tool card' +
       (bitToolNumber() > 0 ? ' (the program starts with a tool change to T' + bitToolNumber() + ')' : '') + ': ' +
-      f(plan.width) + u + ' wide, ' + f(plan.height) + u + ' deep. The tip goes ' + f(plan.tipOffset) + u +
-      ' below the chamfer, into the cut already made, so the V\u2019s side does the cutting (deepest Z\u2212' + f(plan.deepest) + ').' +
+      f(plan.width) + u + ' wide, ' + f(plan.height) + u + ' deep. ' +
+      (plan.plunge ? 'It plunges at each hole\u2019s center, like a countersink, to Z\u2212' + f(plan.deepest) + ', where the V\u2019s cone meets the chamfer\u2019s edge.' : 'The tip goes ' + f(plan.tipOffset) + u +
+      ' below the chamfer, into the cut already made, so the V\u2019s side does the cutting (deepest Z\u2212' + f(plan.deepest) + ').') +
       (plan.pastRoom > 0 ? ' Its other side also widens the slot ' + f(plan.pastRoom) + u + ' into the waste.' : '');
   }
 
@@ -9468,6 +9483,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       $('qc-' + prefix + '-cut-type').addEventListener('change', showChamferFields);
     });
     $('qc-chamfer-hole').addEventListener('input', function() { if (state.currentTab === 'drill') updateDrillPreview(); });
+    selectSeg('qc-chamfer-method', [['lap', 'Around'], ['plunge', 'Plunge']]);
+    $('qc-chamfer-method').addEventListener('change', function() {
+      showChamferFields();
+      updateChamferNote();
+      persistSettings({ common: { chamfer: packChamfer() } });
+    });
     $('qc-drl-form').addEventListener('change', updateChamferNote);
     $('qc-bit').addEventListener('input', updateChamferNote);
     $('qc-rect-cut-type').addEventListener('change', showChamferFields);
@@ -13187,7 +13208,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<line x1="121" y1="140" x2="121" y2="152" class="qc-fig-ext"/><line x1="135" y1="140" x2="135" y2="152" class="qc-fig-ext"/>' +
       '<line x1="98" y1="142" x2="135" y2="142" class="qc-fig-dim"/>' +
       cutPill(74, 142, (w > 0 ? w : '?') + ' ' + u, false) +
-      '<text x="150" y="276" class="qc-fig-note">' + (w > 0 ? w : '?') + ' ' + u + ' chamfer at ' + ang + '° on ⌀' + (hole > 0 ? hole : '?') + ' ' + u + ' holes</text>';
+      '<text x="150" y="276" class="qc-fig-note">' + (w > 0 ? w : '?') + ' ' + u + ' chamfer at ' + ang + '° on ⌀' + (hole > 0 ? hole : '?') + ' ' + u + ' holes' + ($('qc-chamfer-method').value === 'plunge' ? ', plunged' : '') + '</text>';
   }
   // Side view: the drill pecking down, backing out (fully or a little),
   // dwelling at the bottom.
@@ -13842,7 +13863,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Holes the size of the <strong>Bit Diameter</strong>. Every Z move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
       'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.',
-      HELP_CHAMFER + ' On Drill, the card asks for the <strong>Hole Diameter</strong> (the drill&rsquo;s size, as the Tool card holds the V-bit), and the Feed Rate comes back on for the chamfer&rsquo;s laps; keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' ] },
+      HELP_CHAMFER + ' On Drill, the card asks for the <strong>Hole Diameter</strong> (the drill&rsquo;s size, as the Tool card holds the V-bit), and the Feed Rate comes back on for the chamfer&rsquo;s laps. <strong>Method</strong> Plunge goes straight down at each hole&rsquo;s center instead, like a countersink, until the V&rsquo;s cone meets the chamfer&rsquo;s edge: quicker, but the V-bit has to be wider than the hole and chamfer, and the tip goes the hole&rsquo;s radius deeper (at 90&deg;). Keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' ] },
     planer: { name: 'Planer', notes: [
       '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
@@ -15859,7 +15880,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function drillChamferPlan(params) {
       var plan = circleChamferPlan(drillChamferParams(params));
       plan.noHole = !(params.chamfer.holeDiameter > 0);
+      if (params.chamfer.plunge && !plan.noHole) plungeChamferPlan(plan, params.chamfer.holeDiameter / 2, params.bitDiameter);
       return plan;
+    }
+    // Plunge: the V-bit straight down at each hole's center, like a
+    // countersink, until its cone meets the chamfer's outer edge. The tip goes
+    // the hole's radius (over the V's slope) below the chamfer, so the V-bit
+    // has to reach past the chamfer, and the hole has to be that deep.
+    function plungeChamferPlan(plan, R, bitDiameter) {
+      var margin = isImperial ? 0.008 : 0.2;
+      plan.plunge = true;
+      plan.tipOffset = R / plan.slope;
+      plan.inset = R;
+      plan.pathRadius = 0;
+      plan.deepest = plan.height + plan.tipOffset;
+      plan.tooWide = R + plan.width > bitDiameter / 2 * 0.9;
+      plan.tooDeep = plan.deepest + margin > plan.floor;
     }
 
     function polygonChamferPlan(params) {
@@ -15980,8 +16016,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         : plan.centerSlot ? 'a Centre line slot: set Cut Type to Inner and the slot\'s Width'
         : plan.noHole ? 'no Hole Diameter'
         : plan.noKeyhole ? 'no Keyhole Bit, or a Neck as wide as it'
-        : plan.tooWide ? 'chamfer wider than the V-bit reaches'
-        : plan.tooDeep ? 'chamfer deeper than the cut'
+        : plan.tooWide ? (plan.plunge ? 'hole and chamfer wider than the V-bit reaches, to plunge' : 'chamfer wider than the V-bit reaches')
+        : plan.tooDeep ? (plan.plunge ? 'the plunge goes deeper than the holes' : 'chamfer deeper than the cut')
         : plan.noRoom ? 'no Cut Bit for the slot around the part' : null;
     }
     // The header, a refusal or the note about the slot, and the startup;
@@ -16070,6 +16106,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // Where the holes were drilled: placed with the drill's own size.
       var origin = resolveDrillOrigin(params.origin, params.pattern, positions, params.chamfer.holeDiameter || 0, params.inset);
       var extras = chamferComments(hole, plan, 'the ' + params.chamfer.holeDiameter + unitsLabel + ' hole' + (positions.length > 1 ? 's' : ''), origin.label);
+      if (plan.plunge) extras.push('Plunged at each hole\'s center, like a countersink');
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
       var start = chamferProgramStart(params, plan, 'Drill chamfer' + (positions.length > 1 ? ' × ' + positions.length : ''), extras);
       var lines = start.lines;
