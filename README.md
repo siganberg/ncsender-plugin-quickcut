@@ -150,7 +150,7 @@ Either way its edge reaches the corner, or the Corner Radius when that's smaller
 
 ![Cross-section of a chamfer: the V-bit's side lies on the chamfer, its tip below it in the hole already cut, with Chamfer Width across the top, the Included Angle, and the Existing Depth of the hole](docs/images/chamfer.svg)
 
-The **Chamfer** tab (Drill's holes, the Rectangle card's shapes, Slot and Keyhole) turns the program into a chamfer of the top edge you've already cut, with a V-bit, in place of the cut: inside a hole's edge, outside a part's. Run the cut first, and clear the hole or slot out. Generate becomes **Generate Chamfer**.
+The **Chamfer** tab (Drill's holes and every shape) turns the program into a chamfer of the top edge you've already cut, with a V-bit, in place of the cut: inside a hole's edge, outside a part's. Run the cut first, and clear the hole or slot out. Generate becomes **Generate Chamfer**.
 
 - **The V-bit is the Tool card's bit.** With a tool changer, a V-bit in the spindle turns Chamfer on (any other bit turns it off), and picking a tool in the Bit Diameter menu does the same, saying so; the program starts with its `M6`. **Included Angle** is the whole V (90 for a bit that is 45° a side), filled from the tool table's taper angle or the tool's name. Without a tool changer, the switch stays as you last set it and the Tool card's label reads **V-Bit Diameter**.
 - **Chamfer Width** is across the top, as in Fusion 360's 2D Chamfer; with a 90° bit it's the C on a drawing (C1 = 1 × 45°). Up to 90% of the V-bit's radius: the very edge of the V is its weakest.

@@ -1953,8 +1953,9 @@
   .qc-shp-big .qc-shp-dimcircle { stroke-dasharray: 1.2 1.2; }
   .qc-shp-big .qc-shp-kerfcut { fill: none; stroke: var(--qc-m-hole); stroke-linejoin: round; }
   /* Chamfering, a pocket's edge is an Inside cut's: no Pocket choice. */
-  .qc-chamfer-mode .qc-seg:has(+ #qc-rect-cut-type) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .qc-chamfer-mode .qc-seg:has(+ #qc-rect-cut-type) button[data-v="clearing"] { display: none; }
+  .qc-chamfer-mode .qc-seg:has(+ :is(#qc-rect-cut-type, #qc-circ-cut-type, #qc-poly-cut-type)) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .qc-chamfer-mode .qc-seg:has(+ #qc-slt-cut-type) { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .qc-chamfer-mode .qc-seg:has(+ :is(#qc-rect-cut-type, #qc-circ-cut-type, #qc-poly-cut-type, #qc-slt-cut-type)) button[data-v="clearing"] { display: none; }
   .qc-shp-big .qc-shp-floor { fill: var(--qc-m-b); opacity: 0.55; stroke: var(--qc-m-ink2); stroke-width: 0.3; }
   .qc-shp-big .qc-shp-bevelcut { fill: none; stroke: var(--qc-m-bevel); stroke-linejoin: round; }
   .qc-shp-big .qc-shp-outline { fill: none; stroke: color-mix(in srgb, var(--color-text-primary) 35%, transparent); stroke-width: 0.35; }
@@ -9178,7 +9179,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   // The open chamfer's own drawing, after a Chamfer card field changes.
   function updateChamferPreview() {
-    var update = { rectangle: updateRectanglePreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[state.chamferMode];
+    var update = { circle: updateCirclePreview, rectangle: updateRectanglePreview, polygon: updatePolygonPreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[state.chamferMode];
     if (update) update();
   }
   function updateChamferVisibility() {
@@ -9290,7 +9291,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // own header with an Edge switch. Generate makes only the chamfer.
   var CHAMFER_EDGES = [['drill', 'Holes'], ['circle', 'Circle'], ['rectangle', 'Rect'], ['polygon', 'Polygon'], ['slot', 'Slot'], ['keyhole', 'Keyhole']];
   // The edges whose tabs have the new layout; the others come with theirs.
-  var CHAMFER_READY = { drill: true, rectangle: true, slot: true, keyhole: true };
+  var CHAMFER_READY = { drill: true, circle: true, rectangle: true, polygon: true, slot: true, keyhole: true };
   var chamferHead = null;
   function chamferHeader() {
     if (chamferHead) return chamferHead;
@@ -9340,15 +9341,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     showBitTool();
     updateChamferVisibility();
     if (target === 'drill') updateDrillPreview();
-    if (target === 'slot') updateSlotPreview();
-    if (target === 'keyhole') updateKeyholePreview();
-    if (target === 'rectangle') {
-      // A pocket's edge is chamfered as an Inside cut's; Pocket comes back
-      // on the Rectangle tab.
-      var ct = $('qc-rect-cut-type');
-      if (ct.value === 'clearing') { state.rectWasPocket = true; ct.value = 'inner'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
-      updateRectanglePreview();
-    }
+    // A pocket's edge is chamfered as an Inside cut's; Pocket comes back
+    // on the shape's tab.
+    var ct = $('qc-' + CHAMFER_TABS[target] + '-cut-type');
+    if (ct && ct.value === 'clearing') { state.wasPocket = ct.id; ct.value = 'inner'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
+    updateChamferPreview();
   }
   // The Edge switch heads the Shape card on the shapes with the new layout,
   // where it picks what's chamfered; elsewhere the Chamfer card.
@@ -9370,9 +9367,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     ROOT.querySelectorAll('.qc-content').forEach(function(c) { c.classList.remove('qc-chamfer-mode'); });
     if (chamferHead && chamferHead.parentNode) chamferHead.parentNode.removeChild(chamferHead);
     $('qc-chamfer-card').style.display = 'none';
-    if (state.rectWasPocket) {
-      state.rectWasPocket = false;
-      var ct = $('qc-rect-cut-type');
+    if (state.wasPocket) {
+      var ct = $(state.wasPocket);
+      state.wasPocket = null;
       if (ct.value === 'inner') { ct.value = 'clearing'; ct.dispatchEvent(new Event('change', { bubbles: true })); }
     }
     // Back on the shape's own tool.
@@ -11630,6 +11627,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var size = roundDisplay(params.sizeValue || 2 * R) + ' ' + state.unitLabel;
     topView(svg, {
       prefix: 'poly', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
+      chamfer: state.chamferMode === 'polygon',
       box: box, typedCR: typedCR, mostCR: apothem, relief: relief, reliefPts: part, deep: apothem,
       CR: relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), apothem),
       offset: offset,
@@ -11675,6 +11673,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     for (var k = 0; k < 30; k++) { var mid = (lo + hi) / 2; if (gen.starOutline(params, -mid)) lo = mid; else hi = mid; }
     topView(svg, {
       prefix: 'poly', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
+      chamfer: state.chamferMode === 'polygon',
       box: box, smooth: true, typedCR: 0, CR: 0, deep: lo,
       offset: function(dd) { return gen.starOutline(params, dd); },
       caption: verts.length / 2 + '-point star ' + roundDisplay(D) + ' / ' + roundDisplay(d) + ' ' + state.unitLabel,
@@ -11966,6 +11965,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     topView(svg, {
       prefix: 'circ', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
+      chamfer: state.chamferMode === 'circle',
       box: { x0: -R, x1: R, y0: -R, y1: R }, smooth: true, typedCR: 0, CR: 0, deep: R,
       offset: function(d) { return ring(R + d); },
       caption: 'circle ⌀' + roundDisplay(D) + ' ' + state.unitLabel,
@@ -12771,136 +12771,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     syncSelectSegs();
     schedulePatternPreview();
     updateInsetState('circ');
-    var sideSvg = $('qc-circ-side');
-    if (sideSvg) passesSide(sideSvg, { depth: num('qc-circ-depth', 0), doc: num('qc-circ-step', 0), title: 'Side view · depth passes',
+    var sideSvg = placeShapeSideFig('circ', 'circle');
+    if (sideSvg && state.chamferMode === 'circle') chamferSideView(sideSvg, $('qc-circ-cut-type').value, $('qc-circ-cut-type').value === 'outer' ? 'round the part' : 'round the hole');
+    else if (sideSvg) passesSide(sideSvg, { depth: num('qc-circ-depth', 0), doc: num('qc-circ-step', 0), title: 'Side view · depth passes',
       note2: $('qc-circ-tabs-enable').checked ? 'tabs ' + num('qc-circ-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = document.getElementById('qc-circ-preview');
     if (!svg) return;
     ['outer', 'inner', 'clearing'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-circ-cut-type').value === k); });
-    // The top view, as the Rectangle's (the older drawing still shows the
-    // chamfer).
-    if (state.chamferMode !== 'circle') return updateCircleTopView(svg);
-    var D = num('qc-circ-diameter', 0);
-    var cutType = $('qc-circ-cut-type').value;
-    // Smaller when an inset needs room, so X0 Y0 stays in view.
-    var pad = insetPad('circ');
-    pad += bitEdgePad(cutType);
-    var r = D > 0 && pad > 0 ? Math.min(40, 44 * (D / 2) / (D / 2 + pad)) : 40;
-    var edgeR = D > 0 ? r + bitEdgeDir(cutType) * Math.max(0, num('qc-bit', 0)) * r / (D / 2) : 0;
-    var arrowInset = 4;
-
-    var hatchFill = 'fill="url(#qc-circ-hatch)"';
-    var hatched;
-    if (cutType === 'clearing') {
-      hatched = '<circle class="qc-shape-hatch" ' + hatchFill + ' cx="0" cy="0" r="' + r + '"/>';
-    } else if (cutType === 'inner') {
-      hatched = '';
-    } else {
-      // Outer: only the band the bit takes, out to its far edge.
-      var ring = function(rr) {
-        return 'M' + rr.toFixed(2) + ',0 A' + rr.toFixed(2) + ',' + rr.toFixed(2) + ' 0 1 0 ' + (-rr).toFixed(2) + ',0 ' +
-               'A' + rr.toFixed(2) + ',' + rr.toFixed(2) + ' 0 1 0 ' + rr.toFixed(2) + ',0 Z';
-      };
-      hatched = edgeR > r ? '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + ring(edgeR) + ' ' + ring(r) + '"/>' : '';
-    }
-
-    // Tap targets for the 9-dot Origin picker: the circle's box corners,
-    // its four quadrant points (the box's edge midpoints) and the center.
-    // SVG y is down, so back is up.
-    circPreviewNodes = ownPreviewNodes('circ', [
-      ['back-left', -r, -r], ['back-center', 0, -r], ['back-right', r, -r],
-      ['left-center', -r, 0], ['center', 0, 0], ['right-center', r, 0],
-      ['front-left', -r, r], ['front-center', 0, r], ['front-right', r, r]
-    ].map(function(n) { return { value: n[0], x: n[1], y: n[2] }; }), 'shape-center');
-
-    var dLine = '<line class="qc-shape-dim-line" x1="' + (-r) + '" y1="0" ' +
-                'x2="' + r + '" y2="0" ' +
-                'marker-start="url(#qc-circ-arr)" marker-end="url(#qc-circ-arr)"/>';
-    var dLabel = '<text class="qc-shape-dim-label" x="0" y="-3" text-anchor="middle">' +
-                 (D > 0 ? D : '?') + '</text>';
-
-    svg.innerHTML =
-      shapePreviewDefs('qc-circ') +
-      hatched +
-      bitEdge(bitEdgeDir(cutType) && edgeR > 0.5 && edgeR !== r
-        ? 'M' + edgeR.toFixed(2) + ',0 A' + edgeR.toFixed(2) + ',' + edgeR.toFixed(2) + ' 0 1 0 ' + (-edgeR).toFixed(2) + ',0 A' +
-          edgeR.toFixed(2) + ',' + edgeR.toFixed(2) + ' 0 1 0 ' + edgeR.toFixed(2) + ',0 Z' : '', cutType) +
-      '<circle class="qc-shape-fill" cx="0" cy="0" r="' + r + '"/>' +
-      dLine + dLabel +
-      // The cut starts at the rightmost point and runs CCW.
-      tabMarks('circ', [{ type: 'arc', cx: 0, cy: 0, r: r, a0: 0, a1: 2 * Math.PI, len: Math.PI * (D > 0 ? D : 1) }]) +
-      pickHints(circPreviewNodes) +
-      (D > 0 ? (function() {
-        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('circle', readCircleForm());
-        var k = r / (D / 2);
-        return originCross(off.x * k, -off.y * k, 'circ', k);
-      })() : '');
+    updateCircleTopView(svg);
   }
 
-  // A star: drawn from the generator's own outline, its points on the
-  // preview's 40-unit circle, turned by the Start Angle; an Outer or
-  // Inner cut shows the bit's far edge. The dashed circles are its
-  // Diameter (through the points) and Inner Diameter. Taps on a point,
-  // an inner corner or its center pick the Origin.
-  function updateStarPreview(svg) {
-    var params = readPolygonForm(), gen = makeQuickCutGenerator(state.isImperial), cutType = params.cutType;
-    var D = params.diameter, d = params.innerDiameter;
-    if (!(D > 0 && d > 0 && d < D)) {
-      polyPreviewNodes = null;
-      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Not a star yet</text>';
-      return;
-    }
-    var pad = insetPad('poly') + bitEdgePad(cutType);
-    var R = Math.min(40, 44 * (D / 2) / (D / 2 + pad)), k = R / (D / 2);
-    function P(x, y) { return (x * k).toFixed(2) + ',' + (-y * k).toFixed(2); }
-    function pathOf(segs) {
-      var out = '';
-      segs.forEach(function(sg, i) {
-        if (i === 0) out += 'M' + (sg.type === 'line' ? P(sg.x0, sg.y0) : P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0)));
-        if (sg.type === 'line') { out += ' L' + P(sg.x1, sg.y1); return; }
-        var rr = (sg.r * k).toFixed(2);
-        out += ' A' + rr + ',' + rr + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' + (sg.dir === -1 ? 1 : 0) + ' ' +
-               P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
-      });
-      return out + ' Z';
-    }
-    var verts = gen.starVertices(params), n = verts.length;
-    var outline = 'M' + verts.map(function(v) { return P(v.x, v.y); }).join(' L') + ' Z';
-    var bit = Math.max(0, params.bitDiameter), dir = bitEdgeDir(cutType);
-    var edgeSegs = dir && bit > 0 ? gen.starOutline(params, dir * bit) : null;
-    var edgeD = edgeSegs ? pathOf(edgeSegs) : '';
-    var hatched = cutType === 'outer' && edgeD
-      ? '<path class="qc-shape-hatch" fill="url(#qc-poly-hatch)" fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>' : '';
-    var ri = d / 2 * k;
-    var dim = '<circle class="qc-shape-dim-line" cx="0" cy="0" r="' + R.toFixed(2) + '"/>' +
-              '<line class="qc-shape-dim-line" x1="' + (-R).toFixed(2) + '" y1="0" x2="' + R.toFixed(2) + '" y2="0" ' +
-                'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-              '<text class="qc-shape-dim-label" x="' + ((R + ri) / 2).toFixed(2) + '" y="-4" text-anchor="middle">' + D + '</text>' +
-              '<circle class="qc-shape-dim-line" cx="0" cy="0" r="' + ri.toFixed(2) + '"/>' +
-              '<text class="qc-shape-dim-label" x="0" y="9" text-anchor="middle">' + d + '</text>';
-    var pts = verts.map(function(v) { return { x: v.x * k, y: -v.y * k }; });
-    // Its points, then its inner corners (the generator's corner:N), then its center.
-    polyPreviewNodes = pts.filter(function(q, i) { return i % 2 === 0; })
-      .concat(pts.filter(function(q, i) { return i % 2 === 1; }))
-      .map(function(q, i) { return { x: q.x, y: q.y, value: 'corner:' + (i + 1) }; })
-      .concat([{ x: 0, y: 0, value: 'shape-center' }]);
-    originZoomFrames.poly = null;
-    svg.innerHTML =
-      shapePreviewDefs('qc-poly') +
-      hatched +
-      bitEdge(edgeD, cutType) +
-      '<path class="qc-shape-fill" d="' + outline + '"/>' +
-      dim +
-      tabMarks('poly', previewLines(pts.concat([pts[0]]), verts.map(function(v, i) {
-        var w = verts[(i + 1) % n];
-        return Math.hypot(w.x - v.x, w.y - v.y);
-      }))) +
-      pickHints(polyPreviewNodes) +
-      (function() {
-        var off = gen.shapeOriginOffset('polygon', params);
-        return originCross(off.x * k, -off.y * k, 'poly', k);
-      })();
-  }
+
 
   // Redraws the polygon preview SVG. Uses a fixed 40-unit visual
   // radius inside a 100-unit viewBox so the shape stays the same
@@ -13627,191 +13508,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     schedulePatternPreview();
     updateInsetState('poly');
     updateReliefState('poly');
-    var sideSvg = $('qc-poly-side');
-    if (sideSvg) passesSide(sideSvg, { depth: num('qc-poly-depth', 0), doc: num('qc-poly-step', 0), title: 'Side view · depth passes',
+    var sideSvg = placeShapeSideFig('poly', 'polygon');
+    if (sideSvg && state.chamferMode === 'polygon') chamferSideView(sideSvg, $('qc-poly-cut-type').value);
+    else if (sideSvg) passesSide(sideSvg, { depth: num('qc-poly-depth', 0), doc: num('qc-poly-step', 0), title: 'Side view · depth passes',
       note2: $('qc-poly-tabs-enable').checked ? 'tabs ' + num('qc-poly-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = document.getElementById('qc-poly-preview');
     if (!svg) return;
     ['outer', 'inner', 'clearing'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-poly-cut-type').value === k); });
-    // The top view, as the Rectangle's (the older drawing still shows the
-    // chamfer).
-    if (state.chamferMode !== 'polygon') return polyKind() === 'star' ? updateStarTopView(svg) : updatePolygonTopView(svg);
-    if (polyKind() === 'star') return updateStarPreview(svg);
-    var n = Math.max(3, Math.min(12, Math.floor(num('qc-poly-sides', 6))));
-    var startDeg = num('qc-poly-start-angle', 0);
-    var diameter = polygonCornerDiameter(0);
-    var sizeMode = $('qc-poly-size-mode').value;
-    var cutType = $('qc-poly-cut-type').value;
-    // Smaller when an inset needs room, so X0 Y0 stays in view.
-    var pad = insetPad('poly') + bitEdgePad(cutType);
-    var R = diameter > 0 && pad > 0 ? Math.min(40, 44 * (diameter / 2) / (diameter / 2 + pad)) : 40;
-    // Edge Length is dimensioned outside the shape, label and all.
-    if (sizeMode === 'edge') R *= 0.8;
-    var start = Math.PI / n - Math.PI / 2 + startDeg * Math.PI / 180;
-    var pts = [];
-    for (var i = 0; i < n; i++) {
-      var theta = start + i * 2 * Math.PI / n;
-      // SVG y-down: negate the y coordinate so up-in-machine renders as up on screen.
-      pts.push({
-        x: R * Math.cos(theta),
-        y: -R * Math.sin(theta)
-      });
-    }
-    var apothem = R * Math.cos(Math.PI / n);
-    // Corner Radius, drawn to the same scale as the outline: each corner
-    // is an arc about a vertex of the smaller "core" polygon, as in the
-    // generator. Machine CCW stays CCW on screen (sweep-flag 0).
-    var half = Math.PI / n;
-    var relief = reliefStyle('poly', cutType);
-    var CR = relief ? Math.max(0, num('qc-poly-corner', 0)) : previewCornerRadius(num('qc-poly-corner', 0), cutType);
-    var toPx = function(r) { return diameter > 0 && r > 0 ? Math.min(r * R / (diameter / 2), apothem) : 0; };
-    var crP = toPx(CR);
-    // apo (optional): the outline at another apothem, the same polygon
-    // grown or shrunk (the bit's far edge).
-    var outlineFor = function(crP, apo) {
-    var outline;
-    if (apo != null && !(crP > 0)) {
-      var vr = apo / Math.cos(half);
-      return 'M' + pts.map(function(q, i) {
-        var t = start + i * 2 * half;
-        return (vr * Math.cos(t)).toFixed(2) + ',' + (-vr * Math.sin(t)).toFixed(2);
-      }).join(' L') + ' Z';
-    }
-    if (crP > 0) {
-      var coreR = ((apo != null ? apo : apothem) - crP) / Math.cos(half);
-      var arcPt = function(i, a) {
-        var t = start + i * 2 * half;
-        return { x: coreR * Math.cos(t) + crP * Math.cos(a), y: -(coreR * Math.sin(t) + crP * Math.sin(a)) };
-      };
-      var f2 = function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); };
-      outline = 'M' + f2(arcPt(0, start - half));
-      for (var k = 0; k < n; k++) {
-        var tk = start + k * 2 * half;
-        outline += ' A' + crP.toFixed(2) + ',' + crP.toFixed(2) + ' 0 0 0 ' + f2(arcPt(k, tk + half)) +
-                   ' L' + f2(arcPt((k + 1) % n, tk + half));
-      }
-      outline += ' Z';
-    } else {
-      outline = 'M' + pts.map(function(q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(' L') + ' Z';
-    }
-    return outline;
-    };
-    var outline = relief && diameter > 0
-      ? reliefOutline(pts, Math.max(0, num('qc-bit', 0)) / 2 * R / (diameter / 2), crP, relief, true)
-      : outlineFor(crP);
-    var edgeDir = bitEdgeDir(cutType), edgeD = '';
-    if (edgeDir && diameter > 0) {
-      var bitP = Math.max(0, num('qc-bit', 0)) * R / (diameter / 2), edgeA = apothem + edgeDir * bitP;
-      if (bitP > 0 && edgeA > 0.5) edgeD = outlineFor(Math.min(Math.max(0, crP + edgeDir * bitP), edgeA), edgeA);
-    }
-    originZoomFrames.poly = null;
-    var typedCR = Math.max(0, num('qc-poly-corner', 0));
-    var ideal = CR > typedCR + 1e-9 ? idealOutline(outlineFor(toPx(typedCR))) : '';
-    var sizeValue = num('qc-poly-diameter', 0);
-    var label = sizeValue > 0 ? String(sizeValue) : '?';
-    // The dashed circle and dimension show what the size measures: the
-    // circle through the corners, the circle touching the flats, or the
-    // bottom-most edge, dimensioned just inside it.
-    var dim;
-    if (sizeMode === 'edge') {
-      var e = 0;
-      for (var ei = 1; ei < n; ei++) {
-        if (pts[ei].y + pts[(ei + 1) % n].y > pts[e].y + pts[(e + 1) % n].y) e = ei;
-      }
-      var ea = pts[e], eb = pts[(e + 1) % n];
-      var emx = (ea.x + eb.x) / 2, emy = (ea.y + eb.y) / 2, ein = Math.hypot(emx, emy) || 1;
-      // Measured outside the edge, as on a drawing: extension lines out
-      // from its two corners and the arrows between them, past an Outer
-      // cut's dashed edge, and the label beyond them.
-      var nX = emx / ein, nY = emy / ein;
-      var bitOut = cutType === 'outer' && diameter > 0 ? Math.max(0, num('qc-bit', 0)) * R / (diameter / 2) : 0;
-      var off = bitOut + 5;
-      var at = function(q, d) { return (q.x + nX * d).toFixed(2) + '" y1="' + (q.y + nY * d).toFixed(2); };
-      var ext = function(q) {
-        return '<line class="qc-shape-dim-ext" x1="' + at(q, 1.5) + '" x2="' + (q.x + nX * (off + 2)).toFixed(2) + '" y2="' + (q.y + nY * (off + 2)).toFixed(2) + '"/>';
-      };
-      dim = ext(ea) + ext(eb) +
-            '<line class="qc-shape-dim-line" x1="' + at(ea, off) + '" x2="' + (eb.x + nX * off).toFixed(2) + '" y2="' + (eb.y + nY * off).toFixed(2) + '" ' +
-              'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-            '<text class="qc-shape-dim-label" x="' + (emx + nX * (off + 6)).toFixed(2) + '" y="' + (emy + nY * (off + 6)).toFixed(2) + '" text-anchor="middle" dominant-baseline="middle">' + label + '</text>';
-    } else {
-      var dimR = sizeMode === 'flats' ? apothem : R;
-      var armX = dimR;
-      // The measuring circle is part of the dimension, so it's drawn like one.
-      dim = '<circle class="qc-shape-dim-line" cx="0" cy="0" r="' + dimR.toFixed(2) + '"/>' +
-            '<line class="qc-shape-dim-line" x1="' + (-armX).toFixed(2) + '" y1="0" ' +
-              'x2="' + armX.toFixed(2) + '" y2="0" ' +
-              'marker-start="url(#qc-poly-arr)" marker-end="url(#qc-poly-arr)"/>' +
-            '<text class="qc-shape-dim-label" x="0" y="-4" text-anchor="middle">' + label + '</text>';
-    }
-
-    // Hatched: what the bit removes.
-    //   Inner (clearing)  → the whole interior
-    //   Inner (perimeter) → nothing; the outline and its dashed far edge
-    //   Outer (part)      → the band out to the dashed far edge (even-odd)
-    // Vertices in the generator's order, then the polygon's own center.
-    polyPreviewNodes = pts.map(function(q, i) { return { x: q.x, y: q.y, value: 'corner:' + (i + 1) }; })
-      .concat([{ x: 0, y: 0, value: 'shape-center' }]);
-    var hatchFill = 'fill="url(#qc-poly-hatch)"';
-    var hatchedPath;
-    if (cutType === 'clearing') {
-      hatchedPath = '<path class="qc-shape-hatch" ' + hatchFill + ' d="' + outline + '"/>';
-    } else if (cutType === 'inner') {
-      hatchedPath = '';
-    } else {
-      // Outer: only the band the bit takes, out to its far edge.
-      hatchedPath = edgeD ? '<path class="qc-shape-hatch" ' + hatchFill + ' fill-rule="evenodd" d="' + edgeD + ' ' + outline + '"/>' : '';
-    }
-
-    svg.innerHTML =
-      shapePreviewDefs('qc-poly') +
-      hatchedPath +
-      bitEdge(edgeD, cutType) +
-      '<path class="qc-shape-fill" d="' + outline + '"/>' +
-      ideal +
-      dim +
-      // The cut starts at the first vertex (or its corner arc) and runs CCW.
-      tabMarks('poly', polyTabSegs()) +
-      pickHints(polyPreviewNodes) +
-      (diameter > 0 ? (function() {
-        var off = makeQuickCutGenerator(state.isImperial).shapeOriginOffset('polygon', readPolygonForm());
-        var k = R / (diameter / 2);
-        // Enlarged, a small Inset or corner radius at X0 Y0 is also shown
-        // magnified (detailZoom).
-        var z = previewIsBig(svg) ? detailZoom('poly', k, crP) : 0;
-        return originCross(off.x * k, -off.y * k, 'poly', k) +
-          (z ? originZoom('poly', off.x * k, -off.y * k, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal,
-                          pts.map(function(q) { return [q.x, q.y]; }), z, 'poly', k) : '');
-      })() : '');
-
-    // The path the tabs are spaced along: in preview units, but with the
-    // real tool path lengths, which is what the generator spaces them by.
-    function polyTabSegs() {
-      var bit = Math.max(0, num('qc-bit', 0));
-      var a = Math.max(diameter, 0.001) / 2 * Math.cos(half);
-      var rc = Math.max(0, Math.min(CR, a));
-      var arcReal = rc > 0 ? (cutType === 'outer' ? a + bit / 2 : a - bit / 2) - (a - rc) : 0;
-      if (!(crP > 0) || !(arcReal > 1e-9)) {
-        return previewLines(pts.concat([pts[0]]), pts.map(function() {
-          return Math.max(diameter, 0.001) * Math.sin(Math.PI / n);
-        }));
-      }
-      var coreR = (apothem - crP) / Math.cos(half), segs = [];
-      for (var k = 0; k < n; k++) {
-        var tk = start + k * 2 * half, tn = start + (k + 1) * 2 * half;
-        var cx = coreR * Math.cos(tk), cy = -coreR * Math.sin(tk);
-        segs.push({ type: 'arc', cx: cx, cy: cy, r: crP, a0: tk - half, a1: tk + half, len: arcReal * 2 * half });
-        // A fully round polygon has no straight edges (the generator drops them too).
-        var edge = 2 * (a - rc) * Math.tan(half);
-        if (edge > 1e-9) {
-          segs.push({ type: 'line', x0: cx + crP * Math.cos(tk + half), y0: cy - crP * Math.sin(tk + half),
-                      x1: coreR * Math.cos(tn) + crP * Math.cos(tk + half), y1: -coreR * Math.sin(tn) - crP * Math.sin(tk + half),
-                      len: edge });
-        }
-      }
-      return segs;
-    }
+    if (polyKind() === 'star') updateStarTopView(svg); else updatePolygonTopView(svg);
   }
+
 
   // Polygon or Star, from the title menu. A star: Points, its Diameter
   // across them and an Inner Diameter; no Corner Radius, Corner Relief
