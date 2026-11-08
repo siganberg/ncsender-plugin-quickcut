@@ -3903,3 +3903,72 @@ test('planer wasteboard: zero is always the travel front-left corner, zones foll
   assert.match(fl, /Surfacing 2 areas around the keepout/);
   assert.ok(!/^G1 X7[5-9]\d\.\d+ Y5\d\d\./m.test(fl), 'never cuts inside the zone');
 });
+
+// ncSender refuses M3/M4 while a pen or drag knife is loaded and stops the
+// job: their programs leave the spindle alone; other tools keep M3 / M5.
+test('a pen or drag knife: no spindle start, wait or stop in any program', () => {
+  const g = makeQuickCutGenerator(false);
+  const programs = (extra) => [
+    g.generateRectangleProgram(baseParams(extra)),
+    g.generateRectangleClearingProgram(baseParams(Object.assign({ cutType: 'clearing', stepoverPct: 40 }, extra))),
+    g.generateCircleProgram(circleBase(extra)),
+    g.generatePolygonProgram(polygonBase(extra)),
+    g.generateKeyholeProgram(keyholeBase(extra)),
+    g.generateDrillProgram(drillBase(extra)),
+    g.generateSlotProgram(slotBase(extra)),
+    g.generatePlanerProgram(planerBase(extra)),
+    g.generateJointerProgram(jointerBase(extra)),
+    g.generateCutterProgram(cutterBase(extra)),
+  ];
+  for (const toolType of ['pen', 'drag-knife', 'Drag_Knife', 'drag knife']) {
+    for (const gcode of programs({ toolType: toolType, spindleRpm: 15000, spindleDelay: 2 })) {
+      const code = gcode.split('\n').map((l) => l.replace(/\(.*?\)|;.*$/g, '')).join('\n');
+      assert.ok(!/\bM0?[345]\b/.test(code), toolType + ': spindle word in\n' + gcode.slice(0, 600));
+      assert.ok(!/\bS\d/.test(code) && !/^G4 P2\b/m.test(code), toolType + ': S word or spindle wait');
+      assert.ok(/\bG[123]\b/.test(code) && /\bM30\b/.test(code), toolType + ": still cuts and ends\n" + gcode.slice(0, 400));
+      assert.match(gcode, /Spindle: off/);
+    }
+  }
+  for (const toolType of ['', 'flat', 'v-bit', 'compression', undefined]) {
+    for (const gcode of programs({ toolType: toolType })) {
+      assert.match(gcode, /^M3 S\d+ ; Start spindle$/m);
+      assert.match(gcode, /^M5 ; Stop spindle$/m);
+    }
+  }
+  // Only the spindle lines differ from an end mill's program
+  const drop = (s) => s.split('\n').filter((l) => !/^(M3 |M5 |G4 P1 ; Wait|\(Feed Rate)/.test(l)).join('\n');
+  assert.equal(drop(g.generateRectangleProgram(baseParams({ toolType: 'pen' }))), drop(g.generateRectangleProgram(baseParams())));
+  assert.equal(g.toolSpins({ toolType: 'pen' }), false);
+  assert.equal(g.toolSpins({ toolType: 'penetrator' }), true);
+});
+
+// ncSender calls a pen's or drag knife's flute_length its Max plunge: how
+// far below Z0 (the stock's top) the tip may go. Every program keeps to it.
+test('a pen or drag knife never goes below its Max plunge (flute_length)', () => {
+  const lowest = (gcode) => Math.min(0, ...gcode.split('\n')
+    .filter((l) => !/^\s*\(/.test(l) && !/\bG53\b/.test(l))
+    .flatMap((l) => [...l.replace(/;.*$|\(.*?\)/g, '').matchAll(/Z(-?\d*\.?\d+)/g)].map((m) => +m[1])));
+  for (const imperial of [false, true]) {
+    const g = makeQuickCutGenerator(imperial), u = imperial ? 1 / 25.4 : 1;
+    const sz = (o) => Object.assign({}, o, imperial ? { width: 2, height: 1.2, diameter: 1.5, bitDiameter: 0.03, depth: 0.25, depthOfCut: 0.05, feedRate: 30, plungeFeedRate: 10 } : {});
+    const programs = (extra) => [
+      g.generateRectangleProgram(sz(baseParams(extra))),
+      g.generateRectangleProgram(sz(baseParams(Object.assign({ tabs: { count: 4, width: imperial ? 0.2 : 5, height: imperial ? 0.1 : 2 } }, extra)))),
+      g.generateCircleProgram(circleBase(extra)),
+      g.generatePolygonProgram(polygonBase(extra)),
+      g.generateKeyholeProgram(keyholeBase(extra)),
+      g.generateDrillProgram(drillBase(Object.assign({ peckDepth: 1 }, extra))),
+      g.generateSlotProgram(slotBase(extra)),
+    ];
+    const pen = { toolType: 'pen', toolMaxPlungeMm: 0.254 };
+    for (const gcode of programs(pen)) assert.ok(lowest(gcode) >= -0.254 * u - 1e-9, 'below the Max plunge: ' + lowest(gcode) + '\n' + gcode.slice(0, 300));
+    // The depth is capped before the passes are planned: one pass, at it
+    const one = g.generateRectangleProgram(sz(baseParams(pen)));
+    assert.equal(lowest(one).toFixed(imperial ? 4 : 3), (-0.254 * u).toFixed(imperial ? 4 : 3));
+    // A drag knife too; no Max plunge: the depths as typed; other tools ignore it
+    assert.ok(lowest(g.generateCircleProgram(circleBase({ toolType: 'drag-knife', toolMaxPlungeMm: 0.254 }))) >= -0.254 * u - 1e-9);
+    assert.ok(lowest(g.generateRectangleProgram(sz(baseParams({ toolType: 'pen' })))) < -0.254 * u * 2);
+    assert.equal(g.generateRectangleProgram(sz(baseParams({ toolType: 'flat', toolMaxPlungeMm: 0.254 }))), g.generateRectangleProgram(sz(baseParams())));
+  }
+  assert.equal(makeQuickCutGenerator(true).penMaxPlunge({ toolType: 'pen', toolMaxPlungeMm: 0.254 }), 0.01);
+});

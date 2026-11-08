@@ -5692,7 +5692,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       spindleDelay:   num('qc-delay', 0),
       mistM7:         $('qc-mist').checked,
       floodM8:        $('qc-flood').checked,
-      toolNumber:     bitToolNumber()
+      toolNumber:     bitToolNumber(),
+      toolType:       bitToolType(),
+      toolMaxPlungeMm: bitToolInfo().fluteMm
     };
   }
 
@@ -8061,6 +8063,19 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else { bit.removeAttribute('data-tool'); bit.removeAttribute('data-tool-mm'); }
     showBitTool();
   }
+  // The bit's Tool Library type: the tool picked from the table, or
+  // (no tool changer) the loaded tool Bit Diameter was read from, while the
+  // field still shows its diameter. A pen or drag knife gets no M3.
+  function bitToolType() { return bitToolInfo().type; }
+  // With it, the tool's flute length (mm), which ncSender calls Max plunge
+  // for a pen or drag knife: how far below Z0 its tip may go.
+  function bitToolInfo() {
+    var n = bitToolNumber();
+    if (n) { var t = toolEntry(n) || {}; return { type: t.type || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
+    var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm'));
+    return !state.atc && mm > 0 && Math.abs(displayToMm(num('qc-bit', 0)) - mm) < 0.002
+      ? { type: bit.getAttribute('data-loaded-type') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 } : { type: '', fluteMm: 0 };
+  }
   function bitToolNumber() {
     var t = bitTool();
     var near = function(mm) { return Math.abs(mm - t.mm) < 0.002; };
@@ -10245,10 +10260,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       var fl = flutesFromTool({ name: tool.name, notes: tool.metadata && tool.metadata.notes, flutes: tool.metadata && tool.metadata.flutes });
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
+      bit.setAttribute('data-loaded-mm', String(tool.diameter));
+      bit.setAttribute('data-loaded-type', tool.type || '');
+      bit.setAttribute('data-loaded-flute', String(Number(tool.dimensions && tool.dimensions.flute_length) || 0));
+      var maxText = Number(tool.dimensions && tool.dimensions.flute_length) > 0 ? ', at most ' + roundDisplay(mmToDisplay(tool.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '';
+      var still = /^(pen|drag[-_ ]?knife)$/i.test(String(tool.type || '').trim());
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
       var name = (tool.name || '').length > 40 ? tool.name.slice(0, 39) + '\u2026' : tool.name || '';
-      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
+      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (still ? ', a ' + (/^pen$/i.test(tool.type.trim()) ? 'pen' : 'drag knife') + ': the spindle stays off' + maxText : fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
     } catch (e) {
       showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
     }
@@ -10612,8 +10632,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // The tool table has the flutes: asked for a typed size, or for a picked
     // tool whose table entry doesn't give them (guessed from its name, else 2).
     $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table && !(t && !(t.flutes > 0)));
+    // A pen or drag knife gets no M3 (ncSender refuses it while one is loaded).
+    var still = t && /^(pen|drag[-_ ]?knife)$/i.test(String(t.type || '').trim());
     btn.innerHTML = t
-      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + $('qc-flutes').value + ' fl</em>'
+      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + (still ? (/^pen$/i.test(t.type.trim()) ? 'pen' : 'drag knife') + ', spindle off' + (t.dimensions && t.dimensions.flute_length > 0 ? ', max ' + roundDisplay(mmToDisplay(t.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '') : $('qc-flutes').value + ' fl') + '</em>'
       : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
     if (toolPop.open) renderToolList();
   }
@@ -15038,6 +15060,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return '(' + String(text).replace(/\(/g, '[').replace(/\)/g, ']') + ')';
     }
 
+    // A pen or a drag knife (ncSender's tool types) doesn't spin: ncSender
+    // refuses M3/M4 while one is loaded and stops the job, so its program
+    // has no spindle start, wait or stop. Older ncSender ignores the type.
+    function toolSpins(params) {
+      return !/^(pen|drag[-_ ]?knife)$/i.test(String((params && params.toolType) || '').trim());
+    }
+
     function programHeader(params, opts) {
       var unitsCode = isImperial ? 'G20' : 'G21';
       var unitsLabel = isImperial ? 'inch' : 'mm';
@@ -15049,7 +15078,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
       lines.push(comment('Z0: ' + (opts.z0 || 'the top of the stock')));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
-      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
+      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + (toolSpins(params) ? params.spindleRpm + 'RPM' : 'off, the tool does not spin') + ')');
       lines.push('');
       lines.push(unitsCode + ' ; ' + (isImperial ? 'Imperial' : 'Metric') + ' units');
       lines.push('G17 ; XY plane selection');
@@ -15080,7 +15109,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (csz) lines.push(csz + ' ; Return to safe Z');
       else lines.push('G53 G0 Z0 ; Return to machine Z0');
       if (params.mistM7 || params.floodM8) lines.push('M9 ; Coolant off');
-      if (params.spindleRpm > 0) lines.push('M5 ; Stop spindle');
+      if (params.spindleRpm > 0 && toolSpins(params)) lines.push('M5 ; Stop spindle');
       lines.push('M30 ; Program end');
       return lines;
     }
@@ -15089,7 +15118,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var lines = [];
       if (params.mistM7) lines.push('M7 ; Mist coolant on');
       if (params.floodM8) lines.push('M8 ; Flood coolant on');
-      if (params.spindleRpm > 0) {
+      if (params.spindleRpm > 0 && toolSpins(params)) {
         lines.push('M3 S' + params.spindleRpm + ' ; Start spindle');
         if (params.spindleDelay > 0) {
           lines.push('G4 P' + params.spindleDelay + ' ; Wait ' + params.spindleDelay + ' seconds');
@@ -19255,7 +19284,38 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       lines.push('G0 Z' + safeHeight);
     }
 
-    return {
+    // A pen or drag knife: Z0 stays on the stock's top and the tip goes no
+    // lower than its Max plunge (the tool table's flute_length, which ncSender
+    // calls Max plunge for these types: params.toolMaxPlungeMm), whatever
+    // Total Depth, Depth of Cut, pecks or a chamfer ask. The depths are
+    // capped first, so the passes are planned for it, then any Z word still
+    // below it (machine-coordinate G53 lines aside) is raised to it. Without
+    // a Max plunge the depths are as typed.
+    function penMaxPlunge(params) {
+      if (!params || toolSpins(params) || !(params.toolMaxPlungeMm > 0)) return 0;
+      return isImperial ? params.toolMaxPlungeMm / 25.4 : params.toolMaxPlungeMm;
+    }
+    function penLimited(gen) {
+      return function(params) {
+        var max = penMaxPlunge(params);
+        if (!max) return gen.apply(null, arguments);
+        var p = Object.assign({}, params);
+        if (p.depth > max) p.depth = max;
+        if (p.depthOfCut > p.depth) p.depthOfCut = p.depth;
+        if (p.peckDepth > p.depth) p.peckDepth = p.depth;
+        if (p.tabs && !(p.tabs.height < p.depth)) p.tabs = null;
+        var out = gen.apply(null, [p].concat([].slice.call(arguments, 1)));
+        if (typeof out !== 'string') return out;
+        var floor = -max, word = 'Z' + floor.toFixed(isImperial ? 4 : 3);
+        return out.split('\n').map(function(line) {
+          if (/^\s*\(/.test(line) || /\bG53\b/.test(line)) return line;
+          var cut = line.search(/[;(]/), code = cut < 0 ? line : line.slice(0, cut), rest = cut < 0 ? '' : line.slice(cut);
+          return code.replace(/Z(-?\d*\.?\d+)/g, function(m, v) { return +v < floor - 1e-9 ? word : m; }) + rest;
+        }).join('\n');
+      };
+    }
+
+    var api = {
       generateRectangleProgram: generateRectangleProgram,
       generateCircleProgram: generateCircleProgram,
       circleChamferPlan: circleChamferPlan,
@@ -19293,6 +19353,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       segmentsBbox: segmentsBbox,
       slotProblem: slotProblem
     };
+    Object.keys(api).forEach(function(k) { if (/^generate\w*Program$/.test(k)) api[k] = penLimited(api[k]); });
+    return api;
   }
 
   init();
