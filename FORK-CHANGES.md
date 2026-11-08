@@ -41,6 +41,9 @@ resolved.
 | #32 | `fix/triangle-pattern-labels` | In a pattern, a triangle's sizes and angles go on the copy facing open stock, not all on the first (builds on #19). |
 | #33 | `fix/tool-column-contrast` | The Tool column sits on the panel without its own strip or edges, its fields in the cards' color. |
 | #34 | `fix/tool-column-align` | The Tool column's titles as the cards', and its rows level with the cards' beside it (builds on #33). |
-
-**Not yet PRs** (in `combined/0.1.23` for machine testing): `feat/depth-aware-feeds` (compression bits cut in fewer, deeper passes in wood; deep passes ease the chip; no pass deeper than the flutes) and `feat/feeds-help` on it (Help: Feeds & Speeds, the starting feeds for every bit in the tool table).
+| #35 | `feat/depth-aware-feeds` | Starting feeds by depth: compression bits cut in fewer, deeper passes in wood; deep passes ease the chip; no pass deeper than the flutes. |
+| #36 | `feat/feeds-help` | Help: Feeds & Speeds, the starting feeds for every bit in the tool table (builds on #35). |
+| #37 | `feat/st-stock-depth` | A Stock button by Total Depth with Spoilboard Toolbox's stock thickness, when it's installed and has one. |
+| #38 | `fix/reopen-last-tab` | Reopens on the remembered tab, not Chamfer. |
+| #39 | `feat/tool-menu-magazine` | Tool menu: the tools in the magazine first, by slot, with their Tool ID. |
 
