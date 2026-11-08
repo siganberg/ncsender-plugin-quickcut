@@ -9353,9 +9353,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Saved state: on the Chamfer tab last time, or an old chamfer switch.
     var saved = null;
     try { saved = localStorage.getItem(LAST_TAB_KEY); } catch (e) {}
+    // The old switch only counts when no tab was remembered: it can stay
+    // saved on after leaving the Chamfer tab, which would reopen there.
     if (saved && saved.indexOf('chamfer:') === 0) enterChamfer(saved.slice(8));
     else if ($('qc-chamfer-enable').checked) {
-      if (CHAMFER_TABS[state.currentTab]) enterChamfer(state.currentTab);
+      if (!saved && CHAMFER_TABS[state.currentTab]) enterChamfer(state.currentTab);
       else { $('qc-chamfer-enable').checked = false; updateChamferVisibility(); }
     }
     placeChamferCard(state.currentTab);
