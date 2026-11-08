@@ -280,6 +280,7 @@
   .qc-fh-table tr.qc-fh-odd td:first-child { box-shadow: inset 3px 0 0 #e3b341; }
   .qc-fh-flag { color: #e3b341; }
   .qc-fh-note { color: var(--color-text-secondary); font-size: 12px; min-width: 180px; }
+  .qc-fh-ctl .qc-fh-print { margin-left: auto; align-self: center; }
   /* Diagrams in Help (the README's docs/images/*.svg), in the theme's colours. */
   .qc-help-fig { margin: 10px 0 4px; max-width: 680px; }
   .qc-help-fig svg { display: block; width: 100%; height: auto; }
@@ -13933,6 +13934,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '<option value="common"' + (feedsHelp.source === 'common' ? ' selected' : '') + '>Common sizes</option></select></div>' +
       '<div class="qc-field"><label for="qc-fh-material">Material</label><select class="qc-select" id="qc-fh-material">' + mats + '</select></div>' +
       '<div class="qc-field"><label for="qc-fh-depth">Total Depth (' + u + ')</label><input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-fh-depth" value="' + feedsHelp.depth + '"></div>' +
+      '<a href="#" class="qc-load-link qc-fh-print" id="qc-fh-print">Print</a>' +
       '</div>';
     $('qc-help-body').innerHTML = helpCard('Feeds &amp; Speeds', intro + ctl + '<div class="qc-fh-wrap" id="qc-fh-table">' + feedsHelpTable() + '</div>') + helpDocsCard();
     $('qc-help-for').textContent = ' — Feeds & Speeds';
@@ -13989,6 +13991,31 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return missing + '<table class="qc-fh-table"><thead><tr><th>Tool</th><th>&Oslash; ' + u + '</th><th>Flutes</th><th>RPM</th>' +
       '<th>Conservative</th><th>Average</th><th>Aggressive</th><th>Notes</th></tr></thead><tbody>' + body + '</tbody></table>' +
       '<p class="qc-fh-note">Each style: Feed (' + u + '/min), Plunge, Depth of each pass &times; passes for the Total Depth, and the chip per flute (' + u + '). A bar on the left marks a row to look at.</p>';
+  }
+
+  // The table on paper: in a frame of its own, so only it prints, not
+  // ncSender around the dialog. Black on white, the flags in dark amber.
+  function printFeedsHelp() {
+    var mat = $('qc-fh-material'), matName = mat && mat.options[mat.selectedIndex] ? mat.options[mat.selectedIndex].text : feedsHelp.material;
+    var css = 'body{font:12px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#111;margin:16px}' +
+      'h1{font-size:18px;margin:0 0 2px}.sub{color:#555;margin:0 0 10px}' +
+      'table{border-collapse:collapse;width:100%}th,td{padding:4px 6px;border-bottom:1px solid #ccc;text-align:left;vertical-align:top}' +
+      'th{color:#444;white-space:nowrap}tr{break-inside:avoid}td.qc-fh-num{white-space:nowrap;font-variant-numeric:tabular-nums}' +
+      '.qc-fh-sub{display:block;color:#555;font-size:11px}.qc-fh-note{color:#444;font-size:11px}.qc-fh-flag{color:#b45309}' +
+      'tr.qc-fh-odd td:first-child{box-shadow:inset 3px 0 0 #b45309}@page{size:landscape;margin:12mm}';
+    var doc = '<!doctype html><html><head><meta charset="utf-8"><title>QuickCut Feeds &amp; Speeds</title><style>' + css + '</style></head><body>' +
+      '<h1>QuickCut Feeds &amp; Speeds</h1><p class="sub">' + helpEscape(matName) + ' &middot; Total Depth ' + feedsHelp.depth + ' ' + state.unitLabel +
+      ' &middot; ' + (feedsHelp.source === 'mine' ? 'my tool table' : 'common sizes') + ' &middot; ' + helpEscape(new Date().toLocaleDateString()) + '</p>' +
+      feedsHelpTable() + '</body></html>';
+    var old = document.getElementById('qc-fh-print-frame');
+    if (old) old.remove();
+    var frame = document.createElement('iframe');
+    frame.id = 'qc-fh-print-frame';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0';
+    frame.onload = function() { frame.contentWindow.focus(); frame.contentWindow.print(); };
+    frame.srcdoc = doc;
+    document.body.appendChild(frame);
   }
 
   // The tab's name as its sidebar icon says it: the kind picked on the
@@ -14103,6 +14130,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       $('qc-fh-table').innerHTML = feedsHelpTable();
     });
     $('qc-help-body').addEventListener('click', function(evt) {
+      if (evt.target.id === 'qc-fh-print') { evt.preventDefault(); printFeedsHelp(); return; }
       var link = evt.target.closest && evt.target.closest('[data-help-topic]');
       if (!link) return;
       evt.preventDefault();
