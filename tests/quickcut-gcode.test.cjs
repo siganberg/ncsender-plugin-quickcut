@@ -3665,7 +3665,12 @@ test('how far each pocket\'s path can move in: a triangle\'s inradius, a hexagon
 
 test('a Centre line slot, or a shape that can\'t be drawn, refuses the chamfer', () => {
   const g = makeQuickCutGenerator(false);
-  assert.match(g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' })), /Centre line slot: set Cut Type to Inner/);
+  // A Center line slot is as wide as its Cut Bit: chamfered as an Inside slot that wide, refused without one.
+  const center = g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' }, { cutBit: 6.35, cutDepth: 20 }));
+  const inner = g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 6.35, cutType: 'inner' }, { cutBit: 6.35, cutDepth: 20 }));
+  assert.doesNotMatch(center, /WARNING|NaN/);
+  assert.deepEqual(lapPoints(center), lapPoints(inner));
+  assert.match(g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' }, { cutBit: 0 })), /Center line slot: set the Cut Bit/);
   assert.match(g.generateRectangleProgram(chamferOf({ kind: 'triangle', triangle: { base: 40, left: 10, right: 10 }, cutType: 'outer' })), /WARNING: .*nothing to cut/);
   const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 50 });
   assert.match(star, /inner diameter must be less than the diameter; nothing to cut/);

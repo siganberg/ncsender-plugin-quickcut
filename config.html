@@ -9167,7 +9167,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Cut Bit: the slot around a part, or the corners of a pocket it rounded.
     var cutType = $('qc-' + prefix + '-cut-type'), outer = cutType && cutType.value === 'outer';
     var smooth = prefix === 'circ' || prefix === 'slt' || prefix === 'key' || (prefix === 'rect' && rectKind() === 'ellipse');
-    ROOT.querySelector('.qc-chamfer-cut').style.display = prefix !== 'drl' && (outer || !smooth) ? '' : 'none';
+    var centerSlot = prefix === 'slt' && cutType.value === 'center';
+    ROOT.querySelector('.qc-chamfer-cut').style.display = prefix !== 'drl' && (outer || !smooth || centerSlot) ? '' : 'none';
     ROOT.querySelectorAll('.qc-chamfer-key').forEach(function(el) { el.style.display = prefix === 'key' ? '' : 'none'; });
     ROOT.querySelectorAll('.qc-chamfer-drill').forEach(function(el) { el.style.display = prefix === 'drl' ? '' : 'none'; });
     // Without a tool changer, the Tool card's label says which bit it is.
@@ -9204,7 +9205,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this shape: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.noKeyhole) return { id: num('qc-chamfer-key-bit', 0) > 0 ? 'qc-chamfer-key-neck' : 'qc-chamfer-key-bit', msg: 'Keyhole Bit: its head\u2019s diameter, wider than its Neck' };
-    if (plan.centerSlot) return { id: 'qc-slt-cut-type', msg: 'A Centre line slot is as wide as the bit that cut it, not the V-bit: set Cut Type to Inner and the slot\u2019s Width' };
+    if (plan.centerSlot) return { id: 'qc-chamfer-cut-bit', msg: 'Cut Bit: a Center line slot is as wide as the bit that cut it' };
     if (plan.shapeProblem) return { id: 'qc-chamfer-width', msg: 'The shape can\u2019t be drawn (' + plan.shapeProblem + ')' };
     if (plan.tooWide && plan.plunge) return { id: 'qc-chamfer-method', msg: 'To plunge, the V-bit has to reach past the chamfer: a ' + f(p.bitDiameter) + u + ' V-bit plunges holes up to ' + f(Math.max(0, p.bitDiameter * 0.9 - 2 * plan.width)) + u + ' with this chamfer. Use Around, or a wider V-bit' };
     if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit chamfers up to ' + f(p.bitDiameter * 0.45) + u + ' wide (its edge is weakest)' };
@@ -13492,8 +13493,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
 
   // The slot's finished width: the bit's on a Center line cut.
+  // A Center line slot is the bit's width: chamfering, the Cut Bit's.
   function slotWidthNow() {
-    return $('qc-slt-cut-type').value === 'center' ? Math.max(0, num('qc-bit', 0)) : num('qc-slt-width', NaN);
+    if ($('qc-slt-cut-type').value === 'center') return Math.max(0, num(state.chamferMode === 'slot' ? 'qc-chamfer-cut-bit' : 'qc-bit', 0));
+    return num('qc-slt-width', NaN);
   }
 
   // The field a twist of the preview turns: Angle (straight), Start
@@ -13852,7 +13855,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
       'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, and always in the enlarged preview, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
-      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER + ' A Centre line slot is as wide as the bit that cut it, so to chamfer one, set Cut Type to Inner and the slot&rsquo;s Width.' ] },
+      HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER + ' A Center line slot is as wide as the bit that cut it: the card asks for that <strong>Cut Bit</strong>.' ] },
     keyhole: { name: 'Keyhole', notes: [
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head (it starts at a 3/8&quot; bit, 10 mm on a metric install); it starts with <strong>Slot Length</strong> (hole centre to slot-end centre) at 1.5 times that. The menu on its label picks how the slot is set: <strong>Slot Length</strong> is a distance, which changing the bit leaves alone; <strong>Slot Ratio</strong> is a multiple of the Bit Diameter (1.5 to start), so the slot follows the bit. Switching converts the number, so the slot stays the same. In the preview the solid outline is the keyhole at the surface (the plunge hole and the narrow slot the shank leaves, drawn at half the head&rsquo;s width) and the dashed one the head&rsquo;s path under it.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
@@ -15937,9 +15940,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // the inset. A Centre line slot is as wide as the bit that cut it, which
     // isn't the V-bit in the Tool card: it takes the Inner cut type and width.
     function slotChamferPlan(params) {
-      var plan = chamferPlan(params, slotHalfWidth(params));
-      plan.centerSlot = (params.cutType || 'inner') === 'center';
+      var plan = chamferPlan(slotChamferParams(params), slotHalfWidth(slotChamferParams(params)));
+      plan.centerSlot = (params.cutType || 'inner') === 'center' && !(chamferCutBit(params) > 0);
       return plan;
+    }
+    // A Centre line slot is as wide as the bit that cut it, the Cut Bit (the
+    // Tool card holds the V-bit): chamfered as an Inside slot that wide.
+    function slotChamferParams(params) {
+      return (params.cutType || 'inner') === 'center' ? Object.assign({}, params, { cutType: 'inner', width: chamferCutBit(params) }) : params;
     }
 
     // A keyhole's chamfer runs round its opening at the surface: the plunge
@@ -16013,7 +16021,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     function chamferRefusal(plan) {
       return plan.shapeProblem ? plan.shapeProblem
-        : plan.centerSlot ? 'a Centre line slot: set Cut Type to Inner and the slot\'s Width'
+        : plan.centerSlot ? 'a Center line slot: set the Cut Bit that cut it'
         : plan.noHole ? 'no Hole Diameter'
         : plan.noKeyhole ? 'no Keyhole Bit, or a Neck as wide as it'
         : plan.tooWide ? (plan.plunge ? 'hole and chamfer wider than the V-bit reaches, to plunge' : 'chamfer wider than the V-bit reaches')
@@ -16194,9 +16202,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
 
     function generateSlotChamferProgram(params) {
+      var plan = slotChamferPlan(params);
+      params = slotChamferParams(params);
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
-      var plan = slotChamferPlan(params);
       var half = slotHalfWidth(params), width = half * 2;
       var cl = slotCenterline(params);
       var isArc = (params.slotType || 'straight') === 'arc';
