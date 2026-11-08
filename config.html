@@ -10397,6 +10397,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var inSpindle = loaded > 0 && (tools || []).filter(function(t) { return (state.toolById ? t.toolId : t.toolNumber) === loaded; })[0];
       // A tool the table doesn't have says nothing about the chamfer.
       if (inSpindle) chamferFromLoadedTool(inSpindle, loaded);
+      // Reopened on the Chamfer tab, it opened before the tool table came:
+      // its V-bit now, unless the Tool card already has one.
+      var cur = state.chamferMode ? toolEntry(bitTool().n) : null;
+      if (state.chamferMode && !(cur && vBitOf(cur) != null)) {
+        var v = pickVBit();
+        if (v) { applyBitTool(v); chamferForPickedTool(v); state.chamferBitStale = null; }
+      }
     } catch (e) { state.tools = []; }
     showBitTool();
   }
