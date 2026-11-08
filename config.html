@@ -6229,10 +6229,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function withPatternGaps(prefix, params) {
     var pat = params.pattern;
-    // Chamfering, the gaps are the cut's: measured on the shape as the Cut
-    // Bit made it, not the chamfer's path (the same pattern object, so the
-    // spacings land in params).
-    var ch = params.chamfer, cut = ch && state.chamferMode ? Object.assign({}, params, { chamfer: null, bitDiameter: ch.cutBit > 0 ? ch.cutBit : params.bitDiameter }) : params;
+    // Chamfering, the gaps are the cut's: measured on the shape as the bit
+    // that cut it made it (Drill's Hole Diameter, a keyhole's Keyhole Bit,
+    // else the Cut Bit), not the chamfer's path (the same pattern object,
+    // so the spacings land in params).
+    var ch = params.chamfer, made = ch && (prefix === 'drl' ? ch.holeDiameter : prefix === 'key' ? ch.keyholeBit : ch.cutBit);
+    var cut = ch && state.chamferMode ? Object.assign({}, params, { chamfer: null, bitDiameter: made > 0 ? made : params.bitDiameter }) : params;
     if (pat && pat.enabled && /^circular/.test(pat.style) && pat.radiusEdge != null) withPatternRadius(prefix, cut);
     if (pat && pat.enabled && (pat.xOverall != null || pat.yOverall != null)) withPatternOveralls(prefix, cut);
     if (!pat || !pat.enabled || (pat.xGap == null && pat.yGap == null)) return params;
