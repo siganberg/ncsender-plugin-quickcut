@@ -7976,6 +7976,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         plungeFeedRate: common.plungeFeedRate != null ? common.plungeFeedRate : first.plungeMm
       };
     });
+    // The Chamfer tab's V-bit, from its last Generate.
+    if (saved.chamfer && saved.chamfer.tool) state.toolByShape.chamfer = saved.chamfer.tool;
     writeToolToInputs(state.toolByShape[state.currentTab]);
 
     if (rect.width != null)         $('qc-rect-width').value  = roundDisplay(mmToDisplay(rect.width));
@@ -8404,7 +8406,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Load), but its V-bit and the cut type it chamfers aren't the shape's
     // own: only the Chamfer card is remembered.
     if (state.chamferMode) {
-      persistSettings({ common: { chamfer: common.chamfer || packChamfer() } });
+      // Its V-bit, typed or picked, comes back next time.
+      state.toolByShape.chamfer = toolForShape;
+      persistSettings({ common: { chamfer: common.chamfer || packChamfer() }, chamfer: { tool: toolForShape } });
       return { shape: params.shape, settings: body[params.shape], common: common };
     }
     // Mirror to state so a tab-switch away doesn't lose the fresh values.
@@ -11760,13 +11764,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       caption: line ? 'slot ' + roundDisplay(params.length) + ' × ' + roundDisplay(2 * half) + ' ' + state.unitLabel
         : 'arc slot R' + roundDisplay(cl.r) + ', ' + roundDisplay(2 * half) + ' ' + state.unitLabel + ' wide',
       origin: gen.shapeOriginOffset('slot', params),
-      // Straight: its length end to end, beside its upper long side. Arc:
+      // Straight: its length end to end, beside its lower long side. Arc:
       // its radius from the center to the middle of the arc.
       dims: function(c) {
         var Tw = c.Tw, L = c.L, s = c.s, o = c.o;
         if (line) {
+          // Beside its lower long side, on the front-most copy: open stock.
           var nx = -Math.sin(pc.t), ny = Math.cos(pc.t);
-          if (ny < 0) { nx = -nx; ny = -ny; }
+          if (ny > 0 || (ny === 0 && nx > 0)) { nx = -nx; ny = -ny; }
           var ux = Math.cos(pc.t) * half, uy = Math.sin(pc.t) * half, k = half + o;
           var a = { x: pc.x0 - ux, y: pc.y0 - uy }, b = { x: pc.x1 + ux, y: pc.y1 + uy };
           return c.ext(L(Tw, a.x + nx * half, a.y + ny * half), L(Tw, a.x + nx * (k + 1.5 / s), a.y + ny * (k + 1.5 / s))) +
