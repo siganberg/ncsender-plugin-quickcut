@@ -1866,6 +1866,7 @@
   .qc-shp-shape > .qc-chf-edge { margin-bottom: 10px; }
   .qc-chamfer-mode #qc-chamfer-card .qc-card-header .qc-switch { display: none; }
   .qc-chamfer-mode .qc-split-more { display: none !important; }
+  .qc-chamfer-mode .qc-key-bit-hint, .qc-content:not(.qc-chamfer-mode) .qc-key-chf-hint { display: none; }
   .qc-chamfer-mode .qc-split > .qc-primary-btn:first-child { border-radius: 10px !important; }
   /* Split Generate: the main part generates, the arrow offers Chamfer. */
   .qc-split { position: relative; display: inline-flex; }
@@ -2557,6 +2558,14 @@
                 <label for="qc-chamfer-hole">Hole Diameter</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-hole" step="0.1" value="5" title="The size of the holes already drilled: the drill's diameter. The Tool card holds the V-bit while chamfering.">
               </div>
+              <div class="qc-field qc-chamfer-key">
+                <label for="qc-chamfer-key-bit">Keyhole Bit</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-key-bit" step="0.1" value="10" title="The keyhole bit the keyholes were cut with: its head's diameter, the hole at the surface. The Tool card holds the V-bit while chamfering.">
+              </div>
+              <div class="qc-field qc-chamfer-key">
+                <label for="qc-chamfer-key-neck">Neck</label>
+                <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-key-neck" step="0.1" value="" placeholder="Half the bit" title="The keyhole bit's neck diameter: how wide the slot is at the surface. Blank: half the Keyhole Bit.">
+              </div>
               <div class="qc-field">
                 <label for="qc-chamfer-cut-depth">Existing Depth</label>
                 <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-chamfer-cut-depth" step="0.1" value="" placeholder="Blank: through" title="How deep the hole or cut you've already made goes; the V-bit's tip stays above its bottom. Blank: it goes right through (the tip then goes at most the chamfer's depth lower, and no more than 1 mm, or 0.04 in).">
@@ -3189,7 +3198,8 @@
                 </div>
                 <p class="qc-mode-hint">
                   X0 Y0 starts at the <strong>plunge hole</strong> (the first one, with a pattern); tap it, or a point of the box around the cut, in the preview to change it.
-                  Set <strong>Bit Diameter</strong> to the keyhole bit&rsquo;s head diameter.
+                  <span class="qc-key-bit-hint">Set <strong>Bit Diameter</strong> to the keyhole bit&rsquo;s head diameter.</span>
+                  <span class="qc-key-chf-hint">Set <strong>Keyhole Bit</strong> to the bit that cut them (the Tool card holds the V-bit), and keep the Origin and pattern the keyhole program used.</span>
                 </p>
               </div>
               </div>
@@ -4525,6 +4535,8 @@
         'qc-chamfer-cut-depth': { min: 0.004, max: 20, label: 'Existing Depth', blankOk: true },
         'qc-chamfer-cut-bit': { min: 0.004, max: 4, label: 'Cut Bit' },
         'qc-chamfer-hole':  { min: 0.004, max: 4,  label: 'Hole Diameter' },
+        'qc-chamfer-key-bit': { min: 0.004, max: 4, label: 'Keyhole Bit' },
+        'qc-chamfer-key-neck': { min: 0.004, max: 4, label: 'Neck', blankOk: true },
         'qc-chamfer-step': { min: 0.001, max: 5, label: 'Depth of Cut' },
         'qc-circ-pattern-x-dist':  { min: -200, max: 200, label: 'Pattern X Spacing' },
         'qc-circ-pattern-y-dist':  { min: -200, max: 200, label: 'Pattern Y Spacing' },
@@ -4690,6 +4702,8 @@
       'qc-chamfer-cut-depth': { min: 0.1, max: 500, label: 'Existing Depth', blankOk: true },
       'qc-chamfer-cut-bit': { min: 0.1, max: 100, label: 'Cut Bit' },
       'qc-chamfer-hole':  { min: 0.1,  max: 100,  label: 'Hole Diameter' },
+      'qc-chamfer-key-bit': { min: 0.1, max: 100, label: 'Keyhole Bit' },
+      'qc-chamfer-key-neck': { min: 0.1, max: 100, label: 'Neck', blankOk: true },
       'qc-chamfer-step': { min: 0.01, max: 100, label: 'Depth of Cut' },
       'qc-circ-pattern-x-dist':  { min: -5000, max: 5000, label: 'Pattern X Spacing' },
       'qc-circ-pattern-y-dist':  { min: -5000, max: 5000, label: 'Pattern Y Spacing' },
@@ -5591,11 +5605,19 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       cutDepth:   num('qc-chamfer-cut-depth', 0),
       cutBit:     prefix === 'drl' ? 0 : num('qc-chamfer-cut-bit', 0),
       holeDiameter: num('qc-chamfer-hole', 0),
+      keyholeBit: num('qc-chamfer-key-bit', 0),
+      keyholeNeck: keyholeNeck(),
       depthOfCut: num('qc-chamfer-step', 0)
     };
   }
+  // A keyhole bit's neck: as typed, else half its head, as the Keyhole
+  // preview draws it.
+  function keyholeNeck() {
+    var neck = num('qc-chamfer-key-neck', 0);
+    return neck > 0 ? neck : num('qc-chamfer-key-bit', 0) * KEYHOLE_SHANK_RATIO;
+  }
   function packChamfer() {
-    var cutDepth = num('qc-chamfer-cut-depth', 0);
+    var cutDepth = num('qc-chamfer-cut-depth', 0), neck = num('qc-chamfer-key-neck', 0);
     return {
       enabled:  $('qc-chamfer-enable').checked,
       width:    displayToMm(num('qc-chamfer-width', 0)),
@@ -5603,6 +5625,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       cutDepth: cutDepth > 0 ? displayToMm(cutDepth) : null,
       cutBit:   displayToMm(num('qc-chamfer-cut-bit', 0)),
       hole:     displayToMm(num('qc-chamfer-hole', 0)),
+      keyholeBit: displayToMm(num('qc-chamfer-key-bit', 0)),
+      keyholeNeck: neck > 0 ? displayToMm(neck) : null,
       step:     displayToMm(num('qc-chamfer-step', 0))
     };
   }
@@ -7981,6 +8005,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (cutBit > 0)               $('qc-chamfer-cut-bit').value = roundDisplay(mmToDisplay(cutBit));
       if (ch.step > 0)              $('qc-chamfer-step').value = roundDisplay(mmToDisplay(ch.step));
       if (ch.hole > 0)              $('qc-chamfer-hole').value = roundDisplay(mmToDisplay(ch.hole));
+      if (ch.keyholeBit > 0)        $('qc-chamfer-key-bit').value = roundDisplay(mmToDisplay(ch.keyholeBit));
+      if (ch.keyholeNeck !== undefined) $('qc-chamfer-key-neck').value = ch.keyholeNeck > 0 ? roundDisplay(mmToDisplay(ch.keyholeNeck)) : '';
     }
     showChamferFields();
     hydrateTabs('circ', circ.tabs);
@@ -8887,12 +8913,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Turning the screen moves the chamfer side view (see updateRectanglePreview).
     if (window.matchMedia) {
       var mq = window.matchMedia('(orientation: portrait), (max-width: 1100px)');
-      var onTurn = function() { if (state.currentTab === 'rectangle') updateRectanglePreview(); };
+      var onTurn = function() { if (state.currentTab === 'rectangle') updateRectanglePreview(); else if (state.chamferMode) updateChamferPreview(); };
       if (mq.addEventListener) mq.addEventListener('change', onTurn); else if (mq.addListener) mq.addListener(onTurn);
     }
     // The Chamfer card, when it's on this page.
-    ['qc-chamfer-width', 'qc-chamfer-angle', 'qc-chamfer-cut-bit', 'qc-chamfer-cut-depth'].forEach(function(id) {
-      $(id).addEventListener('input', function() { if (state.chamferMode === 'rectangle') updateRectanglePreview(); });
+    ['qc-chamfer-width', 'qc-chamfer-angle', 'qc-chamfer-cut-bit', 'qc-chamfer-cut-depth', 'qc-chamfer-key-bit', 'qc-chamfer-key-neck'].forEach(function(id) {
+      $(id).addEventListener('input', updateChamferPreview);
     });
     updateClearingVisibility('rect');
     updatePatternVisibility('rect');
@@ -9077,9 +9103,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // shape's edge instead, with the V-bit in the spindle: the note says
   // how deep the tip goes and what limits it, or why it can't. One card,
   // moved to the open tab under its Depth card, like the Tool card.
-  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl', polygon: 'poly', slot: 'slt' };
+  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl', polygon: 'poly', slot: 'slt', keyhole: 'key' };
   var CHAMFER_READERS = { circle: function() { return readCircleForm(); }, rectangle: function() { return readRectangleForm(); },
-    drill: function() { return readDrillForm(); }, polygon: function() { return readPolygonForm(); }, slot: function() { return readSlotForm(); } };
+    drill: function() { return readDrillForm(); }, polygon: function() { return readPolygonForm(); }, slot: function() { return readSlotForm(); },
+    keyhole: function() { return readKeyholeForm(); } };
   function chamferTab() { return CHAMFER_TABS[state.currentTab] ? state.currentTab : null; }
   function readChamferShapeForm(tab) { return CHAMFER_READERS[tab](); }
   function chamferShapeName(tab, p) {
@@ -9120,8 +9147,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var prefix = CHAMFER_TABS[chamferTab()] || 'circ';
     // Cut Bit: the slot around a part, or the corners of a pocket it rounded.
     var cutType = $('qc-' + prefix + '-cut-type'), outer = cutType && cutType.value === 'outer';
-    var smooth = prefix === 'circ' || prefix === 'slt' || (prefix === 'rect' && rectKind() === 'ellipse');
+    var smooth = prefix === 'circ' || prefix === 'slt' || prefix === 'key' || (prefix === 'rect' && rectKind() === 'ellipse');
     ROOT.querySelector('.qc-chamfer-cut').style.display = prefix !== 'drl' && (outer || !smooth) ? '' : 'none';
+    ROOT.querySelectorAll('.qc-chamfer-key').forEach(function(el) { el.style.display = prefix === 'key' ? '' : 'none'; });
     ROOT.querySelector('.qc-chamfer-drill').style.display = prefix === 'drl' ? '' : 'none';
     // Without a tool changer, the Tool card's label says which bit it is.
     var bitLabel = ROOT.querySelector('.qc-bit-label');
@@ -9141,6 +9169,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       feed.title = on ? feed.dataset.tip : 'Not used for drilling: every move is at the Plunge Rate.';
     }
   }
+  // The open chamfer's own drawing, after a Chamfer card field changes.
+  function updateChamferPreview() {
+    var update = { rectangle: updateRectanglePreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[state.chamferMode];
+    if (update) update();
+  }
   function updateChamferVisibility() {
     showChamferFields();
     updateChamferNote();
@@ -9150,6 +9183,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
     if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this shape: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
+    if (plan.noKeyhole) return { id: num('qc-chamfer-key-bit', 0) > 0 ? 'qc-chamfer-key-neck' : 'qc-chamfer-key-bit', msg: 'Keyhole Bit: its head\u2019s diameter, wider than its Neck' };
     if (plan.centerSlot) return { id: 'qc-slt-cut-type', msg: 'A Centre line slot is as wide as the bit that cut it, not the V-bit: set Cut Type to Inner and the slot\u2019s Width' };
     if (plan.shapeProblem) return { id: 'qc-chamfer-width', msg: 'The shape can\u2019t be drawn (' + plan.shapeProblem + ')' };
     if (plan.tooWide) return { id: 'qc-chamfer-width', msg: 'A ' + f(p.bitDiameter) + u + ' V-bit chamfers up to ' + f(p.bitDiameter * 0.45) + u + ' wide (its edge is weakest)' };
@@ -9247,9 +9281,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // polygon or slot) in chamfer mode: the shape's sizes, origin and
   // pattern, the Chamfer card, its own V-bit in the Tool card, and its
   // own header with an Edge switch. Generate makes only the chamfer.
-  var CHAMFER_EDGES = [['drill', 'Holes'], ['circle', 'Circle'], ['rectangle', 'Rect'], ['polygon', 'Polygon'], ['slot', 'Slot']];
-  // Only Holes has the new layout so far; the others come with their tabs.
-  var CHAMFER_READY = { drill: true, rectangle: true };
+  var CHAMFER_EDGES = [['drill', 'Holes'], ['circle', 'Circle'], ['rectangle', 'Rect'], ['polygon', 'Polygon'], ['slot', 'Slot'], ['keyhole', 'Keyhole']];
+  // The edges whose tabs have the new layout; the others come with theirs.
+  var CHAMFER_READY = { drill: true, rectangle: true, slot: true, keyhole: true };
   var chamferHead = null;
   function chamferHeader() {
     if (chamferHead) return chamferHead;
@@ -9299,6 +9333,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     showBitTool();
     updateChamferVisibility();
     if (target === 'drill') updateDrillPreview();
+    if (target === 'slot') updateSlotPreview();
+    if (target === 'keyhole') updateKeyholePreview();
     if (target === 'rectangle') {
       // A pocket's edge is chamfered as an Inside cut's; Pocket comes back
       // on the Rectangle tab.
@@ -9338,7 +9374,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // From a shape tab: the Chamfer tab with that shape's numbers.
   function chamferFromTab(tab) {
     var name = tab === 'drill' ? 'holes' : 'shape';
-    enterChamfer(tab, 'The ' + name + ' from ' + ({ drill: 'Drill', circle: 'Circle', rectangle: 'Rectangle', polygon: 'Polygon', slot: 'Slot' }[tab] || tab) + '.');
+    enterChamfer(tab, 'The ' + name + ' from ' + ({ drill: 'Drill', circle: 'Circle', rectangle: 'Rectangle', polygon: 'Polygon', slot: 'Slot', keyhole: 'Keyhole' }[tab] || tab) + '.');
   }
   // Generate on the shape tabs is a split button: its arrow offers
   // "Chamfer these holes / this shape" (T3).
@@ -9413,6 +9449,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-rect-form').addEventListener('input', updateChamferNote);
     $('qc-rect-form').addEventListener('change', updateChamferNote);
     $('qc-drl-form').addEventListener('input', updateChamferNote);
+    ['key'].forEach(function(prefix) {
+      $('qc-' + prefix + '-form').addEventListener('input', updateChamferNote);
+      $('qc-' + prefix + '-form').addEventListener('change', updateChamferNote);
+    });
     ['poly', 'slt'].forEach(function(prefix) {
       $('qc-' + prefix + '-form').addEventListener('input', updateChamferNote);
       $('qc-' + prefix + '-form').addEventListener('change', updateChamferNote);
@@ -10910,22 +10950,26 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
   }
 
+  // Chamfering, the Chamfer card heads the left column, so the side view
+  // goes under the top view; back beside the Depth card after. Its svg.
+  function placeShapeSideFig(prefix, view) {
+    var sideSvg = $('qc-' + prefix + '-side');
+    var sideFig = sideSvg && sideSvg.closest('.qc-shp-sidefig');
+    if (sideFig) {
+      var stageTop = sideFig.closest('.qc-shp-layout').querySelector('.qc-shp-stage > .qc-shp-top'), depthCard = $('qc-' + prefix + '-depth').closest('.qc-card');
+      // In portrait it stays in the left column, under the Shape card.
+      var portrait = window.matchMedia && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches;
+      if (state.chamferMode === view && !portrait) { if (sideFig.previousElementSibling !== stageTop) stageTop.parentNode.insertBefore(sideFig, stageTop.nextSibling); }
+      else if (sideFig.previousElementSibling !== depthCard) depthCard.parentNode.insertBefore(sideFig, depthCard.nextSibling);
+    }
+    return sideSvg;
+  }
   function updateRectanglePreview() {
     selectSeg('qc-rect-cut-type', [['outer', 'Outside'], ['inner', 'Inside'], ['clearing', 'Pocket']]);
     selectSeg('qc-rect-corner-relief', [['none', 'None'], ['dogbone', 'Dog-bone'], ['tbone', 'T-bone']]);
     syncSelectSegs();
-    var sideSvg = $('qc-rect-side');
-    // Chamfering, the Chamfer card heads the left column, so the side view
-    // goes under the top view; back beside the Depth card after.
-    var sideFig = sideSvg && sideSvg.closest('.qc-shp-sidefig');
-    if (sideFig) {
-      var stageTop = ROOT.querySelector('.qc-shp-stage > .qc-shp-top'), depthCard = $('qc-rect-depth').closest('.qc-card');
-      // In portrait it stays in the left column, under the Shape card.
-      var portrait = window.matchMedia && window.matchMedia('(orientation: portrait), (max-width: 1100px)').matches;
-      if (state.chamferMode === 'rectangle' && !portrait) { if (sideFig.previousElementSibling !== stageTop) stageTop.parentNode.insertBefore(sideFig, stageTop.nextSibling); }
-      else if (sideFig.previousElementSibling !== depthCard) depthCard.parentNode.insertBefore(sideFig, depthCard.nextSibling);
-    }
-    if (sideSvg && state.chamferMode === 'rectangle') rectChamferSide(sideSvg);
+    var sideSvg = placeShapeSideFig('rect', 'rectangle');
+    if (sideSvg && state.chamferMode === 'rectangle') chamferSideView(sideSvg, $('qc-rect-cut-type').value);
     else if (sideSvg) {
       var tabsOn = $('qc-rect-tabs-enable').checked;
       passesSide(sideSvg, { depth: num('qc-rect-depth', 0), doc: num('qc-rect-step', 0), title: 'Side view · depth passes',
@@ -11670,6 +11714,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     };
     topView(svg, {
       prefix: 'slt', params: params, cutType: cut, copies: gen.computePatternPositions(params.pattern),
+      chamfer: state.chamferMode === 'slot',
       box: box, smooth: true, typedCR: 0, CR: 0, deep: half,
       offset: offset, center: cut === 'center' ? center : null, centerWidth: 2 * half,
       caption: line ? 'slot ' + roundDisplay(params.length) + ' × ' + roundDisplay(2 * half) + ' ' + state.unitLabel
@@ -11728,9 +11773,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // the slot's end and back. At the surface only the hole (the head's
   // width) and the shank's slot open up; the head's undercut below is
   // dashed. Centered on the slot's middle, so dragging turns it about that.
+  // Chamfering, the Tool card holds the V-bit: the keyhole bit and its
+  // neck are the Chamfer card's, and the bevel goes round the opening.
   function updateKeyholeTopView(svg) {
-    var params = readKeyholeForm(), gen = makeQuickCutGenerator(state.isImperial);
-    var Ls = Math.max(0, params.slotLength), D = Math.max(0, num('qc-bit', 0)), r = D / 2, rs = r * KEYHOLE_SHANK_RATIO;
+    var params = readKeyholeForm(), gen = makeQuickCutGenerator(state.isImperial), chf = state.chamferMode === 'keyhole';
+    var D = Math.max(0, chf ? num('qc-chamfer-key-bit', 0) : num('qc-bit', 0)), r = D / 2;
+    var Ls = Math.max(0, params.slotLength), rs = chf ? Math.min(r, keyholeNeck() / 2) : r * KEYHOLE_SHANK_RATIO;
     if (!(D > 0)) {
       keyPreviewNodes = null;
       svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="0" text-anchor="middle" dominant-baseline="middle">Set the bit</text>';
@@ -11741,20 +11789,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var arc = function(c0, rr, a0, a1) { return { type: 'arc', cx: c0.x, cy: c0.y, r: rr, a0: a0, a1: a1, dir: a1 < a0 ? -1 : 1, len: rr * Math.abs(a1 - a0) }; };
     var seg = function(p, q) { return { type: 'line', x0: p.x, y0: p.y, x1: q.x, y1: q.y, len: Math.hypot(q.x - p.x, q.y - p.y) }; };
     var circle = function(c0, rr) { return [arc(c0, rr, 0, Math.PI), arc(c0, rr, Math.PI, 2 * Math.PI)]; };
-    // The opening at the surface: the hole joined to the shank's slot.
-    function top() {
-      if (!(Ls > r - rs)) return circle(H, r);
-      var b = Math.asin(rs / r), ca = Math.sqrt(r * r - rs * rs);
-      var p1 = { x: H.x + rs * nx + ca * ux, y: H.y + rs * ny + ca * uy }, p2 = { x: E.x + rs * nx, y: E.y + rs * ny };
-      var p3 = { x: E.x - rs * nx, y: E.y - rs * ny }, p4 = { x: H.x - rs * nx + ca * ux, y: H.y - rs * ny + ca * uy };
-      return [seg(p1, p2), arc(E, rs, a + Math.PI / 2, a - Math.PI / 2), seg(p2 === p3 ? p2 : p3, p4), arc(H, r, a - b, a + b - 2 * Math.PI)];
+    // The opening at the surface: the hole joined to the shank's slot,
+    // grown by d.
+    function top(d) {
+      var R = r + (d || 0), w = rs + (d || 0);
+      if (!(R > 0)) return null;
+      if (!(w > 0)) return circle(H, R);
+      return gen.keyholeOpening(H.x, H.y, params.startAngleDeg || 0, Ls, R, w);
     }
     var ext = Ls / 2;
     var box = { x0: -ext * Math.abs(ux) - r, x1: ext * Math.abs(ux) + r, y0: -ext * Math.abs(uy) - r, y1: ext * Math.abs(uy) + r };
     topView(svg, {
-      prefix: 'key', params: params, cutType: 'keyhole', copies: gen.computePatternPositions(params.pattern),
+      prefix: 'key', params: params, cutType: chf ? 'inner' : 'keyhole', copies: gen.computePatternPositions(params.pattern),
+      chamfer: chf,
       box: box, smooth: true, typedCR: 0, CR: 0, deep: 0, bitWidth: D,
-      offset: function(d) { return d === 0 ? top() : null; },
+      offset: function(d) { return d === 0 || chf ? top(d) : null; },
       // Plunge (the hole), out along the slot and back, the shank's width.
       cuts: function() {
         var out = [{ segs: circle(H, r / 2), wid: r }];
@@ -11767,8 +11816,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
                          seg({ x: E.x - r * nx, y: E.y - r * ny }, { x: H.x - r * nx, y: H.y - r * ny }), arc(H, r, a - Math.PI / 2, a - 3 * Math.PI / 2)], Ti, true);
         return '<path class="qc-shp-ext qc-shp-dimcircle" fill="none" d="' + d + '"/>';
       },
-      caption: 'keyhole ' + roundDisplay(Ls) + ' ' + state.unitLabel + ' slot, ⌀' + roundDisplay(D) + ' bit',
-      origin: (function() { var o = gen.shapeOriginOffset('keyhole', params); return { x: H.x + o.x, y: H.y + o.y }; })(),
+      caption: 'keyhole ' + roundDisplay(Ls) + ' ' + state.unitLabel + ' slot, ⌀' + roundDisplay(D) + (chf ? ' keyhole bit' : ' bit'),
+      origin: (function() { var o = gen.shapeOriginOffset('keyhole', Object.assign({}, params, { bitDiameter: D })); return { x: H.x + o.x, y: H.y + o.y }; })(),
       // The slot's length, hole to end, beside it; the bit's size past the
       // hole, away from the slot.
       dims: function(c) {
@@ -12855,8 +12904,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   var KEYHOLE_RATIO = 1.5;
   var KEYHOLE_RATIO_RULE = { min: 0.01, max: 100, label: 'Slot Ratio' };
   function keyLengthIsRatio() { return $('qc-key-length-mode').value === 'ratio'; }
+  // Chamfering, the Tool card holds the V-bit: a ratio is of the Keyhole Bit.
   function keyholeSlotLength() {
-    return keyLengthIsRatio() ? num('qc-key-length', 0) * num('qc-bit', 0) : num('qc-key-length', 0);
+    var bit = state.chamferMode === 'keyhole' ? num('qc-chamfer-key-bit', 0) : num('qc-bit', 0);
+    return keyLengthIsRatio() ? num('qc-key-length', 0) * bit : num('qc-key-length', 0);
   }
   // A ratio has no unit, so the field stops converting typed units.
   function setKeyLengthMode(mode) {
@@ -12876,6 +12927,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       origin:        $('qc-key-origin').value,
       inset:       readInset('key'),
       depth:         num('qc-key-depth', 0),
+      chamfer:       readChamferForm('key'),
       pattern:       readPatternForm('key'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
@@ -12895,8 +12947,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function updateKeyholePreview() {
     schedulePatternPreview();
     updateInsetState('key');
-    var sideSvg = $('qc-key-side');
-    if (sideSvg) passesSide(sideSvg, { depth: num('qc-key-depth', 0), doc: num('qc-key-depth', 0), title: 'Side view · one pass' });
+    var sideSvg = placeShapeSideFig('key', 'keyhole');
+    if (sideSvg && state.chamferMode === 'keyhole') chamferSideView(sideSvg, 'inner', 'round the keyhole');
+    else if (sideSvg) passesSide(sideSvg, { depth: num('qc-key-depth', 0), doc: num('qc-key-depth', 0), title: 'Side view · one pass' });
     var svg = document.getElementById('qc-key-preview');
     if (!svg) return;
     return updateKeyholeTopView(svg);
@@ -13127,6 +13180,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-key-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
       var params = readKeyholeForm();
+      if (chamferRefused('keyhole', params)) return;
       params.shape = 'keyhole';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateKeyholeProgram(params);
@@ -13346,9 +13400,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Rectangle on the Chamfer tab, side view: the cut already made beside
   // the part (Outside: the slot, the offcut past it; Inside / Pocket: the
   // opening) and a V-bit coming down onto its top edge to cut the bevel.
-  function rectChamferSide(svg) {
+  // A shape's chamfer side view: cutType is its Cut Type (a keyhole's
+  // opening is an inside one); what, round what it goes.
+  function chamferSideView(svg, cutType, what) {
     var u = state.unitLabel, w = num('qc-chamfer-width', 0), ang = num('qc-chamfer-angle', 90);
-    var outer = $('qc-rect-cut-type').value === 'outer', pocket = $('qc-rect-cut-type').value === 'clearing';
+    var outer = cutType === 'outer', pocket = cutType === 'clearing', g = svg.id;
     var exist = num('qc-chamfer-cut-depth', 0), through = !(exist > 0);
     var dur = 4, an = CUT_REDUCED ? '' :
       '<animateTransform attributeName="transform" type="translate" values="0 -28;0 -28;0 0;0 0;0 -28" keyTimes="0;0.12;0.45;0.75;1" dur="' + dur + 's" repeatCount="indefinite"/>';
@@ -13357,17 +13413,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // opening (Inside), x 40 to 150; past it nothing, the waste is gone,
     // unless the opening has a floor (an Existing Depth).
     var floorSvg = !outer && !through
-      ? '<rect x="150" y="222" width="110" height="28" fill="url(#qc-rcs-wood)" class="qc-fig-edge"/>' + woodGrain(150, 222, 110, 28) : '';
-    var what = outer ? 'round the part' : pocket ? 'round the pocket' : 'round the opening';
+      ? '<rect x="150" y="222" width="110" height="28" fill="url(#' + g + '-wood)" class="qc-fig-edge"/>' + woodGrain(150, 222, 110, 28) : '';
+    what = what || (outer ? 'round the part' : pocket ? 'round the pocket' : 'round the opening');
     svg.innerHTML =
       '<defs>' +
-        '<linearGradient id="qc-rcs-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
-        '<linearGradient id="qc-rcs-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
-        '<linearGradient id="qc-rcs-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
+        '<linearGradient id="' + g + '-body" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#262b33"/><stop offset=".5" stop-color="#4b5462"/><stop offset="1" stop-color="#22262d"/></linearGradient>' +
+        '<linearGradient id="' + g + '-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient>' +
+        '<linearGradient id="' + g + '-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--qc-m-a)"/><stop offset="1" style="stop-color:var(--qc-m-b)"/></linearGradient>' +
       '</defs>' +
       '<text x="150" y="-46" class="qc-fig-cap">Side view · chamfer</text>' +
       '<line x1="20" y1="250" x2="280" y2="250" class="qc-fig-table"/>' +
-      '<rect x="40" y="152" width="110" height="98" fill="url(#qc-rcs-wood)" class="qc-fig-edge"/>' + woodGrain(40, 152, 110, 98) +
+      '<rect x="40" y="152" width="110" height="98" fill="url(#' + g + '-wood)" class="qc-fig-edge"/>' + woodGrain(40, 152, 110, 98) +
       floorSvg +
       // The bevel cut off the top edge (nothing left there).
       '<path d="M136 151 H151 V166 Z" style="fill:var(--color-surface-muted)" opacity="' + (CUT_REDUCED ? 1 : 0) + '">' + bev + '</path>' +
@@ -13375,10 +13431,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<text x="44" y="146" class="qc-fig-accent-text">Z0 = top of stock</text>' +
       // V-bit: its cone's side on the bevel.
       '<g>' +
-        '<rect x="130" y="-6" width="68" height="50" fill="url(#qc-rcs-body)"/>' +
-        '<path d="M136 44 H192 L184 60 H144 Z" fill="url(#qc-rcs-rod)"/>' +
-        '<rect x="155" y="60" width="18" height="91" fill="url(#qc-rcs-rod)"/>' +
-        '<path d="M135 151 H193 L164 180 Z" fill="url(#qc-rcs-rod)"/>' +
+        '<rect x="130" y="-6" width="68" height="50" fill="url(#' + g + '-body)"/>' +
+        '<path d="M136 44 H192 L184 60 H144 Z" fill="url(#' + g + '-rod)"/>' +
+        '<rect x="155" y="60" width="18" height="91" fill="url(#' + g + '-rod)"/>' +
+        '<path d="M135 151 H193 L164 180 Z" fill="url(#' + g + '-rod)"/>' +
         an +
       '</g>' +
       '<line x1="136" y1="108" x2="136" y2="150" class="qc-fig-ext"/><line x1="150" y1="108" x2="150" y2="150" class="qc-fig-ext"/>' +
@@ -13953,171 +14009,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     schedulePatternPreview();
     updateInsetState('slt');
     updateSlotFields();
-    var sideSvg = $('qc-slt-side');
-    if (sideSvg) passesSide(sideSvg, { depth: num('qc-slt-depth', 0), doc: num('qc-slt-step', 0), title: 'Side view · depth passes',
+    var sideSvg = placeShapeSideFig('slt', 'slot');
+    if (sideSvg && state.chamferMode === 'slot') chamferSideView(sideSvg, $('qc-slt-cut-type').value, $('qc-slt-cut-type').value === 'outer' ? 'round the part' : 'round the slot');
+    else if (sideSvg) passesSide(sideSvg, { depth: num('qc-slt-depth', 0), doc: num('qc-slt-step', 0), title: 'Side view · depth passes',
       note2: $('qc-slt-tabs-enable').checked && !/^(center|clearing)$/.test($('qc-slt-cut-type').value) ? 'tabs ' + num('qc-slt-tabs-height', 0) + ' ' + state.unitLabel + ' high hold the part' : '' });
     var svg = $('qc-slt-preview');
     if (!svg) return;
     ['outer', 'inner', 'clearing', 'center'].forEach(function(k) { svg.classList.toggle('qc-shp-cut-' + k, $('qc-slt-cut-type').value === k); });
-    // The top view, as the Rectangle's (the older drawing still shows the
-    // chamfer).
-    if (state.chamferMode !== 'slot') return updateSlotTopView(svg);
-    var params = readSlotForm();
-    var gen = makeQuickCutGenerator(state.isImperial);
-    var cut = params.cutType;
-    var half = Math.max(0, slotWidthNow()) / 2;
-    var cl = gen.slotCenterline(params);
-    slotPreviewNodes = null;
-    slotSnapFrame = null;
-    originZoomFrames.slt = null;
-    if (!isFinite(half) || gen.slotProblem(params, cl, half)) {
-      svg.innerHTML = '<text class="qc-shape-dim-label" x="0" y="3" text-anchor="middle">?</text>';
-      return;
-    }
-    var pc = gen.placeSlot(cl, 0, 0, 0);
-    var outline = gen.slotOutline(pc, half);
-    var b = gen.segmentsBbox(outline);
-    var pad = insetPad('slt') + bitEdgePad(cut);
-    var fit = function(bb) { return 80 / Math.max(bb.maxX - bb.minX + 2 * pad, bb.maxY - bb.minY + 2 * pad, 1e-9); };
-    var k = fit(b);
-    if (pc.type === 'arc') {
-      var withCenter = { minX: Math.min(b.minX, 0), maxX: Math.max(b.maxX, 0), minY: Math.min(b.minY, 0), maxY: Math.max(b.maxY, 0) };
-      if (fit(withCenter) >= k * 0.75) { b = withCenter; k = fit(b); }
-    }
-    var ox = (b.minX + b.maxX) / 2, oy = (b.minY + b.maxY) / 2;
-    var X = function(x) { return (x - ox) * k; }, Y = function(y) { return -(y - oy) * k; };
-    var f = function(v) { return v.toFixed(2); };
-    var P = function(x, y) { return f(X(x)) + ',' + f(Y(y)); };
-    var clamp = function(v) { return Math.max(-42, Math.min(42, v)); };
-    // Machine CCW stays CCW on screen (sweep-flag 0); dir -1 is CW.
-    var arcTo = function(sg) {
-      return ' A' + f(sg.r * k) + ',' + f(sg.r * k) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' +
-             (sg.dir === -1 ? 1 : 0) + ' ' + P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
-    };
-    var path = function(segs) {
-      var st = segs[0].type === 'line' ? { x: segs[0].x0, y: segs[0].y0 }
-        : { x: segs[0].cx + segs[0].r * Math.cos(segs[0].a0), y: segs[0].cy + segs[0].r * Math.sin(segs[0].a0) };
-      return 'M' + P(st.x, st.y) + segs.map(function(sg) {
-        return sg.type === 'line' ? ' L' + P(sg.x1, sg.y1) : arcTo(sg);
-      }).join('');
-    };
-    var d = path(outline) + ' Z';
-    // The bit's far edge: the slot a bit diameter wider (Outer) or
-    // narrower (Inner perimeter), when that's still a slot.
-    var bitD = Math.max(0, params.bitDiameter || 0), edgeHalf = half + bitEdgeDir(cut) * bitD;
-    var edgeD = bitEdgeDir(cut) && bitD > 0 && edgeHalf * k > 2.5 && !(pc.type === 'arc' && edgeHalf >= pc.r)
-      ? path(gen.slotOutline(pc, edgeHalf)) + ' Z' : '';
-    var hatched = cut === 'outer'
-      ? (edgeD ? '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" fill-rule="evenodd" d="' + edgeD + ' ' + d + '"/>' : '')
-      : cut === 'inner' ? ''
-      : '<path class="qc-shape-hatch" fill="url(#qc-slt-hatch)" d="' + d + '"/>';
-    var e0, e1, dim;
-    if (pc.type === 'line') {
-      e0 = { x: pc.x0, y: pc.y0 }; e1 = { x: pc.x1, y: pc.y1 };
-      var lenLabel = params.length > 0 ? String(params.length) : '?';
-      // The length label sits beside the slot, off its upper long side.
-      var nx = -Math.sin(pc.t), ny = -Math.cos(pc.t), off = half * k + 9;
-      if (ny > 0) { nx = -nx; ny = -ny; }
-      // End to end along the centre line, tips on the rounded ends.
-      var ux = Math.cos(pc.t) * half, uy = Math.sin(pc.t) * half;
-      dim = '<line class="qc-shape-dim-line" x1="' + f(X(pc.x0 - ux)) + '" y1="' + f(Y(pc.y0 - uy)) + '" x2="' + f(X(pc.x1 + ux)) + '" y2="' + f(Y(pc.y1 + uy)) + '" ' +
-              'marker-start="url(#qc-slt-arr)" marker-end="url(#qc-slt-arr)"/>' +
-            '<text class="qc-shape-dim-label" x="' + f(clamp(nx * off)) + '" y="' + f(clamp(ny * off) + 3) + '" text-anchor="middle">' + lenLabel + '</text>';
-    } else {
-      e0 = { x: pc.r * Math.cos(pc.a0), y: pc.r * Math.sin(pc.a0) };
-      e1 = { x: pc.r * Math.cos(pc.a1), y: pc.r * Math.sin(pc.a1) };
-      var am = (pc.a0 + pc.a1) / 2;
-      var mid = { x: pc.r * Math.cos(am), y: pc.r * Math.sin(am) };
-      var rLabel = 'R' + roundDisplay(cl.r);
-      // Beside the radius line, in the clear stretch between the centre
-      // and the innermost line drawn (the slot's inner edge, or an Outer
-      // cut's dashed edge), on the side away from the line; past the
-      // centre when that stretch is too short to hold it.
-      var radiusLabel = function(text) {
-        var cx = X(0), cy = Y(0), mx = X(mid.x), my = Y(mid.y);
-        var len = Math.hypot(mx - cx, my - cy) || 1, ux = (mx - cx) / len, uy = (my - cy) / len;
-        var clear = (pc.r - Math.max(half, cut === 'outer' ? edgeHalf : half)) * k;
-        var x, y, anchor;
-        // The label runs about 22 units across, so its far end has to stay
-        // within the clear radius as well; nearer the centre it does.
-        if (clear > 26) {
-          var px = -uy, py = ux;
-          if (px < 0) { px = -px; py = -py; }
-          var along = Math.min(clear / 2, Math.sqrt(clear * clear - 24 * 24));
-          x = cx + ux * along + px * 3; y = cy + uy * along + py * 3;
-          anchor = 'start';
-        } else {
-          x = cx - ux * 9; y = cy - uy * 9; anchor = 'middle';
-        }
-        return '<text class="qc-shape-dim-label" x="' + f(clamp(x)) + '" y="' + f(clamp(y)) + '" text-anchor="' + anchor + '" dominant-baseline="middle">' + text + '</text>';
-      };
-      dim = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1 }) + '"/>' +
-            '<line class="qc-shape-dim-line" x1="' + f(X(0)) + '" y1="' + f(Y(0)) + '" x2="' + f(X(mid.x)) + '" y2="' + f(Y(mid.y)) + '" marker-end="url(#qc-slt-arr)"/>' +
-            radiusLabel(rLabel);
-    }
-    slotPreviewNodes = [{ x: X(e0.x), y: Y(e0.y), value: 'corner:1' }, { x: X(e1.x), y: Y(e1.y), value: 'corner:2' },
-                        { x: X(0), y: Y(0), value: 'shape-center' }];
-    // Straight: also where the long sides meet the ends and the middles of
-    // the long sides (corner:3-8, as the generator numbers them), so an
-    // edge of the cut can be X0 Y0 at any angle, like Rectangle's corners.
-    if (pc.type === 'line') {
-      var snx = -Math.sin(pc.t) * half, sny = Math.cos(pc.t) * half;
-      var smx = (pc.x0 + pc.x1) / 2, smy = (pc.y0 + pc.y1) / 2;
-      [[pc.x0 - snx, pc.y0 - sny], [pc.x1 - snx, pc.y1 - sny], [pc.x1 + snx, pc.y1 + sny],
-       [pc.x0 + snx, pc.y0 + sny], [smx - snx, smy - sny], [smx + snx, smy + sny]].forEach(function(q, i) {
-        slotPreviewNodes.push({ x: X(q[0]), y: Y(q[1]), value: 'corner:' + (i + 3) });
-      });
-    }
-    // The snap bands beside a straight slot's long sides (slotPickAt), in
-    // preview units: along runs start to end, left is +Y-up's left.
-    slotSnapFrame = pc.type === 'line' ? {
-      mx: X((pc.x0 + pc.x1) / 2), my: Y((pc.y0 + pc.y1) / 2),
-      ux: Math.cos(pc.t), uy: -Math.sin(pc.t), nx: -Math.sin(pc.t), ny: -Math.cos(pc.t),
-      h: half * k, len: Math.hypot(pc.x1 - pc.x0, pc.y1 - pc.y0) * k
-    } : null;
-
-    // Holding tabs, spaced as the generator spaces them: along the tool
-    // path (a bit radius in or out), drawn on the outline when it has
-    // the same pieces.
-    var tr = Math.max(0, num('qc-bit', 0)) / 2;
-    var marks = '';
-    if ((cut === 'inner' && half - tr > 1e-9) || cut === 'outer') {
-      var toolPath = gen.slotOutline(pc, cut === 'outer' ? half + tr : half - tr);
-      var drawn = toolPath.length === outline.length ? outline : toolPath;
-      marks = tabMarks('slt', drawn.map(function(sg, i) {
-        var len = toolPath[i].len;
-        return sg.type === 'line'
-          ? { type: 'line', x0: X(sg.x0), y0: Y(sg.y0), x1: X(sg.x1), y1: Y(sg.y1), len: len }
-          : { type: 'arc', cx: X(sg.cx), cy: Y(sg.cy), r: sg.r * k, a0: sg.a0, a1: sg.a1, len: len };
-      }));
-    }
-    var off = gen.shapeOriginOffset('slot', params);
-    // The centre line, and points along it, for the magnified view.
-    var zoomCentre, zoomPts;
-    if (pc.type === 'line') {
-      zoomCentre = '<line class="qc-shape-dim-line" x1="' + f(X(e0.x)) + '" y1="' + f(Y(e0.y)) + '" x2="' + f(X(e1.x)) + '" y2="' + f(Y(e1.y)) + '"/>';
-      zoomPts = [];
-      for (var zj = 0; zj <= 12; zj++) {
-        zoomPts.push([X(e0.x + (e1.x - e0.x) * zj / 12), Y(e0.y + (e1.y - e0.y) * zj / 12)]);
-      }
-    } else {
-      zoomCentre = '<path class="qc-shape-dim-line" d="M' + P(e0.x, e0.y) + arcTo({ cx: 0, cy: 0, r: pc.r, a0: pc.a0, a1: pc.a1, dir: pc.dir }) + '"/>';
-      zoomPts = [];
-      for (var zi = 0; zi <= 12; zi++) {
-        var za = pc.a0 + (pc.a1 - pc.a0) * zi / 12;
-        zoomPts.push([X(pc.r * Math.cos(za)), Y(pc.r * Math.sin(za))]);
-      }
-    }
-    svg.innerHTML =
-      shapePreviewDefs('qc-slt') +
-      hatched +
-      bitEdge(edgeD, cut) +
-      '<path class="qc-shape-fill" d="' + d + '"/>' +
-      dim + marks +
-      pickHints(slotPreviewNodes) +
-      originCross(X(off.x), Y(off.y), 'slt', k) +
-      slotOriginZoom(X(off.x), Y(off.y), d, zoomCentre, zoomPts, half * k, previewIsBig(svg), k, bitEdge(edgeD, cut));
+    updateSlotTopView(svg);
   }
+
 
   // A magnified view of a preview's drawing around X0 Y0, in a box a third
   // of the preview's size, in the corner farthest from the drawing (top
@@ -14403,7 +14304,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'For a keyhole (T-slot) bit: one plunge to <strong>Total Depth</strong>, cut <strong>Slot Length</strong> along <strong>Slot Angle</strong>, retrace to the hole, and lift out there. Set <strong>Bit Diameter</strong> to the bit&rsquo;s head (it starts at a 3/8&quot; bit, 10 mm on a metric install); it starts with <strong>Slot Length</strong> (hole centre to slot-end centre) at 1.5 times that. The menu on its label picks how the slot is set: <strong>Slot Length</strong> is a distance, which changing the bit leaves alone; <strong>Slot Ratio</strong> is a multiple of the Bit Diameter (1.5 to start), so the slot follows the bit. Switching converts the number, so the slot stays the same. In the preview the solid outline is the keyhole at the surface (the plunge hole and the narrow slot the shank leaves, drawn at half the head&rsquo;s width) and the dashed one the head&rsquo;s path under it.',
       '<strong>Slot Angle</strong> is counter-clockwise from +X (90&deg; runs toward the back). Twist the preview to turn the slot, in half degrees; it snaps to 0, 90, 180 and 270&deg; within 5&deg; and sticks at other miter angles such as 22.5 and 45&deg;.',
       'There&rsquo;s no Depth of Cut: a shallower pass would cut the narrow neck out to the full head width.',
-      'X0 Y0 starts at the <strong>plunge hole</strong>; tap it on the preview to go back to it. The Origin picker&rsquo;s dots are the box around the whole cut, which you can also tap on the preview: a corner, edge midpoint or its center.' ] },
+      'X0 Y0 starts at the <strong>plunge hole</strong>; tap it on the preview to go back to it. The Origin picker&rsquo;s dots are the box around the whole cut, which you can also tap on the preview: a corner, edge midpoint or its center.',
+      HELP_CHAMFER + ' On Keyhole, the chamfer goes round the opening at the surface (the head&rsquo;s hole and the neck&rsquo;s slot), and the card asks for the <strong>Keyhole Bit</strong> (its head) and its <strong>Neck</strong> (blank: half the head), as the Tool card holds the V-bit; keep the Origin and pattern the keyhole program used.' ] },
     drill: { name: 'Drill', notes: [
       'Holes the size of the <strong>Bit Diameter</strong>. Every Z move is at the <strong>Plunge Rate</strong>, so Feed Rate is greyed out.',
       '<strong>Peck Depth</strong> 0 drills in one plunge. Otherwise each peck goes that much deeper, then <strong>Full</strong> lifts above the surface to clear chips, or <strong>Short</strong> backs off 0.5 mm (0.02") to break the chip. <strong>Dwell at Bottom</strong> pauses at full depth.',
@@ -16472,11 +16374,52 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return plan;
     }
 
+    // A keyhole's chamfer runs round its opening at the surface: the plunge
+    // hole (the keyhole bit's head) joined to the neck's slot. The Tool card
+    // holds the V-bit, so the head and neck come from the Chamfer card; the
+    // tip goes no farther into the neck than its middle.
+    function keyholeChamferPlan(params) {
+      var c = params.chamfer, head = c.keyholeBit || 0, neck = c.keyholeNeck || 0;
+      var plan = chamferPlan(Object.assign({}, params, { cutType: 'inner' }), neck / 2);
+      plan.noKeyhole = !(head > 0) || !(neck > 0) || neck >= head;
+      return plan;
+    }
+    // The opening's outline at the tip's inset, CCW: the head's circle (radius
+    // r) round the plunge hole (x, y) and the neck (half width w) out to the
+    // slot's end, `len` along angleDeg. Only the circle when the neck's end
+    // stays inside it; out to the end and back when the tip is in the neck's
+    // middle.
+    function keyholeOpening(x, y, angleDeg, len, r, w) {
+      var a = angleDeg * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+      var ex = x + len * ux, ey = y + len * uy, ca = Math.sqrt(Math.max(0, r * r - w * w)), segs = [];
+      if (!(len + w > r)) return [arcSeg(x, y, r, a, a + Math.PI), arcSeg(x, y, r, a + Math.PI, a + 2 * Math.PI)];
+      // A short slot: its end bulges out of the head's circle, joined where
+      // the two circles cross, with no straight sides.
+      if (!(len > ca) && w > 1e-6) {
+        var px = (len * len + r * r - w * w) / (2 * len), py = Math.sqrt(Math.max(0, r * r - px * px));
+        var hb = Math.atan2(py, px), eb = Math.atan2(py, px - len);
+        return [arcSeg(ex, ey, w, a - eb, a + eb), arcSeg(x, y, r, a + hb, a - hb + 2 * Math.PI)];
+      }
+      if (!(w > 1e-6)) {
+        pushLine(segs, { x: x + r * ux, y: y + r * uy }, { x: ex, y: ey });
+        pushLine(segs, { x: ex, y: ey }, { x: x + r * ux, y: y + r * uy });
+        segs.push(arcSeg(x, y, r, a, a + 2 * Math.PI));
+        return segs;
+      }
+      var b = Math.asin(w / r);
+      pushLine(segs, { x: x - w * nx + ca * ux, y: y - w * ny + ca * uy }, { x: ex - w * nx, y: ey - w * ny });
+      segs.push(arcSeg(ex, ey, w, a - Math.PI / 2, a + Math.PI / 2));
+      pushLine(segs, { x: ex + w * nx, y: ey + w * ny }, { x: x + w * nx + ca * ux, y: y + w * ny + ca * uy });
+      segs.push(arcSeg(x, y, r, a + b, a - b + 2 * Math.PI));
+      return segs;
+    }
+
     // The chamfer plan for a shape's tab, or null where there's no chamfer.
     function chamferPlanFor(shape, params) {
       if (shape === 'circle') return circleChamferPlan(params);
       if (shape === 'drill') return drillChamferPlan(params);
       if (shape === 'slot') return slotChamferPlan(params);
+      if (shape === 'keyhole') return keyholeChamferPlan(params);
       if (shape === 'polygon') return params.kind === 'star' ? starChamferPlan(params) : polygonChamferPlan(params);
       if (shape === 'rectangle') return isConvexKind(params) ? trapezoidChamferPlan(params) : rectangleChamferPlan(params);
       return null;
@@ -16504,6 +16447,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return plan.shapeProblem ? plan.shapeProblem
         : plan.centerSlot ? 'a Centre line slot: set Cut Type to Inner and the slot\'s Width'
         : plan.noHole ? 'no Hole Diameter'
+        : plan.noKeyhole ? 'no Keyhole Bit, or a Neck as wide as it'
         : plan.tooWide ? 'chamfer wider than the V-bit reaches'
         : plan.tooDeep ? 'chamfer deeper than the cut'
         : plan.noRoom ? 'no Cut Bit for the slot around the part' : null;
@@ -16711,6 +16655,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           : arcSeg(pc.cx, pc.cy, pc.r, pc.a0, pc.a1);
         return { segs: [there, reverseSeg(there)] };
       });
+    }
+
+    // Each keyhole the keyhole program made, placed the same way (with the
+    // keyhole bit's head, not the V-bit), chamfered round its opening.
+    function generateKeyholeChamferProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var c = params.chamfer, positions = computePatternPositions(params.pattern);
+      var plan = keyholeChamferPlan(params);
+      var startDeg = params.startAngleDeg || 0, len = params.slotLength || 0;
+      var placed = (params.origin || 'hole') === 'hole' ? { label: 'plunge hole center', shift: { x: 0, y: 0 } }
+        : resolveKeyholeOrigin(Object.assign({}, params, { bitDiameter: c.keyholeBit || 0 }), positions);
+      var r = (c.keyholeBit || 0) / 2 - plan.inset, w = (c.keyholeNeck || 0) / 2 - plan.inset;
+      return chamferShapeProgram(Object.assign({}, params, { cutType: 'inner' }), plan, 'Keyhole', 'the ' + (c.keyholeBit || 0) + unitsLabel + ' keyhole',
+        positions, placed, function(x, y, pos) {
+          return { segs: keyholeOpening(x, y, startDeg + (pos.rotDeg || 0), len, r, w), center: { x: x, y: y } };
+        });
     }
 
     // A chamfer along any shape's path: passes about a Depth of Cut apart
@@ -18764,6 +18724,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Any other origin is a point of the bounding box of every keyhole's
     // footprint, as with the other shapes.
     function generateKeyholeProgram(params) {
+      if (params.chamfer && params.chamfer.width > 0) return generateKeyholeChamferProgram(params);
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var slotLength = params.slotLength || 0;
@@ -18911,6 +18872,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       generateCircleProgram: generateCircleProgram,
       circleChamferPlan: circleChamferPlan,
       chamferPlanFor: chamferPlanFor,
+    keyholeOpening: keyholeOpening,
       generatePlanerProgram: generatePlanerProgram,
       generateJointerProgram: generateJointerProgram,
       generateCutterProgram: generateCutterProgram,
