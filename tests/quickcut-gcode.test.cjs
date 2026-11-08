@@ -3750,8 +3750,25 @@ test('drill chamfer plunge: straight down at each hole\'s center until the cone 
   assert.deepEqual(holes(gcode), holes(lap));
   // A V-bit too small to reach past the chamfer, or holes not that deep, refuse it.
   assert.match(g.generateDrillProgram(drill({ holeDiameter: 10 }, { bitDiameter: 10 })), /WARNING: hole and chamfer wider than the V-bit reaches, to plunge/);
-  assert.match(g.generateDrillProgram(drill({ cutDepth: 3 })), /WARNING: the plunge goes deeper than the holes/);
+  assert.match(g.generateDrillProgram(drill({ cutDepth: 3 })), /WARNING: the plunge goes deeper than the cut/);
   assert.doesNotMatch(g.generateDrillProgram(drill({ cutDepth: 4 })), /WARNING/);
+});
+
+test('circle chamfer plunge: an Inside circle plunged at its center like a hole; never an Outside one', () => {
+  const g = makeQuickCutGenerator(false);
+  const circ = (o, c) => chamferOf(Object.assign({ diameter: 6, cutType: 'inner' }, o), Object.assign({ cutDepth: 0, plunge: true }, c));
+  const gcode = g.generateCircleProgram(circ());
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  assert.match(gcode, /^\(Plunged at its center, like a countersink\)$/m);
+  near(lowestZ(gcode), -4);
+  assert.ok(gcode.split('\n').filter(l => /^G[123] /.test(l) && /Z-/.test(l)).every(l => !/[XYIJ]/.test(l)));
+  // The same as a 6 mm hole plunged on Drill.
+  const drill = g.generateDrillProgram(chamferOf({ depth: 10 }, { cutDepth: 0, holeDiameter: 6, plunge: true }));
+  assert.equal(lowestZ(drill), lowestZ(gcode));
+  // Outside, Plunge is ignored: the lap round the part.
+  const outer = g.generateCircleProgram(circ({ cutType: 'outer' }));
+  assert.doesNotMatch(outer, /Plunged/);
+  assert.match(outer, /^G3 /m);
 });
 
 // Cut Direction on the planer: Conventional / Climb cut every pass the
