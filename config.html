@@ -4042,8 +4042,9 @@
     if (shown) setTimeout(function() { shown.querySelectorAll('svg').forEach(fitAxes); }, 0);
     setTimeout(updateToolSummary, 0);
     // Load the new tab's tool values into the (now-relocated) inputs.
+    // Still chamfering (back from Help or Measure): the Chamfer tab's V-bit.
     if (TOOL_SHAPES.indexOf(target) >= 0) {
-      writeToolToInputs(state.toolByShape[target]);
+      writeToolToInputs(state.toolByShape[state.chamferMode ? 'chamfer' : target]);
     }
     placeChamferCard(target);
     if (CHAMFER_TABS[target]) setTimeout(useLoadedVBit, 0);
@@ -13902,7 +13903,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-help-body').scrollTop = 0;
   }
   function closeHelp() {
-    switchTab(help.returnTo || 'rectangle');
+    returnToTab(help.returnTo || 'rectangle');
+  }
+  // Back to the tab Help or Measure was opened from, still chamfering if
+  // it was the Chamfer tab.
+  function returnToTab(tab) {
+    state.enteringChamfer = state.chamferMode === tab;
+    switchTab(tab);
+    state.enteringChamfer = false;
   }
   function wireHelp() {
     $('qc-help-btn').addEventListener('click', openHelp);
@@ -14078,7 +14086,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
 
   function closeMeasure() {
-    switchTab(SHAPE_TABS[measure.returnTo] || 'rectangle');
+    returnToTab(SHAPE_TABS[measure.returnTo] || 'rectangle');
   }
 
   function useMeasuredAngle() {
