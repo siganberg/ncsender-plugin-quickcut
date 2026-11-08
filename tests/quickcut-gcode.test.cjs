@@ -3703,7 +3703,12 @@ test('how far each pocket\'s path can move in: a triangle\'s inradius, a hexagon
 
 test('a Centre line slot, or a shape that can\'t be drawn, refuses the chamfer', () => {
   const g = makeQuickCutGenerator(false);
-  assert.match(g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' })), /Centre line slot: set Cut Type to Inner/);
+  // A Center line slot is as wide as its Cut Bit: chamfered as an Inside slot that wide, refused without one.
+  const center = g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' }, { cutBit: 6.35, cutDepth: 20 }));
+  const inner = g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 6.35, cutType: 'inner' }, { cutBit: 6.35, cutDepth: 20 }));
+  assert.doesNotMatch(center, /WARNING|NaN/);
+  assert.deepEqual(lapPoints(center), lapPoints(inner));
+  assert.match(g.generateSlotProgram(chamferOf({ slotType: 'straight', length: 40, width: 10, cutType: 'center' }, { cutBit: 0 })), /Center line slot: set the Cut Bit/);
   assert.match(g.generateRectangleProgram(chamferOf({ kind: 'triangle', triangle: { base: 40, left: 10, right: 10 }, cutType: 'outer' })), /WARNING: .*nothing to cut/);
   const star = g.generatePolygonProgram({ ...rectChamfer(), kind: 'star', sides: 5, diameter: 40, innerDiameter: 50 });
   assert.match(star, /inner diameter must be less than the diameter; nothing to cut/);
@@ -3783,8 +3788,45 @@ test('drill chamfer plunge: straight down at each hole\'s center until the cone 
   assert.deepEqual(holes(gcode), holes(lap));
   // A V-bit too small to reach past the chamfer, or holes not that deep, refuse it.
   assert.match(g.generateDrillProgram(drill({ holeDiameter: 10 }, { bitDiameter: 10 })), /WARNING: hole and chamfer wider than the V-bit reaches, to plunge/);
-  assert.match(g.generateDrillProgram(drill({ cutDepth: 3 })), /WARNING: the plunge goes deeper than the holes/);
+  assert.match(g.generateDrillProgram(drill({ cutDepth: 3 })), /WARNING: the plunge goes deeper than the cut/);
   assert.doesNotMatch(g.generateDrillProgram(drill({ cutDepth: 4 })), /WARNING/);
+});
+
+test('circle chamfer plunge: an Inside circle plunged at its center like a hole; never an Outside one', () => {
+  const g = makeQuickCutGenerator(false);
+  const circ = (o, c) => chamferOf(Object.assign({ diameter: 6, cutType: 'inner' }, o), Object.assign({ cutDepth: 0, plunge: true }, c));
+  const gcode = g.generateCircleProgram(circ());
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  assert.match(gcode, /^\(Plunged at its center, like a countersink\)$/m);
+  near(lowestZ(gcode), -4);
+  assert.ok(gcode.split('\n').filter(l => /^G[123] /.test(l) && /Z-/.test(l)).every(l => !/[XYIJ]/.test(l)));
+  // The same as a 6 mm hole plunged on Drill.
+  const drill = g.generateDrillProgram(chamferOf({ depth: 10 }, { cutDepth: 0, holeDiameter: 6, plunge: true }));
+  assert.equal(lowestZ(drill), lowestZ(gcode));
+  // Outside, Plunge is ignored: the lap round the part.
+  const outer = g.generateCircleProgram(circ({ cutType: 'outer' }));
+  assert.doesNotMatch(outer, /Plunged/);
+  assert.match(outer, /^G3 /m);
+});
+
+test('cutter chamfer: along the kept piece\'s edge, outside it, out and back, placed as the cut', () => {
+  const g = makeQuickCutGenerator(false);
+  const cut = (o, c) => chamferOf(Object.assign({ axis: 'x', origin: 'front', targetSize: 100, cuttingLength: 200, depth: 19, depthOfCut: 5, cutDirection: 'conventional' }, o),
+    Object.assign({ cutDepth: 0, cutBit: 6.35 }, c));
+  const params = cut();
+  const plan = g.chamferPlanFor('cutter', params);
+  const gcode = g.generateCutterProgram(params);
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  near(lowestZ(gcode), -Math.round(plan.deepest * 1000) / 1000);
+  // The edge is at Y 100 (front origin, the piece toward +Y): the tip's path just past it, along X 0 to 200 and back.
+  const y = (100 + plan.inset).toFixed(3).replace('.', '\\.') + '\\d*';
+  assert.match(gcode, new RegExp('^G1 X200\\.000\\d* Y' + y, 'm'));
+  assert.match(gcode, new RegExp('^G1 X0\\.000\\d* Y' + y, 'm'));
+  // Back / right origins and the Y axis mirror it.
+  assert.match(g.generateCutterProgram(cut({ origin: 'back' })), new RegExp('Y-' + y));
+  assert.match(g.generateCutterProgram(cut({ axis: 'y', origin: 'left' })), new RegExp('^G1 X' + y + ' Y200\\.000', 'm'));
+  // No Cut Bit (the slot's width): refused.
+  assert.match(g.generateCutterProgram(cut({}, { cutBit: 0 })), /WARNING: no Cut Bit/);
 });
 
 // Cut Direction on the planer: Conventional / Climb cut every pass the
