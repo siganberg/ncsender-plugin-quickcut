@@ -10021,9 +10021,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // A tool the table doesn't have says nothing about the chamfer.
       if (inSpindle) chamferFromLoadedTool(inSpindle, loaded);
       // Reopened on the Chamfer tab, it opened before the tool table came:
-      // its V-bit now, unless the Tool card already has one.
+      // its V-bit now, unless the Tool card already has one (or a bit the
+      // Chamfer tab kept that isn't in the tool table, typed in).
       var cur = state.chamferMode ? toolEntry(bitTool().n) : null;
-      if (state.chamferMode && !(cur && vBitOf(cur) != null)) {
+      if (state.chamferMode && (cur ? vBitOf(cur) == null : !state.toolByShape.chamfer)) {
         var v = pickVBit();
         if (v) { applyBitTool(v); chamferForPickedTool(v); state.chamferBitStale = null; }
       }
