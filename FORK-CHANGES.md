@@ -14,7 +14,7 @@ resolved.
 
 ## Open on siganberg/ncsender-plugin-quickcut
 
-#19 to #23 are stacked: each builds on the one before. #29, #31 and #32 build on them too, and #40 to #42 are stacked on #23.
+#19 to #23 are stacked: each builds on the one before. #29, #31 and #32 build on them too, and #40 to #43 are stacked on #23.
 
 | PR | Branch | What it does |
 | --- | --- | --- |
@@ -50,4 +50,5 @@ resolved.
 | #40 | `feat/chamfer-slot-keyhole` | Chamfer: the Slot edge, and a Keyhole edge (round the opening, with the Keyhole Bit and its Neck) (builds on #23). |
 | #41 | `feat/chamfer-circle-polygon` | Chamfer: the Circle and Polygon/Star edges; every Pocket chamfered as Inside goes back to Pocket (builds on #40). |
 | #42 | `feat/chamfer-drill-plunge` | Chamfer holes: Method Around or Plunge, straight down at each center like a countersink (builds on #41). |
+| #43 | `feat/chamfer-gaps` | Chamfer: a Cutter edge, Center line slots at the Cut Bit's width, Plunge on Inside circles, its V-bit remembered, the Slot length label off the other copies (builds on #42). |
 
