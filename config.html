@@ -1793,7 +1793,10 @@
      goes too; the Chamfer card says what the Hole card would. */
   .qc-drl-side:has(#qc-chamfer-enable:checked) > .qc-card:first-child { display: none; }
   /* Chamfer in the narrow Drill column: its fields three to a row. */
-  .qc-drl-side #qc-chamfer-card .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .qc-drl-side #qc-chamfer-card .qc-row-5, .qc-cut-side #qc-chamfer-card .qc-row-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* Seven edges: two rows of four. */
+  .qc-chf-edge .qc-seg { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .qc-cut-side > .qc-card:first-child > .qc-chf-edge { margin-bottom: 10px; }
   #qc-chamfer-card .qc-field:has(> #qc-chamfer-method) { grid-column: 1 / -1; }
   .qc-drl-bevel { fill: none; stroke: var(--qc-m-bevel); }
   .qc-drl-bevel-guide { fill: none; stroke: var(--qc-m-hatch); stroke-width: 0.35; stroke-dasharray: 1 1; }
@@ -5784,6 +5787,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       origin:        $('qc-cut-origin').value,
       depth:         num('qc-cut-depth', 0),
       depthOfCut:    num('qc-cut-step', 0),
+      chamfer:       readChamferForm('cut'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     });
@@ -9063,6 +9067,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-cut-generate').addEventListener('click', async function() {
       if (!validateAll()) return;
       var params = readCutterForm();
+      if (chamferRefused('cutter', params)) return;
       params.shape = 'cutter';
       var gen = makeQuickCutGenerator(state.isImperial);
       var gcode = gen.generateCutterProgram(params);
@@ -9130,14 +9135,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // shape's edge instead, with the V-bit in the spindle: the note says
   // how deep the tip goes and what limits it, or why it can't. One card,
   // moved to the open tab under its Depth card, like the Tool card.
-  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl', polygon: 'poly', slot: 'slt', keyhole: 'key' };
+  var CHAMFER_TABS = { circle: 'circ', rectangle: 'rect', drill: 'drl', polygon: 'poly', slot: 'slt', keyhole: 'key', cutter: 'cut' };
   var CHAMFER_READERS = { circle: function() { return readCircleForm(); }, rectangle: function() { return readRectangleForm(); },
     drill: function() { return readDrillForm(); }, polygon: function() { return readPolygonForm(); }, slot: function() { return readSlotForm(); },
-    keyhole: function() { return readKeyholeForm(); } };
+    keyhole: function() { return readKeyholeForm(); }, cutter: function() { return readCutterForm(); } };
   function chamferTab() { return CHAMFER_TABS[state.currentTab] ? state.currentTab : null; }
   function readChamferShapeForm(tab) { return CHAMFER_READERS[tab](); }
   function chamferShapeName(tab, p) {
     if (tab === 'drill') return 'holes';
+    if (tab === 'cutter') return 'edge of the piece';
     if (tab === 'rectangle') return p.triangle ? 'triangle' : p.kind === 'ellipse' || p.kind === 'arch' || p.kind === 'trapezoid' ? p.kind : 'rectangle';
     if (tab === 'polygon' && p.kind === 'star') return 'star';
     return tab;
@@ -9146,6 +9152,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // card, or on Drill (no Depth card) its depth, peck and dwell.
   function chamferHides(prefix) {
     if (prefix === 'drl') return ['qc-drl-depth', 'qc-drl-peck', 'qc-drl-peck-mode', 'qc-drl-dwell'].map(function(id) { return $(id).closest('.qc-field'); });
+    // Cutter: its depth, passes and direction (the Cut card's other fields
+    // place the edge).
+    if (prefix === 'cut') return ['qc-cut-depth', 'qc-cut-step', 'qc-cut-dir'].map(function(id) { return $(id).closest('.qc-field'); });
     return [$('qc-' + prefix + '-depth').closest('.qc-card')];
   }
   function placeChamferCard(view) {
@@ -9155,7 +9164,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var depthCard = $('qc-' + prefix + '-depth').closest('.qc-card');
     // Chamfer card first, so the Edge switch heads the page (Drill: after
     // the Hole card, which chamfering hides).
-    if (prefix === 'drl') depthCard.parentNode.insertBefore(card, depthCard.nextSibling);
+    if (prefix === 'drl' || prefix === 'cut') depthCard.parentNode.insertBefore(card, depthCard.nextSibling);
     // The new layout: after the Shape card, which heads with the Edge switch.
     else if (depthCard.parentNode.querySelector('.qc-shp-shape')) depthCard.parentNode.insertBefore(card, depthCard.parentNode.querySelector('.qc-shp-shape').nextSibling);
     else depthCard.parentNode.insertBefore(card, depthCard.parentNode.firstChild);
@@ -9173,7 +9182,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     var prefix = CHAMFER_TABS[chamferTab()] || 'circ';
     // Cut Bit: the slot around a part, or the corners of a pocket it rounded.
-    var cutType = $('qc-' + prefix + '-cut-type'), outer = cutType && cutType.value === 'outer';
+    // Cutter: the kept piece's edge, an outside one.
+    var cutType = $('qc-' + prefix + '-cut-type'), outer = prefix === 'cut' || (cutType && cutType.value === 'outer');
     var smooth = prefix === 'circ' || prefix === 'slt' || prefix === 'key' || (prefix === 'rect' && rectKind() === 'ellipse');
     var centerSlot = prefix === 'slt' && cutType.value === 'center';
     ROOT.querySelector('.qc-chamfer-cut').style.display = prefix !== 'drl' && (outer || !smooth || centerSlot) ? '' : 'none';
@@ -9203,7 +9213,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   // The open chamfer's own drawing, after a Chamfer card field changes.
   function updateChamferPreview() {
-    var update = { circle: updateCirclePreview, rectangle: updateRectanglePreview, polygon: updatePolygonPreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[state.chamferMode];
+    var update = { cutter: updateCutterPreview, circle: updateCirclePreview, rectangle: updateRectanglePreview, polygon: updatePolygonPreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[state.chamferMode];
     if (update) update();
   }
   function updateChamferVisibility() {
@@ -9316,9 +9326,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // polygon or slot) in chamfer mode: the shape's sizes, origin and
   // pattern, the Chamfer card, its own V-bit in the Tool card, and its
   // own header with an Edge switch. Generate makes only the chamfer.
-  var CHAMFER_EDGES = [['drill', 'Holes'], ['circle', 'Circle'], ['rectangle', 'Rect'], ['polygon', 'Polygon'], ['slot', 'Slot'], ['keyhole', 'Keyhole']];
+  var CHAMFER_EDGES = [['drill', 'Holes'], ['circle', 'Circle'], ['rectangle', 'Rect'], ['polygon', 'Polygon'], ['slot', 'Slot'], ['keyhole', 'Keyhole'], ['cutter', 'Cutter']];
   // The edges whose tabs have the new layout; the others come with theirs.
-  var CHAMFER_READY = { drill: true, circle: true, rectangle: true, polygon: true, slot: true, keyhole: true };
+  var CHAMFER_READY = { drill: true, circle: true, rectangle: true, polygon: true, slot: true, keyhole: true, cutter: true };
   var chamferHead = null;
   function chamferHeader() {
     if (chamferHead) return chamferHead;
@@ -9379,7 +9389,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function placeChamferEdge(target) {
     var edge = ROOT.querySelector('.qc-chf-edge');
     if (!edge) return;
-    var shapeCard = target ? ROOT.querySelector('.qc-content[data-view="' + target + '"] .qc-shp-shape') : null;
+    var shapeCard = target ? ROOT.querySelector('.qc-content[data-view="' + target + '"] :is(.qc-shp-shape, .qc-cut-side > .qc-card:first-child)') : null;
     if (shapeCard) shapeCard.insertBefore(edge, shapeCard.querySelector('.qc-card-title').nextSibling);
     else { var card = $('qc-chamfer-card'); card.insertBefore(edge, card.querySelector('.qc-card-header').nextSibling); }
   }
@@ -9405,12 +9415,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   // From a shape tab: the Chamfer tab with that shape's numbers.
   function chamferFromTab(tab) {
-    var name = tab === 'drill' ? 'holes' : 'shape';
+    var name = tab === 'drill' ? 'holes' : tab === 'cutter' ? 'cut' : 'shape';
     // The bit that made the holes or keyholes, before the Tool card takes
     // the V-bit.
     var made = { drill: 'qc-chamfer-hole', keyhole: 'qc-chamfer-key-bit' }[tab];
     if (made && num('qc-bit', 0) > 0) $(made).value = roundDisplay(num('qc-bit', 0));
-    enterChamfer(tab, 'The ' + name + ' from ' + ({ drill: 'Drill', circle: 'Circle', rectangle: 'Rectangle', polygon: 'Polygon', slot: 'Slot', keyhole: 'Keyhole' }[tab] || tab) + '.');
+    enterChamfer(tab, 'The ' + name + ' from ' + ({ drill: 'Drill', circle: 'Circle', rectangle: 'Rectangle', polygon: 'Polygon', slot: 'Slot', keyhole: 'Keyhole', cutter: 'Cutter' }[tab] || tab) + '.');
   }
   // Generate on the shape tabs is a split button: its arrow offers
   // "Chamfer these holes / this shape" (T3).
@@ -9485,7 +9495,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-rect-form').addEventListener('input', updateChamferNote);
     $('qc-rect-form').addEventListener('change', updateChamferNote);
     $('qc-drl-form').addEventListener('input', updateChamferNote);
-    ['key'].forEach(function(prefix) {
+    ['key', 'cut'].forEach(function(prefix) {
       $('qc-' + prefix + '-form').addEventListener('input', updateChamferNote);
       $('qc-' + prefix + '-form').addEventListener('change', updateChamferNote);
     });
@@ -12595,6 +12605,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function updateCutterSide() {
     var svg = document.getElementById('qc-cut-side');
     if (!svg) return;
+    if (state.chamferMode === 'cutter') return chamferSideView(svg, 'outer', 'along the cut edge');
     var u = state.unitLabel, depth = num('qc-cut-depth', 0), doc = num('qc-cut-step', 0);
     var passes = depth > 0 && doc > 0 ? Math.ceil(depth / doc - 1e-9) : 0;
     var dl = (depth > 0 ? depth : '?') + ' ' + u;
@@ -13891,7 +13902,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     cutter: { name: 'Cutter', notes: [
       'A parting cut: one line <strong>Target Size</strong> in from the chosen edge, so what you keep is that size (the bit radius is allowed for). Tap an edge in the preview to choose it; X0 Y0 is on that edge.',
       'The tool feeds <strong>Cutting Length</strong> along <strong>Cut Axis</strong>. ' + HELP_DEPTH,
-      '<strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine. <strong>Both Ways</strong> alternates the depth passes, each starting where the last ended, to save the trip back (every other one climbs). Tap the arrow in the preview to switch.' ] },
+      '<strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine. <strong>Both Ways</strong> alternates the depth passes, each starting where the last ended, to save the trip back (every other one climbs). Tap the arrow in the preview to switch.',
+      HELP_CHAMFER + ' On Cutter, the chamfer bevels the edge of the piece you kept, along the cut, out and back: keep the XY zero edge, Target Size and Cutting Length the cut used; <strong>Cut Bit</strong> is the cut&rsquo;s width.' ] },
     measure: { name: 'Measure Pattern Angle', notes: [
       'Zero X and Y on a point on the line you want to follow. Then type the work coordinates of a second point on the same line, or jog there and press <strong>Grab Current</strong>.',
       'The angle only changes when you type or grab, so jogging afterwards won&rsquo;t change it. The point is remembered for next time.',
@@ -16009,6 +16021,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (shape === 'drill') return drillChamferPlan(params);
       if (shape === 'slot') return slotChamferPlan(params);
       if (shape === 'keyhole') return keyholeChamferPlan(params);
+      if (shape === 'cutter') return cutterChamferPlan(params);
       if (shape === 'polygon') return params.kind === 'star' ? starChamferPlan(params) : polygonChamferPlan(params);
       if (shape === 'rectangle') return isConvexKind(params) ? trapezoidChamferPlan(params) : rectangleChamferPlan(params);
       return null;
@@ -16850,7 +16863,44 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // ===== CUTTER =========================================================
     // Cold-saw parting cut. Tool feeds along FEED axis for cuttingLength;
     // cut line at perpendicular = target + bitRadius (signed by origin).
+    // A chamfer on the edge of the piece a Cutter program kept: along the cut
+    // line, outside the piece (the slot the cut left is the Cut Bit wide), out
+    // along the Cutting Length and back each pass. The origin and Target Size
+    // place the edge as the Cutter program did.
+    function cutterChamferPlan(params) {
+      return chamferPlan(Object.assign({}, params, { cutType: 'outer' }), Infinity);
+    }
+    function generateCutterChamferProgram(params) {
+      var unitsLabel = isImperial ? 'inch' : 'mm';
+      var feedAxis = params.axis || 'x', origin = params.origin || (feedAxis === 'x' ? 'front' : 'left');
+      var perpDir = (origin === 'front' || origin === 'left') ? 1 : -1;
+      var target = params.targetSize || 0, length = params.cuttingLength || 0;
+      var edge = Object.assign({}, params, { cutType: 'outer' });
+      var plan = cutterChamferPlan(params);
+      var extras = chamferComments(edge, plan, 'the edge of the ' + target + unitsLabel + ' piece', origin);
+      extras.push('Along ' + feedAxis.toUpperCase() + ', ' + length + unitsLabel + ', out and back');
+      var start = chamferProgramStart(edge, plan, 'Cutter chamfer', extras);
+      var lines = start.lines;
+      if (start.refused) return lines.join('\n');
+      if (!(target > 0) || !(length > 0)) {
+        lines.push('(WARNING: invalid parameters; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      var at = perpDir * (target + plan.inset);
+      var a = feedAxis === 'x' ? { x: 0, y: at } : { x: at, y: 0 };
+      var b = feedAxis === 'x' ? { x: length, y: at } : { x: at, y: length };
+      var segs = [];
+      pushLine(segs, a, b);
+      pushLine(segs, b, a);
+      emitChamferPasses(lines, edge, plan, segs, a);
+      lines.push('');
+      lines.push.apply(lines, programFooter(params));
+      return lines.join('\n');
+    }
+
     function generateCutterProgram(params) {
+      if (params.chamfer && params.chamfer.width > 0) return generateCutterChamferProgram(params);
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var feedAxis = params.axis || 'x';
       var target = params.targetSize || 0;

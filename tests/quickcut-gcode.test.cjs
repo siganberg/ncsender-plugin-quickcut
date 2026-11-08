@@ -3771,6 +3771,26 @@ test('circle chamfer plunge: an Inside circle plunged at its center like a hole;
   assert.match(outer, /^G3 /m);
 });
 
+test('cutter chamfer: along the kept piece\'s edge, outside it, out and back, placed as the cut', () => {
+  const g = makeQuickCutGenerator(false);
+  const cut = (o, c) => chamferOf(Object.assign({ axis: 'x', origin: 'front', targetSize: 100, cuttingLength: 200, depth: 19, depthOfCut: 5, cutDirection: 'conventional' }, o),
+    Object.assign({ cutDepth: 0, cutBit: 6.35 }, c));
+  const params = cut();
+  const plan = g.chamferPlanFor('cutter', params);
+  const gcode = g.generateCutterProgram(params);
+  assert.doesNotMatch(gcode, /WARNING|NaN/);
+  near(lowestZ(gcode), -Math.round(plan.deepest * 1000) / 1000);
+  // The edge is at Y 100 (front origin, the piece toward +Y): the tip's path just past it, along X 0 to 200 and back.
+  const y = (100 + plan.inset).toFixed(3).replace('.', '\\.') + '\\d*';
+  assert.match(gcode, new RegExp('^G1 X200\\.000\\d* Y' + y, 'm'));
+  assert.match(gcode, new RegExp('^G1 X0\\.000\\d* Y' + y, 'm'));
+  // Back / right origins and the Y axis mirror it.
+  assert.match(g.generateCutterProgram(cut({ origin: 'back' })), new RegExp('Y-' + y));
+  assert.match(g.generateCutterProgram(cut({ axis: 'y', origin: 'left' })), new RegExp('^G1 X' + y + ' Y200\\.000', 'm'));
+  // No Cut Bit (the slot's width): refused.
+  assert.match(g.generateCutterProgram(cut({}, { cutBit: 0 })), /WARNING: no Cut Bit/);
+});
+
 // Cut Direction on the planer: Conventional / Climb cut every pass the
 // same way, lifting between passes; Both Ways is the zigzag.
 function planerCuts(gcode) {
