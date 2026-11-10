@@ -7361,7 +7361,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // removes itself once this open's dialog is gone.
     function closeEnlargedOnEscape(evt) {
       if (!rootAlive()) { window.removeEventListener('keydown', closeEnlargedOnEscape, true); return; }
-      if (evt.key !== 'Escape' || !(closeLoadPanel() || closeEnlargedPreview())) return;
+      if (evt.key !== 'Escape' || !(closeLoadPanel(true) || closeEnlargedPreview())) return;
       evt.preventDefault();
       evt.stopPropagation();
     }
@@ -8718,8 +8718,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // it. Nothing is generated or run. Programs from before Load have no
   // block and say so.
   var loadPanel = null;
-  function closeLoadPanel() {
+  // Esc while ticking programs to merge stops ticking; otherwise it closes.
+  function closeLoadPanel(escape) {
     if (!loadPanel) return false;
+    if (escape && loadPanel.qcStopPicking && loadPanel.qcStopPicking()) return true;
     loadPanel.remove();
     loadPanel = null;
     return true;
@@ -8766,14 +8768,23 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var cancel = panel.querySelector('.qc-load-cancel');
     // Merge: the first tap puts a box on each row; the second merges the
     // ones ticked, in the order they were ticked.
-    var merging = false, picked = [];
-    cancel.addEventListener('click', function() {
-      if (!merging) { closeLoadPanel(); return; }
+    var merging = false, picked = [], busy = false;
+    var stopPicking = function() {
+      if (!merging) return false;
       merging = false; picked = []; render();
-    });
-    mergeBtn.addEventListener('click', function() {
+      return true;
+    };
+    panel.qcStopPicking = stopPicking;
+    cancel.addEventListener('click', function() { if (!stopPicking()) closeLoadPanel(); });
+    mergeBtn.addEventListener('click', async function() {
       if (!merging) { merging = true; render(); return; }
-      mergeFiles(picked.map(function(path) { return files.filter(function(f) { return f.path === path; })[0]; }), status);
+      if (busy) return;
+      busy = true; render();
+      var chosen = picked.map(function(path) { return files.filter(function(f) { return f.path === path; })[0]; });
+      // Cancel, Esc or Close while the programs are read stops the merge.
+      await mergeFiles(chosen, status, function() { return panel === loadPanel && merging; });
+      busy = false;
+      if (panel === loadPanel) render();
     });
     clear.addEventListener('click', function() { filter.value = ''; render(); filter.focus(); });
     var files = [];
@@ -8797,14 +8808,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         ? 'Tick the programs to merge, in the order to cut them. Merge saves them as one program in File Manager › QuickCut and loads it.'
         : 'Pick a QuickCut program saved in File Manager to fill its tab with the settings it was made with. Programs made before Load existed have no saved settings.';
       mergeBtn.hidden = files.length < 2;
-      mergeBtn.disabled = merging && picked.length < 2;
-      mergeBtn.textContent = !merging ? 'Merge' : picked.length < 2 ? 'Tick 2 or more' : 'Merge ' + picked.length + ' programs';
+      mergeBtn.disabled = merging && (picked.length < 2 || busy);
+      mergeBtn.textContent = !merging ? 'Merge' : busy ? 'Merging…' : picked.length < 2 ? 'Tick 2 or more' : 'Merge ' + picked.length + ' programs';
       mergeBtn.className = merging ? 'qc-primary-btn qc-load-merge' : 'qc-secondary-btn qc-load-merge';
       cancel.textContent = merging ? 'Cancel' : 'Close';
       cancel.className = (merging ? 'qc-secondary-btn' : 'qc-primary-btn') + ' qc-load-cancel';
       panel.classList.toggle('qc-load-picking', merging);
       var q = filter.value.trim().toLowerCase();
       var shown = files.filter(function(f) { return !q || f.name.toLowerCase().indexOf(q) >= 0; });
+      // Ticking rebuilds the list: keep the keyboard on the same row.
+      var focused = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-path');
       clear.hidden = !q;
       count.textContent = files.length ? '(' + files.length + (files.length === 1 ? ' file)' : ' files)') : '';
       filtered.hidden = !q || !files.length;
@@ -8826,6 +8839,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var row = document.createElement('button');
         row.type = 'button';
         row.className = 'qc-load-row';
+        row.setAttribute('data-path', f.path);
         row.title = merging ? 'Tick to merge ' + f.name : 'Load the settings ' + f.name + ' was made with';
         var order = picked.indexOf(f.path);
         if (merging) {
@@ -8845,8 +8859,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           render();
         });
         list.appendChild(row);
+        if (f.path === focused) row.focus();
       });
-      status.textContent = '';
+      var hidden = picked.filter(function(p) { return !shown.some(function(f) { return f.path === p; }); }).length;
+      status.textContent = merging && hidden ? picked.length + ' ticked, ' + hidden + ' hidden by the search' : '';
     }
     filter.addEventListener('input', render);
     try {
@@ -8906,7 +8922,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Reads the ticked programs, merges them (the generator's mergePrograms),
   // and once the operator confirms, saves the merge in File Manager ›
   // QuickCut and loads it into ncSender like a Generate.
-  async function mergeFiles(chosen, status) {
+  async function mergeFiles(chosen, status, still) {
     try {
       status.textContent = 'Reading ' + chosen.length + ' programs…';
       var parts = await Promise.all(chosen.map(async function(f) {
@@ -8917,9 +8933,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }));
       var gcode = makeQuickCutGenerator(state.isImperial).mergePrograms(parts);
       var path = await freeSavePath('QuickCut-Merge_' + parts.length + '-programs.nc');
+      if (!still()) return;
       status.textContent = '';
+      // Z0 differs between parts (the Planer can set it on the wasteboard):
+      // one Z zero can't suit them all.
+      var z0s = parts.map(function(p) { var m = /^\(Z0: (.*)\)\s*$/m.exec(p.gcode); return m ? m[1] : 'the top of the stock'; });
+      var z0Note = z0s.some(function(z) { return z !== z0s[0]; })
+        ? '\n\nCareful: these don’t all use the same Z0 (' + z0s.filter(function(z, i) { return z0s.indexOf(z) === i; }).join('; ') + '). The merge cuts every part from the one Z0 you set.'
+        : '';
       if (!confirm('Merge these ' + parts.length + ' programs, cut in this order, into File Manager › ' + path + ' and load it?\n\n' +
-          parts.map(function(p, i) { return (i + 1) + '. ' + p.name; }).join('\n'))) return;
+          parts.map(function(p, i) { return (i + 1) + '. ' + p.name; }).join('\n') + z0Note)) return;
       status.textContent = 'Saving and loading ' + path.slice(9) + '…';
       await saveGeneratedProgram(gcode, path);
       var res = await fetch(BASE_URL + '/api/gcode-files/load-temp', {
@@ -19336,35 +19359,44 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // keeps its own header, units, tool change and spindle start; only the
     // end of the last ends the program. A tool change to the tool already in
     // the spindle is left out, and so are the settings blocks Load reads: a
-    // merge has none of its own.
+    // merge has none of its own. A program with no tool change of its own,
+    // after one that changed tools, starts with M0: on its own it would only
+    // have run once its bit was in, so the operator gets to check it first.
     function mergePrograms(parts) {
       var label = function(text) {
         var t = String(text).replace(/[^\x20-\x7e]|[!?~]/g, '_');
         return comment(t.length > 68 ? t.slice(0, 65) + '...' : t);
       };
+      var END = /M0*(2|30)(?![0-9.])/;
       var out = [label('QuickCut merge: ' + parts.length + ' programs, cut in this order')];
       parts.forEach(function(p, i) { out.push(label((i + 1) + '. ' + p.name)); });
-      var tool = null;
+      var tool = null, changed = false;
       parts.forEach(function(p, i) {
-        var lines = [];
+        var lines = [], hasM6 = false;
         String(p.gcode).split(/\r?\n/).forEach(function(line) {
           var t = line.trim();
           if (t === '%' || t === '(QuickCut settings - used by Load)' || /^\(QC1 /.test(t)) return;
-          var code = t.replace(/\([^)]*\)/g, '').replace(/;.*$/, '').toUpperCase();
-          if (/(^|[^A-Z])M0*(2|30)(?![0-9.])/.test(code)) {
-            var rest = code.replace(/M0*(2|30)(?![0-9.])/g, '').trim();
-            if (!rest) return;
+          // The words alone, as the controller reads them: no comments or spaces.
+          var code = t.replace(/\([^)]*\)/g, '').replace(/;.*$/, '').replace(/\s+/g, '').toUpperCase();
+          if (END.test(code)) {
+            var rest = code.replace(new RegExp(END.source, 'g'), '');
+            if (!/[A-Z][-+.\d]/.test(rest)) return;
             line = rest;
           }
-          var m = /(^|[^A-Z])M0*6(?![0-9.])/.test(code) && /T0*(\d+)/.exec(code);
-          if (m) {
-            if (m[1] === tool) return;
-            tool = m[1];
+          if (/M0*6(?![0-9.])/.test(code)) {
+            hasM6 = true;
+            var m = /T0*(\d+)/.exec(code);
+            // T on a line of its own before M6: the tool isn't known here.
+            if (!m) tool = null;
+            else if (m[1] === tool) return;
+            else tool = m[1];
           }
           lines.push(line);
         });
         while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
         out.push('', label('Program ' + (i + 1) + ' of ' + parts.length + ': ' + p.name));
+        if (!hasM6 && changed) out.push('M0 ; No tool change of its own: check the bit, then resume');
+        if (hasM6) changed = true;
         out.push.apply(out, lines);
       });
       out.push('', 'M30 ; Program end');
