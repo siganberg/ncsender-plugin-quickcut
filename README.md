@@ -190,7 +190,7 @@ Switching converts the number so the copies stay put, and a negative number runs
 
 ### Concentric Copies
 
-The **Concentric Copies** card (Circle, Rectangle, Polygon and Star) cuts the shape and copies of it stepping inside or outside it: concentric circles, nested frames, a star inside a star, or with a turn, twisted squares and star spirals.
+The **Concentric Copies** card (Circle, Rectangle, Polygon, Star, Slot and Arc Slot) cuts the shape and copies of it stepping inside or outside it: concentric circles, nested frames, a star inside a star, slots inside slots, or with a turn, twisted squares and star spirals. A slot's copies keep its centre line and get wider or narrower (Offset), or grow or shrink about its middle, or an arc slot's center (Scale).
 
 - **Copies:** how many besides the shape. **Direction:** **Inside**, each smaller than the last, or **Outside**, each bigger.
 - **Step** (a menu): the distance from one copy to the next, 1 in or 25 mm to start; or **Ratio (%)**, each copy that share of the last inside (the last over it outside).
@@ -198,7 +198,7 @@ The **Concentric Copies** card (Circle, Rectangle, Polygon and Star) cuts the sh
 - **Shift X / Y** and **Turn:** each copy moved and turned this much more than the last.
 - **Spacing**, **Shift** and **Turn** are under **More**, so the card starts with just Copies, Direction and Step. Closed, More names any of them you've changed (e.g. "More (turn 15°)"), and it opens by itself for a loaded program that uses them.
 
-They're cut smallest first. Copies too small for the shape or the bit are left out, and the card says how many fit; it also warns when copies cross (from a Shift or Turn: with an Inside cut they'd cut into the part), when Outside copies are closer than the bit plus 3 mm (thin rings held only by tabs), and when a Pattern doesn't leave room for outside concentric. The origin (X0 Y0 at a corner or edge) is taken from the shape and its concentric together; each gets the shape's own depth passes and Holding Tabs, and with a Pattern each copy of the pattern gets them. The program header adds a line like `(Concentric copies: 3 inside, 25mm apart, offset)`. Not with Pocket, a chamfer, or the Rectangle's other kinds yet. The plan, and what may come next (a depth step per copy for terraces), is in [docs/concentric-copies.md](docs/concentric-copies.md).
+They're cut smallest first. Copies too small for the shape or the bit are left out, and the card says how many fit; it also warns when copies cross (from a Shift or Turn: with an Inside cut they'd cut into the part), when Outside copies are closer than the bit plus 3 mm (thin rings held only by tabs), and when a Pattern doesn't leave room for outside concentric. The origin (X0 Y0 at a corner or edge) is taken from the shape and its concentric together; each gets the shape's own depth passes and Holding Tabs, and with a Pattern each copy of the pattern gets them. The program header adds a line like `(Concentric copies: 3 inside, 25mm apart, offset)`. Not with Pocket, a chamfer, the Rectangle's other kinds, or a Slot's Center cut or Grid pattern yet. The plan, and what may come next (a depth step per copy for terraces), is in [docs/concentric-copies.md](docs/concentric-copies.md).
 
 ## Slot
 

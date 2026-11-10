@@ -4114,6 +4114,7 @@
     wireConcentric('rect', updateRectanglePreview);
     wireConcentric('circ', updateCirclePreview);
     wireConcentric('poly', updatePolygonPreview);
+    wireConcentric('slt', updateSlotPreview);
     mountPatternPreviews();
     wirePreviewEnlarge();
     wireLoad();
@@ -6068,9 +6069,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // pattern center (rest is identical to 'circular').
   // ---------- Concentric Copies ----------
   // Copies of the shape stepping inside or outside it (the generator's
-  // concentricPlan), on Circle, the plain Rectangle, Polygon and Star. A card
-  // after each Pattern card, built from one template.
-  var CONCENTRIC_TABS = ['rect', 'circ', 'poly'];
+  // concentricPlan), on Circle, the plain Rectangle, Polygon, Star and Slot.
+  // A card after each Pattern card, built from one template.
+  var CONCENTRIC_TABS = ['rect', 'circ', 'poly', 'slt'];
   function concentricCardHtml(p) {
     var id = function(k) { return 'qc-' + p + '-concentric-' + k; };
     var field = function(label, k, html) { return '<div class="qc-field"><label for="' + id(k) + '">' + label + '</label>' + html + '</div>'; };
@@ -6090,7 +6091,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '</div>' +
       '<button type="button" class="qc-concentric-more" id="' + id('more') + '" aria-expanded="false" aria-controls="' + id('extra') + '" title="Spacing, Shift and Turn">More</button>' +
       '<div id="' + id('extra') + '" hidden><div class="qc-row-3">' +
-      field('Spacing', 'spacing', '<select class="qc-select" id="' + id('spacing') + '" title="Offset: each outline moved the Step in or out, as a contour: corners round outward and sharpen inward. Scale: the same shape made smaller or bigger about its center, so a star keeps its points; its size (a circle&rsquo;s or polygon&rsquo;s radius, a rectangle&rsquo;s half its longer side) changes by the Step. A Ratio step always scales."><option value="offset" selected>Offset</option><option value="scale">Scale</option></select>') +
+      field('Spacing', 'spacing', '<select class="qc-select" id="' + id('spacing') + '" title="Offset: each outline moved the Step in or out, as a contour: corners round outward and sharpen inward. Scale: the same shape made smaller or bigger about its center, so a star keeps its points; its size (a circle&rsquo;s or polygon&rsquo;s radius, a rectangle&rsquo;s half its longer side, a slot&rsquo;s half its length) changes by the Step. A Ratio step always scales."><option value="offset" selected>Offset</option><option value="scale">Scale</option></select>') +
       field('Shift X', 'shift-x', text('shift-x', 0, true, 'Each copy&rsquo;s center moved this much more along X than the last (a tunnel or drift).')) +
       field('Shift Y', 'shift-y', text('shift-y', 0, true, 'Each copy&rsquo;s center moved this much more along Y than the last.')) +
       '</div><div class="qc-row-3">' +
@@ -6106,12 +6107,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function concentricShape(p) {
     if (p === 'circ') return 'circle';
+    if (p === 'slt') return 'slot';
     if (p === 'rect') return rectKind() === 'rectangle' ? 'rectangle' : null;
     return polyKind() === 'star' ? 'star' : 'polygon';
   }
   // Why Concentric Copies can't apply here, or null.
   function concentricBlocked(p) {
     if (!concentricShape(p)) return 'Concentric Copies work on the plain Rectangle for now: pick Rectangle in the title.';
+    if (p === 'slt' && $('qc-slt-cut-type').value === 'center') return 'Not with Center: that slot is the bit’s width. Pick Inside or Outside.';
+    if (p === 'slt' && $('qc-slt-type').value !== 'arc' && $('qc-slt-pattern-enable').checked && $('qc-slt-pattern-style').value === 'grid') {
+      return 'Not with a Grid pattern: its lines take their length from the grid.';
+    }
     if ($('qc-' + p + '-cut-type').value === 'clearing') return 'Not with Pocket yet: pick Inside or Outside.';
     if (readChamferForm(p).width > 0) return 'Not while chamfering.';
     return null;
@@ -6207,7 +6213,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     return rules;
   }
-  var CONCENTRIC_READERS = { rect: function() { return readRectangleForm(); }, circ: function() { return readCircleForm(); }, poly: function() { return readPolygonForm(); } };
+  var CONCENTRIC_READERS = { rect: function() { return readRectangleForm(); }, circ: function() { return readCircleForm(); }, poly: function() { return readPolygonForm(); }, slt: function() { return readSlotForm(); } };
   // The card open or shut, and its note: why it can't apply here, or how
   // many copies fit.
   function updateConcentricCard(p) {
@@ -6240,11 +6246,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (shape === 'circle') return [{ type: 'arc', cx: 0, cy: 0, r: q.diameter / 2, a0: 0, a1: 2 * Math.PI, len: Math.PI * q.diameter }];
     if (shape === 'rectangle') return rectangleOutline(gen, q.width, q.height, q.cornerRadius);
     if (shape === 'star') return gen.starOutline(q, 0);
+    if (shape === 'slot') return slotShapeOutline(gen, q);
     var n = Math.max(3, Math.min(12, Math.floor(q.sides || 6))), R = q.radius != null ? q.radius : q.diameter / 2, pts = [];
     var start = Math.PI / n - Math.PI / 2 + (q.startAngleDeg || 0) * Math.PI / 180;
     for (var j = 0; j < n; j++) pts.push({ x: R * Math.cos(start + j * 2 * Math.PI / n), y: R * Math.sin(start + j * 2 * Math.PI / n) });
     var nm = pts.map(function(v, j) { var w = pts[(j + 1) % n], len = Math.hypot(w.x - v.x, w.y - v.y) || 1; return { x: (w.y - v.y) / len, y: -(w.x - v.x) / len }; });
     return gen.convexOutline(pts, nm, 0, Math.min(Math.max(0, q.cornerRadius || 0), R * Math.cos(Math.PI / n)));
+  }
+  // A slot's outline about its own origin (an arc slot's: the arc's center).
+  function slotShapeOutline(gen, q) {
+    var cl = gen.slotCenterline(q);
+    return cl ? gen.slotOutline(gen.placeSlot(cl, 0, 0, 0), q.width / 2) : null;
   }
   function outlinePoints(segs) {
     var out = [];
@@ -8667,6 +8679,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (slt.stepoverPct != null)    $('qc-slt-stepover').value = slt.stepoverPct;
     hydrateTabs('slt', slt.tabs);
     hydratePattern('slt', slt.pattern);
+    hydrateConcentric('slt', slt.concentric, loaded && !!saved.slot);
 
     var key = saved.keyhole || {};
     if (key.slotLengthMode === 'ratio' && key.slotRatio > 0) {
@@ -8931,7 +8944,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
         tabs:          packTabsForm('slt'),
-        pattern:       packPattern(params.pattern)
+        pattern:       packPattern(params.pattern),
+        concentric:    packConcentric('slt')
       };
     } else if (params.shape === 'keyhole') {
       body.keyhole = {
@@ -12589,6 +12603,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     topView(svg, {
       prefix: 'slt', params: params, cutType: cut, copies: gen.computePatternPositions(params.pattern),
       chamfer: state.chamferMode === 'slot',
+      concentric: concentricOutlines('slt', params, function(q) { return slotShapeOutline(gen, q); }),
       box: box, smooth: true, typedCR: 0, CR: 0, deep: half,
       offset: offset, center: cut === 'center' ? center : null, centerWidth: 2 * half,
       caption: line ? 'slot ' + roundDisplay(params.length) + ' × ' + roundDisplay(2 * half) + ' ' + state.unitLabel
@@ -14355,6 +14370,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       bulgeAngleDeg: num('qc-slt-bulge', 90),
       cutType:       $('qc-slt-cut-type').value,
       tabs:          readTabsForm('slt'),
+      concentric:    readConcentricForm('slt'),
       origin:        $('qc-slt-origin').value,
       inset:         readInset('slt'),
       depth:         num('qc-slt-depth', 0),
@@ -19096,8 +19112,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // side) `step` less or more per copy. Ratio: each copy step% of the
     // last inside, or the last over step% outside. Each copy also moves by
     // shiftX, shiftY and turns by `turn` degrees more than the last.
-    // `shape`: 'circle', 'rectangle', 'polygon' or 'star'.
+    // A slot's size is half its length (an arc slot's: its outer radius);
+    // offset widens or narrows it about the same centre line.
+    // `shape`: 'circle', 'rectangle', 'polygon', 'star' or 'slot'.
     function concentricSize(params, shape) {
+      if (shape === 'slot') {
+        var c = slotCenterline(params);
+        return c && c.type === 'arc' ? c.r + slotHalfWidth(params) : (params.length || 0) / 2;
+      }
       if (shape === 'rectangle') return Math.max(params.width, params.height) / 2;
       if (shape === 'polygon' && params.radius != null) return params.radius;
       return (params.diameter || 0) / 2;
@@ -19105,6 +19127,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function scaledShape(params, shape, f) {
       if (!(f > 0) || !isFinite(f)) return null;
       var p = Object.assign({}, params, { concentric: null });
+      if (shape === 'slot') {
+        ['width', 'length', 'radius', 'chord', 'rise'].forEach(function(k) { if (params[k] != null) p[k] = params[k] * f; });
+        return p;
+      }
       if (shape === 'rectangle') {
         p.width = params.width * f; p.height = params.height * f; p.cornerRadius = (params.cornerRadius || 0) * f;
       } else {
@@ -19119,6 +19145,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // A star's (and a circle's) edges all sit as far from its center, so
     // moving them d out is scaling it about the center.
     function offsetShape(params, shape, d) {
+      if (shape === 'slot') {
+        var q = Object.assign({}, params, { concentric: null, width: (params.width || 0) + 2 * d });
+        if ((params.slotType || 'straight') !== 'arc') q.length = (params.length || 0) + 2 * d;
+        return q.width > 0 ? q : null;
+      }
       if (shape === 'circle') return params.diameter + 2 * d > 0 ? Object.assign({}, params, { concentric: null, diameter: params.diameter + 2 * d }) : null;
       if (shape === 'star') {
         var v = starVertices(params), a = v[0], b = v[1], len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -19163,6 +19194,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (shape === 'circle') return computeCircleGeom(p).pathRadius > 0;
         if (shape === 'rectangle') { var g = computeRectangleGeom(p); return g.halfW > 0 && g.halfH > 0; }
         if (shape === 'polygon') return computePolygonGeom(p).pathRadius > 0;
+        if (shape === 'slot') {
+          var half = slotHalfWidth(p);
+          return !slotProblem(p, slotCenterline(p), half) && (p.cutType === 'outer' || half - (p.bitDiameter || 0) / 2 > 1e-9);
+        }
         return !!starOutline(p, (p.cutType === 'outer' ? 1 : -1) * p.bitDiameter / 2);
       };
     }
@@ -19185,7 +19220,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // A shape's concentric copies as its origin and box see them.
     function concentricPlanFor(shape, params) {
       var sh = shape === 'polygon' && params.kind === 'star' ? 'star'
-        : shape === 'rectangle' && (params.triangle || isSmoothKind(params) || isTrapezoid(params)) ? null : shape;
+        : shape === 'rectangle' && (params.triangle || isSmoothKind(params) || isTrapezoid(params)) ? null
+        : shape === 'slot' && (!/^(inner|outer)$/.test(params.cutType || 'inner') || slotIsGrid(params) ||
+            (params.chamfer && params.chamfer.width > 0)) ? null : shape;
       return sh ? concentricPlan(params, sh, concentricFits(sh)) : { list: [{ k: 0, params: params, dx: 0, dy: 0, turn: 0 }], skipped: 0 };
     }
     // The program's lines about them.
@@ -19370,10 +19407,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function slotHalfWidth(params) {
       return ((params.cutType || 'inner') === 'center' ? (params.bitDiameter || 0) : (params.width || 0)) / 2;
     }
+    // A Grid of straight slots: each line spans the grid.
+    function slotIsGrid(params) {
+      return (params.slotType || 'straight') !== 'arc' && !!(params.pattern && params.pattern.enabled && params.pattern.style === 'grid');
+    }
     function slotOriginParts(params, cl) {
-      var half = slotHalfWidth(params);
+      var half = slotHalfWidth(params), plan = concentricPlanFor('slot', params);
       return {
-        bbox: function(pos) { return segmentsBbox(slotOutline(placeSlot(cl, 0, 0, pos.rotDeg), half)); },
+        // The slot and its concentric copies, each moved and turned.
+        bbox: function(pos) {
+          var b = null;
+          plan.list.forEach(function(ec) {
+            var e = segmentsBbox(slotOutline(placeSlot(ec.k ? slotCenterline(ec.params) : cl, ec.dx, ec.dy, (pos.rotDeg || 0) + ec.turn), ec.k ? slotHalfWidth(ec.params) : half));
+            b = !b ? e : { minX: Math.min(b.minX, e.minX), maxX: Math.max(b.maxX, e.maxX), minY: Math.min(b.minY, e.minY), maxY: Math.max(b.maxY, e.maxY) };
+          });
+          return b;
+        },
         corners: function(rot) {
           var pc = placeSlot(cl, 0, 0, rot);
           if (pc.type !== 'line') {
@@ -19431,6 +19480,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       };
       if (op) extras.push('Origin: ' + resolveShapeOrigin(params, positions, op.bbox, op.corners).label);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var concentric = concentricPlanFor('slot', params);
+      // Not with Center, Pocket, a Grid or a chamfer (concentricPlanFor).
+      if (concentric.list.length > 1 || concentric.skipped) extras.push.apply(extras, concentricNotes(params, concentric, unitsLabel));
       // Holding tabs (inner / outer only), noted like the other shapes and
       // checked on the first copy's outline.
       var tabNotes = !problem && (cutType === 'outer' || (cutType === 'inner' && half - tr > 1e-9))
@@ -19464,6 +19516,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
+        }
+        if (concentric.list.length > 1) {
+          concentric.list.forEach(function(ec) {
+            lines.push(concentricComment(ec, concentric));
+            var pk = placeSlot(ec.k ? slotCenterline(ec.params) : cl, mx + ec.dx, my + ec.dy, (pos.rotDeg || 0) + ec.turn);
+            emitOneSlot(lines, ec.params, pk, cutType, ec.k ? slotHalfWidth(ec.params) : half, tr);
+          });
+          continue;
         }
         var pc = placeSlot(clFor(pos), mx, my, pos.rotDeg);
         if (serpentine && here && Math.hypot(pc.x1 - here.x, pc.y1 - here.y) < Math.hypot(pc.x0 - here.x, pc.y0 - here.y) - 1e-9) {

@@ -102,3 +102,59 @@ test('the origin is a corner of the shape and its concentric together', () => {
   near(Math.min(...ys), -1.5, 'min Y');
   near(Math.max(...xs), 160 + 1.5, 'max X');
 });
+
+const slotP = (o) => ({ ...common, slotType: 'straight', width: 20, length: 100, angleDeg: 0, cutType: 'inner', ...o });
+const arcP = (o) => slotP({ slotType: 'arc', arcMode: 'radius', radius: 60, startAngleDeg: 0, sweepDeg: 90, ...o });
+
+test('straight slot: offset keeps the centre line, width and length move together', () => {
+  const list = plan(slotP({ concentric: concentric({ step: 4, copies: 2 }) }), 'slot').list;
+  assert.deepEqual(list.map(e => [e.params.width, e.params.length]), [[4, 84], [12, 92], [20, 100]]);
+  const out = plan(slotP({ cutType: 'outer', concentric: concentric({ direction: 'outside', step: 10 }) }), 'slot').list;
+  assert.deepEqual(out.map(e => e.params.width), [20, 40, 60, 80]);
+  const g = gen.generateSlotProgram(slotP({ concentric: concentric({ step: 4, copies: 2 }) }));
+  assert.match(g, /\(Concentric copies: 2 inside, 4mm apart, offset\)/);
+  assert.deepEqual(g.match(/^\((Concentric copy \d|The shape): cut \d of 3\)$/gm), ['(Concentric copy 2: cut 1 of 3)', '(Concentric copy 1: cut 2 of 3)', '(The shape: cut 3 of 3)']);
+});
+
+test('slot copies too narrow for the bit are left out', () => {
+  const pl = plan(slotP({ concentric: concentric({ step: 2, copies: 5 }) }), 'slot');
+  // Widths 16, 12, 8 and 4 (still wider than the 3 mm bit); 0 is no slot.
+  assert.deepEqual(pl.list.map(e => e.params.width), [4, 8, 12, 16, 20]);
+  assert.equal(pl.skipped, 1);
+  assert.equal(plan(slotP({ width: 10, concentric: concentric({ step: 4 }) }), 'slot').list.length, 1);
+});
+
+test('arc slot: offset widens about the same arc, and every arc stays valid', () => {
+  const p = arcP({ cutType: 'outer', concentric: concentric({ direction: 'outside', step: 10, copies: 5 }) });
+  const pl = plan(p, 'slot');
+  // Past 80 wide the ends of the 90 deg arc would meet.
+  assert.deepEqual(pl.list.map(e => e.params.width), [20, 40, 60, 80]);
+  assert.equal(pl.skipped, 2);
+  pl.list.forEach(e => assert.equal(e.params.radius, 60));
+  const g = gen.generateSlotProgram(p);
+  g.split('\n').filter(l => /^G[23] /.test(l)).forEach(l => {
+    const i = parseFloat(/I(-?[\d.]+)/.exec(l)[1]), j = parseFloat(/J(-?[\d.]+)/.exec(l)[1]);
+    assert.ok(Math.hypot(i, j) > 1, l);
+  });
+});
+
+test('slot ratio scales the length, width and arc radius about its origin', () => {
+  const s = plan(slotP({ concentric: concentric({ stepMode: 'ratio', step: 50, copies: 1 }) }), 'slot').list;
+  assert.deepEqual(s.map(e => [e.params.width, e.params.length]), [[10, 50], [20, 100]]);
+  const a = plan(arcP({ concentric: concentric({ stepMode: 'ratio', step: 50, copies: 1 }) }), 'slot').list;
+  assert.deepEqual(a.map(e => [e.params.width, e.params.radius]), [[10, 30], [20, 60]]);
+  const c = plan(arcP({ arcMode: 'chord', chord: 80, rise: 20, concentric: concentric({ stepMode: 'ratio', step: 50, copies: 1 }) }), 'slot').list;
+  assert.deepEqual(c.map(e => [e.params.chord, e.params.rise]), [[40, 10], [80, 20]]);
+});
+
+test('slot: not with Center, Pocket or a Grid; the origin takes in the copies', () => {
+  const on = concentric({ direction: 'outside', step: 10, copies: 1 });
+  for (const o of [{ cutType: 'center' }, { cutType: 'clearing' }, { pattern: { enabled: true, style: 'grid', countX: 2, countY: 2, spacingX: 50, spacingY: 50 } }]) {
+    assert.doesNotMatch(gen.generateSlotProgram(slotP({ ...o, concentric: on })), /Concentric/);
+  }
+  // Front-left at the outside copy's corner: 120 x 40 around the 100 x 20 slot.
+  const g = gen.generateSlotProgram(slotP({ cutType: 'outer', origin: 'front-left', concentric: on }));
+  const ys = g.split('\n').filter(l => /^G[0123] X/.test(l)).map(l => parseFloat(/Y(-?[\d.]+)/.exec(l)[1]));
+  near(Math.min(...ys), -1.5, 'front-most cut');
+  near(gen.shapeOriginOffset('slot', slotP({ cutType: 'outer', origin: 'front-left', concentric: on })).x, -60, 'origin X');
+});
