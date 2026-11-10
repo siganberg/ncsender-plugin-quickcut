@@ -425,6 +425,26 @@
     vertical-align: middle;
     line-height: 1.3;
   }
+  /* Experimental features: hidden until Help's Experimental Features switch
+     is on, each marked with this tag. */
+  .qc-exp-off [data-experimental] { display: none !important; }
+  .qc-exp-tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-warning, #d9a441) 70%, var(--color-text-primary));
+    background: color-mix(in srgb, var(--color-warning, #d9a441) 15%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warning, #d9a441) 35%, transparent);
+    border-radius: 999px;
+    vertical-align: middle;
+    line-height: 1.3;
+  }
+  body.theme-light .qc-exp-tag { color: #b45309; }
+  .qc-save-toggle.qc-help-switches { flex-direction: column; align-items: flex-end; gap: 8px; }
   /* Save to File Manager sits top-right of whichever shape's header is showing;
      the title row leaves room for it rather than running underneath. */
   .qc-panel-header { position: relative; }
@@ -2069,7 +2089,7 @@
   }
 </style>
 
-<div class="qc-wrapper">
+<div class="qc-wrapper qc-exp-off">
   <div class="qc-container">
     <!-- Sidebar -->
     <aside class="qc-sidebar">
@@ -3931,7 +3951,14 @@
           <h2 class="qc-panel-title">Help<span id="qc-help-for"></span></h2>
           <p class="qc-panel-sub"><span id="qc-help-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</span> <a href="#" class="qc-load-link" id="qc-help-all">All help topics</a></p>
         </div>
-        <div class="qc-save-toggle">
+        <div class="qc-save-toggle qc-help-switches">
+          <label class="qc-switch-label" title="Show features still being tried out, each marked Experimental. Loading a program that uses one turns this on.">
+            <span>Experimental Features</span>
+            <span class="qc-switch">
+              <input type="checkbox" id="qc-experimental">
+              <span class="qc-switch-track"></span>
+            </span>
+          </label>
           <label class="qc-switch-label" title="Show a field's tip below it after it's been touched (or tabbed to) for a second">
             <span>Touch Tooltips</span>
             <span class="qc-switch">
@@ -4437,6 +4464,30 @@
     return all[all.length - 1];
   })();
   function rootAlive() { return !!(ROOT && ROOT.isConnected); }
+
+  // Features still being tried out (markup with data-experimental, and an
+  // Experimental tag) show only with Help's Experimental Features on. Off
+  // they're hidden and left out of the program, but their settings are
+  // kept. A test build (a -test version) starts with it on, a release off.
+  // Each feature adds a check to experimentalUses (saved settings: true
+  // when the program uses it), so loading such a program turns it on.
+  var experimentalUses = [];
+  function experimentalOn() { return !ROOT.classList.contains('qc-exp-off'); }
+  function setExperimental(on, save) {
+    if (on === experimentalOn()) return;
+    ROOT.classList.toggle('qc-exp-off', !on);
+    $('qc-experimental').checked = on;
+    if (save) persistSettings({ common: { experimental: on } });
+    // Not trusted, so it isn't autosaved as a form change; the previews redraw.
+    $('qc-experimental').dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  async function experimentalDefault() {
+    try {
+      var plugins = await (await fetch(BASE_URL + '/api/plugins')).json();
+      var me = (plugins || []).filter(function(p) { return p.id === 'com.ncsender.quickcut'; })[0];
+      if (me && /-test/.test(me.version || '')) setExperimental(true);
+    } catch (e) {}
+  }
 
   // The previews' animations stop after ten minutes without a touch, a
   // click or a key, or while the page is hidden, and carry on from there
@@ -8518,6 +8569,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       $('qc-save-files').addEventListener('change', function() {
         persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
       });
+      if (typeof common.experimental === 'boolean') setExperimental(common.experimental);
+      else experimentalDefault();
+      $('qc-experimental').addEventListener('change', function(evt) {
+        if (evt.isTrusted) setExperimental($('qc-experimental').checked, true);
+      });
       $('qc-touch-tips').checked = common.touchTooltips !== false;
       $('qc-touch-tips').addEventListener('change', function() {
         persistSettings({ common: { touchTooltips: $('qc-touch-tips').checked } });
@@ -9154,7 +9210,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
       closeLoadPanel();
       switchTab(data.shape);
-      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK, true);
+      var exp = !experimentalOn() && experimentalUses.some(function(uses) { return uses(loaded); });
+      if (exp) setExperimental(true, true);
+      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '.' + (exp ? ' It uses experimental features, so Help’s Experimental Features is now on.' : '') + ' Check the values, then Generate.', TOOLTIP_OK, true);
     } catch (err) {
       status.textContent = 'Could not read ' + file.name + ': ' + err.message;
     }
@@ -15091,7 +15149,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }).join('') + '<li><a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> &mdash; The starting feeds for each bit in your tool table, or common sizes, by material: Conservative, Average and Aggressive side by side.</li>';
     $('qc-help-body').innerHTML =
       helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>' +
-        '<p>On a touchscreen, touch a field (or tab to it) and wait a second to see its tip below it, like a mouse hover would. The <strong>Touch Tooltips</strong> switch at the top right turns them off.</p>') +
+        '<p>On a touchscreen, touch a field (or tab to it) and wait a second to see its tip below it, like a mouse hover would. The <strong>Touch Tooltips</strong> switch at the top right turns them off. <strong>Experimental Features</strong>, above it, shows features still being tried out, each marked <span class="qc-exp-tag">Experimental</span>. Off, they&rsquo;re hidden and left out of the program, but their settings are kept; loading a program that uses one turns it on. Test builds start with it on.</p>') +
       helpDocsCard();
     $('qc-help-for').textContent = ' — All topics';
     $('qc-help-sub').style.display = 'none';
