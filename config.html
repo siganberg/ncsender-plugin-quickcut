@@ -8399,16 +8399,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (saved.polygon)              $('qc-poly-kind').value = poly.kind === 'star' ? 'star' : 'polygon';
     if (poly.innerDiameter > 0)     $('qc-poly-inner').value = roundDisplay(mmToDisplay(poly.innerDiameter));
     // STAR_DEFAULT once for every star, saved ones too (starDefaults marks
-    // it done); the star's 5 points when it's next shown.
-    state.starDefaults = poly.starDefaults !== STAR_DEFAULT.version;
-    setStarInnerMode(state.starDefaults ? 'ratio' : poly.innerMode === 'ratio' || poly.innerMode === 'classic' ? poly.innerMode : 'diameter');
-    if (state.starDefaults) $('qc-poly-inner').value = STAR_DEFAULT.ratio;
-    else if (poly.innerMode === 'ratio' && poly.innerRatio > 0) $('qc-poly-inner').value = poly.innerRatio;
-    if (state.starDefaults && poly.kind === 'star') {
-      state.starDefaults = false;
-      $('qc-poly-sides').value = STAR_DEFAULT.points;
+    // it done), when QuickCut opens; the star's 5 points when it's next
+    // shown. A loaded program brings back its own; another shape's leaves
+    // the star alone.
+    if (!loaded) state.starDefaults = poly.starDefaults !== STAR_DEFAULT.version;
+    else if (saved.polygon) state.starDefaults = false;
+    if (!loaded || saved.polygon) {
+      setStarInnerMode(state.starDefaults ? 'ratio' : poly.innerMode === 'ratio' || poly.innerMode === 'classic' ? poly.innerMode : 'diameter');
+      if (state.starDefaults) $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+      else if (poly.innerMode === 'ratio' && poly.innerRatio > 0) $('qc-poly-inner').value = poly.innerRatio;
+      if (state.starDefaults && poly.kind === 'star') {
+        state.starDefaults = false;
+        $('qc-poly-sides').value = STAR_DEFAULT.points;
+      }
+      $('qc-poly-inner-mode').setAttribute('data-was', starInnerMode());
     }
-    $('qc-poly-inner-mode').setAttribute('data-was', starInnerMode());
     if (poly.starDiameter > 0)      $('qc-poly-star-dia').value = roundDisplay(mmToDisplay(poly.starDiameter));
     showPolyKind(false);
     if (saved.polygon)              $('qc-poly-corner-relief').value = poly.cornerRelief || 'none';
@@ -8666,7 +8671,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         innerDiameter: displayToMm(params.innerDiameter),
         innerMode:     params.innerMode,
         innerRatio:    params.innerRatio,
-        starDefaults:  STAR_DEFAULT.version,
+        starDefaults:  state.starDefaults ? undefined : STAR_DEFAULT.version,
         startAngleDeg: params.startAngleDeg,
         starDiameter:  displayToMm(num('qc-poly-star-dia', 0)),
         cornerRadius:  displayToMm(num('qc-poly-corner', 0)),
@@ -14022,6 +14027,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       setStarInnerMode(mode);
       if (mode !== was && mode !== 'classic' && isFinite(inner) && inner > 0 && dia > 0) {
         $('qc-poly-inner').value = mode === 'ratio' ? roundPercent(inner / dia * 100) : roundDisplay(inner);
+      } else if (mode !== 'classic' && !$('qc-poly-inner').value.trim()) {
+        $('qc-poly-inner').value = mode === 'ratio' ? STAR_DEFAULT.ratio : dia > 0 ? roundDisplay(dia * STAR_DEFAULT.ratio / 100) : '';
       }
       innerMode.setAttribute('data-was', mode);
       recheckField('qc-poly-inner');
