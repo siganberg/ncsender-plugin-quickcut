@@ -70,7 +70,7 @@ Every shape has an [Origin and Inset](#origin-and-inset), and all but Circle can
 - **Ellipse:** an oval, Width × Height. Curves are cut as short straight moves within 0.01 mm of the curve.
 - **Circle:** **Diameter**. It ramps down in a helix and finishes with one more lap at full depth.
 - **Polygon:** 3 to 12 sides, sized **Across Corners**, **Across Flats** or by **Edge Length** (pick it in the menu over the size; switching converts the number). Corner Radius rounds every corner, up to fully round.
-- **Star:** **Points**, the **Diameter** across them, and the **Inner Diameter** the corners between them sit on (smaller for sharper points). Start Angle 0 points the first point to the back.
+- **Star:** **Points**, the **Diameter** across them, and the **Inner Diameter** the corners between them sit on (smaller for sharper points). Its label is a menu: **Inner Ratio (%)** sets the inner corners as a percentage of the Diameter, so the star keeps its shape when you change its size, and **Classic Star (%)** uses a regular star's ratio for the number of points (every second point joined: 38.2% for 5, from 5 points up). Switching converts the number, so the star stays the same. Start Angle 0 points the first point to the back.
 - **Slot** and **Arc Slot:** a slot with round ends, straight or curved; see [Slot](#slot).
 - **Keyhole:** a hanging slot cut with a keyhole bit; see [Keyhole](#keyhole).
 - **Drill:** holes the size of the bit, with optional pecking; see [Drill](#drill).
