@@ -538,7 +538,15 @@
   .qc-load-empty svg { width: 48px; height: 48px; opacity: 0.5; }
   .qc-load-status { font-size: 0.85rem; color: var(--color-accent); }
   .qc-load-status:empty { display: none; }
-  .qc-load-actions { display: flex; justify-content: center; }
+  .qc-load-actions { display: flex; justify-content: center; gap: 12px; }
+  /* Merge: a box on each row, numbered in the order picked. */
+  .qc-load-check {
+    width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--color-border); border-radius: 6px; font-size: 0.8rem; font-weight: 700; color: #fff;
+  }
+  .qc-load-row[aria-checked="true"] .qc-load-check { background: var(--color-accent); border-color: var(--color-accent); }
+  .qc-load-picking .qc-load-go { display: none; }
+  .qc-load-picking .qc-load-head span:first-child { padding-left: 88px; }
   .qc-panel-sub {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
@@ -7353,7 +7361,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // removes itself once this open's dialog is gone.
     function closeEnlargedOnEscape(evt) {
       if (!rootAlive()) { window.removeEventListener('keydown', closeEnlargedOnEscape, true); return; }
-      if (evt.key !== 'Escape' || !(closeLoadPanel() || closeEnlargedPreview())) return;
+      if (evt.key !== 'Escape' || !(closeLoadPanel(true) || closeEnlargedPreview())) return;
       evt.preventDefault();
       evt.stopPropagation();
     }
@@ -8710,8 +8718,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // it. Nothing is generated or run. Programs from before Load have no
   // block and say so.
   var loadPanel = null;
-  function closeLoadPanel() {
+  // Esc while ticking programs to merge stops ticking; otherwise it closes.
+  function closeLoadPanel(escape) {
     if (!loadPanel) return false;
+    if (escape && loadPanel.qcStopPicking && loadPanel.qcStopPicking()) return true;
     loadPanel.remove();
     loadPanel = null;
     return true;
@@ -8738,7 +8748,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     loadPanel.innerHTML =
       '<h3 class="qc-load-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>' +
         'Load settings <span class="qc-load-count"></span></h3>' +
-      '<p>Pick a QuickCut program saved in File Manager to fill its tab with the settings it was made with. Programs made before Load existed have no saved settings.</p>' +
+      '<p class="qc-load-intro"></p>' +
       '<div class="qc-load-search">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>' +
         '<input class="qc-load-filter" type="text" placeholder="Search QuickCut files..." autocomplete="off" spellcheck="false" aria-label="Search QuickCut files">' +
@@ -8748,12 +8758,34 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<div class="qc-load-status">Loading the list…</div>' +
       '<div class="qc-load-head" hidden><span>Name</span><span class="qc-load-size">Size</span><span class="qc-load-date">Modified</span><span class="qc-load-go"></span></div>' +
       '<div class="qc-load-list"></div>' +
-      '<div class="qc-load-actions"><button type="button" class="qc-primary-btn qc-load-cancel">Close</button></div>';
+      '<div class="qc-load-actions"><button type="button" class="qc-secondary-btn qc-load-merge" title="Combine programs into one, to save and run again">Merge</button>' +
+        '<button type="button" class="qc-primary-btn qc-load-cancel">Close</button></div>';
     ROOT.appendChild(loadPanel);
     var panel = loadPanel, list = panel.querySelector('.qc-load-list'), status = panel.querySelector('.qc-load-status');
     var filter = panel.querySelector('.qc-load-filter'), clear = panel.querySelector('.qc-load-clear');
     var filtered = panel.querySelector('.qc-load-filtered'), count = panel.querySelector('.qc-load-count');
-    panel.querySelector('.qc-load-cancel').addEventListener('click', closeLoadPanel);
+    var intro = panel.querySelector('.qc-load-intro'), mergeBtn = panel.querySelector('.qc-load-merge');
+    var cancel = panel.querySelector('.qc-load-cancel');
+    // Merge: the first tap puts a box on each row; the second merges the
+    // ones ticked, in the order they were ticked.
+    var merging = false, picked = [], busy = false;
+    var stopPicking = function() {
+      if (!merging) return false;
+      merging = false; picked = []; render();
+      return true;
+    };
+    panel.qcStopPicking = stopPicking;
+    cancel.addEventListener('click', function() { if (!stopPicking()) closeLoadPanel(); });
+    mergeBtn.addEventListener('click', async function() {
+      if (!merging) { merging = true; render(); return; }
+      if (busy) return;
+      busy = true; render();
+      var chosen = picked.map(function(path) { return files.filter(function(f) { return f.path === path; })[0]; });
+      // Cancel, Esc or Close while the programs are read stops the merge.
+      await mergeFiles(chosen, status, function() { return panel === loadPanel && merging; });
+      busy = false;
+      if (panel === loadPanel) render();
+    });
     clear.addEventListener('click', function() { filter.value = ''; render(); filter.focus(); });
     var files = [];
     // As File Manager shows them: bytes as B / KB / MB; today's time,
@@ -8772,8 +8804,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
     }
     function render() {
+      intro.textContent = merging
+        ? 'Tick the programs to merge, in the order to cut them. Merge saves them as one program in File Manager › QuickCut and loads it.'
+        : 'Pick a QuickCut program saved in File Manager to fill its tab with the settings it was made with. Programs made before Load existed have no saved settings.';
+      mergeBtn.hidden = files.length < 2;
+      mergeBtn.disabled = merging && (picked.length < 2 || busy);
+      mergeBtn.textContent = !merging ? 'Merge' : busy ? 'Merging…' : picked.length < 2 ? 'Tick 2 or more' : 'Merge ' + picked.length + ' programs';
+      mergeBtn.className = merging ? 'qc-primary-btn qc-load-merge' : 'qc-secondary-btn qc-load-merge';
+      cancel.textContent = merging ? 'Cancel' : 'Close';
+      cancel.className = (merging ? 'qc-secondary-btn' : 'qc-primary-btn') + ' qc-load-cancel';
+      panel.classList.toggle('qc-load-picking', merging);
       var q = filter.value.trim().toLowerCase();
       var shown = files.filter(function(f) { return !q || f.name.toLowerCase().indexOf(q) >= 0; });
+      // Ticking rebuilds the list: keep the keyboard on the same row.
+      var focused = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-path');
       clear.hidden = !q;
       count.textContent = files.length ? '(' + files.length + (files.length === 1 ? ' file)' : ' files)') : '';
       filtered.hidden = !q || !files.length;
@@ -8795,17 +8839,30 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var row = document.createElement('button');
         row.type = 'button';
         row.className = 'qc-load-row';
-        row.title = 'Load the settings ' + f.name + ' was made with';
-        row.innerHTML = '<span class="qc-load-icon">' + FILE_SVG + '<span class="qc-load-badge">NC</span></span>' +
+        row.setAttribute('data-path', f.path);
+        row.title = merging ? 'Tick to merge ' + f.name : 'Load the settings ' + f.name + ' was made with';
+        var order = picked.indexOf(f.path);
+        if (merging) {
+          row.setAttribute('role', 'checkbox');
+          row.setAttribute('aria-checked', order >= 0 ? 'true' : 'false');
+        }
+        row.innerHTML = (merging ? '<span class="qc-load-check">' + (order >= 0 ? order + 1 : '') + '</span>' : '') + '<span class="qc-load-icon">' + FILE_SVG + '<span class="qc-load-badge">NC</span></span>' +
           '<span class="qc-load-name"></span><span class="qc-load-size"></span><span class="qc-load-date"></span>' +
           '<span class="qc-load-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>';
         row.querySelector('.qc-load-name').textContent = f.name;
         row.querySelector('.qc-load-size').textContent = fileSize(f.size);
         row.querySelector('.qc-load-date').textContent = fileDate(f.when);
-        row.addEventListener('click', function() { loadFromFile(f, status); });
+        row.addEventListener('click', function() {
+          if (!merging) { loadFromFile(f, status); return; }
+          var at = picked.indexOf(f.path);
+          if (at >= 0) picked.splice(at, 1); else picked.push(f.path);
+          render();
+        });
         list.appendChild(row);
+        if (f.path === focused) row.focus();
       });
-      status.textContent = '';
+      var hidden = picked.filter(function(p) { return !shown.some(function(f) { return f.path === p; }); }).length;
+      status.textContent = merging && hidden ? picked.length + ' ticked, ' + hidden + ' hidden by the search' : '';
     }
     filter.addEventListener('input', render);
     try {
@@ -8826,6 +8883,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (!res.ok) throw new Error('status ' + res.status);
       var body = await res.json();
       var data = readSettingsBlock(String(body && (body.content != null ? body.content : body.Content) || ''));
+      if (!data && /^\(QuickCut merge: /m.test(String(body && (body.content != null ? body.content : body.Content) || ''))) {
+        status.textContent = file.name + ' is a merge of several programs, with no settings of its own: run it from File Manager.';
+        return;
+      }
       if (!data) {
         status.textContent = file.name + ' has no QuickCut settings (it was made before Load, or not by QuickCut).';
         return;
@@ -8856,6 +8917,44 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK, true);
     } catch (err) {
       status.textContent = 'Could not read ' + file.name + ': ' + err.message;
+    }
+  }
+  // Reads the ticked programs, merges them (the generator's mergePrograms),
+  // and once the operator confirms, saves the merge in File Manager ›
+  // QuickCut and loads it into ncSender like a Generate.
+  async function mergeFiles(chosen, status, still) {
+    try {
+      status.textContent = 'Reading ' + chosen.length + ' programs…';
+      var parts = await Promise.all(chosen.map(async function(f) {
+        var res = await fetch(BASE_URL + '/api/gcode-files/file?path=' + encodeURIComponent(f.path));
+        if (!res.ok) throw new Error('could not read ' + f.name + ' (' + res.status + ')');
+        var body = await res.json();
+        return { name: f.name, gcode: String(body && (body.content != null ? body.content : body.Content) || '') };
+      }));
+      var gcode = makeQuickCutGenerator(state.isImperial).mergePrograms(parts);
+      var path = await freeSavePath('QuickCut-Merge_' + parts.length + '-programs.nc');
+      if (!still()) return;
+      status.textContent = '';
+      // Z0 differs between parts (the Planer can set it on the wasteboard):
+      // one Z zero can't suit them all.
+      var z0s = parts.map(function(p) { var m = /^\(Z0: (.*)\)\s*$/m.exec(p.gcode); return m ? m[1] : 'the top of the stock'; });
+      var z0Note = z0s.some(function(z) { return z !== z0s[0]; })
+        ? '\n\nCareful: these don’t all use the same Z0 (' + z0s.filter(function(z, i) { return z0s.indexOf(z) === i; }).join('; ') + '). The merge cuts every part from the one Z0 you set.'
+        : '';
+      if (!confirm('Merge these ' + parts.length + ' programs, cut in this order, into File Manager › ' + path + ' and load it?\n\n' +
+          parts.map(function(p, i) { return (i + 1) + '. ' + p.name; }).join('\n') + z0Note)) return;
+      status.textContent = 'Saving and loading ' + path.slice(9) + '…';
+      await saveGeneratedProgram(gcode, path);
+      var res = await fetch(BASE_URL + '/api/gcode-files/load-temp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: path.slice(9), content: gcode })
+      });
+      if (!res.ok) throw new Error('saved as ' + path + ', but loading it failed (' + res.status + ')');
+      closeLoadPanel();
+      setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
+    } catch (err) {
+      status.textContent = 'Merge failed: ' + err.message;
     }
   }
   // Every field's value (and switch's state) plus the per-tab Tool cards,
@@ -19255,8 +19354,58 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       lines.push('G0 Z' + safeHeight);
     }
 
+    // === MERGE ===============================================================
+    // Saved programs as one, cut in the order given ([{ name, gcode }]). Each
+    // keeps its own header, units, tool change and spindle start; only the
+    // end of the last ends the program. A tool change to the tool already in
+    // the spindle is left out, and so are the settings blocks Load reads: a
+    // merge has none of its own. A program with no tool change of its own,
+    // after one that changed tools, starts with M0: on its own it would only
+    // have run once its bit was in, so the operator gets to check it first.
+    function mergePrograms(parts) {
+      var label = function(text) {
+        var t = String(text).replace(/[^\x20-\x7e]|[!?~]/g, '_');
+        return comment(t.length > 68 ? t.slice(0, 65) + '...' : t);
+      };
+      var END = /M0*(2|30)(?![0-9.])/;
+      var out = [label('QuickCut merge: ' + parts.length + ' programs, cut in this order')];
+      parts.forEach(function(p, i) { out.push(label((i + 1) + '. ' + p.name)); });
+      var tool = null, changed = false;
+      parts.forEach(function(p, i) {
+        var lines = [], hasM6 = false;
+        String(p.gcode).split(/\r?\n/).forEach(function(line) {
+          var t = line.trim();
+          if (t === '%' || t === '(QuickCut settings - used by Load)' || /^\(QC1 /.test(t)) return;
+          // The words alone, as the controller reads them: no comments or spaces.
+          var code = t.replace(/\([^)]*\)/g, '').replace(/;.*$/, '').replace(/\s+/g, '').toUpperCase();
+          if (END.test(code)) {
+            var rest = code.replace(new RegExp(END.source, 'g'), '');
+            if (!/[A-Z][-+.\d]/.test(rest)) return;
+            line = rest;
+          }
+          if (/M0*6(?![0-9.])/.test(code)) {
+            hasM6 = true;
+            var m = /T0*(\d+)/.exec(code);
+            // T on a line of its own before M6: the tool isn't known here.
+            if (!m) tool = null;
+            else if (m[1] === tool) return;
+            else tool = m[1];
+          }
+          lines.push(line);
+        });
+        while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+        out.push('', label('Program ' + (i + 1) + ' of ' + parts.length + ': ' + p.name));
+        if (!hasM6 && changed) out.push('M0 ; No tool change of its own: check the bit, then resume');
+        if (hasM6) changed = true;
+        out.push.apply(out, lines);
+      });
+      out.push('', 'M30 ; Program end');
+      return out.join('\n') + '\n';
+    }
+
     return {
       generateRectangleProgram: generateRectangleProgram,
+      mergePrograms: mergePrograms,
       generateCircleProgram: generateCircleProgram,
       circleChamferPlan: circleChamferPlan,
       chamferPlanFor: chamferPlanFor,
