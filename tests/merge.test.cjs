@@ -89,9 +89,9 @@ test('Windows line endings and a file without a final newline', () => {
   assert.match(g, /G0 X2\n\nM30 ; Program end\n$/);
 });
 
-test('config.html carries the same mergePrograms as lib/quickcut-gcode.cjs', () => {
-  const body = (src) => {
-    const start = src.indexOf('function mergePrograms(');
+test('config.html carries the same mergePrograms and mergeProblems as lib/quickcut-gcode.cjs', () => {
+  const body = (src, name) => {
+    const start = src.indexOf('function ' + name + '(');
     let i = src.indexOf('{', start), depth = 0;
     for (; i < src.length; i++) {
       if (src[i] === '{') depth++;
@@ -101,8 +101,10 @@ test('config.html carries the same mergePrograms as lib/quickcut-gcode.cjs', () 
   };
   const html = fs.readFileSync(path.join(__dirname, '..', 'config.html'), 'utf8');
   const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'quickcut-gcode.cjs'), 'utf8');
-  assert.ok(html.indexOf('function mergePrograms(') >= 0);
-  assert.equal(body(html), body(lib));
+  ['mergePrograms', 'mergeProblems'].forEach((name) => {
+    assert.ok(html.indexOf('function ' + name + '(') >= 0, name);
+    assert.equal(body(html, name), body(lib, name), name);
+  });
 });
 
 test('every line fits in 79 plain ASCII characters, whatever the file names', () => {
@@ -114,4 +116,54 @@ test('every line fits in 79 plain ASCII characters, whatever the file names', ()
     if (!/^\(QC1 /.test(l)) assert.doesNotMatch(l, /[!?~]/);
     if (/^\((QuickCut merge|\d+\. |Program \d)/.test(l)) assert.ok(l.length <= 70, l);
   });
+});
+
+test('bits from the tool library: any mix merges', () => {
+  assert.deepEqual(gen.mergeProblems([
+    { name: 'a.nc', gcode: circle({ toolNumber: 3 }) },
+    { name: 'b.nc', gcode: rect({ toolNumber: 5, bitDiameter: 6 }) },
+    { name: 'c.nc', gcode: circle({ toolNumber: 3 }) }
+  ]), []);
+});
+
+test('a typed-in bit merges after a program that leaves the same size in the spindle', () => {
+  assert.deepEqual(gen.mergeProblems([
+    { name: 'a.nc', gcode: circle() },
+    { name: 'b.nc', gcode: rect() },
+    { name: 'c.nc', gcode: circle({ toolNumber: 3 }) },
+    { name: 'd.nc', gcode: rect() }
+  ]), []);
+  // A typed-in bit first, then library tools: the tool changes cover it.
+  assert.deepEqual(gen.mergeProblems([
+    { name: 'a.nc', gcode: circle({ bitDiameter: 6 }) },
+    { name: 'b.nc', gcode: rect({ toolNumber: 3 }) }
+  ]), []);
+});
+
+test('a typed-in bit of another size is refused, naming both bits', () => {
+  const p = gen.mergeProblems([
+    { name: 'a.nc', gcode: circle() },
+    { name: 'b.nc', gcode: rect({ bitDiameter: 6 }) }
+  ]);
+  assert.equal(p.length, 1);
+  assert.match(p[0], /^Program 2 \(b\.nc\) has no tool change.*program 1 .*\(3 mm\), not its own \(6 mm\)\. Pick its bit from the tool library/);
+  const q = gen.mergeProblems([
+    { name: 'a.nc', gcode: circle({ toolNumber: 3 }) },
+    { name: 'b.nc', gcode: rect({ bitDiameter: 6 }) }
+  ]);
+  assert.match(q[0], /\(T3, 3 mm\), not its own \(6 mm\)/);
+});
+
+test('sizes compare across units, and a program with no bit noted is refused after another', () => {
+  const inch = makeQuickCutGenerator(true).generateCircleProgram({ ...common, diameter: 1, bitDiameter: 0.25, depth: 0.1, depthOfCut: 0.05, cutType: 'outer' });
+  assert.deepEqual(gen.mergeProblems([{ name: 'a.nc', gcode: circle({ bitDiameter: 6.35 }) }, { name: 'b.nc', gcode: inch }]), []);
+  assert.match(gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'b.nc', gcode: inch }])[0], /\(3 mm\), not its own \(0\.25 in\)/);
+  assert.match(gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'b.nc', gcode: 'G21\nG0 X1\n' }])[0], /not its own \(unknown\)/);
+});
+
+test('programs in different work offsets are refused', () => {
+  assert.deepEqual(gen.mergeProblems([{ name: 'a.nc', gcode: 'G55\nG0 X1\n' }, { name: 'b.nc', gcode: 'G0 X2 (G54 is not code)\nG55\n' }])
+    .filter((m) => /work offset/.test(m)), []);
+  const p = gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'b.nc', gcode: 'G59.1\n' + circle() }]);
+  assert.deepEqual(p, ['They don’t all run in the same work offset (1: the active one, 2: G59.1), so one would cut in the wrong place.']);
 });
