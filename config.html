@@ -2012,6 +2012,12 @@
   .qc-shp-big .qc-shp-hole { fill: var(--qc-m-hole); }
   /* Concentric Copies: the copies' outlines, dashed in the accent color. */
   .qc-shp-big .qc-shp-concentric { fill: none; stroke: var(--color-accent, #1abc9c); stroke-width: 0.45; stroke-dasharray: 1.6 1; }
+  /* Concentric Copies: More opens Spacing, Shift and Turn. */
+  .qc-concentric-more {
+    display: inline-block; margin: 2px 0 6px; padding: 2px 0 !important; border: none !important; background: none !important;
+    color: var(--color-accent) !important; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  }
+  .qc-concentric-more:hover { text-decoration: underline; }
   .qc-concentric-note { margin: 6px 0 0 !important; font-size: 0.8rem; line-height: 1.4 !important; color: var(--color-text-secondary, #888); }
   .qc-shp-big .qc-shp-dimcircle { stroke-dasharray: 1.2 1.2; }
   .qc-shp-big .qc-shp-kerfcut { fill: none; stroke: var(--qc-m-hole); stroke-linejoin: round; }
@@ -6078,16 +6084,19 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<div class="qc-row-3">' +
       field('Copies', 'copies', '<input class="qc-input" type="number" id="' + id('copies') + '" min="1" max="50" step="1" value="3" title="How many copies besides the shape itself.">') +
       field('Direction', 'direction', '<select class="qc-select" id="' + id('direction') + '" title="Inside: each copy smaller than the last. Outside: each bigger."><option value="inside" selected>Inside</option><option value="outside">Outside</option></select>') +
-      field('Spacing', 'spacing', '<select class="qc-select" id="' + id('spacing') + '" title="Offset: each outline moved the Step in or out, as a contour: corners round outward and sharpen inward. Scale: the same shape made smaller or bigger about its center, so a star keeps its points; its size (a circle&rsquo;s or polygon&rsquo;s radius, a rectangle&rsquo;s half its longer side) changes by the Step. A Ratio step always scales."><option value="offset" selected>Offset</option><option value="scale">Scale</option></select>') +
-      '</div><div class="qc-row-3">' +
       '<div class="qc-field"><select class="qc-label-select" id="' + id('step-mode') + '" aria-label="Step set by" title="Step: the distance from one copy to the next. Ratio: each copy this percentage of the last (inside), or the last over this percentage (outside).">' +
       '<option value="distance" selected>Step</option><option value="ratio">Ratio (%)</option></select>' +
       text('step', 25, true, 'The distance between copies, or with Ratio the percentage.').replace('>', ' aria-labelledby="' + id('step-mode') + '">') + '</div>' +
+      '</div>' +
+      '<button type="button" class="qc-concentric-more" id="' + id('more') + '" aria-expanded="false" aria-controls="' + id('extra') + '" title="Spacing, Shift and Turn">More</button>' +
+      '<div id="' + id('extra') + '" hidden><div class="qc-row-3">' +
+      field('Spacing', 'spacing', '<select class="qc-select" id="' + id('spacing') + '" title="Offset: each outline moved the Step in or out, as a contour: corners round outward and sharpen inward. Scale: the same shape made smaller or bigger about its center, so a star keeps its points; its size (a circle&rsquo;s or polygon&rsquo;s radius, a rectangle&rsquo;s half its longer side) changes by the Step. A Ratio step always scales."><option value="offset" selected>Offset</option><option value="scale">Scale</option></select>') +
       field('Shift X', 'shift-x', text('shift-x', 0, true, 'Each copy&rsquo;s center moved this much more along X than the last (a tunnel or drift).')) +
       field('Shift Y', 'shift-y', text('shift-y', 0, true, 'Each copy&rsquo;s center moved this much more along Y than the last.')) +
       '</div><div class="qc-row-3">' +
       field('Turn (&deg;)', 'turn', '<input class="qc-input" type="number" id="' + id('turn') + '" step="1" value="0" title="Each copy turned this much more than the last, CCW (twisted squares, star spirals). A circle doesn&rsquo;t show it.">') +
-      '</div><p class="qc-concentric-note" id="' + id('note') + '"></p></div></div>';
+            '</div></div>' +
+'<p class="qc-concentric-note" id="' + id('note') + '"></p></div></div>';
   }
   function buildConcentricCards() {
     CONCENTRIC_TABS.forEach(function(p) {
@@ -6154,7 +6163,28 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (e.shiftX != null) $(pre + 'shift-x').value = roundDisplay(mmToDisplay(e.shiftX));
     if (e.shiftY != null) $(pre + 'shift-y').value = roundDisplay(mmToDisplay(e.shiftY));
     if (e.turn != null) $(pre + 'turn').value = e.turn;
+    setConcentricMore(p, concentricExtras(p).length > 0);
     updateConcentricCard(p);
+  }
+  // The More settings changed from their defaults, as words for its label.
+  function concentricExtras(p) {
+    var pre = 'qc-' + p + '-concentric-', out = [];
+    if ($(pre + 'spacing').value === 'scale') out.push('scaled');
+    if (num(pre + 'shift-x', 0) || num(pre + 'shift-y', 0)) out.push('shift');
+    if (num(pre + 'turn', 0)) out.push('turn ' + num(pre + 'turn', 0) + '°');
+    return out;
+  }
+  function setConcentricMore(p, open) {
+    var pre = 'qc-' + p + '-concentric-';
+    $(pre + 'extra').hidden = !open;
+    $(pre + 'more').setAttribute('aria-expanded', open ? 'true' : 'false');
+    updateConcentricMoreLabel(p);
+  }
+  // Closed, More names what it holds that isn't at its default, so a turn
+  // set earlier isn't forgotten.
+  function updateConcentricMoreLabel(p) {
+    var pre = 'qc-' + p + '-concentric-', extras = concentricExtras(p);
+    $(pre + 'more').textContent = !$(pre + 'extra').hidden ? 'Less' : 'More' + (extras.length ? ' (' + extras.join(', ') + ')' : '');
   }
   // A ratio has no unit, so the field stops converting typed units.
   function setConcentricStepMode(p, mode) {
@@ -6185,6 +6215,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!$(pre + 'enable')) return;
     var on = $(pre + 'enable').checked;
     $(pre + 'body').style.display = on ? '' : 'none';
+    // A field to fix isn't left out of sight.
+    if ($(pre + 'extra').hidden && $(pre + 'extra').querySelector('.qc-input-error')) setConcentricMore(p, true);
+    updateConcentricMoreLabel(p);
     var note = $(pre + 'note'), blocked = concentricBlocked(p);
     if (!on) { note.textContent = ''; return; }
     if (blocked) { note.textContent = blocked; return; }
@@ -6248,6 +6281,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!$(pre + 'enable')) return;
     var refresh = function() { updateConcentricCard(p); update(); schedulePatternPreview(); };
     $(pre + 'enable').addEventListener('change', refresh);
+    $(pre + 'more').addEventListener('click', function() { setConcentricMore(p, $(pre + 'extra').hidden); });
     $(pre + 'step-mode').addEventListener('change', function() {
       var mode = $(pre + 'step-mode').value;
       setConcentricStepMode(p, mode);
