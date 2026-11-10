@@ -6011,6 +6011,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // or a regular star's for its points (Classic Star: every second point
   // joined, 38.2% for 5; none under 5 points).
   var STAR_RATIO_RULE = { min: 1, max: 99, label: 'Inner Ratio' };
+  var STAR_DEFAULT = { points: 5, ratio: 38.5 };
   function starInnerMode() { return $('qc-poly-inner-mode').value; }
   function classicStarRatio(points) {
     return points >= 5 ? Math.cos(2 * Math.PI / points) / Math.cos(Math.PI / points) : NaN;
@@ -8397,8 +8398,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (saved.polygon)              $('qc-poly-kind').value = poly.kind === 'star' ? 'star' : 'polygon';
     if (poly.innerDiameter > 0)     $('qc-poly-inner').value = roundDisplay(mmToDisplay(poly.innerDiameter));
-    setStarInnerMode(poly.innerMode === 'ratio' || poly.innerMode === 'classic' ? poly.innerMode : 'diameter');
-    if (poly.innerMode === 'ratio' && poly.innerRatio > 0) $('qc-poly-inner').value = poly.innerRatio;
+    // A star never set up starts at STAR_DEFAULT (picking it sets 5 points).
+    state.starDefaults = !(poly.innerMode || poly.innerDiameter > 0);
+    setStarInnerMode(state.starDefaults ? 'ratio' : poly.innerMode === 'ratio' || poly.innerMode === 'classic' ? poly.innerMode : 'diameter');
+    if (state.starDefaults) $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+    else if (poly.innerMode === 'ratio' && poly.innerRatio > 0) $('qc-poly-inner').value = poly.innerRatio;
     $('qc-poly-inner-mode').setAttribute('data-was', starInnerMode());
     if (poly.starDiameter > 0)      $('qc-poly-star-dia').value = roundDisplay(mmToDisplay(poly.starDiameter));
     showPolyKind(false);
@@ -13988,6 +13992,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-poly-sub').textContent = star
       ? 'Cut a star: its points round a diameter, the corners between them on a smaller one.'
       : 'Regular N-sided polygon, sized across the corners, across the flats, or by edge length.';
+    if (star && picked && state.starDefaults) {
+      state.starDefaults = false;
+      $('qc-poly-sides').value = STAR_DEFAULT.points;
+      setStarInnerMode('ratio');
+      $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+    }
     if (star && picked && starInnerMode() !== 'classic' && !(starInnerDiameter() > 0 && starInnerDiameter() < num('qc-poly-star-dia', 0))) {
       $('qc-poly-inner').value = starInnerMode() === 'ratio' ? 40 : roundDisplay(num('qc-poly-star-dia', 0) * 0.4);
     }
