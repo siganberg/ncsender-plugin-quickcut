@@ -6123,14 +6123,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // concentricPlan), on Circle, the plain Rectangle, Polygon, Star and Slot.
   // A card after each Pattern card, built from one template.
   var CONCENTRIC_TABS = ['rect', 'circ', 'poly', 'slt'];
+  experimentalUses.push(function(saved) {
+    return Object.keys(saved).some(function(k) { var e = k !== 'common' && saved[k] && saved[k].concentric; return !!(e && e.enabled && e.copies >= 1); });
+  });
   function concentricCardHtml(p) {
     var id = function(k) { return 'qc-' + p + '-concentric-' + k; };
     var field = function(label, k, html) { return '<div class="qc-field"><label for="' + id(k) + '">' + label + '</label>' + html + '</div>'; };
     var text = function(k, value, unit, title) {
       return '<input class="qc-input" type="text" autocomplete="off" spellcheck="false"' + (unit ? ' data-unit="length"' : '') + ' id="' + id(k) + '" value="' + value + '" title="' + title + '">';
     };
-    return '<div class="qc-card qc-section-card qc-concentric-card" id="' + id('card') + '">' +
-      '<div class="qc-card-header"><h3 class="qc-card-title">Concentric Copies</h3>' +
+    return '<div class="qc-card qc-section-card qc-concentric-card" id="' + id('card') + '" data-experimental>' +
+      '<div class="qc-card-header"><h3 class="qc-card-title">Concentric Copies<span class="qc-exp-tag">Experimental</span></h3>' +
       '<label class="qc-switch" title="Copies of this shape stepping inside or outside it"><input type="checkbox" id="' + id('enable') + '"><span class="qc-switch-track"></span></label></div>' +
       '<div class="qc-concentric-body" id="' + id('body') + '" style="display: none;">' +
       '<div class="qc-row-3">' +
@@ -6175,7 +6178,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function concentricIsRatio(p) { return $('qc-' + p + '-concentric-step-mode').value === 'ratio'; }
   function readConcentricForm(p) {
-    if (!$('qc-' + p + '-concentric-enable') || !$('qc-' + p + '-concentric-enable').checked || concentricBlocked(p)) return { enabled: false };
+    if (!experimentalOn() || !$('qc-' + p + '-concentric-enable') || !$('qc-' + p + '-concentric-enable').checked || concentricBlocked(p)) return { enabled: false };
     return {
       enabled: true,
       copies: Math.floor(num('qc-' + p + '-concentric-copies', 0)),
@@ -6344,6 +6347,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!$(pre + 'enable')) return;
     var refresh = function() { updateConcentricCard(p); update(); schedulePatternPreview(); };
     $(pre + 'enable').addEventListener('change', refresh);
+    $('qc-experimental').addEventListener('change', refresh);
     $(pre + 'more').addEventListener('click', function() { setConcentricMore(p, $(pre + 'extra').hidden); });
     $(pre + 'step-mode').addEventListener('change', function() {
       var mode = $(pre + 'step-mode').value;
