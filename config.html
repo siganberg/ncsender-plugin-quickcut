@@ -5692,7 +5692,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       spindleDelay:   num('qc-delay', 0),
       mistM7:         $('qc-mist').checked,
       floodM8:        $('qc-flood').checked,
-      toolNumber:     bitToolNumber()
+      toolNumber:     bitToolNumber(),
+      toolName:       bitToolName()
     };
   }
 
@@ -8060,6 +8061,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (n > 0 && mm > 0) { bit.setAttribute('data-tool', String(n)); bit.setAttribute('data-tool-mm', String(mm)); }
     else { bit.removeAttribute('data-tool'); bit.removeAttribute('data-tool-mm'); }
     showBitTool();
+  }
+  // The tool table's name for the tool picked from the menu, when it counts.
+  function bitToolName() {
+    var n = bitToolNumber();
+    var t = n > 0 ? (state.tools || []).filter(function(x) { return x.n === n; })[0] : null;
+    return t ? t.name : '';
   }
   function bitToolNumber() {
     var t = bitTool();
@@ -15038,6 +15045,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return '(' + String(text).replace(/\(/g, '[').replace(/\)/g, ']') + ')';
     }
 
+    // M6 with the picked tool's name after it, as printable ASCII without the
+    // realtime characters ! ? ~, in a line Grbl's 80-byte buffer takes.
+    function toolChangeLine(params) {
+      var line = 'M6 T' + params.toolNumber + ' ; Tool change';
+      var name = String(params.toolName || '').replace(/[^\x20-\x7e]|[!?~]/g, '').replace(/\s+/g, ' ').trim();
+      return name ? (line + ': ' + name).slice(0, 79).trim() : line;
+    }
+
     function programHeader(params, opts) {
       var unitsCode = isImperial ? 'G20' : 'G21';
       var unitsLabel = isImperial ? 'inch' : 'mm';
@@ -15062,7 +15077,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // A tool changer's machine: change to the bit's tool first, then back
       // up to safe Z, as the tool change may leave it lower.
       if (params.toolNumber > 0) {
-        lines.push('M6 T' + params.toolNumber + ' ; Tool change');
+        lines.push(toolChangeLine(params));
         lines.push(unitsCode + ' G90 ; Units and absolute again after it');
         lines.push((csz || 'G53 G0 Z0') + ' ; Move to safe Z');
       }

@@ -2992,6 +2992,16 @@ test('trapezoid: no Corner Relief notch past a top edge too short to keep its co
   assert.ok(top + 3 <= 25 + 1e-3, 'the bit stays below the top edge, reached ' + (top + 3));
 });
 
+test('a tool picked from the menu puts its name after the tool change, as safe ASCII in 79 characters', () => {
+  const gen = makeQuickCutGenerator(false);
+  assert.match(gen.generateRectangleProgram(baseParams({ toolNumber: 3, toolName: '1/4" Downcut (2 flute)' })),
+    /^M6 T3 ; Tool change: 1\/4" Downcut \(2 flute\)$/m);
+  const m6 = gen.generateRectangleProgram(baseParams({ toolNumber: 3, toolName: 'Ø6 mm ball! nose? ~' + 'x'.repeat(90) })).split('\n').find(l => l.startsWith('M6'));
+  assert.ok(m6.startsWith('M6 T3 ; Tool change: 6 mm ball nose x'), m6);
+  assert.ok(m6.length <= 79, m6.length);
+  assert.match(gen.generateRectangleProgram(baseParams({ toolNumber: 3 })), /^M6 T3 ; Tool change$/m);
+});
+
 test('a tool number starts the program with M6 T, units and G90 again, and a lift back to safe Z', () => {
   const gen = makeQuickCutGenerator(false);
   const g = gen.generateRectangleProgram(baseParams({ toolNumber: 3, safeZHeightMm: -5 }));
