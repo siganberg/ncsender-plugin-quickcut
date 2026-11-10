@@ -344,6 +344,8 @@ The **Help** button at the bottom of the sidebar explains the tab you're on: wha
 
 On a touchscreen, touch a field (or tab to it) and wait a second to see its tip just below it, like a mouse hover would. The **Touch Tooltips** switch at the top right of Help turns them off.
 
+**Experimental Features**, above it, shows features still being tried out, each marked *Experimental*. Off, they're hidden and left out of the program, but their settings are kept; loading a program that uses one turns it on. Test builds (a `-test` version) start with it on, releases with it off.
+
 The [ncSender manual's QuickCut page](https://docs.ncsender.xyz/plugins/quickcut/) has more.
 
 ## Saving and loading programs
