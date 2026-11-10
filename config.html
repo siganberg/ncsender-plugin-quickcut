@@ -10163,6 +10163,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // once per SVG in its <defs>. Note: pattern ids are per-SVG (SVGs
   // don't share <defs>), so each shape's preview needs to include
   // its own copy — see the caller for the inline `defs` block.
+  // A caption wider than the preview (a long name, its copies) is squeezed
+  // to fit rather than cut off at the sides.
+  function fitShapeCaption(svg, room) {
+    var cap = svg.querySelector('.qc-shp-cap');
+    if (cap && cap.getBBox().width > room) {
+      cap.setAttribute('textLength', room.toFixed(2));
+      cap.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+  }
   function shapePreviewDefs(idPrefix) {
     // Open V-style arrowhead — two strokes meeting at the tip
     // (unfilled), giving a lighter "measurement" feel than a solid
@@ -12136,6 +12145,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       rectBit() +
       rectOriginCross();
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
+    fitShapeCaption(svg, sxB - sxA + 5);
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
 
     // The bit going round each copy in turn, on its center line.
@@ -12433,6 +12443,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste +
       (chf ? '' : parts + concentricSvg + over + ideal + ($('qc-' + sh.prefix + '-tabs-enable') ? sh.tabs(c).map(function(segs) { return tabMarks(sh.prefix, segs, segs.real); }).join('') : '')) + dims + cap + bit + origin;
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
+    fitShapeCaption(svg, sxB - sxA + 5);
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
   }
 
