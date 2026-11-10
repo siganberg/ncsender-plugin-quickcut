@@ -2802,8 +2802,12 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-star-dia" min="0.001" step="0.01" value="40" title="Across the star's points.">
                   </div>
                   <div class="qc-field qc-poly-star-only" style="display: none;">
-                    <label for="qc-poly-inner">Inner Diameter</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inner" min="0.001" step="0.01" value="16" title="Across the corners between the points: smaller for sharper points.">
+                    <select class="qc-label-select" id="qc-poly-inner-mode" aria-label="Inner corners set by" title="Inner Diameter: type the distance across the corners between the points. Inner Ratio: type it as a percentage of the Diameter, so the star keeps its shape when you change its size. Classic Star: the ratio of a regular star (every second point joined: 38.2% for 5 points), set by the number of points. Changing it converts the number so the star stays the same.">
+                      <option value="diameter" selected>Inner Diameter</option>
+                      <option value="ratio">Inner Ratio (%)</option>
+                      <option value="classic">Classic Star (%)</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inner" min="0.001" step="0.01" value="16" aria-labelledby="qc-poly-inner-mode" title="Across the corners between the points (smaller for sharper points), or with Inner Ratio, that as a percentage of the Diameter.">
                   </div>
                   <div class="qc-field" id="qc-poly-start-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -4939,8 +4943,12 @@
     return el && !validateField(id, el.value) ? num(id, NaN) : NaN;
   }
   function validateField(id, value) {
-    var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE : validationRules()[id];
+    var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE
+      : id === 'qc-poly-inner' && starInnerMode() !== 'diameter' ? STAR_RATIO_RULE : validationRules()[id];
     if (!rules) return null;
+    if (id === 'qc-poly-inner' && polyKind() === 'star' && starInnerMode() === 'classic' && !(polygonSides() >= 5)) {
+      return 'A classic star needs 5 or more points';
+    }
     // An Inside / Outside Radius is an edge distance: 0 is a copy touching the center.
     var edgeRadius = /^qc-(\w+)-pattern-radius$/.exec(id);
     if (edgeRadius && patternRadiusMode(edgeRadius[1]) !== 'center') {
@@ -5010,7 +5018,8 @@
     // A star's inner diameter is inside its diameter.
     if (id === 'qc-poly-inner' && polyKind() === 'star') {
       var starD = okNum('qc-poly-star-dia');
-      if (n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
+      if (starInnerMode() === 'diameter' && n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
+      n = starInnerDiameterFrom(n, starD, starInnerMode());
       // The bit has to fit its points (Inner) or the corners between them (Outer).
       var starP = Object.assign(readPolygonForm(), { innerDiameter: n });
       var starBit = Math.max(0, num('qc-bit', 0)) / 2;
@@ -5997,6 +6006,38 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return polygonCornerDiameterFrom(num('qc-poly-diameter', def), polygonSides(), $('qc-poly-size-mode').value);
   }
 
+  // A star's inner corners: typed across them (Inner Diameter), as a
+  // percentage of the Diameter so resizing keeps the shape (Inner Ratio),
+  // or a regular star's for its points (Classic Star: every second point
+  // joined, 38.2% for 5; none under 5 points).
+  var STAR_RATIO_RULE = { min: 1, max: 99, label: 'Inner Ratio' };
+  var STAR_DEFAULT = { points: 5, ratio: 38.5, version: 1 };
+  function starInnerMode() { return $('qc-poly-inner-mode').value; }
+  function classicStarRatio(points) {
+    return points >= 5 ? Math.cos(2 * Math.PI / points) / Math.cos(Math.PI / points) : NaN;
+  }
+  function starInnerDiameterFrom(value, diameter, mode) {
+    if (mode === 'classic') return classicStarRatio(polygonSides()) * diameter;
+    return mode === 'ratio' ? value / 100 * diameter : value;
+  }
+  function starInnerDiameter() {
+    return starInnerDiameterFrom(num('qc-poly-inner', 0), num('qc-poly-star-dia', 0), starInnerMode());
+  }
+  function roundPercent(v) { return Math.round(v * 10) / 10; }
+  // A ratio has no unit, so the field stops converting typed units; a
+  // classic star's is set by its points.
+  function setStarInnerMode(mode) {
+    var el = $('qc-poly-inner');
+    $('qc-poly-inner-mode').value = mode;
+    if (mode === 'diameter') el.setAttribute('data-unit', 'length');
+    else el.removeAttribute('data-unit');
+    el.readOnly = mode === 'classic';
+    if (mode === 'classic') {
+      var r = classicStarRatio(polygonSides());
+      el.value = isFinite(r) ? roundPercent(r * 100) : '';
+    }
+  }
+
   function readPolygonForm() {
     var common = readCommonParams();
     var diameter = polyKind() === 'star' ? num('qc-poly-star-dia', 0) : polygonCornerDiameter(0);
@@ -6012,7 +6053,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       radius:        diameter / 2,
       startAngleDeg: num('qc-poly-start-angle', 0),
       kind:          polyKind(),
-      innerDiameter: num('qc-poly-inner', 0),
+      innerDiameter: starInnerDiameter(),
+      innerMode:     starInnerMode(),
+      innerRatio:    starInnerMode() === 'ratio' ? num('qc-poly-inner', 0) : null,
       cornerRadius:  polyKind() === 'star' ? 0 : num('qc-poly-corner', 0),
       cutType:       $('qc-poly-cut-type').value,
       cornerRelief:  $('qc-poly-corner-relief').value,
@@ -8355,6 +8398,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (saved.polygon)              $('qc-poly-kind').value = poly.kind === 'star' ? 'star' : 'polygon';
     if (poly.innerDiameter > 0)     $('qc-poly-inner').value = roundDisplay(mmToDisplay(poly.innerDiameter));
+    // STAR_DEFAULT once for every star, saved ones too (starDefaults marks
+    // it done), when QuickCut opens; the star's 5 points when it's next
+    // shown. A loaded program brings back its own; another shape's leaves
+    // the star alone.
+    if (!loaded) state.starDefaults = poly.starDefaults !== STAR_DEFAULT.version;
+    else if (saved.polygon) state.starDefaults = false;
+    if (!loaded || saved.polygon) {
+      setStarInnerMode(state.starDefaults ? 'ratio' : poly.innerMode === 'ratio' || poly.innerMode === 'classic' ? poly.innerMode : 'diameter');
+      if (state.starDefaults) $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+      else if (poly.innerMode === 'ratio' && poly.innerRatio > 0) $('qc-poly-inner').value = poly.innerRatio;
+      if (state.starDefaults && poly.kind === 'star') {
+        state.starDefaults = false;
+        $('qc-poly-sides').value = STAR_DEFAULT.points;
+      }
+      $('qc-poly-inner-mode').setAttribute('data-was', starInnerMode());
+    }
     if (poly.starDiameter > 0)      $('qc-poly-star-dia').value = roundDisplay(mmToDisplay(poly.starDiameter));
     showPolyKind(false);
     if (saved.polygon)              $('qc-poly-corner-relief').value = poly.cornerRelief || 'none';
@@ -8610,6 +8669,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         sizeValue:     displayToMm(params.sizeValue),
         kind:          params.kind,
         innerDiameter: displayToMm(params.innerDiameter),
+        innerMode:     params.innerMode,
+        innerRatio:    params.innerRatio,
+        starDefaults:  state.starDefaults ? undefined : STAR_DEFAULT.version,
         startAngleDeg: params.startAngleDeg,
         starDiameter:  displayToMm(num('qc-poly-star-dia', 0)),
         cornerRadius:  displayToMm(num('qc-poly-corner', 0)),
@@ -13941,13 +14003,42 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-poly-sub').textContent = star
       ? 'Cut a star: its points round a diameter, the corners between them on a smaller one.'
       : 'Regular N-sided polygon, sized across the corners, across the flats, or by edge length.';
-    if (star && picked && !(num('qc-poly-inner', 0) > 0 && num('qc-poly-inner', 0) < num('qc-poly-star-dia', 0))) {
-      $('qc-poly-inner').value = roundDisplay(num('qc-poly-star-dia', 0) * 0.4);
+    if (star && picked && state.starDefaults) {
+      state.starDefaults = false;
+      $('qc-poly-sides').value = STAR_DEFAULT.points;
+      setStarInnerMode('ratio');
+      $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+    }
+    if (star && picked && starInnerMode() !== 'classic' && !(starInnerDiameter() > 0 && starInnerDiameter() < num('qc-poly-star-dia', 0))) {
+      $('qc-poly-inner').value = starInnerMode() === 'ratio' ? 40 : roundDisplay(num('qc-poly-star-dia', 0) * 0.4);
     }
   }
   function wirePolygonForm() {
     $('qc-poly-kind').addEventListener('change', function() { showPolyKind(true); updatePolygonPreview(); kindPicked('polygon'); });
     $('qc-poly-inner').addEventListener('input', updatePolygonPreview);
+    // Switching Inner Diameter / Inner Ratio / Classic Star converts the
+    // number, so the star stays the same (Classic sets its own).
+    var innerMode = $('qc-poly-inner-mode');
+    innerMode.setAttribute('data-was', innerMode.value);
+    innerMode.addEventListener('change', function() {
+      var was = innerMode.getAttribute('data-was'), mode = innerMode.value, dia = num('qc-poly-star-dia', NaN);
+      setStarInnerMode(was);
+      var inner = starInnerDiameterFrom(num('qc-poly-inner', NaN), dia, was);
+      setStarInnerMode(mode);
+      if (mode !== was && mode !== 'classic' && isFinite(inner) && inner > 0 && dia > 0) {
+        $('qc-poly-inner').value = mode === 'ratio' ? roundPercent(inner / dia * 100) : roundDisplay(inner);
+      } else if (mode !== 'classic' && !$('qc-poly-inner').value.trim()) {
+        $('qc-poly-inner').value = mode === 'ratio' ? STAR_DEFAULT.ratio : dia > 0 ? roundDisplay(dia * STAR_DEFAULT.ratio / 100) : '';
+      }
+      innerMode.setAttribute('data-was', mode);
+      recheckField('qc-poly-inner');
+      updatePolygonPreview();
+    });
+    $('qc-poly-sides').addEventListener('input', function() {
+      if (polyKind() !== 'star' || starInnerMode() !== 'classic') return;
+      setStarInnerMode('classic');
+      recheckField('qc-poly-inner');
+    });
     $('qc-poly-star-dia').addEventListener('input', function() {
       if ($('qc-poly-inner').value.trim()) recheckField('qc-poly-inner');
       updatePolygonPreview();
