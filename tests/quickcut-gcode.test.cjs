@@ -3935,9 +3935,10 @@ test('a pen or drag knife: no spindle start, wait or stop in any program', () =>
       assert.match(gcode, /^M5 ; Stop spindle$/m);
     }
   }
-  // Only the spindle lines differ from an end mill's program
+  // Only the spindle lines differ from an end mill's program that also
+  // goes straight down at each start
   const drop = (s) => s.split('\n').filter((l) => !/^(M3 |M5 |G4 P1 ; Wait|\(Feed Rate)/.test(l)).join('\n');
-  assert.equal(drop(g.generateRectangleProgram(baseParams({ toolType: 'pen' }))), drop(g.generateRectangleProgram(baseParams())));
+  assert.equal(drop(g.generateRectangleProgram(baseParams({ toolType: 'pen' }))), drop(g.generateRectangleProgram(baseParams({ straightIn: 'pen' }))));
   assert.equal(g.toolSpins({ toolType: 'pen' }), false);
   assert.equal(g.toolSpins({ toolType: 'penetrator' }), true);
 });

@@ -5694,8 +5694,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       floodM8:        $('qc-flood').checked,
       toolNumber:     bitToolNumber(),
       toolType:       bitToolType(),
-      toolMaxPlungeMm: bitToolInfo().fluteMm
+      toolMaxPlungeMm: bitToolInfo().fluteMm,
+      // A laser (no tool type for one yet) goes straight down at each
+      // start like a pen; it keeps its M3, whose S is its power.
+      straightIn:     bitToolIsLaser() ? 'laser' : ''
     };
+  }
+  function bitToolIsLaser() {
+    var t = bitToolInfo();
+    return t.type === 'laser' || /\blaser\b/i.test(t.name || '');
   }
 
   function readRectangleForm() {
@@ -8071,7 +8078,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // for a pen or drag knife: how far below Z0 its tip may go.
   function bitToolInfo() {
     var n = bitToolNumber();
-    if (n) { var t = toolEntry(n) || {}; return { type: t.type || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
+    if (n) { var t = toolEntry(n) || {}; return { type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
     var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm'));
     return !state.atc && mm > 0 && Math.abs(displayToMm(num('qc-bit', 0)) - mm) < 0.002
       ? { type: bit.getAttribute('data-loaded-type') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 } : { type: '', fluteMm: 0 };
@@ -15029,6 +15036,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // 0.0005 mm in metric but 0.0127 mm in inches (error:33), so inches get 5,
     // like the arc words themselves.
     var xyDp = isImperial ? 5 : 3;
+  // A drag knife, pen or laser: straight down at each start, in place of
+  // every ramp and helix (set by programHeader from straightEntry).
+  var straightIn = false;
 
     function coreSafeZLine(safeZHeightMm) {
       if (typeof safeZHeightMm !== 'number' || !isFinite(safeZHeightMm)) return null;
@@ -15066,16 +15076,27 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function toolSpins(params) {
       return !/^(pen|drag[-_ ]?knife)$/i.test(String((params && params.toolType) || '').trim());
     }
+    // A tool that doesn't spin goes straight down at each start: what it
+    // is ('pen', 'drag knife', or params.straightIn, e.g. 'laser'), or ''
+    // for a bit that ramps in.
+    function straightEntry(params) {
+      if (params.straightIn) return String(params.straightIn);
+      if (toolSpins(params)) return '';
+      return /^pen$/i.test(String(params.toolType).trim()) ? 'pen' : 'drag knife';
+    }
 
     function programHeader(params, opts) {
       var unitsCode = isImperial ? 'G20' : 'G21';
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var lines = [];
+      var entry = straightEntry(params);
+      straightIn = !!entry;
       lines.push(comment('QuickCut: ' + opts.shapeLabel));
       if (opts.extraComments) {
         for (var i = 0; i < opts.extraComments.length; i++) lines.push(comment(opts.extraComments[i]));
       }
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
+    if (straightIn) lines.push(comment('Entry: straight down, no ramps, for a ' + entry));
       lines.push(comment('Z0: ' + (opts.z0 || 'the top of the stock')));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
       lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + (toolSpins(params) ? params.spindleRpm + 'RPM' : 'off, the tool does not spin') + ')');
@@ -15878,7 +15899,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var trips = Math.min(8, Math.ceil(drop / (2 * len * rampSlope) - 1e-9));
       lines.push('G1 Z' + fromZ.toFixed(3) + ' F' + plungeFeedRate);
       if (drop <= 1e-9) return;
-      if (room < minRamp) {
+      if (room < minRamp || straightIn) {
         lines.push('G1 Z' + toZ.toFixed(3) + ' F' + plungeFeedRate);
         return;
       }
@@ -16350,7 +16371,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 
       var helixRadius = base.toolRadius * 0.6;
       helixRadius = Math.min(helixRadius, base.halfW - 0.001, base.halfH - 0.001);
-      var useHelix = helixRadius > base.toolRadius * 0.1;
+      var useHelix = !straightIn && helixRadius > base.toolRadius * 0.1;
       if (!useHelix) helixRadius = 0;
       var helixStartX = base.cx + helixRadius;
       var helixStartY = base.cy;
@@ -16526,7 +16547,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         // As many turns as keep it to rampSlope (a small hole has a short
         // lap), up to 64.
         var lap = 2 * Math.PI * pathRadius;
-        if (lap < minRamp) {
+        if (lap < minRamp || straightIn) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
           prevZ = targetZ;
           continue;
@@ -17103,7 +17124,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var prevZ = parseFloat(slowPlungeStart);
       for (var k = 1; k <= passes; k++) {
         var targetZ = -(plan.height * Math.sqrt(k / passes) + plan.tipOffset);
-        if (lap < minRamp) {
+        if (lap < minRamp || straightIn) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
           prevZ = targetZ;
           continue;
@@ -17203,7 +17224,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 
       var helixRadius = toolRadius * 0.6;
       helixRadius = Math.min(helixRadius, pathRadius - (isImperial ? 0.00004 : 0.001));
-      var useHelix = 2 * Math.PI * helixRadius >= minRamp;
+      var useHelix = !straightIn && 2 * Math.PI * helixRadius >= minRamp;
       if (!useHelix) helixRadius = 0;
       var helixStartX = cx + helixRadius;
 
@@ -17974,9 +17995,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
-        'Entry: ramp along the innermost ring',
+        straightEntry(params) ? null : 'Entry: ramp along the innermost ring',
         'Origin: ' + resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).label
-      ];
+      ].filter(Boolean);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
@@ -18540,7 +18561,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       ]).filter(Boolean);
       if (clearing) {
         extras.push('Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')');
-        extras.push('Entry: ramp along the innermost ring');
+        if (!straightEntry(params)) extras.push('Entry: ramp along the innermost ring');
       }
       extras.push('Origin: ' + origin.label);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
