@@ -9513,8 +9513,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateChamferNote();
   }
   // Why a chamfer can't be cut, and the field to fix, or null.
+  // A pen, drag knife or laser in the Tool card: what it is, or ''.
+  function nonSpinningTool(p) {
+    if (p.straightIn) return String(p.straightIn);
+    var t = String(p.toolType || '').trim();
+    return /^pen$/i.test(t) ? 'pen' : /^drag[-_ ]?knife$/i.test(t) ? 'drag knife' : '';
+  }
   function chamferProblem(p, plan) {
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
+    var still = nonSpinningTool(p);
+    if (still) return { id: 'qc-bit', msg: 'A ' + still + ' can\u2019t cut a chamfer: it takes a spinning V-bit. Pick a V-bit in the Tool card' };
     if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this shape: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.noKeyhole) return { id: num('qc-chamfer-key-bit', 0) > 0 ? 'qc-chamfer-key-neck' : 'qc-chamfer-key-bit', msg: 'Keyhole Bit: its head\u2019s diameter, wider than its Neck' };
@@ -16871,7 +16879,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var f = function(v) { return v.toFixed(isImperial ? 4 : 3); };
       var lines = programHeader(params, { shapeLabel: shapeLabel, extraComments: extras });
-      var problem = chamferRefusal(plan);
+      // A pen, drag knife or laser can't cut a bevel: that takes a V-bit's
+      // spinning flank.
+      var entry = straightEntry(params);
+      var problem = entry ? 'a chamfer needs a spinning V-bit, not a ' + entry : chamferRefusal(plan);
       if (problem) {
         lines.push('(WARNING: ' + problem + '; nothing to cut)');
         lines.push.apply(lines, programFooter(params));
@@ -17142,12 +17153,6 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (lap < minRamp || straightIn) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
           prevZ = targetZ;
-          if (straightIn) {
-            lines.push('G3 X' + (cx - r).toFixed(5) + ' Y' + cy.toFixed(5) +
-                       ' I' + (-r).toFixed(5) + ' J0 F' + feedRate);
-            lines.push('G3 X' + (cx + r).toFixed(5) + ' Y' + cy.toFixed(5) +
-                       ' I' + r.toFixed(5) + ' J0');
-          }
           continue;
         }
         var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (lap * rampSlope) - 1e-9)));

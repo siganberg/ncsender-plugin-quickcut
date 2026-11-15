@@ -68,7 +68,7 @@ test('straightIn is not kept for the next program without it', () => {
 });
 
 // The depths where a program cuts in X and Y (moves that end at that Z).
-function cutDepths(gcode, flatOnly) {
+function cutDepths(gcode) {
   let z = Infinity;
   const depths = new Set();
   for (const l of gcode.split('\n')) {
@@ -76,7 +76,7 @@ function cutDepths(gcode, flatOnly) {
     if (!m) continue;
     const zm = /Z(-?[\d.]+)/.exec(l);
     const xy = /[XYIJ]-?[\d.]/.test(l.replace(/Z-?[\d.]+/, ''));
-    if (xy && /^G[1-3]\b/.test(l) && !(flatOnly && zm && +zm[1] !== z)) depths.add((zm ? +zm[1] : z).toFixed(3));
+    if (xy && /^G[1-3]\b/.test(l)) depths.add((zm ? +zm[1] : z).toFixed(3));
     if (zm) z = +zm[1];
   }
   return depths;
@@ -105,15 +105,24 @@ function cutDepths(gcode, flatOnly) {
   });
 });
 
-test('straightIn: a circle chamfer cuts a lap at every pass', () => {
-  const gen = makeQuickCutGenerator(false);
-  const p = { ...common, diameter: 30, cutType: 'inner', depth: 6, depthOfCut: 1.5, bitDiameter: 12.7, toolNumber: 22,
-    chamfer: { width: 2, angle: 90, cutDepth: 6, cutBit: 6.35, depthOfCut: 0.5 } };
-  const ramped = gen.generateCircleProgram(p);
-  const straight = gen.generateCircleProgram({ ...p, straightIn: 'drag knife' });
-  const want = cutDepths(ramped, true);
-  const got = cutDepths(straight, true);
-  assert.ok(want.size > 2, 'the chamfer has several passes');
-  for (const z of want) assert.ok(got.has(z), 'cuts a lap at Z' + z);
-  assert.deepEqual(downWhileMoving(straight), []);
+test('a chamfer with a pen, drag knife or laser cuts nothing and says why', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial);
+    const k = imperial ? 1 / 25.4 : 1;
+    const chamfer = { width: 1 * k, angle: 90, cutDepth: 6 * k, cutBit: 6.35 * k, depthOfCut: 0.5 * k };
+    const base = { ...common, bitDiameter: 12.7 * k, depth: 6 * k, depthOfCut: 1.5 * k, toolNumber: 22, chamfer };
+    const programs = (o) => [
+      gen.generateCircleProgram({ ...base, diameter: 30 * k, cutType: 'inner', ...o }),
+      gen.generateRectangleProgram({ ...base, width: 50 * k, height: 30 * k, cornerRadius: 0, cutType: 'outer', ...o }),
+      gen.generatePolygonProgram({ ...base, sides: 6, radius: 20 * k, cutType: 'outer', ...o }),
+      gen.generateSlotProgram({ ...base, slotType: 'straight', length: 60 * k, width: 20 * k, angleDeg: 0, cutType: 'inner', ...o })
+    ];
+    programs({}).forEach((g, i) => assert.match(g, /^G[123] .*[XY]-?[\d.]/m, 'a V-bit chamfers, program ' + i));
+    for (const [o, what] of [[{ toolType: 'pen' }, 'pen'], [{ toolType: 'drag-knife' }, 'drag knife'], [{ straightIn: 'laser', spindleRpm: 800 }, 'laser']]) {
+      programs(o).forEach((g, i) => {
+        assert.match(g, new RegExp('^\\(WARNING: a chamfer needs a spinning V-bit, not a ' + what + '; nothing to cut\\)$', 'm'), what + ' ' + i);
+        assert.doesNotMatch(g, /^G[123] /m, what + ' ' + i + ' moves');
+      });
+    }
+  }
 });
