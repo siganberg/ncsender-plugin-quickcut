@@ -10586,12 +10586,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-tool-filter').value = '';
     pop.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
+    // Sized to its widest tool, then kept that width while filtering.
+    pop.style.width = '';
+    renderToolList();
+    pop.style.width = pop.offsetWidth + 'px';
     // Under the label, inside the dialog.
     var r = btn.getBoundingClientRect(), w = ROOT.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(r.left - w.left, w.width - pop.offsetWidth - 8)) + 'px';
     var below = r.bottom - w.top + 4, room = w.height - below - 8;
     pop.style.top = (room >= Math.min(pop.offsetHeight, 240) ? below : Math.max(8, r.top - w.top - pop.offsetHeight - 4)) + 'px';
-    renderToolList();
     $('qc-tool-filter').focus();
   }
   function closeToolPop() {
