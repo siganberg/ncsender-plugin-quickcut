@@ -126,3 +126,32 @@ test('a chamfer with a pen, drag knife or laser cuts nothing and says why', () =
     }
   }
 });
+
+// A rapid in X or Y with the tip below the top would drag a pen or knife.
+function rapidsBelowTop(gcode) {
+  let z = Infinity;
+  return gcode.split('\n').filter((l) => {
+    const zm = /Z(-?[\d.]+)/.exec(l);
+    if (zm) z = +zm[1];
+    return /^G0\b/.test(l) && /[XY]-?[\d.]/.test(l) && z < -1e-9;
+  });
+}
+
+test('straightIn: clearing lifts between depths and names one entry', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial);
+    const k = imperial ? 1 / 25.4 : 1;
+    const o = { ...common, bitDiameter: 3 * k, depth: 6 * k, depthOfCut: 2 * k, stepoverPct: 40, cutType: 'clearing', straightIn: 'drag knife' };
+    for (const g of [gen.generateRectangleProgram({ ...o, width: 40 * k, height: 30 * k, cornerRadius: 0 }), gen.generateCircleProgram({ ...o, diameter: 40 * k })]) {
+      assert.deepEqual(rapidsBelowTop(g), []);
+      assert.equal((g.match(/^\(Entry: /gm) || []).length, 1);
+    }
+  }
+});
+
+test('Max plunge: the floor is never rounded deeper', () => {
+  const gen = makeQuickCutGenerator(true);
+  const g = gen.generateCircleProgram({ ...common, bitDiameter: 0.02, depth: 0.1, depthOfCut: 0.05, diameter: 1, cutType: 'outer', toolType: 'pen', toolMaxPlungeMm: 0.5 });
+  const deepest = Math.min(...[...g.matchAll(/^G[0-3]\b.*Z(-?[\d.]+)/gm)].map((m) => +m[1]));
+  assert.ok(deepest >= -0.5 / 25.4, 'deepest Z' + deepest);
+});

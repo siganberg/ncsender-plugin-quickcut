@@ -15070,9 +15070,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // 0.0005 mm in metric but 0.0127 mm in inches (error:33), so inches get 5,
     // like the arc words themselves.
     var xyDp = isImperial ? 5 : 3;
-  // A drag knife, pen or laser: straight down at each start, in place of
-  // every ramp and helix (set by programHeader from straightEntry).
-  var straightIn = false;
+    // A drag knife, pen or laser: straight down at each start, in place of
+    // every ramp and helix (set by programHeader from straightEntry).
+    var straightIn = false;
 
     function coreSafeZLine(safeZHeightMm) {
       if (typeof safeZHeightMm !== 'number' || !isFinite(safeZHeightMm)) return null;
@@ -15130,7 +15130,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         for (var i = 0; i < opts.extraComments.length; i++) lines.push(comment(opts.extraComments[i]));
       }
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
-    if (straightIn) lines.push(comment('Entry: straight down, no ramps, for a ' + entry));
+      if (straightIn) lines.push(comment('Entry: straight down, no ramps, for a ' + entry));
       lines.push(comment('Z0: ' + (opts.z0 || 'the top of the stock')));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
       lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + (toolSpins(params) ? params.spindleRpm + 'RPM' : 'off, the tool does not spin') + ')');
@@ -16332,9 +16332,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
-        'Entry: helical bore then expanding outward',
+        straightEntry(params) ? null : 'Entry: helical bore then expanding outward',
         'Origin: ' + resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).label
-      ];
+      ].filter(Boolean);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
@@ -16474,6 +16474,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         currentDepth = nextDepth;
 
         if (currentDepth < depth - 1e-6) {
+          // A pen or knife would drag across the floor: lift first.
+          if (straightIn) lines.push('G0 Z' + safeHeight);
           lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + helixStartY.toFixed(xyDp));
         }
       }
@@ -17207,9 +17209,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
-        'Entry: helical bore then expanding outward',
+        straightEntry(params) ? null : 'Entry: helical bore then expanding outward',
         'Origin: ' + placed.label
-      ];
+      ].filter(Boolean);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
@@ -17328,6 +17330,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         currentDepth = nextDepth;
 
         if (currentDepth < depth - 1e-6) {
+          // A pen or knife would drag across the floor: lift first.
+          if (straightIn) lines.push('G0 Z' + safeHeight);
           lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
         }
       }
@@ -19373,7 +19377,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (p.tabs && !(p.tabs.height < p.depth)) p.tabs = null;
         var out = gen.apply(null, [p].concat([].slice.call(arguments, 1)));
         if (typeof out !== 'string') return out;
-        var floor = -max, word = 'Z' + floor.toFixed(isImperial ? 4 : 3);
+        var floor = -max, dp = isImperial ? 4 : 3;
+        var word = 'Z' + (Math.ceil(floor * Math.pow(10, dp) - 1e-9) / Math.pow(10, dp)).toFixed(dp);
         return out.split('\n').map(function(line) {
           if (/^\s*\(/.test(line) || /\bG53\b/.test(line)) return line;
           var cut = line.search(/[;(]/), code = cut < 0 ? line : line.slice(0, cut), rest = cut < 0 ? '' : line.slice(cut);
