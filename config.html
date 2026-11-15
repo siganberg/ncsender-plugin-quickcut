@@ -3997,6 +3997,8 @@
     feedsAuto: false,
     // Tabs (by field prefix) whose Depth of Cut was typed by hand.
     stepTyped: {},
+    // A pen's or drag knife's feeds as last typed, by T number (mm, mm/min).
+    toolFeeds: {},
     feedsStyle: 'average',
     // A tool changer is on (ncSender's tool.source and tool.count), so a
     // bit picked from the tool table starts the program with M6 T<n>.
@@ -8091,10 +8093,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // for a pen or drag knife: how far below Z0 its tip may go.
   function bitToolInfo() {
     var n = bitToolNumber();
-    if (n) { var t = toolEntry(n) || {}; return { type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
+    if (n) { var t = toolEntry(n) || {}; return { n: n, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
     if (state.atc) return { type: '', fluteMm: 0 };
     var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm')), typed = displayToMm(num('qc-bit', 0));
-    if (mm > 0 && Math.abs(typed - mm) < 0.002) return { type: bit.getAttribute('data-loaded-type') || '', name: bit.getAttribute('data-loaded-name') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 };
+    if (mm > 0 && Math.abs(typed - mm) < 0.002) return { n: Number(bit.getAttribute('data-loaded-n')) || 0, type: bit.getAttribute('data-loaded-type') || '', name: bit.getAttribute('data-loaded-name') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 };
     // Else the tool in the spindle, when the Bit Diameter is its size.
     var t = state.spindleTool;
     return t && Math.abs(typed - t.mm) < 0.002 ? t : { type: '', fluteMm: 0 };
@@ -8247,6 +8249,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!loaded) $('qc-material').value = common.material != null ? common.material : fresh ? 'mdf' : '';
     if (!loaded) state.feedsAuto = fresh || !!common.feedsAuto;
     if (!loaded && common.stepTyped && typeof common.stepTyped === 'object') state.stepTyped = Object.assign({}, common.stepTyped);
+    if (!loaded && common.toolFeeds && typeof common.toolFeeds === 'object') state.toolFeeds = Object.assign({}, common.toolFeeds);
     // How hard the starting feeds push: a preference, not part of a program.
     if (!loaded) {
       state.feedsStyle = /^(conservative|aggressive)$/.test(common.feedsStyle) ? common.feedsStyle : 'average';
@@ -10287,7 +10290,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
       var t = (tools || []).filter(function(x) { return (state.toolById ? x.toolId : x.toolNumber) === n; })[0];
       if (!t || !(t.diameter > 0)) return;
-      state.spindleTool = { mm: t.diameter, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 };
+      state.spindleTool = { n: n, mm: t.diameter, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 };
       scheduleRunNote();
     } catch (e) {}
   }
@@ -10310,6 +10313,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       bit.setAttribute('data-loaded-mm', String(tool.diameter));
       bit.setAttribute('data-loaded-type', tool.type || '');
       bit.setAttribute('data-loaded-name', tool.name || '');
+      bit.setAttribute('data-loaded-n', String(n));
       bit.setAttribute('data-loaded-flute', String(Number(tool.dimensions && tool.dimensions.flute_length) || 0));
       var maxText = Number(tool.dimensions && tool.dimensions.flute_length) > 0 ? ', at most ' + roundDisplay(mmToDisplay(tool.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '';
       var still = /^(pen|drag[-_ ]?knife)$/i.test(String(tool.type || '').trim());
@@ -10390,6 +10394,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // quiet when that's from a new Bit Diameter or Flutes rather than a pick.
   function fillStartingFeeds(quiet) {
     var v = $('qc-material').value, feed = $('qc-feed');
+    // A pen or drag knife needs no material.
+    var pen = penTool();
+    if (pen) { fillPenFeeds(pen, quiet, state.chamferMode ? null : TAB_PREFIX[state.currentTab]); return; }
     if (!v) return;
     var bit = displayToMm(num('qc-bit', 0));
     if (!(bit > 0)) { if (!quiet) setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
@@ -10422,18 +10429,65 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       (v === 'aluminum' ? ' Aluminum: a 1-flute bit, and air or mist.' : '') +
       ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
   }
+  // A pen or drag knife (its tool type), with its T number and Max plunge, or null.
+  function penTool() {
+    var t = bitToolInfo(), type = String(t.type || '').trim();
+    var kind = /^pen$/i.test(type) ? 'pen' : /^drag[-_ ]?knife$/i.test(type) ? 'drag knife' : '';
+    return kind ? { kind: kind, n: t.n || 0, fluteMm: t.fluteMm || 0 } : null;
+  }
+  // A pen or drag knife has no chip to size its feeds by: what was last
+  // typed with it, else a share of the machine's max ($110/$111, $112 for
+  // the plunge) by the Material menu's style (40%, 60%, 80%), and the
+  // whole depth in one pass (held to its Max plunge).
+  var PEN_SHARE = { conservative: 0.4, aggressive: 0.8 };
+  function fillPenFeeds(pen, quiet, pre) {
+    // Picking the material or its style asks for them afresh.
+    if (!quiet && pen.n && state.toolFeeds[pen.n]) { delete state.toolFeeds[pen.n]; persistSettings({ common: { toolFeeds: state.toolFeeds } }); }
+    if (!quiet && pre && state.stepTyped[pre]) { delete state.stepTyped[pre]; persistSettings({ common: { stepTyped: state.stepTyped } }); }
+    var saved = pen.n ? state.toolFeeds[pen.n] : null, share = PEN_SHARE[state.feedsStyle] || 0.6;
+    var feed = saved && saved.feed > 0 ? saved.feed : Math.round(share * (state.maxFeedMm || 5000));
+    var plunge = saved && saved.plunge > 0 ? saved.plunge : Math.round(Math.max(60, share * (state.maxPlungeMm || feed)));
+    writeFeed('qc-feed', feed);
+    writeFeed('qc-plunge', plunge);
+    var filled = ['qc-feed', 'qc-plunge'], step = 0;
+    if (pre && pre !== 'plan' && $('qc-' + pre + '-step') && !state.stepTyped[pre]) {
+      var depth = $('qc-' + pre + '-depth') ? displayToMm(num('qc-' + pre + '-depth', 0)) : 0;
+      step = saved && saved.step > 0 ? saved.step : Math.min(depth > 0 ? depth : Infinity, pen.fluteMm > 0 ? pen.fluteMm : Infinity);
+      if (isFinite(step) && step > 0) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(step)); filled.push('qc-' + pre + '-step'); }
+    }
+    filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
+    if (quiet) return;
+    setFeedsAuto(true);
+    var u = state.unitLabel, name = 'A ' + pen.kind + (pen.n ? ' (T' + pen.n + ')' : '');
+    setTimeout(function() { showTooltip($('qc-feed'), saved ? name + ': the feeds last typed with it.'
+      : name + ': no chip to size it by, so ' + Math.round(share * 100) + '% of the machine\u2019s max feed and plunge' +
+        (step > 0 && isFinite(step) ? ', the whole depth in one pass' : '') + '. Faster or slower as it cuts or draws cleanly; what you type is kept for it.', TOOLTIP_OK, true); }, 0);
+  }
+  // What's typed with a pen or drag knife is kept for it, saved half a second after.
+  var toolFeedsTimer = null;
+  function rememberPenFeeds(el) {
+    var pen = penTool();
+    if (!pen || !pen.n) return;
+    var m = /^qc-([a-z]+)-step$/.exec(el.id), prev = state.toolFeeds[pen.n] || {};
+    var next = { feed: feedMm('qc-feed'), plunge: feedMm('qc-plunge'), step: m ? displayToMm(num(el.id, 0)) : prev.step || 0 };
+    if (!(next.feed > 0 && next.plunge > 0)) return;
+    state.toolFeeds[pen.n] = next;
+    clearTimeout(toolFeedsTimer);
+    toolFeedsTimer = setTimeout(function() { persistSettings({ common: { toolFeeds: state.toolFeeds } }); }, 500);
+  }
   // Typing (or arrow-stepping) a feed, the RPM or a Stepover keeps the
   // feeds from being filled in again. A Depth of Cut typed is kept, and
   // the feed follows it (a deep pass takes a thinner chip); a new Total
   // Depth refills a compression bit's passes.
   function noteHandEdit(el) {
+    if (/^qc-(feed|plunge|[a-z]+-step)$/.test(el.id)) rememberPenFeeds(el);
     var m = /^qc-([a-z]+)-(step|depth)$/.exec(el.id), deep = m && deepFeeds(m[1]);
     if (deep && m[2] === 'step') {
       if (!state.stepTyped[m[1]]) { state.stepTyped[m[1]] = true; persistSettings({ common: { stepTyped: state.stepTyped } }); }
       if (state.feedsAuto) fillStartingFeeds(true);
       return;
     }
-    if (deep && state.feedsAuto && !state.stepTyped[m[1]] && deep.compression) { fillStartingFeeds(true); return; }
+    if (deep && state.feedsAuto && !state.stepTyped[m[1]] && (deep.compression || penTool())) { fillStartingFeeds(true); return; }
     if (/^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(el.id)) setFeedsAuto(false);
   }
   // A compression bit: its tool type, or its name says so (not its notes,
@@ -10480,9 +10534,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       showBitTool();
       fillStartingFeeds(false);
     });
-    // A new bit gets its own feeds, unless they've been changed by hand.
+    // A new bit gets its own feeds, unless they've been changed by hand;
+    // going to or from a pen or drag knife always does (neither's feeds suit the other).
+    var lastPen = '';
     $('qc-bit').addEventListener('change', function() {
-      if (state.feedsAuto) setTimeout(function() { fillStartingFeeds(true); }, 0);
+      setTimeout(function() {
+        var pen = penTool(), key = pen ? 'T' + pen.n + ' ' + pen.kind : '';
+        var switched = key !== lastPen;
+        lastPen = key;
+        if (state.feedsAuto || switched) fillStartingFeeds(true);
+      }, 0);
     });
     ROOT.addEventListener('input', function(e) { if (e.isTrusted) noteHandEdit(e.target); });
   }
