@@ -1822,8 +1822,10 @@
     .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-row-3,
     .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-row-2 { display: contents; }
     .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-header-card-title { grid-column: 1 / -1; }
-    .qc-panel > .qc-header-cards .qc-bit-mode, .qc-panel > .qc-header-cards button.qc-tool-row { grid-column: span 2; align-self: end; }
-    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) { grid-column: span 2; }
+    .qc-panel > .qc-header-cards .qc-bit-mode { grid-column: span 2; align-self: end; }
+    /* The picked tool and the typed size: the same box, centered on the switch. */
+    .qc-panel > .qc-header-cards button.qc-tool-row { grid-column: span 2; align-self: center; }
+    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) { grid-column: span 2; align-self: center; }
     .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) > label { display: none; }
     .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 10px; }
     .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card > .qc-header-card-title,
