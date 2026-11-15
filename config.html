@@ -1804,6 +1804,7 @@
   button.qc-tool-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   button.qc-tool-row .qc-tool-row-empty { color: var(--color-text-secondary); }
   button.qc-tool-row[aria-expanded="true"] { border-color: var(--color-accent) !important; }
+  button.qc-tool-row.qc-input-error { border-color: #d32f2f !important; }
   /* With the Tool Library switch there, Bit Diameter's label is just a label. */
   .qc-has-tool-lib .qc-bit-label { text-decoration: none; cursor: default; }
   /* The band in either orientation: rows fill their width (Feed and Plunge
@@ -4087,6 +4088,7 @@
       if (!state.atc) useLoadedToolDiameter();
     });
     if (state.atc) wireToolMenu();
+    else readSpindleTool();
     wireRunNotes();
     wireStartingFeeds();
     ROOT.addEventListener('change', function(e) {
@@ -4396,7 +4398,7 @@
     var parts = [(t.n ? '<b>T' + t.n + '</b> ' : '') + 'Bit <b>' + esc($('qc-bit').value) + ' ' + u + '</b>'];
     if (!$('qc-feed').disabled) parts.push('Feed <b>' + esc($('qc-feed').value) + '</b> ' + u + '/min');
     parts.push('Plunge <b>' + esc($('qc-plunge').value) + '</b> ' + u + '/min');
-    parts.push('<b>' + esc($('qc-rpm').value) + '</b> RPM');
+    parts.push(/^(pen|drag[-_ ]?knife)$/i.test(String(bitToolInfo().type || '').trim()) ? 'Spindle off' : '<b>' + esc($('qc-rpm').value) + '</b> RPM');
     if (mat.value) parts.push(esc(mat.options[mat.selectedIndex].textContent));
     if ($('qc-mist').checked || $('qc-flood').checked) parts.push([$('qc-mist').checked ? 'Mist' : '', $('qc-flood').checked ? 'Flood' : ''].filter(Boolean).join(' + '));
     toolSummary.innerHTML = parts.map(function(p) { return '<span>' + p + '</span>'; }).join('') + '<span class="qc-tool-summary-up">Edit \u2191</span>';
@@ -8090,9 +8092,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function bitToolInfo() {
     var n = bitToolNumber();
     if (n) { var t = toolEntry(n) || {}; return { type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
-    var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm'));
-    return !state.atc && mm > 0 && Math.abs(displayToMm(num('qc-bit', 0)) - mm) < 0.002
-      ? { type: bit.getAttribute('data-loaded-type') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 } : { type: '', fluteMm: 0 };
+    if (state.atc) return { type: '', fluteMm: 0 };
+    var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm')), typed = displayToMm(num('qc-bit', 0));
+    if (mm > 0 && Math.abs(typed - mm) < 0.002) return { type: bit.getAttribute('data-loaded-type') || '', name: bit.getAttribute('data-loaded-name') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 };
+    // Else the tool in the spindle, when the Bit Diameter is its size.
+    var t = state.spindleTool;
+    return t && Math.abs(typed - t.mm) < 0.002 ? t : { type: '', fluteMm: 0 };
   }
   function bitToolNumber() {
     var t = bitTool();
@@ -9527,7 +9532,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function chamferProblem(p, plan) {
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
     var still = nonSpinningTool(p);
-    if (still) return { id: 'qc-bit', msg: 'A ' + still + ' can\u2019t cut a chamfer: it takes a spinning V-bit. Pick a V-bit in the Tool card' };
+    // The tool row when the tool comes from the table (the size field is hidden then).
+    var row = $('qc-bit-tool');
+    if (still) return { id: row && row.offsetParent ? 'qc-bit-tool' : 'qc-bit', msg: 'A ' + still + ' can\u2019t cut a chamfer: it takes a spinning V-bit. Pick a V-bit in the Tool card' };
     if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this shape: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.noKeyhole) return { id: num('qc-chamfer-key-bit', 0) > 0 ? 'qc-chamfer-key-neck' : 'qc-chamfer-key-bit', msg: 'Keyhole Bit: its head\u2019s diameter, wider than its Neck' };
@@ -10270,6 +10277,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // table. The loaded tool is T<n>, which names a magazine slot or a Tool ID
   // depending on Settings -> Tool Changer -> Tool Numbering; /api/tools/active
   // lists the tools that numbering gives.
+  // No tool changer: the tool in the spindle as the dialog opens, so a pen
+  // or drag knife there is known without a tap on Bit Diameter's label.
+  async function readSpindleTool() {
+    try {
+      var st = await (await fetch(BASE_URL + '/api/server-state')).json();
+      var n = Number(st && st.machineState && st.machineState.tool);
+      if (!(n > 0)) return;
+      var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
+      var t = (tools || []).filter(function(x) { return (state.toolById ? x.toolId : x.toolNumber) === n; })[0];
+      if (!t || !(t.diameter > 0)) return;
+      state.spindleTool = { mm: t.diameter, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 };
+      scheduleRunNote();
+    } catch (e) {}
+  }
   async function useLoadedToolDiameter() {
     var bit = $('qc-bit');
     try {
@@ -10288,6 +10309,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
       bit.setAttribute('data-loaded-mm', String(tool.diameter));
       bit.setAttribute('data-loaded-type', tool.type || '');
+      bit.setAttribute('data-loaded-name', tool.name || '');
       bit.setAttribute('data-loaded-flute', String(Number(tool.dimensions && tool.dimensions.flute_length) || 0));
       var maxText = Number(tool.dimensions && tool.dimensions.flute_length) > 0 ? ', at most ' + roundDisplay(mmToDisplay(tool.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '';
       var still = /^(pen|drag[-_ ]?knife)$/i.test(String(tool.type || '').trim());
@@ -10581,6 +10603,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
     } catch (e) { state.tools = []; }
     showBitTool();
+    // Opened while the tool table was on its way: now as wide as its tools.
+    if (toolPop.open) placeToolPop();
   }
   function openToolPop() {
     var btn = $('qc-bit-tool'), pop = $('qc-tool-pop');
@@ -10589,16 +10613,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-tool-filter').value = '';
     pop.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
-    // Sized to its widest tool, then kept that width while filtering.
-    pop.style.width = '';
     renderToolList();
-    pop.style.width = Math.ceil(pop.getBoundingClientRect().width) + 'px';
-    // Under the label, inside the dialog.
+    placeToolPop();
+    $('qc-tool-filter').focus();
+  }
+  // Sized to its widest tool (a pixel over, as offsetWidth rounds down),
+  // then kept that width while filtering; under the row, inside the dialog.
+  function placeToolPop() {
+    var btn = $('qc-bit-tool'), pop = $('qc-tool-pop');
+    pop.style.width = '';
+    pop.style.width = (pop.offsetWidth + 1) + 'px';
     var r = btn.getBoundingClientRect(), w = ROOT.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(r.left - w.left, w.width - pop.offsetWidth - 8)) + 'px';
     var below = r.bottom - w.top + 4, room = w.height - below - 8;
     pop.style.top = (room >= Math.min(pop.offsetHeight, 240) ? below : Math.max(8, r.top - w.top - pop.offsetHeight - 4)) + 'px';
-    $('qc-tool-filter').focus();
   }
   function closeToolPop() {
     toolPop.open = false;
@@ -10635,12 +10663,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else if (!tools.length) html = '<div class="qc-tool-empty">No tool matches “' + esc($('qc-tool-filter').value) + '”.</div>';
     // Headed In the magazine and Tool table when both have tools.
     var grouped = tools.some(function(t) { return t.slot; }) && tools.some(function(t) { return !t.slot; });
-    if (state.tools && tools.length && !grouped) html = '<div class="qc-tool-head">Tool change to</div>';
+    if (state.tools && tools.length && !grouped && !pickedFirst) html = '<div class="qc-tool-head">Tool change to</div>';
     html += toolPop.items.map(function(it, i) {
       var t = it.t, text = t ? '<b>' + (t.n === n ? '✓ ' : '') + 'T' + t.n + '</b>' + (t.name ? '<span class="qc-tool-name">' + esc(t.name) + '</span>' : '') + '<span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + (t.n === n ? ' · ' + toolDetails(t) : '') + '</span>'
         : 'No tool change';
       var picked = pickedFirst && i === 0, prev = i > 0 && !(pickedFirst && i === 1) && toolPop.items[i - 1].t;
-      var head = grouped && t ? (picked ? 'Picked' : !prev || !!prev.slot !== !!t.slot ? (t.slot ? 'In the magazine' : 'Tool table') : '') : '';
+      var head = !t ? '' : picked ? 'Picked' : grouped ? (!prev || !!prev.slot !== !!t.slot ? (t.slot ? 'In the magazine' : 'Tool table') : '') : pickedFirst && i === 1 ? 'Tool change to' : '';
       if (head) head = '<div class="qc-tool-head">' + head + '</div>';
       return head + '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
     }).join('');
@@ -10695,6 +10723,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var bit = $('qc-bit');
     closeToolPop();
     if (!v) return;
+    if ($('qc-bit-tool').classList.contains('qc-input-error')) setFieldError($('qc-bit-tool'), '');
     var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0], fl = null;
     var chamferMsg = '';
     if (t) {
@@ -10889,6 +10918,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function fluteDepthNote(prefix) {
     if (state.chamferMode) return '';
     var n = bitToolNumber(), depth = prefix && $('qc-' + prefix + '-depth') ? num('qc-' + prefix + '-depth', 0) : 0;
+    // A pen or drag knife: the program stops at its Max plunge.
+    var info = bitToolInfo(), kind = /^pen$/i.test(String(info.type || '').trim()) ? 'pen' : /^drag[-_ ]?knife$/i.test(String(info.type || '').trim()) ? 'drag knife' : '';
+    if (kind) return info.fluteMm > 0 && depth > roundDisplay(mmToDisplay(info.fluteMm)) + 1e-9
+      ? 'It stops at the ' + kind + '\u2019s ' + roundDisplay(mmToDisplay(info.fluteMm)) + ' ' + state.unitLabel + ' Max plunge.' : '';
     var t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
     var fl = t && t.dimensions && t.dimensions.flute_length;
     if (!(fl > 0) || !(depth > roundDisplay(mmToDisplay(fl + Math.max(1, fl / 10))) + 1e-9)) return '';
