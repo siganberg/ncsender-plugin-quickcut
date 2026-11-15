@@ -925,12 +925,14 @@
   /* Rows keep their height in the scrolling list: a long name wraps, it doesn't overlap the next. */
   .qc-tool-list > * { flex-shrink: 0; }
   .qc-tool-head { padding: 4px 10px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
-  .qc-tool-item { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
+  .qc-tool-item { -webkit-appearance: none; appearance: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
     background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
     font-family: inherit; font-size: 0.88rem; line-height: 1.3; cursor: pointer; }
   .qc-tool-item:hover, .qc-tool-item.qc-active { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; }
   .qc-tool-item[aria-selected="true"] { font-weight: 600; }
-  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); white-space: nowrap; }
+  .qc-tool-item b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+  .qc-tool-item .qc-tool-name { flex: 1 1 auto; min-width: 0; }
+  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); font-weight: 400; font-variant-numeric: tabular-nums; }
   .qc-tool-empty { padding: 8px 10px; font-size: 0.85rem; color: var(--color-text-secondary); }
   .qc-material-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 10px; }
   /* Beside Generate: about how long it runs, and the travel check. */
@@ -10626,7 +10628,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var grouped = tools.some(function(t) { return t.slot; }) && tools.some(function(t) { return !t.slot; });
     if (state.tools && tools.length && !grouped) html = '<div class="qc-tool-head">Tool change to</div>';
     html += toolPop.items.map(function(it, i) {
-      var t = it.t, text = t ? (t.n === n ? '✓ ' : '') + 'T' + t.n + (t.name ? ' ' + esc(t.name) : '') + ' <span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
+      var t = it.t, text = t ? '<b>' + (t.n === n ? '✓ ' : '') + 'T' + t.n + '</b>' + (t.name ? '<span class="qc-tool-name">' + esc(t.name) + '</span>' : '') + '<span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
         : 'No tool change';
       var prev = i > 0 && toolPop.items[i - 1].t, head = grouped && t && (i === 0 || !!prev.slot !== !!t.slot) ? '<div class="qc-tool-head">' + (t.slot ? 'In the magazine' : 'Tool table') + '</div>' : '';
       return head + '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
