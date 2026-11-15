@@ -10436,17 +10436,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return kind ? { kind: kind, n: t.n || 0, fluteMm: t.fluteMm || 0 } : null;
   }
   // A pen or drag knife has no chip to size its feeds by: what was last
-  // typed with it, else a share of the machine's max ($110/$111, $112 for
-  // the plunge) by the Material menu's style (40%, 60%, 80%), and the
-  // whole depth in one pass (held to its Max plunge).
-  var PEN_SHARE = { conservative: 0.4, aggressive: 0.8 };
+  // typed with it, else 75 in/min (1905 mm/min) by the Material menu's
+  // style (x0.75, x1.25, as a bit's), within the machine's max ($110/$111),
+  // the plunge 30% of it (within $112), and the whole depth in one pass
+  // (held to its Max plunge).
+  var PEN_FEED_MM = 1905, PEN_STYLE = { conservative: 0.75, aggressive: 1.25 };
   function fillPenFeeds(pen, quiet, pre) {
     // Picking the material or its style asks for them afresh.
     if (!quiet && pen.n && state.toolFeeds[pen.n]) { delete state.toolFeeds[pen.n]; persistSettings({ common: { toolFeeds: state.toolFeeds } }); }
     if (!quiet && pre && state.stepTyped[pre]) { delete state.stepTyped[pre]; persistSettings({ common: { stepTyped: state.stepTyped } }); }
-    var saved = pen.n ? state.toolFeeds[pen.n] : null, share = PEN_SHARE[state.feedsStyle] || 0.6;
-    var feed = saved && saved.feed > 0 ? saved.feed : Math.round(share * (state.maxFeedMm || 5000));
-    var plunge = saved && saved.plunge > 0 ? saved.plunge : Math.round(Math.max(60, share * (state.maxPlungeMm || feed)));
+    var saved = pen.n ? state.toolFeeds[pen.n] : null, style = PEN_STYLE[state.feedsStyle] || 1;
+    var feed = saved && saved.feed > 0 ? saved.feed : Math.round(Math.min(state.maxFeedMm || Infinity, PEN_FEED_MM * style));
+    var plunge = saved && saved.plunge > 0 ? saved.plunge : Math.round(Math.min(state.maxPlungeMm || Infinity, Math.max(60, feed * 0.3)));
     writeFeed('qc-feed', feed);
     writeFeed('qc-plunge', plunge);
     var filled = ['qc-feed', 'qc-plunge'], step = 0;
@@ -10460,7 +10461,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     setFeedsAuto(true);
     var u = state.unitLabel, name = 'A ' + pen.kind + (pen.n ? ' (T' + pen.n + ')' : '');
     setTimeout(function() { showTooltip($('qc-feed'), saved ? name + ': the feeds last typed with it.'
-      : name + ': no chip to size it by, so ' + Math.round(share * 100) + '% of the machine\u2019s max feed and plunge' +
+      : name + ': no chip to size it by, so ' + feedToDisplay(feed) + ' ' + state.unitLabel + '/min, a usual start' +
         (step > 0 && isFinite(step) ? ', the whole depth in one pass' : '') + '. Faster or slower as it cuts or draws cleanly; what you type is kept for it.', TOOLTIP_OK, true); }, 0);
   }
   // What's typed with a pen or drag knife is kept for it, saved half a second after.
