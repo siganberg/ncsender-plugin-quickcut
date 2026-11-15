@@ -66,3 +66,54 @@ test('straightIn is not kept for the next program without it', () => {
   assert.ok(downWhileMoving(after).length > 0);
   assert.doesNotMatch(after, /straight down/);
 });
+
+// The depths where a program cuts in X and Y (moves that end at that Z).
+function cutDepths(gcode, flatOnly) {
+  let z = Infinity;
+  const depths = new Set();
+  for (const l of gcode.split('\n')) {
+    const m = /^G[0-3]\b/.exec(l);
+    if (!m) continue;
+    const zm = /Z(-?[\d.]+)/.exec(l);
+    const xy = /[XYIJ]-?[\d.]/.test(l.replace(/Z-?[\d.]+/, ''));
+    if (xy && /^G[1-3]\b/.test(l) && !(flatOnly && zm && +zm[1] !== z)) depths.add((zm ? +zm[1] : z).toFixed(3));
+    if (zm) z = +zm[1];
+  }
+  return depths;
+}
+
+[false, true].forEach((imperial) => {
+  test('straightIn: every shape cuts at every depth, in ' + (imperial ? 'inches' : 'mm'), () => {
+    const gen = makeQuickCutGenerator(imperial);
+    const k = imperial ? 1 / 25.4 : 1;
+    const levels = [3, 6, 7].map((d) => (-d * k).toFixed(3));
+    const o = { bitDiameter: 3 * k, depth: 7 * k, depthOfCut: 3 * k, straightIn: 'drag knife' };
+    const tabs = { count: 4, width: 6 * k, height: 1 * k };
+    const shapes = [
+      ['circle', gen.generateCircleProgram({ ...common, diameter: 30 * k, cutType: 'outer', ...o })],
+      ['circle, tabs', gen.generateCircleProgram({ ...common, diameter: 30 * k, cutType: 'outer', tabs, ...o })],
+      ['circle, inner', gen.generateCircleProgram({ ...common, diameter: 30 * k, cutType: 'inner', ...o })],
+      ['rectangle', gen.generateRectangleProgram({ ...common, width: 50 * k, height: 30 * k, cornerRadius: 0, cutType: 'outer', ...o })],
+      ['rectangle, tabs', gen.generateRectangleProgram({ ...common, width: 50 * k, height: 30 * k, cornerRadius: 0, cutType: 'outer', tabs, ...o })],
+      ['polygon', gen.generatePolygonProgram({ ...common, sides: 6, radius: 20 * k, cutType: 'outer', ...o })],
+      ['slot', gen.generateSlotProgram({ ...common, slotType: 'straight', length: 60 * k, width: 10 * k, angleDeg: 0, cutType: 'inner', ...o })]
+    ];
+    for (const [name, g] of shapes) {
+      const cut = cutDepths(g);
+      for (const z of levels) assert.ok(cut.has(z), name + ' cuts at Z' + z);
+    }
+  });
+});
+
+test('straightIn: a circle chamfer cuts a lap at every pass', () => {
+  const gen = makeQuickCutGenerator(false);
+  const p = { ...common, diameter: 30, cutType: 'inner', depth: 6, depthOfCut: 1.5, bitDiameter: 12.7, toolNumber: 22,
+    chamfer: { width: 2, angle: 90, cutDepth: 6, cutBit: 6.35, depthOfCut: 0.5 } };
+  const ramped = gen.generateCircleProgram(p);
+  const straight = gen.generateCircleProgram({ ...p, straightIn: 'drag knife' });
+  const want = cutDepths(ramped, true);
+  const got = cutDepths(straight, true);
+  assert.ok(want.size > 2, 'the chamfer has several passes');
+  for (const z of want) assert.ok(got.has(z), 'cuts a lap at Z' + z);
+  assert.deepEqual(downWhileMoving(straight), []);
+});
