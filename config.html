@@ -1794,13 +1794,13 @@
   .qc-bit-mode button.on { background: transparent !important; }
   @media (prefers-reduced-motion: reduce) { .qc-bit-mode .qc-slide-thumb { transition: none; } }
   .qc-field.qc-bit-hidden { display: none; }
-  button.qc-tool-row { -webkit-appearance: none; appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin: 0 !important; padding: 0 30px 0 12px !important;
+  button.qc-tool-row { -webkit-appearance: none; appearance: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; width: 100%; min-height: 40px; margin: 0 !important; padding: 6px 30px 6px 12px !important;
     border: 1px solid var(--color-border) !important; border-radius: var(--radius-small) !important; color: var(--color-text-primary) !important; font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer;
     background: var(--color-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 10px 6px !important; }
   button.qc-tool-row[hidden] { display: none; }
   button.qc-tool-row b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
-  button.qc-tool-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  button.qc-tool-row em { font-style: normal; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  button.qc-tool-row span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button.qc-tool-row em { font-style: normal; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; }
   button.qc-tool-row .qc-tool-row-empty { color: var(--color-text-secondary); }
   button.qc-tool-row[aria-expanded="true"] { border-color: var(--color-accent) !important; }
   /* With the Tool Library switch there, Bit Diameter's label is just a label. */
@@ -10658,6 +10658,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     btn.innerHTML = t
       ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + (still ? (/^pen$/i.test(t.type.trim()) ? 'pen' : 'drag knife') + ', spindle off' + (t.dimensions && t.dimensions.flute_length > 0 ? ', max ' + roundDisplay(mmToDisplay(t.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '') : $('qc-flutes').value + ' fl') + '</em>'
       : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
+    // A narrow card cuts the line short; the whole of it shows on hover.
+    btn.title = (t ? [].map.call(btn.children, function(c) { return c.textContent; }).join(' ') + '\n' : '') + 'Opens ncSender’s tool table: the program starts with a tool change to the tool you pick (M6 T).';
     if (toolPop.open) renderToolList();
   }
   // The Tool card takes a tool from the table: flutes first, so the bit's
