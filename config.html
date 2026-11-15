@@ -925,14 +925,14 @@
   /* Rows keep their height in the scrolling list: a long name wraps, it doesn't overlap the next. */
   .qc-tool-list > * { flex-shrink: 0; }
   .qc-tool-head { padding: 4px 10px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
-  .qc-tool-item { -webkit-appearance: none; appearance: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
+  .qc-tool-item { -webkit-appearance: none; appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
     background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
     font-family: inherit; font-size: 0.88rem; line-height: 1.3; cursor: pointer; }
   .qc-tool-item:hover, .qc-tool-item.qc-active { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; }
   .qc-tool-item[aria-selected="true"] { font-weight: 600; }
-  .qc-tool-item b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+  .qc-tool-item b { white-space: nowrap; color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
   .qc-tool-item .qc-tool-name { flex: 1 1 auto; min-width: 0; }
-  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); font-weight: 400; font-variant-numeric: tabular-nums; margin-left: auto; text-align: right; white-space: nowrap; }
   .qc-tool-empty { padding: 8px 10px; font-size: 0.85rem; color: var(--color-text-secondary); }
   .qc-material-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 10px; }
   /* Beside Generate: about how long it runs, and the travel check. */
@@ -1796,13 +1796,12 @@
   .qc-bit-mode button.on { background: transparent !important; }
   @media (prefers-reduced-motion: reduce) { .qc-bit-mode .qc-slide-thumb { transition: none; } }
   .qc-field.qc-bit-hidden { display: none; }
-  button.qc-tool-row { -webkit-appearance: none; appearance: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; width: 100%; min-height: 40px; margin: 0 !important; padding: 6px 30px 6px 12px !important;
+  button.qc-tool-row { -webkit-appearance: none; appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin: 0 !important; padding: 0 30px 0 12px !important;
     border: 1px solid var(--color-border) !important; border-radius: var(--radius-small) !important; color: var(--color-text-primary) !important; font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer;
     background: var(--color-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2393a2b4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 10px 6px !important; }
   button.qc-tool-row[hidden] { display: none; }
   button.qc-tool-row b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
-  button.qc-tool-row span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  button.qc-tool-row em { font-style: normal; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; line-height: 1.3; }
+  button.qc-tool-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   button.qc-tool-row .qc-tool-row-empty { color: var(--color-text-secondary); }
   button.qc-tool-row[aria-expanded="true"] { border-color: var(--color-accent) !important; }
   /* With the Tool Library switch there, Bit Diameter's label is just a label. */
@@ -10589,7 +10588,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // Sized to its widest tool, then kept that width while filtering.
     pop.style.width = '';
     renderToolList();
-    pop.style.width = pop.offsetWidth + 'px';
+    pop.style.width = Math.ceil(pop.getBoundingClientRect().width) + 'px';
     // Under the label, inside the dialog.
     var r = btn.getBoundingClientRect(), w = ROOT.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(r.left - w.left, w.width - pop.offsetWidth - 8)) + 'px';
@@ -10620,6 +10619,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var hay = ('t' + t.n + ' ' + t.name + ' ' + t.notes + ' ' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ' slot ' + t.slot : '') + (t.n === state.loadedTool ? ' in the spindle' : '')).toLowerCase();
       return words.every(function(w) { return hay.indexOf(w) >= 0; });
     });
+    // The picked tool first, with its details; the rest in table order.
+    tools = tools.filter(function(t) { return t.n === n; }).concat(tools.filter(function(t) { return t.n !== n; }));
+    var pickedFirst = tools.length && tools[0].n === n;
     toolPop.items = tools.map(function(t) { return { value: String(t.n), t: t }; });
     if (n) toolPop.items.push({ value: 'none' });
     var esc = function(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
@@ -10631,13 +10633,21 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var grouped = tools.some(function(t) { return t.slot; }) && tools.some(function(t) { return !t.slot; });
     if (state.tools && tools.length && !grouped) html = '<div class="qc-tool-head">Tool change to</div>';
     html += toolPop.items.map(function(it, i) {
-      var t = it.t, text = t ? '<b>' + (t.n === n ? '✓ ' : '') + 'T' + t.n + '</b>' + (t.name ? '<span class="qc-tool-name">' + esc(t.name) + '</span>' : '') + '<span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
+      var t = it.t, text = t ? '<b>' + (t.n === n ? '✓ ' : '') + 'T' + t.n + '</b>' + (t.name ? '<span class="qc-tool-name">' + esc(t.name) + '</span>' : '') + '<span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + (t.n === n ? ' · ' + toolDetails(t) : '') + '</span>'
         : 'No tool change';
-      var prev = i > 0 && toolPop.items[i - 1].t, head = grouped && t && (i === 0 || !!prev.slot !== !!t.slot) ? '<div class="qc-tool-head">' + (t.slot ? 'In the magazine' : 'Tool table') + '</div>' : '';
+      var picked = pickedFirst && i === 0, prev = i > 0 && !(pickedFirst && i === 1) && toolPop.items[i - 1].t;
+      var head = grouped && t ? (picked ? 'Picked' : !prev || !!prev.slot !== !!t.slot ? (t.slot ? 'In the magazine' : 'Tool table') : '') : '';
+      if (head) head = '<div class="qc-tool-head">' + head + '</div>';
       return head + '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
     }).join('');
     list.innerHTML = html;
     list.querySelectorAll('.qc-tool-item').forEach(function(b) { b.addEventListener('click', function() { pickBitTool(b.getAttribute('data-v')); }); });
+  }
+  // A pen or drag knife: spindle off and its reach; a bit: its flutes.
+  function toolDetails(t) {
+    if (!/^(pen|drag[-_ ]?knife)$/i.test(String(t.type || '').trim())) return $('qc-flutes').value + ' fl';
+    var reach = t.dimensions && t.dimensions.flute_length > 0 ? ', max ' + roundDisplay(mmToDisplay(t.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '';
+    return (/^pen$/i.test(t.type.trim()) ? 'pen' : 'drag knife') + ', spindle off' + reach;
   }
   function showBitTool() {
     var btn = $('qc-bit-tool');
@@ -10658,13 +10668,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // The tool table has the flutes: asked for a typed size, or for a picked
     // tool whose table entry doesn't give them (guessed from its name, else 2).
     $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table && !(t && !(t.flutes > 0)));
-    // A pen or drag knife gets no M3 (ncSender refuses it while one is loaded).
-    var still = t && /^(pen|drag[-_ ]?knife)$/i.test(String(t.type || '').trim());
+    // Just the T number and name, so the row stays one line; the size and
+    // the rest show on the picked tool at the top of the list.
     btn.innerHTML = t
-      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + (still ? (/^pen$/i.test(t.type.trim()) ? 'pen' : 'drag knife') + ', spindle off' + (t.dimensions && t.dimensions.flute_length > 0 ? ', max ' + roundDisplay(mmToDisplay(t.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '') : $('qc-flutes').value + ' fl') + '</em>'
+      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span>'
       : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
-    // A narrow card cuts the line short; the whole of it shows on hover.
-    btn.title = (t ? [].map.call(btn.children, function(c) { return c.textContent; }).join(' ') + '\n' : '') + 'Opens ncSender’s tool table: the program starts with a tool change to the tool you pick (M6 T).';
+    btn.title = (t ? 'T' + t.n + ' ' + (t.name || 'Tool ' + t.n) + '\n' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + toolDetails(t) + '\n' : '') + 'Opens ncSender’s tool table: the program starts with a tool change to the tool you pick (M6 T).';
     if (toolPop.open) renderToolList();
   }
   // The Tool card takes a tool from the table: flutes first, so the bit's
