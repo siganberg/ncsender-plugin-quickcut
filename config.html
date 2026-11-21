@@ -4097,6 +4097,14 @@
       if (e.target.classList && e.target.classList.contains('qc-label-select')) fitLabelSelects(e.target.parentNode);
     });
     if (document.fonts) document.fonts.ready.then(function() { fitLabelSelects(ROOT); });
+    // A font that loads later (ncSender's Inter, first drawn here) changes
+    // the words' width: fit them again.
+    if (document.fonts && document.fonts.addEventListener) {
+      document.fonts.addEventListener('loadingdone', function refit() {
+        if (!rootAlive()) { document.fonts.removeEventListener('loadingdone', refit); return; }
+        fitLabelSelects(ROOT);
+      });
+    }
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -10885,17 +10893,57 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       .map(function(x) { return x.pr; });
   }
   // Each label menu as wide as the choice it shows, so its arrow sits
-  // right after the text.
+  // right after the text. The words are measured as the page draws them
+  // (a hidden copy beside the menu, in its font), not on a canvas, which
+  // can use another font or size than the one on screen; a canvas only
+  // for a menu not shown yet. A menu fits itself again whenever its
+  // choices are renamed (the Pattern's X Gap / Row Gap...).
   var labelMeasure = document.createElement('canvas').getContext('2d');
-  function fitLabelSelects(root) {
-    root.querySelectorAll('select.qc-label-select').forEach(function(sel) {
+  var labelRefit = typeof MutationObserver === 'function' ? new MutationObserver(function(list) {
+    var seen = [];
+    list.forEach(function(m) {
+      var sel = m.target.closest ? m.target.closest('select') : m.target.parentNode && m.target.parentNode.closest('select');
+      if (sel && seen.indexOf(sel) < 0) seen.push(sel);
+    });
+    fitLabelSelectList(seen);
+  }) : null;
+  // All the menus' words are measured first, then all the widths set, so
+  // the page lays out once, not once per menu (it matters on the Pi).
+  function fitLabelSelectList(sels) {
+    var jobs = [];
+    sels.forEach(function(sel) {
+      if (labelRefit && !sel._qcRefit) {
+        sel._qcRefit = true;
+        labelRefit.observe(sel, { childList: true, subtree: true, characterData: true });
+      }
       var opt = sel.options[sel.selectedIndex];
       if (!opt) return;
-      var cs = getComputedStyle(sel);
-      labelMeasure.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-      var w = labelMeasure.measureText(opt.text).width + (parseFloat(cs.letterSpacing) || 0) * opt.text.length;
-      sel.style.width = Math.ceil(w + 16) + 'px';
+      var cs = getComputedStyle(sel), job = { sel: sel, text: opt.text, cs: cs, w: 0 };
+      if (sel.offsetParent && sel.parentNode) {
+        job.probe = document.createElement('span');
+        job.probe.textContent = opt.text;
+        job.probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;padding:0;border:0;margin:0;' +
+          'font:' + cs.font + ';letter-spacing:' + cs.letterSpacing + ';text-transform:' + cs.textTransform;
+        sel.parentNode.appendChild(job.probe);
+      }
+      jobs.push(job);
     });
+    jobs.forEach(function(job) {
+      // offsetWidth: in the page's px, whatever scales the dialog on screen.
+      if (job.probe) job.w = job.probe.offsetWidth ? job.probe.offsetWidth + 1 : 0;
+    });
+    jobs.forEach(function(job) {
+      if (job.probe) job.probe.remove();
+      var w = job.w, cs = job.cs;
+      if (!w) {
+        labelMeasure.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+        w = labelMeasure.measureText(job.text).width + (parseFloat(cs.letterSpacing) || 0) * job.text.length;
+      }
+      job.sel.style.width = Math.ceil(w + 16) + 'px';
+    });
+  }
+  function fitLabelSelects(root) {
+    fitLabelSelectList(Array.prototype.slice.call(root.querySelectorAll('select.qc-label-select')));
   }
   function updateRunNote() {
     // A field left as the dialog closes schedules one: nothing to update.
