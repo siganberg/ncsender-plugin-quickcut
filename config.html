@@ -1252,6 +1252,7 @@
   .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-dim, .qc-drl-dim) { stroke-width: calc(0.45px * var(--qc-ts, 1)); }
   .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shp-ext { stroke-width: calc(0.25px * var(--qc-ts, 1)); }
   .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-fig-pill--small { stroke-width: calc(0.4px * var(--qc-ts, 1)); }
+  .qc-shape-preview-cell.qc-preview-big svg { touch-action: none; }
   .qc-shape-preview-cell.qc-preview-big svg.qc-zoomed { cursor: move; }
   .qc-shape-preview-cell.qc-preview-big svg.qc-zoomed.qc-panning { cursor: grabbing !important; }
   /* ⤢ in a top view's corner enlarges it (as a blank-spot click does). */
@@ -7470,6 +7471,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (svg.qcWatch) { svg.qcWatch.disconnect(); svg.qcWatch = null; }
     if (svg.qcBase) svg.setAttribute('viewBox', [svg.qcBase.x, svg.qcBase.y, svg.qcBase.w, svg.qcBase.h].join(' '));
     svg.qcBase = null; svg.qcZoom = null; svg.qcShown = null;
+    // A pinch or touch drag ends with no click to clear these; left set,
+    // the small preview would no longer twist or pick.
+    svg.qcPanned = false; svg.qcPinching = false;
+    clearTimeout(svg.qcRedrawSoon);
     svg.classList.remove('qc-zoomed', 'qc-panning');
     if (!on || typeof MutationObserver !== 'function') return;
     var take = function() {
@@ -7494,6 +7499,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     showPreviewZoom(svg);
     // The magnified origin view (originZoom) shows only at 1x.
     if ((s0 > 1) !== (s > 1)) redrawPreview(svg);
+    // A pattern's edge lines are sized for the screen: redrawn once the
+    // zoom settles.
+    else if (s !== s0 && /-pattern-preview$/.test(svg.id)) {
+      clearTimeout(svg.qcRedrawSoon);
+      svg.qcRedrawSoon = setTimeout(function() { if (svg.qcWatch) redrawPreview(svg); }, 150);
+    }
   }
   function previewPointAt(svg, x, y) {
     var pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
@@ -7550,7 +7561,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     };
     ROOT.addEventListener('pointerdown', notePickZoom, true);
     ROOT.addEventListener('pointermove', notePickZoom, true);
-    ROOT.addEventListener('wheel', function(e) {
+    var onWheel = function(e) {
       var svg = bigPreviewSvg();
       if (!svg || !svg.contains(e.target)) return;
       e.preventDefault();
@@ -7559,7 +7570,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
       zoomPreviewAt(svg, previewZoom(svg) * Math.pow(1.25, -Math.max(-3, Math.min(3, dy / 100))),
                     previewPointAt(svg, e.clientX, e.clientY), { x: e.clientX, y: e.clientY });
-    }, { passive: false });
+    };
+    // Only on the previews (non-passive: it stops the page scrolling), so a
+    // scroll anywhere else in the dialog isn't held up.
+    ROOT.querySelectorAll('.qc-shape-preview-cell:not(.qc-no-enlarge)').forEach(function(cell) {
+      cell.addEventListener('wheel', onWheel, { passive: false });
+    });
     // One pointer on the zoomed-in drawing drags it; two pinch (and stop a
     // twist the first finger began: wirePreviewAngleDrag reads qcPinching).
     var pts = new Map(), g = null;
@@ -7576,6 +7592,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (!svg || !svg.contains(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
       if (e.isPrimary) { pts.clear(); g = null; svg.qcPanned = false; svg.qcPinching = false; }
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Its pointerup reaches here even if let go outside the dialog.
+      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
       if (pts.size > 2) return;
       if (pts.size === 2) { svg.qcPinching = true; markPreviewPick(); }
       start(svg);
@@ -7991,8 +8009,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     var span = Math.max(maxX - minX, maxY - minY) || 1;
     var s = (80 - extra) / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
-    var X = function(v) { return ((v - midX) * s).toFixed(2); };
-    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
+    var X = function(v) { return ((v - midX) * s).toFixed(4); };
+    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(4); };
 
     var pathD = function(moves) {
       var d = '', penX = null, penY = null;
@@ -8005,7 +8023,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
           var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
           sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
+          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(4) + ',' + (r * s).toFixed(4) + ' 0 ';
           if (sweepAngle < 1e-9) {
             var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
             d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
@@ -8022,11 +8040,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var ox = Number(X(0)), oy = Number(Y(0));
     var origin = figAxes(ox, oy);
     var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') +
-      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '') +
+      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(4) + '"/>' : '') +
       (measured ? measured.svg(X, Y) : '');
     if (cutType) return patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, 1.5 * (unitPx || 1)) + marks;
 
-    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
+    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(4);
     var dots = trace.plunges.map(function(p) {
       return '<circle class="qc-pattern-plunge" cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + dotR + '"/>';
     }).join('');
@@ -8052,17 +8070,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var d = pathD(trace.moves), all = d + trace.plunges.map(dot).join('');
     var hatch = 'url(#qc-' + prefix + '-pat-hatch)';
     var band = function(cls) {
-      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(4) + '" d="' + all + '"/>';
     };
     var inside = function(cls) { return '<path class="' + cls + '" d="' + d + '"/>'; };
     var clearing = cutType === 'clearing';
     // The dashed edge: thinner, with dashes the shape preview's length on screen.
-    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(2);
+    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(4);
     var out = shapePreviewDefs('qc-' + prefix + '-pat');
     if (cutType === 'inner' || cutType === 'outer') out += inside('qc-pattern-part');
     out += band(cutType === 'outer' ? 'qc-pattern-band' : 'qc-pattern-band qc-pattern-tint');
     if (clearing) out += inside('qc-pattern-part') + '<path class="qc-shape-hatch" fill="' + hatch + '" d="' + d + '"/>';
-    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(4) + '" d="' + all + '"/>';
     // Hundreds of masks get slow to draw; past that many copies the edges
     // are drawn for all of them at once, and overlaps merge.
     var each = patternCopies(trace), copies = each;
@@ -8082,18 +8100,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '</filter><g class="qc-pattern-overlap" filter="url(#' + fid + ')">' +
         each.map(function(copy) {
           return '<g opacity="0.5"><path class="qc-pattern-cut" style="stroke: ' + (outerOnly ? 'none' : '#000') + (filled ? '; fill: #000' : '') +
-            '" stroke-width="' + width.toFixed(2) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
+            '" stroke-width="' + width.toFixed(4) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
         }).join('') + '</g>';
     }
     copies.forEach(function(copy, i) {
       var b = traceBounds(copy, bitRadius);
       if (!b) return;
       var cd = pathD(copy.moves) + copy.plunges.map(dot).join('');
-      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(2) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(2) +
-        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(2) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(2) + '"';
+      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(4) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(4) +
+        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(4) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(4) + '"';
       var ring = function(color, w, style) {
         return '<path class="qc-pattern-cut" style="stroke: ' + color + (clearing ? '; fill: ' + color : '') + (style || '') +
-          '" stroke-width="' + w.toFixed(2) + '" d="' + cd + '"/>';
+          '" stroke-width="' + w.toFixed(4) + '" d="' + cd + '"/>';
       };
       var id = 'qc-' + prefix + '-pat-edge' + i;
       var outline = function(key, white, extra, clip) {
@@ -8106,7 +8124,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       var solid = ring('#fff', width + 2 * edge);
       var dashed = '<path class="qc-pattern-cut" style="stroke: #fff; stroke-linecap: butt; stroke-dasharray: ' + dash + ' ' + dash +
-        '" stroke-width="' + thin.toFixed(2) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
+        '" stroke-width="' + thin.toFixed(4) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
       var inner = cutType === 'inner';
       out += '<clipPath id="' + id + 'c"><path d="' + pathD(copy.moves) + '"/></clipPath>' +
         outline('o', inner ? solid : dashed, '<path style="fill: #000" d="' + pathD(copy.moves) + '"/>') +
@@ -14552,8 +14570,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function originZoom(key, ox, oy, inner, pts, z, insetPrefix, scale) {
     originZoomFrames[key] = null;
     if (!isFinite(ox) || !isFinite(oy) || !(z > 1)) return '';
-    // Zoomed in (an enlarged preview), the drawing itself shows it.
-    if (previewZoom($('qc-' + key + '-preview')) > 1) return '';
+    // Zoomed in, the drawing itself shows it; an enlarged top view zooms
+    // instead (its fitted viewBox isn't the 100 units this box assumes).
+    var zel = $('qc-' + key + '-preview'), zcell = zel && zel.closest('.qc-shape-preview-cell');
+    if (previewZoom(zel) > 1 || (zcell && zcell.matches('.qc-preview-big:is(.qc-shp-big, .qc-drl-big)'))) return '';
     z = Math.min(12, z);
     // The preview's own edges in its units: the drawing area is square
     // when small, wider than the 100-unit view when enlarged. The box sits
