@@ -1193,23 +1193,23 @@
   }
   /* The drawing scales up; lines keep their on-screen width and the
      labels stay readable-sized. */
-  .qc-shape-preview-cell.qc-preview-big svg * { vector-effect: non-scaling-stroke; }
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg * { vector-effect: non-scaling-stroke; }
   /* Not inside arrowhead markers: they're drawn at the line's own scale,
      and a non-scaling outline there all but vanishes. Sized from the thin
      on-screen line, the open (outline) heads also come out tiny, so they
      grow about their tip. */
-  .qc-shape-preview-cell.qc-preview-big svg marker * { vector-effect: none; }
-  .qc-shape-preview-cell.qc-preview-big svg marker { overflow: visible; }
-  .qc-shape-preview-cell.qc-preview-big svg marker path[fill="none"] {
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker * { vector-effect: none; }
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker { overflow: visible; }
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker path[fill="none"] {
     transform: scale(2.5);
     transform-origin: 8px 5px;
   }
-  .qc-shape-preview-cell.qc-preview-big svg marker .qc-arrowhead {
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker .qc-arrowhead {
     transform: scale(2);
     transform-origin: 6px 5px;
   }
-  .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label {
-    font-size: 3px;
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) .qc-shape-dim-label {
+    font-size: calc(3px * var(--qc-ts, 1));
     stroke-width: 0.6px;
   }
   .qc-shape-preview-cell.qc-preview-big.qc-dragging::before {
@@ -1235,6 +1235,39 @@
     color: var(--color-text-secondary, #888);
     pointer-events: none;
   }
+  /* The big top views enlarge too (their own rules make them frameless). */
+  .qc-shp-top > .qc-shape-preview-cell.qc-shp-big.qc-preview-big, .qc-drl-top > .qc-shape-preview-cell.qc-drl-big.qc-preview-big {
+    background: var(--color-surface, #fff);
+    border: 2px solid var(--color-border, #888);
+  }
+  /* Enlarged, the wheel zooms at the pointer and two fingers pinch; zoomed
+     in, a drag moves the drawing. The words and dimension lines grow with
+     the enlarging only to 1.3 times, and not with the zoom (--qc-ts). */
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shape-dim-label { font-size: calc(3.6px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shape-dim-line { stroke-width: calc(0.4px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-dimtext, .qc-drl-dimtext) { font-size: calc(2.6px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-cap, .qc-drl-cap) { font-size: calc(3.4px * var(--qc-ts, 1)); }
+  .qc-preview-big.qc-shp-big .qc-inset-label { font-size: calc(2.5px * var(--qc-ts, 1)); }
+  .qc-preview-big.qc-drl-big .qc-inset-label { font-size: calc(2.6px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-dim, .qc-drl-dim) { stroke-width: calc(0.45px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shp-ext { stroke-width: calc(0.25px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-fig-pill--small { stroke-width: calc(0.4px * var(--qc-ts, 1)); }
+  .qc-shape-preview-cell.qc-preview-big svg { touch-action: none; }
+  .qc-shape-preview-cell.qc-preview-big svg.qc-zoomed { cursor: move; }
+  .qc-shape-preview-cell.qc-preview-big svg.qc-zoomed.qc-panning { cursor: grabbing !important; }
+  /* ⤢ in a top view's corner enlarges it (as a blank-spot click does). */
+  .qc-shape-preview-cell { position: relative; }
+  .qc-zoom-open {
+    position: absolute; top: 4px; right: 4px; z-index: 2;
+    width: 30px; height: 28px; padding: 0 !important; margin: 0 !important;
+    border: none !important; border-radius: 6px !important; background: transparent !important;
+    color: var(--color-text-secondary) !important; font-size: 1.05rem !important; line-height: 1; cursor: pointer;
+  }
+  .qc-zoom-open:hover { color: var(--color-accent) !important; }
+  .qc-preview-big > .qc-zoom-open { display: none; }
+  .qc-zoom-bar { position: absolute; top: 8px; right: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 4px; }
+  .qc-zoom-bar .qc-secondary-btn { min-width: 40px; height: 32px; padding: 0 10px !important; }
+  .qc-zoom-level { min-width: 2.8em; text-align: center; font-size: 0.85rem; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
   /* Over an origin dot, end or hole a click picks it; while a twist is
      under way the hand closes. (Beats the per-preview grab below.) */
   .qc-shape-preview-cell svg.qc-over-pick { cursor: pointer !important; }
@@ -2435,7 +2468,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-rect-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -2682,7 +2715,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-circ-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -2903,7 +2936,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-poly-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3148,7 +3181,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-slt-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3313,7 +3346,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-key-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3474,7 +3507,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-drl-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-drl-big">
                   <svg id="qc-drl-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -7352,10 +7385,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   var previewPicked = false;
   function markPreviewPick() { previewPicked = true; }
   function setPreviewEnlarged(cell, big) {
-    cell.classList.toggle('qc-preview-big', big);
-    // Previews with a magnified origin view (originZoom) redraw for it.
     var svg = cell.querySelector('svg');
+    var ctm = svg && svg.getScreenCTM(), before = ctm ? ctm.a : 0;
+    if (svg) watchPreviewZoom(svg, false);
+    cell.classList.toggle('qc-preview-big', big);
+    if (svg) {
+      // A top view's words and dimension lines grow with it only to 1.3
+      // times (the pattern previews have their own enlarged sizes).
+      ctm = svg.getScreenCTM();
+      var k = before > 0 && ctm ? ctm.a / before : 1;
+      svg.qcTextScale = big && k > 1.3 && cell.matches('.qc-shp-big, .qc-drl-big') ? 1.3 / k : 1;
+      svg.style.setProperty('--qc-ts', svg.qcTextScale);
+    }
+    setPreviewZoomBar(cell, big);
+    // Previews with a magnified origin view (originZoom) redraw for it.
     if (svg) redrawPreview(svg);
+    if (svg) watchPreviewZoom(svg, big);
   }
   function closeEnlargedPreview() {
     var big = ROOT.querySelector('.qc-preview-big');
@@ -7364,13 +7409,24 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function wirePreviewEnlarge() {
     ROOT.querySelectorAll('.qc-shape-preview-cell:not(.qc-no-enlarge)').forEach(function(cell) {
-      cell.setAttribute('data-return-hint', 'Click a blank spot or press Esc to return');
+      cell.setAttribute('data-return-hint', 'Scroll or pinch to zoom; zoomed in, drag to move. Click a blank spot or press Esc to return');
       cell.addEventListener('pointerdown', function() { previewPicked = false; }, true);
       cell.addEventListener('click', function() {
         if (previewPicked) return;
         setPreviewEnlarged(cell, !cell.classList.contains('qc-preview-big'));
       });
+      // The top views also get a button in their corner.
+      if (!cell.matches('.qc-shp-big, .qc-drl-big')) return;
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'qc-zoom-open';
+      open.textContent = '⤢';
+      open.setAttribute('aria-label', 'Enlarge the top view');
+      open.title = 'See it over the whole window, to zoom in';
+      open.addEventListener('click', function(e) { e.stopPropagation(); setPreviewEnlarged(cell, true); });
+      cell.appendChild(open);
     });
+    wirePreviewZoom();
     // Esc closes an enlarged preview, not the dialog: ncSender closes the
     // dialog from a window keydown listener (bubble phase), so this one
     // runs first in the capture phase and stops it. Page-wide, so it
@@ -7382,6 +7438,200 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       evt.stopPropagation();
     }
     window.addEventListener('keydown', closeEnlargedOnEscape, true);
+  }
+
+  // ---------- Zoom in an enlarged preview ----------
+  // The wheel zooms at the pointer, two fingers pinch, and zoomed in a
+  // drag moves the drawing (at 1x a drag still turns the shape); or -, +
+  // and Fit at the top. The drawing sets its own viewBox each time it's
+  // drawn; the zoom is kept on top of that (qcBase: the drawing's box,
+  // qcZoom: { s, cx, cy }), so it survives edits. Words and dimension
+  // lines keep their size on screen (--qc-ts).
+  var PREVIEW_ZOOM_MAX = 20;
+  // The zoom of the preview last pressed or hovered: taps reach as far on
+  // screen zoomed in as not, so a zoomed-in view picks more precisely.
+  var pickZoom = 1;
+  function previewZoom(svg) { return svg && svg.qcZoom ? svg.qcZoom.s : 1; }
+  function showPreviewZoom(svg) {
+    var b = svg.qcBase, z = svg.qcZoom;
+    if (!b) return;
+    var vb = !z || z.s <= 1 ? [b.x, b.y, b.w, b.h]
+      : [Math.min(Math.max(z.cx, b.x), b.x + b.w) - b.w / z.s / 2, Math.min(Math.max(z.cy, b.y), b.y + b.h) - b.h / z.s / 2, b.w / z.s, b.h / z.s];
+    svg.qcShown = vb.map(function(v) { return +v.toFixed(4); }).join(' ');
+    svg.setAttribute('viewBox', svg.qcShown);
+    var s = previewZoom(svg);
+    svg.style.setProperty('--qc-ts', (svg.qcTextScale || 1) / s);
+    svg.classList.toggle('qc-zoomed', s > 1);
+    fitPills(svg);
+    fitAxes(svg);
+    var cell = svg.closest('.qc-shape-preview-cell'), lv = cell && cell.querySelector('.qc-zoom-level');
+    if (lv) lv.textContent = (Math.round(s * 10) / 10) + '×';
+  }
+  function watchPreviewZoom(svg, on) {
+    if (svg.qcWatch) { svg.qcWatch.disconnect(); svg.qcWatch = null; }
+    if (svg.qcBase) svg.setAttribute('viewBox', [svg.qcBase.x, svg.qcBase.y, svg.qcBase.w, svg.qcBase.h].join(' '));
+    svg.qcBase = null; svg.qcZoom = null; svg.qcShown = null;
+    // A pinch or touch drag ends with no click to clear these; left set,
+    // the small preview would no longer twist or pick.
+    svg.qcPanned = false; svg.qcPinching = false;
+    clearTimeout(svg.qcRedrawSoon);
+    svg.classList.remove('qc-zoomed', 'qc-panning');
+    if (!on || typeof MutationObserver !== 'function') return;
+    var take = function() {
+      var v = svg.getAttribute('viewBox');
+      if (!v || v === svg.qcShown) return;
+      var n = v.split(/[\s,]+/).map(Number);
+      svg.qcBase = { x: n[0], y: n[1], w: n[2], h: n[3] };
+      showPreviewZoom(svg);
+    };
+    take();
+    svg.qcWatch = new MutationObserver(take);
+    svg.qcWatch.observe(svg, { attributes: true, attributeFilter: ['viewBox'] });
+  }
+  // Zoom to s with the drawing's point p (its units) at the screen point at.
+  function zoomPreviewAt(svg, s, p, at) {
+    var b = svg.qcBase, m = svg.getScreenCTM();
+    if (!b || !m) return;
+    s = Math.min(PREVIEW_ZOOM_MAX, Math.max(1, s));
+    var s0 = previewZoom(svg), z = svg.qcZoom || { s: 1, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
+    var mid = { x: m.a * z.cx + m.e, y: m.d * z.cy + m.f }, k = m.a * s / s0;
+    svg.qcZoom = s <= 1 ? null : { s: s, cx: p.x - (at.x - mid.x) / k, cy: p.y - (at.y - mid.y) / k };
+    showPreviewZoom(svg);
+    // The magnified origin view (originZoom) shows only at 1x.
+    if ((s0 > 1) !== (s > 1)) redrawPreview(svg);
+    // A pattern's edge lines are sized for the screen: redrawn once the
+    // zoom settles.
+    else if (s !== s0 && /-pattern-preview$/.test(svg.id)) {
+      clearTimeout(svg.qcRedrawSoon);
+      svg.qcRedrawSoon = setTimeout(function() { if (svg.qcWatch) redrawPreview(svg); }, 150);
+    }
+  }
+  function previewPointAt(svg, x, y) {
+    var pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function bigPreviewSvg() {
+    var cell = ROOT.querySelector('.qc-shape-preview-cell.qc-preview-big');
+    return cell ? cell.querySelector('svg') : null;
+  }
+  // The bar's buttons: twice or half, about the middle; Fit.
+  function zoomPreviewBy(svg, f) {
+    if (!svg || !svg.qcBase) return;
+    var r = svg.getBoundingClientRect(), at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    zoomPreviewAt(svg, f ? previewZoom(svg) * f : 1, previewPointAt(svg, at.x, at.y), at);
+  }
+  function setPreviewZoomBar(cell, big) {
+    var bar = cell.querySelector('.qc-zoom-bar');
+    if (!big) { if (bar) bar.remove(); return; }
+    if (bar) return;
+    bar = document.createElement('div');
+    bar.className = 'qc-zoom-bar';
+    bar.innerHTML = '<button type="button" class="qc-secondary-btn" data-zoom="0.5" aria-label="Zoom out" title="Zoom out (or the mouse wheel, or pinch)">&minus;</button>' +
+      '<span class="qc-zoom-level">1&times;</span>' +
+      '<button type="button" class="qc-secondary-btn" data-zoom="2" aria-label="Zoom in" title="Zoom in (or the mouse wheel, or pinch)">+</button>' +
+      '<button type="button" class="qc-secondary-btn" data-zoom="0" title="Show all of it again">Fit</button>' +
+      '<button type="button" class="qc-secondary-btn" data-close aria-label="Close" title="Back to the settings (Esc)">&times;</button>';
+    // Its clicks don't reach the cell (which would close it).
+    bar.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var b = e.target.closest('button');
+      if (!b) return;
+      if (b.hasAttribute('data-close')) setPreviewEnlarged(cell, false);
+      else zoomPreviewBy(cell.querySelector('svg'), +b.getAttribute('data-zoom'));
+    });
+    cell.appendChild(bar);
+  }
+  // The pills behind dimension values (figPills) are sized for the words
+  // as drawn; as the zoom changes the words' size, they follow.
+  function fitPills(svg) {
+    var ts = parseFloat(svg.style.getPropertyValue('--qc-ts')) || 1;
+    svg.querySelectorAll('rect[data-pill-ts]').forEach(function(r) {
+      var f = ts / (+r.getAttribute('data-pill-ts') || 1);
+      var w = +r.getAttribute('data-pill-w') * f, h = +r.getAttribute('data-pill-h') * f;
+      r.setAttribute('x', (+r.getAttribute('data-pill-cx') - w / 2).toFixed(3));
+      r.setAttribute('y', (+r.getAttribute('data-pill-cy') - h / 2).toFixed(3));
+      r.setAttribute('width', w.toFixed(3)); r.setAttribute('height', h.toFixed(3));
+      r.setAttribute('rx', (h / 2).toFixed(3));
+    });
+  }
+  function wirePreviewZoom() {
+    var notePickZoom = function(e) {
+      var cell = e.target.closest && e.target.closest('.qc-shape-preview-cell');
+      pickZoom = cell ? previewZoom(cell.querySelector('svg')) : 1;
+    };
+    ROOT.addEventListener('pointerdown', notePickZoom, true);
+    ROOT.addEventListener('pointermove', notePickZoom, true);
+    var onWheel = function(e) {
+      var svg = bigPreviewSvg();
+      if (!svg || !svg.contains(e.target)) return;
+      e.preventDefault();
+      if (!e.deltaY) return;
+      // A mouse notch (about 100) 1.25 times; a trackpad's small steps a little each.
+      var dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      zoomPreviewAt(svg, previewZoom(svg) * Math.pow(1.25, -Math.max(-3, Math.min(3, dy / 100))),
+                    previewPointAt(svg, e.clientX, e.clientY), { x: e.clientX, y: e.clientY });
+    };
+    // Only on the previews (non-passive: it stops the page scrolling), so a
+    // scroll anywhere else in the dialog isn't held up.
+    ROOT.querySelectorAll('.qc-shape-preview-cell:not(.qc-no-enlarge)').forEach(function(cell) {
+      cell.addEventListener('wheel', onWheel, { passive: false });
+    });
+    // One pointer on the zoomed-in drawing drags it; two pinch (and stop a
+    // twist the first finger began: wirePreviewAngleDrag reads qcPinching).
+    var pts = new Map(), g = null;
+    var start = function(svg) {
+      var list = Array.from(pts.values());
+      if (list.length === 1) g = { svg: svg, s: previewZoom(svg), p: previewPointAt(svg, list[0].x, list[0].y), down: list[0] };
+      else {
+        var a = list[0], b = list[1], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        g = { svg: svg, s: previewZoom(svg), p: previewPointAt(svg, mid.x, mid.y), d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+      }
+    };
+    ROOT.addEventListener('pointerdown', function(e) {
+      var svg = bigPreviewSvg();
+      if (!svg || !svg.contains(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (e.isPrimary) { pts.clear(); g = null; svg.qcPanned = false; svg.qcPinching = false; }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Its pointerup reaches here even if let go outside the dialog.
+      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+      if (pts.size > 2) return;
+      if (pts.size === 2) { svg.qcPinching = true; markPreviewPick(); }
+      start(svg);
+    });
+    ROOT.addEventListener('pointermove', function(e) {
+      if (!g || !pts.has(e.pointerId)) return;
+      var at = { x: e.clientX, y: e.clientY };
+      pts.set(e.pointerId, at);
+      var list = Array.from(pts.values()), svg = g.svg;
+      if (list.length === 1) {
+        if (g.ignore || previewZoom(svg) <= 1) return;
+        if (!svg.qcPanned && Math.hypot(at.x - g.down.x, at.y - g.down.y) < 5) return;
+        // A drag, not a tap: nothing is picked and the view stays enlarged.
+        svg.qcPanned = true;
+        svg.classList.add('qc-panning');
+        markPreviewPick();
+        zoomPreviewAt(svg, g.s, g.p, at);
+        return;
+      }
+      var a = list[0], b = list[1];
+      zoomPreviewAt(svg, g.s * Math.hypot(a.x - b.x, a.y - b.y) / g.d, g.p, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    });
+    // A pinch ends when either finger lifts; the other doesn't start a drag.
+    var end = function(e) {
+      if (!pts.delete(e.pointerId)) return;
+      if (g && g.d) g.ignore = true;
+      if (!pts.size) { if (g) g.svg.classList.remove('qc-panning'); g = null; }
+    };
+    ROOT.addEventListener('pointerup', end);
+    ROOT.addEventListener('pointercancel', end);
+    // The click that ends a drag or pinch picks nothing (the Rectangle's
+    // and Drill's taps are click handlers).
+    ROOT.addEventListener('click', function(e) {
+      var svg = bigPreviewSvg();
+      if (!svg || !svg.contains(e.target) || !(svg.qcPanned || svg.qcPinching)) return;
+      e.stopPropagation();
+      svg.qcPanned = false; svg.qcPinching = false;
+    }, true);
   }
 
   // While a drag turns an enlarged preview, the field it sets and its value
@@ -7489,7 +7739,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!outlines) caption.push('start points');
     // Drawing units per screen pixel (the viewBox is 100 across, fitted).
     var box = svg.getBoundingClientRect();
-    var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160);
+    var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160) / previewZoom(svg);
     svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx,
                                      patternRadiusRing(tab.prefix, gen, params, trace), outlines ? patternDims(tab.prefix, gen, params, trace) : null) +
       patternPreviewCaption(caption, 44 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
@@ -7759,8 +8009,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     var span = Math.max(maxX - minX, maxY - minY) || 1;
     var s = (80 - extra) / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
-    var X = function(v) { return ((v - midX) * s).toFixed(2); };
-    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
+    var X = function(v) { return ((v - midX) * s).toFixed(4); };
+    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(4); };
 
     var pathD = function(moves) {
       var d = '', penX = null, penY = null;
@@ -7773,7 +8023,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
           var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
           sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
+          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(4) + ',' + (r * s).toFixed(4) + ' 0 ';
           if (sweepAngle < 1e-9) {
             var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
             d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
@@ -7790,11 +8040,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var ox = Number(X(0)), oy = Number(Y(0));
     var origin = figAxes(ox, oy);
     var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') +
-      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '') +
+      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(4) + '"/>' : '') +
       (measured ? measured.svg(X, Y) : '');
     if (cutType) return patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, 1.5 * (unitPx || 1)) + marks;
 
-    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
+    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(4);
     var dots = trace.plunges.map(function(p) {
       return '<circle class="qc-pattern-plunge" cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + dotR + '"/>';
     }).join('');
@@ -7820,17 +8070,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var d = pathD(trace.moves), all = d + trace.plunges.map(dot).join('');
     var hatch = 'url(#qc-' + prefix + '-pat-hatch)';
     var band = function(cls) {
-      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(4) + '" d="' + all + '"/>';
     };
     var inside = function(cls) { return '<path class="' + cls + '" d="' + d + '"/>'; };
     var clearing = cutType === 'clearing';
     // The dashed edge: thinner, with dashes the shape preview's length on screen.
-    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(2);
+    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(4);
     var out = shapePreviewDefs('qc-' + prefix + '-pat');
     if (cutType === 'inner' || cutType === 'outer') out += inside('qc-pattern-part');
     out += band(cutType === 'outer' ? 'qc-pattern-band' : 'qc-pattern-band qc-pattern-tint');
     if (clearing) out += inside('qc-pattern-part') + '<path class="qc-shape-hatch" fill="' + hatch + '" d="' + d + '"/>';
-    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(4) + '" d="' + all + '"/>';
     // Hundreds of masks get slow to draw; past that many copies the edges
     // are drawn for all of them at once, and overlaps merge.
     var each = patternCopies(trace), copies = each;
@@ -7850,18 +8100,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '</filter><g class="qc-pattern-overlap" filter="url(#' + fid + ')">' +
         each.map(function(copy) {
           return '<g opacity="0.5"><path class="qc-pattern-cut" style="stroke: ' + (outerOnly ? 'none' : '#000') + (filled ? '; fill: #000' : '') +
-            '" stroke-width="' + width.toFixed(2) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
+            '" stroke-width="' + width.toFixed(4) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
         }).join('') + '</g>';
     }
     copies.forEach(function(copy, i) {
       var b = traceBounds(copy, bitRadius);
       if (!b) return;
       var cd = pathD(copy.moves) + copy.plunges.map(dot).join('');
-      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(2) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(2) +
-        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(2) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(2) + '"';
+      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(4) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(4) +
+        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(4) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(4) + '"';
       var ring = function(color, w, style) {
         return '<path class="qc-pattern-cut" style="stroke: ' + color + (clearing ? '; fill: ' + color : '') + (style || '') +
-          '" stroke-width="' + w.toFixed(2) + '" d="' + cd + '"/>';
+          '" stroke-width="' + w.toFixed(4) + '" d="' + cd + '"/>';
       };
       var id = 'qc-' + prefix + '-pat-edge' + i;
       var outline = function(key, white, extra, clip) {
@@ -7874,7 +8124,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       var solid = ring('#fff', width + 2 * edge);
       var dashed = '<path class="qc-pattern-cut" style="stroke: #fff; stroke-linecap: butt; stroke-dasharray: ' + dash + ' ' + dash +
-        '" stroke-width="' + thin.toFixed(2) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
+        '" stroke-width="' + thin.toFixed(4) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
       var inner = cutType === 'inner';
       out += '<clipPath id="' + id + 'c"><path d="' + pathD(copy.moves) + '"/></clipPath>' +
         outline('o', inner ? solid : dashed, '<path style="fill: #000" d="' + pathD(copy.moves) + '"/>') +
@@ -11175,7 +11425,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // crosshair shows where the Origin is.
   // A tap on the preview: the nearest node within reach becomes the Origin.
   function nearestPreviewNode(nodes, pt) {
-    var best = null, bestD = 8;
+    var best = null, bestD = 8 / pickZoom;
     (nodes || []).forEach(function(nd) {
       var d = Math.hypot(nd.x - pt.x, nd.y - pt.y);
       if (d < bestD) { bestD = d; best = nd; }
@@ -13537,6 +13787,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return Math.atan2(-pt.y, pt.x) * 180 / Math.PI;
     }
     function setFromPointer(ev) {
+      // Zoomed in, a drag moves the drawing instead; a pinch puts back
+      // whatever its first finger turned.
+      if (svg.qcPinching) {
+        if (twisting && String(baseDeg) !== input.value) { input.value = baseDeg; input.dispatchEvent(new Event('input', { bubbles: true })); }
+        return;
+      }
+      if (previewZoom(svg) > 1) return;
       var deg = pointerDeg(ev);
       if (deg == null) return;
       if (relative) {
@@ -13567,6 +13824,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       input.dispatchEvent(new Event('input', { bubbles: true }));
     }
     svg.addEventListener('pointerdown', function(ev) {
+      // A second finger pinches (wirePreviewZoom); the first one's twist
+      // stays as it began.
+      if (!ev.isPrimary) return;
       dragging = true;
       twisting = false;
       if (typeof inputId === 'function') input = inputId();
@@ -13581,7 +13841,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     svg.addEventListener('pointermove', function(ev) { if (dragging) setFromPointer(ev); });
     svg.addEventListener('pointerup', function(ev) {
       if (dragging && (twisting || !relative)) markPreviewPick();
-      if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
+      if (dragging && relative && !twisting && onTap && downPt && !svg.qcPanned && !svg.qcPinching) onTap(downPt);
       dragging = false;
     });
     svg.addEventListener('pointerup', function() { hideDragAngle(cell); svg.classList.remove('qc-twisting'); });
@@ -13755,6 +14015,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       rect.setAttribute('y', (b.y + b.height / 2 - h / 2).toFixed(2));
       rect.setAttribute('width', w.toFixed(2)); rect.setAttribute('height', h.toFixed(2));
       rect.setAttribute('rx', (h / 2).toFixed(2));
+      // fitPills resizes it as a zoom changes the words' size.
+      rect.setAttribute('data-pill-cx', (b.x + b.width / 2).toFixed(3));
+      rect.setAttribute('data-pill-cy', (b.y + b.height / 2).toFixed(3));
+      rect.setAttribute('data-pill-w', w.toFixed(3)); rect.setAttribute('data-pill-h', h.toFixed(3));
+      rect.setAttribute('data-pill-ts', parseFloat(svg.style.getPropertyValue('--qc-ts')) || 1);
       if (t.getAttribute('transform')) rect.setAttribute('transform', t.getAttribute('transform'));
       t.parentNode.insertBefore(rect, t);
       t.classList.add('qc-on-pill');
@@ -14010,7 +14275,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function drillHoleAt(pt) {
       var map = drillPreviewMap;
       if (!map || !pt) return -1;
-      var best = -1, bestD = Math.max(map.r * 1.5, 6);
+      var best = -1, bestD = Math.max(map.r * 1.5, 6 / pickZoom);
       for (var i = 0; i < map.positions.length; i++) {
         var d = Math.hypot((map.positions[i].x - map.cx) * map.scale - pt.x,
                            -(map.positions[i].y - map.cy) * map.scale - pt.y);
@@ -14260,7 +14525,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var dx = pt.x - fr.mx, dy = pt.y - fr.my;
       var along = dx * fr.ux + dy * fr.uy, across = dx * fr.nx + dy * fr.ny;
       var out = Math.abs(across) - fr.h;
-      if (out > 0 && out <= SLOT_SNAP_BAND && Math.abs(along) <= fr.len / 2 + fr.h) {
+      if (out > 0 && out <= SLOT_SNAP_BAND / pickZoom && Math.abs(along) <= fr.len / 2 + fr.h) {
         var part = along < -fr.len / 6 ? 0 : along > fr.len / 6 ? 2 : 1;
         // [start corner, side middle, end corner]: left 6, 8, 5; right 3, 7, 4.
         var n = (across > 0 ? [6, 8, 5] : [3, 7, 4])[part];
@@ -14305,6 +14570,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function originZoom(key, ox, oy, inner, pts, z, insetPrefix, scale) {
     originZoomFrames[key] = null;
     if (!isFinite(ox) || !isFinite(oy) || !(z > 1)) return '';
+    // Zoomed in, the drawing itself shows it; an enlarged top view zooms
+    // instead (its fitted viewBox isn't the 100 units this box assumes).
+    var zel = $('qc-' + key + '-preview'), zcell = zel && zel.closest('.qc-shape-preview-cell');
+    if (previewZoom(zel) > 1 || (zcell && zcell.matches('.qc-preview-big:is(.qc-shp-big, .qc-drl-big)'))) return '';
     z = Math.min(12, z);
     // The preview's own edges in its units: the drawing area is square
     // when small, wider than the 100-unit view when enlarged. The box sits
@@ -14561,7 +14830,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
-      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, and always in the enlarged preview, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. To see where X0 Y0 sits on the slot, enlarge the preview and zoom in there; a tap then picks among the points more precisely. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER + ' A Center line slot is as wide as the bit that cut it: the card asks for that <strong>Cut Bit</strong>.' ] },
     keyhole: { name: 'Keyhole', notes: [
@@ -14600,7 +14869,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus, one for each direction: <strong>Extent</strong> gives the first-to-last center distance instead (e.g. a row of holes), and on Linear and Honeycomb <strong>Overall</strong> the size from the outer edge of the first copy to the outer edge of the last (the solid lines on the preview), so every copy fits inside it; either way the copies spread evenly. <strong>Gap</strong> (Linear and Honeycomb) gives the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
-      'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s (or &#x2922; in a top view&rsquo;s corner), to enlarge it; there the mouse wheel zooms at the pointer, two fingers pinch, and zoomed in a drag moves it, or use &minus;, + and Fit; click a blank spot again, &times; or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
