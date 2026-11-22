@@ -9211,9 +9211,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       busy = true; render();
       var chosen = picked.map(function(path) { return files.filter(function(f) { return f.path === path; })[0]; });
       // Cancel, Esc or Close while the programs are read stops the merge.
-      await mergeFiles(chosen, status, function() { return panel === loadPanel && merging; });
+      // Why it didn't merge shows after the list redraws, which clears it.
+      var why = await mergeFiles(chosen, status, function() { return panel === loadPanel && merging; });
       busy = false;
-      if (panel === loadPanel) render();
+      if (panel === loadPanel) { render(); if (why) status.textContent = why; }
     });
     clear.addEventListener('click', function() { filter.value = ''; render(); filter.focus(); });
     var files = [];
@@ -9350,7 +9351,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   // Reads the ticked programs, merges them (the generator's mergePrograms),
   // and once the operator confirms, saves the merge in File Manager ›
-  // QuickCut and loads it into ncSender like a Generate.
+  // QuickCut and loads it into ncSender like a Generate. Returns why it
+  // didn't, if it couldn't.
   async function mergeFiles(chosen, status, still) {
     try {
       status.textContent = 'Reading ' + chosen.length + ' programs…';
@@ -9360,7 +9362,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var body = await res.json();
         return { name: f.name, gcode: String(body && (body.content != null ? body.content : body.Content) || '') };
       }));
-      var gcode = makeQuickCutGenerator(state.isImperial).mergePrograms(parts);
+      // A program that would cut with the wrong bit, or in another work
+      // offset: say why and stay on the ticked list.
+      var gen = makeQuickCutGenerator(state.isImperial), problems = gen.mergeProblems(parts);
+      if (!still()) return;
+      if (problems.length) return 'Can’t merge these: ' + problems.join(' ');
+      var gcode = gen.mergePrograms(parts);
       var path = await freeSavePath('QuickCut-Merge_' + parts.length + '-programs.nc');
       if (!still()) return;
       status.textContent = '';
@@ -9383,7 +9390,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       closeLoadPanel();
       setTimeout(function() { window.postMessage({ type: 'close-plugin-dialog' }, '*'); }, 100);
     } catch (err) {
-      status.textContent = 'Merge failed: ' + err.message;
+      return 'Merge failed: ' + err.message;
     }
   }
   // Every field's value (and switch's state) plus the per-tab Tool cards,
@@ -20117,9 +20124,72 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       };
     }
 
+    // Why the programs can't run as one, or [] when they can. Each program
+    // starts with whatever bit the one before it left in the spindle, so a
+    // program with no tool change of its own (its bit typed in, not picked
+    // from the tool library) must use that same bit, of the same kind (a
+    // V-bit, pen, drag knife or laser isn't an end mill of its width); and
+    // they must all run in the same work offset. A saved merge is read as the
+    // programs it holds, each with its own header.
+    function mergeProblems(parts) {
+      var problems = [], held = null, first = true;
+      var say = function(b) {
+        if (!b || (!b.text && !b.kind && !b.tool)) return 'unknown';
+        var size = (b.text || 'unknown size') + (b.kind ? ' ' + b.kind : '');
+        return b.tool ? 'T' + b.tool + ', ' + size : size;
+      };
+      var info = parts.map(function(p) {
+        var found = 'none', runs = [], run = null, kind = '';
+        String(p.gcode).split(/\r?\n/).forEach(function(line) {
+          var t = line.trim();
+          if (/^\(QuickCut: /.test(t)) kind = '';
+          if (/^\(V-bit: /.test(t)) kind = 'V-bit';
+          var e = /^\(Entry: straight down, no ramps, for a ([a-z ]+)\)/.exec(t);
+          if (e) kind = e[1];
+          var d = /^\(Bit Diameter: ([\d.]+)(mm|inch)/.exec(t);
+          if (d) {
+            run = { mm: parseFloat(d[1]) * (d[2] === 'inch' ? 25.4 : 1), text: d[1] + (d[2] === 'inch' ? ' in' : ' mm'), kind: kind, tool: null };
+            runs.push(run);
+          }
+          var code = line.replace(/\([^)]*\)/g, '').replace(/;.*$/, '').replace(/\s+/g, '').toUpperCase();
+          var w = /G5(4|5|6|7|8|9(\.[123])?)(?![0-9.])/.exec(code);
+          if (w && found === 'none') found = w[0];
+          if (/M0*6(?![0-9.])/.test(code)) {
+            if (!run) { run = { mm: null, text: '', kind: '', tool: null }; runs.push(run); }
+            if (run.tool === null) run.tool = (/T0*(\d+)/.exec(code) || [, ''])[1];
+          }
+        });
+        if (!runs.length) runs.push({ mm: null, text: '', kind: '', tool: null });
+        return { name: p.name, wcs: found, runs: runs };
+      });
+      info.forEach(function(p, i) {
+        var said = false;
+        p.runs.forEach(function(r, k) {
+          if (r.tool !== null) { held = r; first = false; return; }
+          var same = held && r.mm != null && held.mm != null && Math.abs(held.mm - r.mm) < 0.002 && held.kind === r.kind;
+          if (!first && !same && !said) {
+            said = true;
+            problems.push('Program ' + (i + 1) + ' (' + p.name + ') has no tool change' + (k ? ' before its part ' + (k + 1) : '') +
+              ', so it would cut with the bit ' + (k ? 'already in the spindle' : 'program ' + i + ' leaves in the spindle') + ' (' + say(held) + '), not its own (' + say(r) + ').' +
+              ' Merge only programs that use the same bit, or, with a tool changer, pick its bit from the tool library and Generate it again.');
+          }
+          held = { mm: r.mm, text: r.text, kind: r.kind, tool: held && same ? held.tool : null };
+          first = false;
+        });
+      });
+      var used = info.map(function(p) { return p.wcs; });
+      if (used.some(function(w) { return w !== used[0]; })) {
+        problems.push('They don’t all run in the same work offset (' + info.map(function(p, i) {
+          return (i + 1) + ': ' + (p.wcs === 'none' ? 'the active one' : p.wcs);
+        }).join(', ') + '), so one would cut in the wrong place.');
+      }
+      return problems;
+    }
+
     var api = {
       generateRectangleProgram: generateRectangleProgram,
       mergePrograms: mergePrograms,
+      mergeProblems: mergeProblems,
       generateCircleProgram: generateCircleProgram,
       circleChamferPlan: circleChamferPlan,
       chamferPlanFor: chamferPlanFor,
