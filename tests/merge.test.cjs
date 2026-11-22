@@ -146,7 +146,7 @@ test('a typed-in bit of another size is refused, naming both bits', () => {
     { name: 'b.nc', gcode: rect({ bitDiameter: 6 }) }
   ]);
   assert.equal(p.length, 1);
-  assert.match(p[0], /^Program 2 \(b\.nc\) has no tool change.*program 1 .*\(3 mm\), not its own \(6 mm\)\. Pick its bit from the tool library/);
+  assert.match(p[0], /^Program 2 \(b\.nc\) has no tool change.*program 1 .*\(3 mm\), not its own \(6 mm\)\. Merge only programs that use the same bit, or, with a tool changer, pick its bit from the tool library/);
   const q = gen.mergeProblems([
     { name: 'a.nc', gcode: circle({ toolNumber: 3 }) },
     { name: 'b.nc', gcode: rect({ bitDiameter: 6 }) }
@@ -166,4 +166,43 @@ test('programs in different work offsets are refused', () => {
     .filter((m) => /work offset/.test(m)), []);
   const p = gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'b.nc', gcode: 'G59.1\n' + circle() }]);
   assert.deepEqual(p, ['They don’t all run in the same work offset (1: the active one, 2: G59.1), so one would cut in the wrong place.']);
+});
+
+test('the same bit in mm and in inches merges, though the inch size is rounded', () => {
+  const ig = makeQuickCutGenerator(true);
+  const sizes = [1.5, 2, 5, 8.5, 11.5, 12, 15, 18.5, 21.5, 22, 25];
+  sizes.forEach((mm) => {
+    const inch = ig.generateCircleProgram({ ...common, diameter: 1, bitDiameter: +(mm / 25.4).toFixed(4), depth: 0.1, depthOfCut: 0.05, cutType: 'outer' });
+    assert.deepEqual(gen.mergeProblems([{ name: 'a.nc', gcode: circle({ bitDiameter: mm }) }, { name: 'b.nc', gcode: inch }]), [], mm + ' mm');
+    assert.deepEqual(gen.mergeProblems([{ name: 'a.nc', gcode: inch }, { name: 'b.nc', gcode: circle({ bitDiameter: mm }) }]), [], mm + ' mm after inch');
+  });
+});
+
+test('a saved merge is checked by the programs in it, the last one leaving its bit', () => {
+  const m = gen.mergePrograms([{ name: 'a.nc', gcode: circle() }, { name: 'b.nc', gcode: rect({ toolNumber: 5, bitDiameter: 6 }) }]);
+  assert.match(gen.mergeProblems([{ name: 'm.nc', gcode: m }, { name: 'c.nc', gcode: circle() }])[0],
+    /^Program 2 \(c\.nc\) .*program 1 leaves in the spindle \(T5, 6 mm\), not its own \(3 mm\)/);
+  assert.deepEqual(gen.mergeProblems([{ name: 'm.nc', gcode: m }, { name: 'c.nc', gcode: circle({ bitDiameter: 6 }) }]), []);
+  // A merge whose first program has no tool change must suit the bit before it.
+  assert.match(gen.mergeProblems([{ name: 'a.nc', gcode: circle({ bitDiameter: 6 }) }, { name: 'm.nc', gcode: m }])[0],
+    /^Program 2 \(m\.nc\) has no tool change, .*\(6 mm\), not its own \(3 mm\)/);
+  // A part with no tool change inside it, after one that changed tools.
+  const old = gen.mergePrograms([{ name: 'a.nc', gcode: circle({ toolNumber: 5, bitDiameter: 6 }) }, { name: 'b.nc', gcode: rect() }]);
+  assert.match(gen.mergeProblems([{ name: 'old.nc', gcode: old }, { name: 'c.nc', gcode: circle({ toolNumber: 3 }) }])[0],
+    /^Program 1 \(old\.nc\) has no tool change before its part 2, so it would cut with the bit already in the spindle \(T5, 6 mm\), not its own \(3 mm\)/);
+});
+
+test('a V-bit, pen or drag knife is not an end mill of the same width', () => {
+  const vbit = gen.generateCircleProgram({ ...common, diameter: 30, cutType: 'outer', bitDiameter: 3,
+    chamfer: { width: 0.5, angle: 90, cutDepth: 6, cutBit: 6.35, depthOfCut: 0.5 } });
+  assert.match(vbit, /^\(V-bit: /m);
+  assert.match(gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'v.nc', gcode: vbit }])[0], /\(3 mm\), not its own \(3 mm V-bit\)/);
+  assert.match(gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'p.nc', gcode: rect({ toolType: 'pen' }) }])[0], /\(3 mm\), not its own \(3 mm pen\)/);
+  assert.match(gen.mergeProblems([{ name: 'p.nc', gcode: rect({ toolType: 'drag knife' }) }, { name: 'a.nc', gcode: circle() }])[0], /\(3 mm drag knife\), not its own \(3 mm\)/);
+  assert.deepEqual(gen.mergeProblems([{ name: 'a.nc', gcode: rect({ toolType: 'pen' }) }, { name: 'b.nc', gcode: circle({ toolType: 'pen' }) }]), []);
+  assert.deepEqual(gen.mergeProblems([{ name: 'a.nc', gcode: circle() }, { name: 'v.nc', gcode: vbit.replace(/^\(Bit Diameter: 3mm/m, '(Bit Diameter: 3mm, T4').replace(/^(G90 ; Absolute positioning)$/m, '$1\nM6 T4') }]), []);
+});
+
+test('a tool change with no bit noted still names its tool', () => {
+  assert.match(gen.mergeProblems([{ name: 'x.nc', gcode: 'G21\nM6 T7\nG0 X1\n' }, { name: 'a.nc', gcode: circle() }])[0], /\(T7, unknown size\), not its own \(3 mm\)/);
 });
