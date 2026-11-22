@@ -4024,9 +4024,10 @@
       return r.json();
     });
   }
+  // Shown (the reads stay shared until init's readers have them all).
   function revealDialog() {
-    early = null;
     ROOT.classList.remove('qc-loading');
+    [].forEach.call(ROOT.children, function(c) { c.inert = false; });
   }
 
   async function init() {
@@ -4038,8 +4039,21 @@
       r.catch(function() {});
       early[p] = r;
     });
+    // Hidden, nothing in it takes the focus either.
+    [].forEach.call(ROOT.children, function(c) { c.inert = true; });
     // Never left blank, even if a read doesn't come back.
-    setTimeout(revealDialog, 2500);
+    setTimeout(revealDialog, 1500);
+    // A read that never comes back isn't shared for good (X0 Y0 is read again every 5 s).
+    setTimeout(function() { early = null; }, 10000);
+    try {
+      await initDialog();
+    } catch (err) {
+      // Shown half wired, as before, rather than blank.
+      revealDialog();
+      throw err;
+    }
+  }
+  async function initDialog() {
     try {
       var s = await readJson('/api/settings').catch(function(err) {
         console.warn('[QuickCut] settings fetch failed, using defaults:', err);
@@ -4161,6 +4175,7 @@
     // Shown once the tool table, the stock thickness and X0 Y0 are in and
     // the run note is written, with the tab drawn.
     Promise.all([toolsRead, stockRead, refreshWco(), document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
+      early = null;
       if (!rootAlive() || !ROOT.classList.contains('qc-loading')) return;
       clearTimeout(_runTimer);
       updateRunNote();
