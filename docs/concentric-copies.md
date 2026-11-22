@@ -1,6 +1,6 @@
-# Concentric Copies: copies of a shape inside or outside itself (plan)
+# Concentric Copies: copies of a shape inside or outside itself
 
-Status: plan only, 2026-11-10. Not started.
+Status: built (2026-11-10 to 15), behind Help › Experimental Features. Planned 2026-11-10 as "Echoes".
 
 ## The idea
 
