@@ -9,7 +9,7 @@ Quick G-code for the everyday CNC jobs (shapes, holes, surfacing, edge work) str
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Shapes](#shapes)
-- [Setting up a cut](#setting-up-a-cut): [cut types](#cut-types), [previews](#the-previews), [origin and inset](#origin-and-inset), [depth](#depth-and-passes), [entering the cut](#entering-the-cut), [holding tabs](#holding-tabs), [corner relief](#corner-relief), [chamfer](#chamfer), [patterns](#patterns)
+- [Setting up a cut](#setting-up-a-cut): [cut types](#cut-types), [previews](#the-previews), [origin and inset](#origin-and-inset), [depth](#depth-and-passes), [entering the cut](#entering-the-cut), [holding tabs](#holding-tabs), [corner relief](#corner-relief), [chamfer](#chamfer), [patterns](#patterns), [concentric](#concentric-copies)
 - Shapes in detail: [Slot](#slot), [Keyhole](#keyhole), [Drill](#drill)
 - [Tools: Planer, Jointer, Cutter](#tools-planer-jointer-cutter)
 - [Recipes](#recipes)
@@ -188,6 +188,18 @@ Switching converts the number so the copies stay put, and a negative number runs
 
 **The pattern preview** shows every copy as you type, each with its own outline, so you can see the stock left between parts, and the pattern's overall size under the copy count. Where copies overlap, the overlap is tinted yellow: holes or pockets running into each other, or an Outer cut eating into the next part. Twist it to turn the Angle (Circular: Start Angle). Above 500 copies it shows only where each copy starts; above 3000 it shows the count. Tapping a point on the shape preview still picks a point of the first copy, so every dot there stays useful with a pattern on.
 
+### Concentric Copies
+
+The **Concentric Copies** card (Circle, Rectangle, Polygon, Star, Slot and Arc Slot) cuts the shape and copies of it stepping inside or outside it: concentric circles, nested frames, a star inside a star, slots inside slots, or with a turn, twisted squares and star spirals. A slot's copies keep its centre line and get wider or narrower (Offset), or grow or shrink about its middle, or an arc slot's center (Scale).
+
+- **Copies:** how many besides the shape. **Direction:** **Inside**, each smaller than the last, or **Outside**, each bigger.
+- **Step** (a menu): the distance from one copy to the next, 1 in or 25 mm to start; or **Ratio (%)**, each copy that share of the last inside (the last over it outside).
+- **Spacing:** **Offset** moves the outline in or out by the Step, like a contour: corners round outward and sharpen inward. **Scale** makes the same shape smaller or bigger about its center (a circle's or polygon's radius, a rectangle's half its longer side, changes by the Step), so a star keeps its points. A Ratio step always scales. A circle is the same either way. A star keeps its shape either way, but Offset moves its edges by the Step, and since they sit close to its center, its points move much farther: inside, an Offset star shrinks fast, and few copies fit.
+- **Shift X / Y** and **Turn:** each copy moved and turned this much more than the last.
+- **Spacing**, **Shift** and **Turn** are under **More**, so the card starts with just Copies, Direction and Step. Closed, More names any of them you've changed (e.g. "More (turn 15°)"), and it opens by itself for a loaded program that uses them.
+
+They're cut smallest first. Copies too small for the shape or the bit are left out, and the card says how many fit; it also warns when copies cross (from a Shift or Turn: with an Inside cut they'd cut into the part), when Outside copies are closer than the bit plus 3 mm (thin rings held only by tabs), and when a Pattern doesn't leave room for outside concentric. The origin (X0 Y0 at a corner or edge) is taken from the shape and its concentric together; each gets the shape's own depth passes and Holding Tabs, and with a Pattern each copy of the pattern gets them. The program header adds a line like `(Concentric copies: 3 inside, 25mm apart, offset)`. Not with Pocket, a chamfer, the Rectangle's other kinds, or a Slot's Center cut or Grid pattern yet. The plan, and what may come next (a depth step per copy for terraces), is in [docs/concentric-copies.md](docs/concentric-copies.md).
+
 ## Slot
 
 A slot with half-round ends: an adjustment slot for a bolt, a slot for a track or a fence, or a curved slot for a tilting table or a router-lift trunnion.
@@ -332,6 +344,8 @@ Math takes + - * / and brackets; a number with no unit is in the current units w
 The **Help** button at the bottom of the sidebar explains the tab you're on: what its settings do, every field's tip (the ones that otherwise only show when you hover with a mouse, so touchscreen users can read them too), and the shared notes on patterns, the tool and typing units. **All help topics** lists every tab with a line on what it does. **Back** returns to the tab with everything as you left it. The first time QuickCut opens in a browser, it starts on All help topics.
 
 On a touchscreen, touch a field (or tab to it) and wait a second to see its tip just below it, like a mouse hover would. The **Touch Tooltips** switch at the top right of Help turns them off.
+
+**Experimental Features**, above it, shows features still being tried out, each marked *Experimental*. Off, they're hidden and left out of the program, but their settings are kept; loading a program that uses one turns it on. Test builds (a `-test` version) start with it on, releases with it off.
 
 The [ncSender manual's QuickCut page](https://docs.ncsender.xyz/plugins/quickcut/) has more.
 

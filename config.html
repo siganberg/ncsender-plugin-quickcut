@@ -439,6 +439,26 @@
     vertical-align: middle;
     line-height: 1.3;
   }
+  /* Experimental features: hidden until Help's Experimental Features switch
+     is on, each marked with this tag. */
+  .qc-exp-off [data-experimental] { display: none !important; }
+  .qc-exp-tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-warning, #d9a441) 70%, var(--color-text-primary));
+    background: color-mix(in srgb, var(--color-warning, #d9a441) 15%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warning, #d9a441) 35%, transparent);
+    border-radius: 999px;
+    vertical-align: middle;
+    line-height: 1.3;
+  }
+  body.theme-light .qc-exp-tag { color: #b45309; }
+  .qc-save-toggle.qc-help-switches { flex-direction: column; align-items: flex-end; gap: 8px; }
   /* Save to File Manager sits top-right of whichever shape's header is showing;
      the title row leaves room for it rather than running underneath. */
   .qc-panel-header { position: relative; }
@@ -2071,6 +2091,15 @@
   .qc-shp-bit { fill: url(#qc-rect-rod); stroke: rgba(0,0,0,.35); stroke-width: 0.4; }
   /* Cutter's look: the waste hatched; the slot the bit cuts opens behind it. */
   .qc-shp-big .qc-shp-hole { fill: var(--qc-m-hole); }
+  /* Concentric Copies: the copies' outlines, dashed in the accent color. */
+  .qc-shp-big .qc-shp-concentric { fill: none; stroke: var(--color-accent, #1abc9c); stroke-width: 0.45; stroke-dasharray: 1.6 1; }
+  /* Concentric Copies: More opens Spacing, Shift and Turn. */
+  .qc-concentric-more {
+    display: inline-block; margin: 2px 0 6px; padding: 2px 0 !important; border: none !important; background: none !important;
+    color: var(--color-accent) !important; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  }
+  .qc-concentric-more:hover { text-decoration: underline; }
+  .qc-concentric-note { margin: 6px 0 0 !important; font-size: 0.8rem; line-height: 1.4 !important; color: var(--color-text-secondary, #888); }
   .qc-shp-big .qc-shp-dimcircle { stroke-dasharray: 1.2 1.2; }
   .qc-shp-big .qc-shp-kerfcut { fill: none; stroke: var(--qc-m-hole); stroke-linejoin: round; }
   .qc-shape-preview-cell .qc-tab-band { fill: none; stroke: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-muted, var(--color-surface))); stroke-opacity: 0.85; stroke-linecap: butt; stroke-linejoin: round; }
@@ -2121,7 +2150,7 @@
   }
 </style>
 
-<div class="qc-wrapper qc-loading">
+<div class="qc-wrapper qc-loading qc-exp-off">
   <div class="qc-container">
     <!-- Sidebar -->
     <aside class="qc-sidebar">
@@ -3987,7 +4016,14 @@
           <h2 class="qc-panel-title">Help<span id="qc-help-for"></span></h2>
           <p class="qc-panel-sub"><span id="qc-help-sub">More about this tab&rsquo;s settings, including the tips that show when you hover over a field with a mouse.</span> <a href="#" class="qc-load-link" id="qc-help-all">All help topics</a></p>
         </div>
-        <div class="qc-save-toggle">
+        <div class="qc-save-toggle qc-help-switches">
+          <label class="qc-switch-label" title="Show features still being tried out, each marked Experimental. Loading a program that uses one turns this on.">
+            <span>Experimental Features</span>
+            <span class="qc-switch">
+              <input type="checkbox" id="qc-experimental">
+              <span class="qc-switch-track"></span>
+            </span>
+          </label>
           <label class="qc-switch-label" title="Show a field's tip below it after it's been touched (or tabbed to) for a second">
             <span>Touch Tooltips</span>
             <span class="qc-switch">
@@ -4165,6 +4201,7 @@
       console.warn('[QuickCut] firmware fetch failed, wasteboard limits unknown:', err);
     }
     renderOriginPickers();
+    buildConcentricCards();
     if (state.isImperial) convertDefaultsToInches();
     // The pattern menus exist before saved settings set them.
     wirePatternAxisModes();
@@ -4216,6 +4253,10 @@
     wireHoldingTabs('circ', updateCirclePreview);
     wireHoldingTabs('poly', updatePolygonPreview);
     wireHoldingTabs('slt', updateSlotPreview);
+    wireConcentric('rect', updateRectanglePreview);
+    wireConcentric('circ', updateCirclePreview);
+    wireConcentric('poly', updatePolygonPreview);
+    wireConcentric('slt', updateSlotPreview);
     mountPatternPreviews();
     wirePreviewEnlarge();
     wireLoad();
@@ -4236,7 +4277,7 @@
     }
     // Shown once the tool table, the stock thickness and X0 Y0 are in and
     // the run note is written, with the tab drawn.
-    Promise.all([toolsRead, stockRead, refreshWco(), document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
+    Promise.all([toolsRead, stockRead, refreshWco(), experimentalRead, document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
       early = null;
       if (!rootAlive() || !ROOT.classList.contains('qc-loading')) return;
       clearTimeout(_runTimer);
@@ -4548,6 +4589,31 @@
   })();
   function rootAlive() { return !!(ROOT && ROOT.isConnected); }
 
+  // Features still being tried out (markup with data-experimental, and an
+  // Experimental tag) show only with Help's Experimental Features on. Off
+  // they're hidden and left out of the program, but their settings are
+  // kept. A test build (a -test version) starts with it on, a release off.
+  // Each feature adds a check to experimentalUses (saved settings: true
+  // when the program uses it), so loading such a program turns it on.
+  var experimentalUses = [];
+  function experimentalOn() { return !ROOT.classList.contains('qc-exp-off'); }
+  function setExperimental(on, save) {
+    if (on === experimentalOn()) return;
+    ROOT.classList.toggle('qc-exp-off', !on);
+    $('qc-experimental').checked = on;
+    if (save) persistSettings({ common: { experimental: on } });
+    // Not trusted, so it isn't autosaved as a form change; the previews redraw.
+    $('qc-experimental').dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  var experimentalRead = null;
+  async function experimentalDefault() {
+    try {
+      var plugins = await readJson('/api/plugins');
+      var me = (plugins || []).filter(function(p) { return p.id === 'com.ncsender.quickcut'; })[0];
+      if (me && /-test/.test(me.version || '')) setExperimental(true);
+    } catch (e) {}
+  }
+
   // The previews' animations stop after ten minutes without a touch, a
   // click or a key, or while the page is hidden, and carry on from there
   // at the next one: nobody watches them that long, and on a Pi they keep
@@ -4718,6 +4784,9 @@
   }
 
   function validationRules() {
+    return Object.assign(shapeValidationRules(), concentricValidationRules());
+  }
+  function shapeValidationRules() {
     // Distance ranges in DISPLAY units. Feed rate is unit-dependent
     // (mm/min vs in/min) so its min swings by ~25x between systems.
     if (state.isImperial) {
@@ -5240,6 +5309,7 @@
     var unitFields = document.querySelectorAll('[data-unit]');
     for (var u = 0; u < unitFields.length; u++) normalizeUnitField(unitFields[u]);
     var rules = validationRules();
+    openConcentricMoreOnError(rules);
     for (var id in rules) {
       var el = document.getElementById(id);
       // offsetParent==null → element (or an ancestor) is display:none
@@ -5868,6 +5938,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // Percent of bit diameter — 40 = 40% engagement (60% overlap).
       stepoverPct:  num('qc-rect-stepover', 40),
       pattern:      readPatternForm('rect'),
+      concentric:       readConcentricForm('rect'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     }));
@@ -5927,6 +5998,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       stepoverPct:  num('qc-circ-stepover', 40),
       chamfer:      readChamferForm('circ'),
       pattern:      readPatternForm('circ'),
+      concentric:       readConcentricForm('circ'),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     }));
@@ -6202,6 +6274,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depthOfCut:    num('qc-poly-step', 0),
       stepoverPct:   num('qc-poly-stepover', 40),
       pattern:       readPatternForm('poly'),
+      concentric:        readConcentricForm('poly'),
       isImperial:    state.isImperial,
       safeZHeightMm: state.safeZHeightMm
     }));
@@ -6226,6 +6299,307 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Style values: 'linear' | 'circular' | 'circular-follow'.
   // 'circular-follow' rotates each instance to point outward from the
   // pattern center (rest is identical to 'circular').
+  // ---------- Concentric Copies ----------
+  // Copies of the shape stepping inside or outside it (the generator's
+  // concentricPlan), on Circle, the plain Rectangle, Polygon, Star and Slot.
+  // A card after each Pattern card, built from one template.
+  var CONCENTRIC_TABS = ['rect', 'circ', 'poly', 'slt'];
+  experimentalUses.push(function(saved) {
+    // `used`: the program cut them (Experimental on, the card not blocked);
+    // programs from before it was kept count as using them.
+    return Object.keys(saved).some(function(k) { var e = k !== 'common' && saved[k] && saved[k].concentric; return !!(e && e.enabled && e.copies >= 1 && e.used !== false); });
+  });
+  function concentricCardHtml(p) {
+    var id = function(k) { return 'qc-' + p + '-concentric-' + k; };
+    var field = function(label, k, html) { return '<div class="qc-field"><label for="' + id(k) + '">' + label + '</label>' + html + '</div>'; };
+    var text = function(k, value, unit, title) {
+      return '<input class="qc-input" type="text" autocomplete="off" spellcheck="false"' + (unit ? ' data-unit="length"' : '') + ' id="' + id(k) + '" value="' + value + '" title="' + title + '">';
+    };
+    return '<div class="qc-card qc-section-card qc-concentric-card" id="' + id('card') + '" data-experimental>' +
+      '<div class="qc-card-header"><h3 class="qc-card-title">Concentric Copies<span class="qc-exp-tag">Experimental</span></h3>' +
+      '<label class="qc-switch" title="Copies of this shape stepping inside or outside it"><input type="checkbox" id="' + id('enable') + '"><span class="qc-switch-track"></span></label></div>' +
+      '<div class="qc-concentric-body" id="' + id('body') + '" style="display: none;">' +
+      '<div class="qc-row-3">' +
+      field('Copies', 'copies', '<input class="qc-input" type="number" id="' + id('copies') + '" min="1" max="50" step="1" value="3" title="How many copies besides the shape itself.">') +
+      field('Direction', 'direction', '<select class="qc-select" id="' + id('direction') + '" title="Inside: each copy smaller than the last. Outside: each bigger."><option value="inside" selected>Inside</option><option value="outside">Outside</option></select>') +
+      '<div class="qc-field"><select class="qc-label-select" id="' + id('step-mode') + '" aria-label="Step set by" title="Step: the distance from one copy to the next. Ratio: each copy this percentage of the last (inside), or the last over this percentage (outside).">' +
+      '<option value="distance" selected>Step</option><option value="ratio">Ratio (%)</option></select>' +
+      text('step', 25, true, 'The distance between copies, or with Ratio the percentage.').replace('>', ' aria-labelledby="' + id('step-mode') + '">') + '</div>' +
+      '</div>' +
+      '<button type="button" class="qc-concentric-more" id="' + id('more') + '" aria-expanded="false" aria-controls="' + id('extra') + '" title="Spacing, Shift and Turn">More</button>' +
+      '<div id="' + id('extra') + '" hidden><div class="qc-row-3">' +
+      field('Spacing', 'spacing', '<select class="qc-select" id="' + id('spacing') + '" title="Offset: each outline moved the Step in or out, as a contour: corners round outward and sharpen inward. Scale: the same shape made smaller or bigger about its center, so a star keeps its points; its size (a circle&rsquo;s or polygon&rsquo;s radius, a rectangle&rsquo;s half its longer side, a slot&rsquo;s half its length) changes by the Step. A Ratio step always scales."><option value="offset" selected>Offset</option><option value="scale">Scale</option></select>') +
+      field('Shift X', 'shift-x', text('shift-x', 0, true, 'Each copy&rsquo;s center moved this much more along X than the last (a tunnel or drift).')) +
+      field('Shift Y', 'shift-y', text('shift-y', 0, true, 'Each copy&rsquo;s center moved this much more along Y than the last.')) +
+      '</div><div class="qc-row-3">' +
+      field('Turn (&deg;)', 'turn', '<input class="qc-input" type="number" id="' + id('turn') + '" step="1" value="0" title="Each copy turned this much more than the last, CCW (twisted squares, star spirals). A circle doesn&rsquo;t show it.">') +
+            '</div></div>' +
+'<p class="qc-concentric-note" id="' + id('note') + '"></p></div></div>';
+  }
+  function buildConcentricCards() {
+    CONCENTRIC_TABS.forEach(function(p) {
+      var pattern = $('qc-' + p + '-pattern-enable');
+      if (pattern && !$('qc-' + p + '-concentric-card')) pattern.closest('.qc-card').insertAdjacentHTML('afterend', concentricCardHtml(p));
+    });
+  }
+  function concentricShape(p) {
+    if (p === 'circ') return 'circle';
+    if (p === 'slt') return 'slot';
+    if (p === 'rect') return rectKind() === 'rectangle' ? 'rectangle' : null;
+    return polyKind() === 'star' ? 'star' : 'polygon';
+  }
+  // Why Concentric Copies can't apply here, or null.
+  function concentricBlocked(p) {
+    if (!concentricShape(p)) return 'Concentric Copies work on the plain Rectangle for now: pick Rectangle in the title.';
+    if (p === 'slt' && $('qc-slt-cut-type').value === 'center') return 'Not with Center: that slot is the bit’s width. Pick Inside or Outside.';
+    if (p === 'slt' && $('qc-slt-type').value !== 'arc' && $('qc-slt-pattern-enable').checked && $('qc-slt-pattern-style').value === 'grid') {
+      return 'Not with a Grid pattern: its lines take their length from the grid.';
+    }
+    if ($('qc-' + p + '-cut-type').value === 'clearing') return 'Not with Pocket yet: pick Inside or Outside.';
+    if (readChamferForm(p).width > 0) return 'Not while chamfering.';
+    return null;
+  }
+  function concentricIsRatio(p) { return $('qc-' + p + '-concentric-step-mode').value === 'ratio'; }
+  function readConcentricForm(p) {
+    if (!experimentalOn() || !$('qc-' + p + '-concentric-enable') || !$('qc-' + p + '-concentric-enable').checked || concentricBlocked(p)) return { enabled: false };
+    return {
+      enabled: true,
+      copies: Math.floor(num('qc-' + p + '-concentric-copies', 0)),
+      direction: $('qc-' + p + '-concentric-direction').value,
+      stepMode: $('qc-' + p + '-concentric-step-mode').value,
+      step: num('qc-' + p + '-concentric-step', 0),
+      spacing: $('qc-' + p + '-concentric-spacing').value,
+      shiftX: num('qc-' + p + '-concentric-shift-x', 0),
+      shiftY: num('qc-' + p + '-concentric-shift-y', 0),
+      turn: num('qc-' + p + '-concentric-turn', 0)
+    };
+  }
+  // Saved in mm (a ratio as it is), switched on or off as the card is;
+  // `used` says whether the program has them (see experimentalUses).
+  function packConcentric(p) {
+    var ratio = concentricIsRatio(p);
+    return {
+      enabled: $('qc-' + p + '-concentric-enable').checked,
+      used: readConcentricForm(p).enabled,
+      copies: Math.floor(num('qc-' + p + '-concentric-copies', 3)),
+      direction: $('qc-' + p + '-concentric-direction').value,
+      stepMode: ratio ? 'ratio' : 'distance',
+      step: ratio ? num('qc-' + p + '-concentric-step', 80) : displayToMm(num('qc-' + p + '-concentric-step', 0)),
+      spacing: $('qc-' + p + '-concentric-spacing').value,
+      shiftX: displayToMm(num('qc-' + p + '-concentric-shift-x', 0)),
+      shiftY: displayToMm(num('qc-' + p + '-concentric-shift-y', 0)),
+      turn: num('qc-' + p + '-concentric-turn', 0)
+    };
+  }
+  // A loaded program made without Concentric Copies (older ones too) turns them off.
+  function hydrateConcentric(p, e, loadedShape) {
+    if (!$('qc-' + p + '-concentric-enable')) return;
+    if (!e) {
+      if (loadedShape) { $('qc-' + p + '-concentric-enable').checked = false; updateConcentricCard(p); }
+      return;
+    }
+    var pre = 'qc-' + p + '-concentric-';
+    $(pre + 'enable').checked = !!e.enabled;
+    if (e.copies != null) $(pre + 'copies').value = e.copies;
+    if (e.direction) $(pre + 'direction').value = e.direction === 'outside' ? 'outside' : 'inside';
+    if (e.spacing) $(pre + 'spacing').value = e.spacing === 'scale' ? 'scale' : 'offset';
+    setConcentricStepMode(p, e.stepMode === 'ratio' ? 'ratio' : 'distance');
+    if (e.step != null) $(pre + 'step').value = e.stepMode === 'ratio' ? e.step : roundDisplay(mmToDisplay(e.step));
+    if (e.shiftX != null) $(pre + 'shift-x').value = roundDisplay(mmToDisplay(e.shiftX));
+    if (e.shiftY != null) $(pre + 'shift-y').value = roundDisplay(mmToDisplay(e.shiftY));
+    if (e.turn != null) $(pre + 'turn').value = e.turn;
+    setConcentricMore(p, concentricExtras(p).length > 0);
+    updateConcentricCard(p);
+  }
+  // The More settings changed from their defaults, as words for its label.
+  function concentricExtras(p) {
+    var pre = 'qc-' + p + '-concentric-', out = [];
+    if ($(pre + 'spacing').value === 'scale' && !concentricIsRatio(p)) out.push('scaled');
+    if (num(pre + 'shift-x', 0) || num(pre + 'shift-y', 0)) out.push('shift');
+    if (num(pre + 'turn', 0)) out.push('turn ' + num(pre + 'turn', 0) + '°');
+    return out;
+  }
+  function setConcentricMore(p, open) {
+    var pre = 'qc-' + p + '-concentric-';
+    $(pre + 'extra').hidden = !open;
+    $(pre + 'more').setAttribute('aria-expanded', open ? 'true' : 'false');
+    updateConcentricMoreLabel(p);
+  }
+  // Closed, More names what it holds that isn't at its default, so a turn
+  // set earlier isn't forgotten.
+  function updateConcentricMoreLabel(p) {
+    var pre = 'qc-' + p + '-concentric-', extras = concentricExtras(p);
+    $(pre + 'more').textContent = !$(pre + 'extra').hidden ? 'Less' : 'More' + (extras.length ? ' (' + extras.join(', ') + ')' : '');
+  }
+  // A ratio has no unit, so the field stops converting typed units.
+  function setConcentricStepMode(p, mode) {
+    var sel = $('qc-' + p + '-concentric-step-mode'), el = $('qc-' + p + '-concentric-step');
+    sel.value = mode;
+    if (mode === 'ratio') el.removeAttribute('data-unit'); else el.setAttribute('data-unit', 'length');
+    $('qc-' + p + '-concentric-spacing').disabled = mode === 'ratio';
+    sel.setAttribute('data-was', mode);
+  }
+  // A wrong Shift or Turn under a closed More still goes into the program,
+  // so More opens and Generate checks it like any other field.
+  function openConcentricMoreOnError(rules) {
+    CONCENTRIC_TABS.forEach(function(p) {
+      var pre = 'qc-' + p + '-concentric-';
+      if (!$(pre + 'extra') || !$(pre + 'extra').hidden || $(pre + 'body').offsetParent === null) return;
+      var bad = ['spacing', 'shift-x', 'shift-y', 'turn'].some(function(k) { return rules[pre + k] && validateField(pre + k, $(pre + k).value); });
+      if (bad) setConcentricMore(p, true);
+    });
+  }
+  function concentricValidationRules() {
+    var rules = {}, big = state.isImperial ? 200 : 5000;
+    CONCENTRIC_TABS.forEach(function(p) {
+      var pre = 'qc-' + p + '-concentric-';
+      if (!$(pre + 'enable')) return;
+      rules[pre + 'copies'] = { min: 1, max: 50, label: 'Copies', integer: true };
+      rules[pre + 'step'] = concentricIsRatio(p) ? { min: 1, max: 99, label: 'Ratio' } : { min: state.isImperial ? 0.001 : 0.01, max: big, label: 'Step' };
+      rules[pre + 'shift-x'] = { min: -big, max: big, label: 'Shift X' };
+      rules[pre + 'shift-y'] = { min: -big, max: big, label: 'Shift Y' };
+      rules[pre + 'turn'] = { min: -360, max: 360, label: 'Turn' };
+    });
+    return rules;
+  }
+  var CONCENTRIC_READERS = { rect: function() { return readRectangleForm(); }, circ: function() { return readCircleForm(); }, poly: function() { return readPolygonForm(); }, slt: function() { return readSlotForm(); } };
+  // The card open or shut, and its note: why it can't apply here, or how
+  // many copies fit.
+  function updateConcentricCard(p) {
+    var pre = 'qc-' + p + '-concentric-';
+    if (!$(pre + 'enable')) return;
+    var on = $(pre + 'enable').checked;
+    $(pre + 'body').style.display = on ? '' : 'none';
+    // A field to fix isn't left out of sight.
+    if ($(pre + 'extra').hidden && $(pre + 'extra').querySelector('.qc-input-error')) setConcentricMore(p, true);
+    updateConcentricMoreLabel(p);
+    var note = $(pre + 'note'), blocked = concentricBlocked(p);
+    if (!on) { note.textContent = ''; return; }
+    if (blocked) { note.textContent = blocked; return; }
+    var params = CONCENTRIC_READERS[p](), shape = concentricShape(p), gen = makeQuickCutGenerator(state.isImperial);
+    var plan = gen.concentricPlan(params, shape, gen.concentricFits(shape)), made = plan.list.length - 1, e = params.concentric;
+    var warn = [];
+    if (concentricCross(p, plan)) warn.push('Copies cross each other (Shift or Turn): with an Inside cut they cut into the part, and Outside ones can cut pieces loose. Check the preview.');
+    var margin = state.isImperial ? 0.125 : 3;
+    if (params.cutType === 'outer' && e.stepMode !== 'ratio' && e.spacing !== 'scale' && made > 0 && e.step < Math.max(0, num('qc-bit', 0)) + margin) {
+      warn.push('Copies closer than the bit plus ' + margin + ' ' + state.unitLabel + ' leave thin rings, held only by Holding Tabs.');
+    }
+    if ($('qc-' + p + '-pattern-enable').checked && e.direction === 'outside' && made > 0) warn.push('The Pattern spaces the shape, not its outside concentric copies: leave room for them.');
+    note.textContent = made + (made === 1 ? ' copy' : ' copies') + ', cut smallest first' +
+      (plan.skipped ? '; ' + plan.skipped + ' too small for the shape or the bit, left out' : '') + '.' + (warn.length ? ' ' + warn.join(' ') : '');
+    note.style.color = warn.length ? 'color-mix(in srgb, var(--color-warning, #d9a441) 70%, var(--color-text-primary))' : '';
+  }
+  // A copy's outline (no bit) about its center, for the crossing check.
+  function concentricShapeOutline(p, q) {
+    var gen = makeQuickCutGenerator(state.isImperial), shape = concentricShape(p);
+    if (shape === 'circle') return [{ type: 'arc', cx: 0, cy: 0, r: q.diameter / 2, a0: 0, a1: 2 * Math.PI, len: Math.PI * q.diameter }];
+    if (shape === 'rectangle') return rectangleOutline(gen, q.width, q.height, q.cornerRadius);
+    if (shape === 'star') return gen.starOutline(q, 0);
+    if (shape === 'slot') return slotShapeOutline(gen, q);
+    var n = Math.max(3, Math.min(12, Math.floor(q.sides || 6))), R = q.radius != null ? q.radius : q.diameter / 2, pts = [];
+    var start = Math.PI / n - Math.PI / 2 + (q.startAngleDeg || 0) * Math.PI / 180;
+    for (var j = 0; j < n; j++) pts.push({ x: R * Math.cos(start + j * 2 * Math.PI / n), y: R * Math.sin(start + j * 2 * Math.PI / n) });
+    var nm = pts.map(function(v, j) { var w = pts[(j + 1) % n], len = Math.hypot(w.x - v.x, w.y - v.y) || 1; return { x: (w.y - v.y) / len, y: -(w.x - v.x) / len }; });
+    return gen.convexOutline(pts, nm, 0, Math.min(Math.max(0, q.cornerRadius || 0), R * Math.cos(Math.PI / n)));
+  }
+  // A slot's outline about its own origin (an arc slot's: the arc's center).
+  function slotShapeOutline(gen, q, d) {
+    var cl = gen.slotCenterline(q), h = q.width / 2 + (d || 0);
+    if (!cl || !(h > 1e-6)) return null;
+    var pc = gen.placeSlot(cl, 0, 0, 0);
+    return pc.type === 'arc' && h >= pc.r ? null : gen.slotOutline(pc, h);
+  }
+  function outlinePoints(segs) {
+    var out = [];
+    segs.forEach(function(sg) {
+      if (sg.type === 'line') { out.push({ x: sg.x0, y: sg.y0 }); return; }
+      for (var k = 0; k < 24; k++) { var a = sg.a0 + (sg.a1 - sg.a0) * k / 24; out.push({ x: sg.cx + sg.r * Math.cos(a), y: sg.cy + sg.r * Math.sin(a) }); }
+    });
+    return out;
+  }
+  function pointInOutline(q, poly) {
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var a = poly[i], b = poly[j];
+      if ((a.y > q.y) !== (b.y > q.y) && q.x < (b.x - a.x) * (q.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+    }
+    return inside;
+  }
+  // Whether a copy (moved and turned) reaches outside the next bigger one.
+  function concentricCross(p, plan) {
+    if (plan.list.length < 2) return false;
+    var gen = makeQuickCutGenerator(state.isImperial), rect = concentricShape(p) === 'rectangle';
+    // In machine X/Y, as the shift is: the rectangle's outline has no Start Angle of its own.
+    var placed = plan.list.map(function(ec) {
+      var segs = concentricShapeOutline(p, ec.params);
+      return segs ? outlinePoints(gen.placeSegs(segs, ec.dx, ec.dy, (rect ? Number(ec.params.startAngleDeg) || 0 : 0) + ec.turn)) : null;
+    });
+    for (var i = 0; i + 1 < placed.length; i++) {
+      var a = placed[i], b = placed[i + 1];
+      if (a && b && a.some(function(q) { return !pointInOutline(q, b); })) return true;
+    }
+    return false;
+  }
+  function wireConcentric(p, update) {
+    var pre = 'qc-' + p + '-concentric-';
+    if (!$(pre + 'enable')) return;
+    var refresh = function() { updateConcentricCard(p); update(); schedulePatternPreview(); };
+    $(pre + 'enable').addEventListener('change', refresh);
+    $('qc-experimental').addEventListener('change', refresh);
+    $(pre + 'more').addEventListener('click', function() { setConcentricMore(p, $(pre + 'extra').hidden); });
+    $(pre + 'step-mode').addEventListener('change', function() {
+      var mode = $(pre + 'step-mode').value;
+      setConcentricStepMode(p, mode);
+      $(pre + 'step').value = mode === 'ratio' ? 80 : state.isImperial ? 1 : 25;
+      recheckField(pre + 'step');
+      refresh();
+    });
+    ['copies', 'direction', 'spacing', 'step', 'shift-x', 'shift-y', 'turn'].forEach(function(k) {
+      $(pre + k).addEventListener('input', refresh);
+      $(pre + k).addEventListener('change', refresh);
+    });
+    // What the note depends on elsewhere on the tab.
+    ROOT.addEventListener('input', function(evt) { if (evt.target.id && evt.target.id.indexOf('qc-' + p + '-') === 0) updateConcentricCard(p); });
+    ROOT.addEventListener('change', function() { updateConcentricCard(p); });
+    updateConcentricCard(p);
+  }
+  // For the top view: the copies' outlines in the shape's own frame,
+  // from `outlineOf(params)`. `turn` is the view's own turn (the
+  // Rectangle's Start Angle), which a machine X/Y shift is undone by.
+  // A rectangle's outline about its center, CCW, its corners rounded.
+  function rectangleOutline(gen, W, H, cr, d) {
+    var part = [{ x: -W / 2, y: -H / 2 }, { x: W / 2, y: -H / 2 }, { x: W / 2, y: H / 2 }, { x: -W / 2, y: H / 2 }];
+    var normals = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+    return gen.convexOutline(part, normals, d || 0, Math.min(Math.max(0, cr || 0), Math.min(W, H) / 2));
+  }
+  // Segments as a closed SVG path on copy Ti (topView's segsD, for the
+  // Rectangle's own view).
+  function concentricPathD(segs, Ti, s) {
+    var P = function(x, y) { var t = Ti(x * s, -y * s); return t.x.toFixed(2) + ',' + t.y.toFixed(2); };
+    return segs.map(function(sg, i) {
+      var head = i ? '' : 'M' + (sg.type === 'line' ? P(sg.x0, sg.y0) : P(sg.cx + sg.r * Math.cos(sg.a0), sg.cy + sg.r * Math.sin(sg.a0)));
+      if (sg.type === 'line') return head + ' L' + P(sg.x1, sg.y1);
+      return head + ' A' + (sg.r * s).toFixed(2) + ',' + (sg.r * s).toFixed(2) + ' 0 ' + (Math.abs(sg.a1 - sg.a0) > Math.PI ? 1 : 0) + ' ' +
+        (sg.dir === -1 || sg.a1 < sg.a0 ? 1 : 0) + ' ' + P(sg.cx + sg.r * Math.cos(sg.a1), sg.cy + sg.r * Math.sin(sg.a1));
+    }).join(' ') + ' Z';
+  }
+  // Each copy's outline (outlineOf(q, 0)), moved and turned, in the order
+  // the generator cuts them; cutAt(d) is it grown by d (the bit's path).
+  // `before`: Inside copies are cut before the shape, innermost first.
+  function concentricOutlines(p, params, outlineOf, turn) {
+    var shape = concentricShape(p);
+    if (!shape || !params.concentric || !params.concentric.enabled) return null;
+    var gen = makeQuickCutGenerator(state.isImperial), a = -(turn || 0) * Math.PI / 180;
+    var out = gen.concentricPlan(params, shape, gen.concentricFits(shape)).list.filter(function(ec) { return ec.k > 0; }).map(function(ec) {
+      var place = function(segs) { return segs ? gen.placeSegs(segs, ec.dx * Math.cos(a) - ec.dy * Math.sin(a), ec.dx * Math.sin(a) + ec.dy * Math.cos(a), ec.turn) : null; };
+      var segs = place(outlineOf(ec.params, 0));
+      if (segs) segs.cutAt = function(d) { return place(outlineOf(ec.params, d)); };
+      return segs;
+    }).filter(Boolean);
+    out.before = params.concentric.direction !== 'outside';
+    return out;
+  }
+
   function readPatternForm(prefix) {
     var pre = 'qc-' + prefix + '-pattern-';
     var hexTrimEl = $(pre + 'hex-trim');
@@ -8643,6 +9017,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       $('qc-save-files').addEventListener('change', function() {
         persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
       });
+      if (typeof common.experimental === 'boolean') setExperimental(common.experimental);
+      else experimentalRead = experimentalDefault();
+      $('qc-experimental').addEventListener('change', function(evt) {
+        if (evt.isTrusted) setExperimental($('qc-experimental').checked, true);
+      });
       $('qc-touch-tips').checked = common.touchTooltips !== false;
       $('qc-touch-tips').addEventListener('change', function() {
         persistSettings({ common: { touchTooltips: $('qc-touch-tips').checked } });
@@ -8687,6 +9066,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (rect.stepoverPct != null)   $('qc-rect-stepover').value = rect.stepoverPct;
     hydrateTabs('rect', rect.tabs);
     hydratePattern('rect', rect.pattern);
+    hydrateConcentric('rect', rect.concentric, loaded && !!saved.rectangle);
 
     var circ = saved.circle || {};
     if (circ.diameter != null)      $('qc-circ-diameter').value = roundDisplay(mmToDisplay(circ.diameter));
@@ -8715,6 +9095,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     showChamferFields();
     hydrateTabs('circ', circ.tabs);
     hydratePattern('circ', circ.pattern);
+    hydrateConcentric('circ', circ.concentric, loaded && !!saved.circle);
 
     var plan = saved.planer || {};
     if (plan.mode)               $('qc-plan-mode').value     = plan.mode;
@@ -8799,6 +9180,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (poly.stepoverPct != null)   $('qc-poly-stepover').value = poly.stepoverPct;
     hydrateTabs('poly', poly.tabs);
     hydratePattern('poly', poly.pattern);
+    hydrateConcentric('poly', poly.concentric, loaded && !!saved.polygon);
 
     var slt = saved.slot || {};
     if (slt.slotType)               $('qc-slt-type').value     = slt.slotType;
@@ -8817,6 +9199,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (slt.stepoverPct != null)    $('qc-slt-stepover').value = slt.stepoverPct;
     hydrateTabs('slt', slt.tabs);
     hydratePattern('slt', slt.pattern);
+    hydrateConcentric('slt', slt.concentric, loaded && !!saved.slot);
 
     var key = saved.keyhole || {};
     if (key.slotLengthMode === 'ratio' && key.slotRatio > 0) {
@@ -8979,7 +9362,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
         tabs:         packTabsForm('rect'),
-        pattern:      packPattern(params.pattern)
+        pattern:      packPattern(params.pattern),
+        concentric:       packConcentric('rect')
       };
     } else if (params.shape === 'circle') {
       body.circle = {
@@ -8992,7 +9376,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         depthOfCut:   displayToMm(params.depthOfCut),
         stepoverPct:  params.stepoverPct,
         tabs:         packTabsForm('circ'),
-        pattern:      packPattern(params.pattern)
+        pattern:      packPattern(params.pattern),
+        concentric:       packConcentric('circ')
       };
     } else if (params.shape === 'planer') {
       body.planer = {
@@ -9058,7 +9443,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
         tabs:          packTabsForm('poly'),
-        pattern:       packPattern(params.pattern)
+        pattern:       packPattern(params.pattern),
+        concentric:        packConcentric('poly')
       };
     } else if (params.shape === 'slot') {
       body.slot = {
@@ -9081,7 +9467,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         depthOfCut:    displayToMm(params.depthOfCut),
         stepoverPct:   params.stepoverPct,
         tabs:          packTabsForm('slt'),
-        pattern:       packPattern(params.pattern)
+        pattern:       packPattern(params.pattern),
+        concentric:    packConcentric('slt')
       };
     } else if (params.shape === 'keyhole') {
       body.keyhole = {
@@ -9344,7 +9731,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       ROOT.querySelectorAll('.qc-input-error').forEach(function(el) { recheckField(el.id); });
       closeLoadPanel();
       switchTab(data.shape);
-      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '. Check the values, then Generate.', TOOLTIP_OK, true);
+      var exp = !experimentalOn() && experimentalUses.some(function(uses) { return uses(loaded); });
+      if (exp) setExperimental(true, true);
+      showTooltip($('qc-load-link'), 'Loaded ' + file.name + '.' + (exp ? ' It uses experimental features, so Help’s Experimental Features is now on.' : '') + ' Check the values, then Generate.', TOOLTIP_OK, true);
     } catch (err) {
       status.textContent = 'Could not read ' + file.name + ': ' + err.message;
     }
@@ -10407,6 +10796,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // once per SVG in its <defs>. Note: pattern ids are per-SVG (SVGs
   // don't share <defs>), so each shape's preview needs to include
   // its own copy — see the caller for the inline `defs` block.
+  // A caption wider than the preview (a long name, its copies) is squeezed
+  // to fit rather than cut off at the sides.
+  function fitShapeCaption(svg, room) {
+    var cap = svg.querySelector('.qc-shp-cap');
+    if (cap && cap.getBBox().width > room) {
+      cap.setAttribute('textLength', room.toFixed(2));
+      cap.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+  }
   function shapePreviewDefs(idPrefix) {
     // Open V-style arrowhead — two strokes meeting at the tip
     // (unfilled), giving a lighter "measurement" feel than a solid
@@ -12223,6 +12621,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var gen = makeQuickCutGenerator(state.isImperial), params = readRectangleForm();
     var sized = W > 0 && H > 0, Wm = sized ? W : 50, Hm = sized ? H : 30;
     var copies = sized ? gen.computePatternPositions(params.pattern) : [{ x: 0, y: 0, rotDeg: 0 }];
+    var rectConcentric = sized ? concentricOutlines('rect', params, function(q, d) { return rectangleOutline(gen, q.width, q.height, q.cornerRadius, d); }, turn) : null;
     var total = copies.length;
     if (total > RECT_PREVIEW_MAX) copies = copies.slice(0, 1);
     var p0 = copies[0];
@@ -12254,6 +12653,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function(k) {
         var m = mpt(i, k[0] * (Wm / 2 + reach), k[1] * (Hm / 2 + reach));
         mb.x0 = Math.min(mb.x0, m.x); mb.x1 = Math.max(mb.x1, m.x); mb.y0 = Math.min(mb.y0, m.y); mb.y1 = Math.max(mb.y1, m.y);
+      });
+    });
+    (rectConcentric || []).forEach(function(segs) {
+      copies.forEach(function(q, i) {
+        segs.forEach(function(sg) {
+          (sg.type === 'line' ? [[sg.x0, sg.y0], [sg.x1, sg.y1]] : [[sg.cx - sg.r, sg.cy - sg.r], [sg.cx + sg.r, sg.cy + sg.r], [sg.cx - sg.r, sg.cy + sg.r], [sg.cx + sg.r, sg.cy - sg.r]]).forEach(function(k) {
+            var m = mpt(i, k[0], k[1]);
+            mb.x0 = Math.min(mb.x0, m.x); mb.x1 = Math.max(mb.x1, m.x); mb.y0 = Math.min(mb.y0, m.y); mb.y1 = Math.max(mb.y1, m.y);
+          });
+        });
       });
     });
     var s = Math.min(70 / Math.max(1e-6, mb.x1 - mb.x0), 52 / Math.max(1e-6, mb.y1 - mb.y0));
@@ -12327,7 +12736,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     else if (bitV > 0 && sized) copies.forEach(function(q, i) {
       var Ti = Tc(i);
-      if (cutType !== 'clearing') { var d = ringPath(Ti, half, cr + half); if (d) cuts.push({ i: i, d: d, len: loopLen(half) }); return; }
+      if (cutType !== 'clearing') {
+        var d = ringPath(Ti, half, cr + half), own = d ? [{ i: i, d: d, len: loopLen(half) }] : [];
+        // Concentric copies: each its own loop, before the rectangle (Inside
+        // copies, innermost first) or after it (Outside), as the program runs.
+        // Not closed with Z, which Chrome's dashes skip.
+        var conc = (rectConcentric || []).map(function(segs) {
+          var o = segs.cutAt(half / s);
+          return o ? { i: i, d: concentricPathD(o, Ti, s).replace(/ Z$/, ''), len: o.reduce(function(t, sg) { return t + sg.len; }, 0) * s, conc: segs } : null;
+        }).filter(Boolean);
+        cuts.push.apply(cuts, rectConcentric && rectConcentric.before ? conc.concat(own) : own.concat(conc));
+        return;
+      }
       // Pocket: a helix bores the middle, then rings from the inside out,
       // Stepover apart; only the last keeps the corner radius.
       var rb = bitV / 2 * s, step = Math.min(Math.max(0.05, num('qc-rect-stepover', 40) / 100) * bitV * s, rb * (1 + Math.SQRT1_2));
@@ -12355,7 +12775,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // free, the stock round them goes). A pause, then it starts over.
     var F = function(v) { return v.toFixed(2); };
     var live = !CUT_REDUCED && cuts.length > 0;
-    var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + 3 * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
+    var nConc = (rectConcentric || []).length;
+    var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + (3 + 2 * nConc) * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
     // When each cut starts and ends (a share of the run by its length), and
     // when each copy is done.
     var totalLen = cuts.reduce(function(t, c) { return t + c.len; }, 0) || 1, run = 0, doneAt = copies.map(function(q, i) { return cutF * (i + 1) / copies.length; });
@@ -12370,9 +12791,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // A copy's bit path. Where a tab stands the cut is shallower: that
     // stretch is drawn faint, the wood showing through, and kept out of
     // the full-depth path.
-    function kerfOf(i) {
-      var kerf = cuts.filter(function(c) { return c.i === i; }).map(kerfCut).join('');
-      var kw = bitV * s, runs = chf ? [] : tabRuns('rect', copyTabSegs(i), kw);
+    function kerfOf(i, which) {
+      var kerf = cuts.filter(function(c) { return c.i === i && (!which || which(c)); }).map(kerfCut).join('');
+      // The tabs are on the rectangle's own loop.
+      var kw = bitV * s, runs = chf || (which && !which({ i: i })) ? [] : tabRuns('rect', copyTabSegs(i), kw);
       if (!runs.length) return kerf;
       var id = 'qc-shp-tabmask-' + i, R = function(v) { return v.toFixed(2); };
       return '<mask id="' + id + '" maskUnits="userSpaceOnUse" x="' + R(sxA - 5) + '" y="' + R(syA - 5) + '" width="' + R(sxB - sxA + 10) + '" height="' + R(syB - syA + 10) + '">' +
@@ -12394,11 +12816,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var kt = [0, a, b, 1].map(function(t, k, arr) { return k && t <= arr[k - 1] ? arr[k - 1] + 0.0001 : t; });
       kt[3] = 1;
       return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + d + '" pathLength="100" stroke-width="' + F(c.wid || bitV * s) + '"' +
-        (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
+        (live ? ' stroke-dasharray="102 102" stroke-dashoffset="102"><animate attributeName="stroke-dashoffset" values="102;102;0;0" keyTimes="' +
           kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
     }
     var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-rect-wood)"/>' +
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
+    // Each copy's outermost outline (its last Outside concentric copy, else
+    // the rectangle), and whether a cut is the one along it.
+    var edgeConc = nConc && !rectConcentric.before ? rectConcentric[nConc - 1] : null;
+    var bounds = edgeConc ? copies.map(function(q, i) { return concentricPathD(edgeConc, Tc(i), s); }) : outlines;
+    function isEdge(c) { return edgeConc ? c.conc === edgeConc : !c.conc; }
     var waste, clips = '';
     if (chf) {
       // Already cut: Outside leaves the parts in the stock, the cut bit's
@@ -12422,16 +12849,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     } else if (cutType === 'outer') {
       // Outside: the parts keep their wood; everything round them (the
       // stock, its hatch, the bit's bands) is one piece that goes at the end.
-      clips = '<clipPath id="qc-shp-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
-        '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+      // With Outside concentric copies the outermost one is the edge: the
+      // rest are cut within it (frames) and stay.
+      clips = '<clipPath id="qc-shp-keep"><path d="' + bounds.join(' ') + '"/></clipPath>' +
+        '<clipPath id="qc-shp-away"><path clip-rule="evenodd" d="' + stockD + ' ' + bounds.join(' ') + '"/></clipPath>';
       waste = '<g clip-path="url(#qc-shp-keep)">' + stockSvg + '</g>' +
         '<g clip-path="url(#qc-shp-away)">' + stockSvg +
-          '<path fill="url(#qc-shp-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
-          copies.map(function(q, i) { return kerfOf(i); }).join('') +
-          goneAt(cutF) + '</g>';
+          '<path fill="url(#qc-shp-waste)" fill-rule="evenodd" d="' + stockD + ' ' + bounds.join(' ') + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i, isEdge); }).join('') +
+          goneAt(cutF) + '</g>' +
+        copies.map(function(q, i) { return kerfOf(i, function(c) { return !isEdge(c); }); }).join('');
     } else {
-      // Inside / Pocket: each copy's middle, over the hole it leaves.
-      waste = stockSvg + outlines.map(function(o, i) {
+      // Inside / Pocket: each copy's middle (inside its outermost outline,
+      // concentric copies and all), over the hole it leaves.
+      waste = stockSvg + bounds.map(function(o, i) {
         var at = doneAt[i];
         return '<path class="qc-shp-hole" d="' + o + '"' + (live ? ' opacity="0"' : '') + '>' + goneAt(at, true) + '</path>' +
           '<g><path fill="url(#qc-shp-waste)" d="' + o + '"/>' +
@@ -12439,7 +12870,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           goneAt(at) + '</g>';
       }).join('');
     }
-    var parts = outlines.map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
+    // Inside, the hole's edge (with Outside copies, the outermost one's).
+    var parts = (cutType === 'outer' ? outlines : bounds).map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
+    var concentricSvg = nConc && cutType === 'outer' ? copies.map(function(q, i) {
+      return rectConcentric.map(function(segs) { return '<path class="qc-shp-outline" d="' + concentricPathD(segs, Tc(i), s) + '"/>'; }).join('');
+    }).join('') : '';
 
     // Width and Height of the first copy, outside its edges, in pills.
     var u = state.unitLabel, F = function(v) { return v.toFixed(2); };
@@ -12492,6 +12927,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var capText = (total > 1 ? total + ' copies · ' : '') + (sized ? roundDisplay(W) + ' × ' + roundDisplay(H) + ' ' + u : '') +
       (chf ? ' · ' + roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer'
         : ' · ' + { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket' }[cutType]) +
+      ((rectConcentric || []).length ? ' · ' + rectConcentric.length + (rectConcentric.length === 1 ? ' concentric copy' : ' concentric copies') : '') +
       (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
 
@@ -12510,11 +12946,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<linearGradient id="qc-rect-rod" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f98a5"/><stop offset=".45" stop-color="#f3f5f8"/><stop offset="1" stop-color="#7d8693"/></linearGradient></defs>';
     svg.innerHTML =
       shapePreviewDefs('qc-rect') + defs +
-      waste + (chf ? '' : parts + ideal) +
+      waste + (chf ? '' : parts + concentricSvg + ideal) +
       dims + cap +
       rectBit() +
       rectOriginCross();
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
+    fitShapeCaption(svg, sxB - sxA + 5);
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
 
     // The bit going round each copy in turn, on its center line.
@@ -12595,9 +13032,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var q = copies[i], a = ((q.rotDeg || 0) + turn) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
       return { x: q.x - p0.x + lx * ca - ly * sa, y: q.y - p0.y + lx * sa + ly * ca };
     }
-    var mb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    var mb = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }, bb = { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 };
+    (sh.concentric || []).forEach(function(segs) {
+      segs.forEach(function(sg) {
+        var pts = sg.type === 'line' ? [[sg.x0, sg.y0], [sg.x1, sg.y1]] : [[sg.cx - sg.r, sg.cy - sg.r], [sg.cx + sg.r, sg.cy + sg.r]];
+        pts.forEach(function(q) { bb.x0 = Math.min(bb.x0, q[0]); bb.x1 = Math.max(bb.x1, q[0]); bb.y0 = Math.min(bb.y0, q[1]); bb.y1 = Math.max(bb.y1, q[1]); });
+      });
+    });
     copies.forEach(function(q, i) {
-      [[b.x0 - reach, b.y0 - reach], [b.x1 + reach, b.y0 - reach], [b.x1 + reach, b.y1 + reach], [b.x0 - reach, b.y1 + reach]].forEach(function(k) {
+      [[bb.x0 - reach, bb.y0 - reach], [bb.x1 + reach, bb.y0 - reach], [bb.x1 + reach, bb.y1 + reach], [bb.x0 - reach, bb.y1 + reach]].forEach(function(k) {
         var m = mpt(i, k[0], k[1]);
         mb.x0 = Math.min(mb.x0, m.x); mb.x1 = Math.max(mb.x1, m.x); mb.y0 = Math.min(mb.y0, m.y); mb.y1 = Math.max(mb.y1, m.y);
       });
@@ -12662,8 +13105,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // Center line: the bit runs along it, the cut as wide as the bit.
       if (sh.center) { cuts.push({ i: i, d: segsD(sh.center, Ti), len: lenOf(sh.center), wid: sh.centerWidth * s }); return; }
       if (cutType !== 'clearing') {
-        var loop = sh.offset(half / s, CR);
-        if (loop) cuts.push({ i: i, d: segsD(loop, Ti), len: lenOf(loop) });
+        var loop = sh.offset(half / s, CR), own = loop ? [{ i: i, d: segsD(loop, Ti), len: lenOf(loop) }] : [];
+        // Concentric copies: each its own loop, before the shape (Inside
+        // copies, innermost first) or after it (Outside), as the program runs.
+        var conc = (sh.concentric || []).map(function(segs) {
+          var o = segs.cutAt(half / s);
+          return o ? { i: i, d: segsD(o, Ti), len: lenOf(o), conc: segs } : null;
+        }).filter(Boolean);
+        cuts.push.apply(cuts, sh.concentric && sh.concentric.before ? conc.concat(own) : own.concat(conc));
         return;
       }
       var rb = bitV / 2 * s, step = Math.min(Math.max(0.05, num('qc-' + sh.prefix + '-stepover', 40) / 100) * bitV * s, rb * (1 + Math.SQRT1_2));
@@ -12694,7 +13143,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     var paths = cuts.map(function(c) { return c.d; });
     var live = !CUT_REDUCED && cuts.length > 0;
-    var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + 3 * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
+    var nConc = (sh.concentric || []).length;
+    var cutT = Math.min(40, (cutType === 'clearing' ? 6 : 4) + (3 + 2 * nConc) * copies.length), loopT = cutT + 2.2, cutF = cutT / loopT;
     var totalLen = cuts.reduce(function(t, c) { return t + c.len; }, 0) || 1, run = 0, doneAt = copies.map(function(q, i) { return cutF * (i + 1) / copies.length; });
     cuts.forEach(function(c) { c.a = cutF * run / totalLen; run += c.len; c.b = cutF * run / totalLen; doneAt[c.i] = c.b; });
     function goneAt(t, show) {
@@ -12702,19 +13152,24 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var a = Math.min(0.998, t), e = Math.min(0.999, a + 0.35 / loopT);
       return '<animate attributeName="opacity" values="' + (show ? '0;0;1;1' : '1;1;0;0') + '" keyTimes="0;' + a.toFixed(4) + ';' + e.toFixed(4) + ';1" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>';
     }
-    function kerfOf(i) {
-      return cuts.filter(function(c) { return c.i === i; }).map(function(c) {
+    function kerfOf(i, which) {
+      return cuts.filter(function(c) { return c.i === i && (!which || which(c)); }).map(function(c) {
         var kt = [0, c.a, c.b, 1].map(function(t, k, arr) { return k && t <= arr[k - 1] ? arr[k - 1] + 0.0001 : t; });
         kt[3] = 1;
         // Hidden until it starts: a path's round cap would show as a dot.
         return '<path class="' + (c.cls || 'qc-shp-kerfcut') + '" d="' + c.d + '" pathLength="100" stroke-linecap="round" stroke-width="' + F(c.wid || bitV * s) + '"' +
-          (live ? ' stroke-dasharray="100 100" stroke-dashoffset="100" visibility="hidden"><animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="' +
+          (live ? ' stroke-dasharray="102 102" stroke-dashoffset="102" visibility="hidden"><animate attributeName="stroke-dashoffset" values="102;102;0;0" keyTimes="' +
             kt.map(function(t) { return t.toFixed(4); }).join(';') + '" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/>' +
             '<animate attributeName="visibility" values="hidden;visible" keyTimes="0;' + Math.min(0.999, kt[1] + 0.0005).toFixed(4) + '" calcMode="discrete" dur="' + loopT.toFixed(2) + 's" repeatCount="indefinite"/></path>' : '/>');
       }).join('');
     }
     var stockSvg = '<rect class="qc-shp-stock" x="' + F(sxA) + '" y="' + F(syA) + '" width="' + F(sxB - sxA) + '" height="' + F(syB - syA) + '" rx="1" fill="url(#qc-' + sh.prefix + '-wood)"/>' +
       woodGrain(sxA, syA, sxB - sxA, syB - syA, 1);
+    // Each copy's outermost outline (its last Outside concentric copy, else
+    // the shape), and whether a cut is the one along it.
+    var edgeConc = nConc && !sh.concentric.before ? sh.concentric[nConc - 1] : null;
+    var bounds = edgeConc ? copies.map(function(q, i) { return segsD(edgeConc, Tc(i), true); }) : outlines;
+    function isEdge(c) { return edgeConc ? c.conc === edgeConc : !c.conc; }
     var waste, clips = '', id = sh.prefix;
     if (chf) {
       // Already cut: Outside leaves the parts in the stock, the cut bit's
@@ -12732,21 +13187,29 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         waste = '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg + copies.map(function(q, i) { return kerfOf(i); }).join('') + '</g>';
       }
     } else if (cutType === 'outer') {
-      clips = '<clipPath id="qc-' + id + '-keep"><path d="' + outlines.join(' ') + '"/></clipPath>' +
-        '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/></clipPath>';
+      // With Outside concentric copies the outermost one is the edge: the
+      // rest are cut within it (frames, rings) and stay.
+      clips = '<clipPath id="qc-' + id + '-keep"><path d="' + bounds.join(' ') + '"/></clipPath>' +
+        '<clipPath id="qc-' + id + '-away"><path clip-rule="evenodd" d="' + stockD + ' ' + bounds.join(' ') + '"/></clipPath>';
       waste = '<g clip-path="url(#qc-' + id + '-keep)">' + stockSvg + '</g>' +
         '<g clip-path="url(#qc-' + id + '-away)">' + stockSvg +
-          '<path fill="url(#qc-' + id + '-waste)" fill-rule="evenodd" d="' + stockD + ' ' + outlines.join(' ') + '"/>' +
-          copies.map(function(q, i) { return kerfOf(i); }).join('') +
-          goneAt(cutF) + '</g>';
+          '<path fill="url(#qc-' + id + '-waste)" fill-rule="evenodd" d="' + stockD + ' ' + bounds.join(' ') + '"/>' +
+          copies.map(function(q, i) { return kerfOf(i, isEdge); }).join('') +
+          goneAt(cutF) + '</g>' +
+        copies.map(function(q, i) { return kerfOf(i, function(c) { return !isEdge(c); }); }).join('');
     } else {
-      waste = stockSvg + outlines.map(function(o, i) {
+      // Everything inside the outermost outline drops out with it.
+      waste = stockSvg + bounds.map(function(o, i) {
         var at = doneAt[i];
         return '<path class="qc-shp-hole" d="' + o + '"' + (live ? ' opacity="0"' : '') + '>' + goneAt(at, true) + '</path>' +
           '<g><path fill="url(#qc-' + id + '-waste)" d="' + o + '"/>' + kerfOf(i) + goneAt(at) + '</g>';
       }).join('');
     }
-    var parts = outlines.map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
+    // Inside, the hole's edge (with Outside copies, the outermost one's).
+    var parts = (cutType === 'outer' ? outlines : bounds).map(function(o) { return '<path class="qc-shp-outline" d="' + o + '"/>'; }).join('');
+    var concentricSvg = nConc && cutType === 'outer' ? copies.map(function(q, i) {
+      return sh.concentric.map(function(segs) { return '<path class="qc-shp-outline" d="' + segsD(segs, Tc(i), true) + '"/>'; }).join('');
+    }).join('') : '';
 
     // What a shape's pills and tabs work with: the front-most (iw),
     // left-most (ih) and back-most (it) copies, so pills sit clear of the
@@ -12767,6 +13230,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var dims = sh.dims(c);
     var kind = chf ? roundDisplay(Math.max(0, num('qc-chamfer-width', 0))) + ' ' + u + ' chamfer' : { outer: 'outside cut', inner: 'inside cut', clearing: 'pocket', center: 'center line' }[cutType];
     var capText = (total > 1 ? total + ' copies · ' : '') + sh.caption + (kind ? ' · ' + kind : '') +
+      ((sh.concentric || []).length ? ' · ' + sh.concentric.length + (sh.concentric.length === 1 ? ' concentric copy' : ' concentric copies') : '') +
       (total > RECT_PREVIEW_MAX ? ' · first copy shown' : '');
     var cap = '<text class="qc-shp-cap" x="' + F((sxA + sxB) / 2) + '" y="' + F(syB + 5.5) + '" text-anchor="middle">' + capText + '</text>';
     sh.nodes(c);
@@ -12800,8 +13264,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       (z ? originZoom(sh.prefix, oq.x, oq.y, bitEdge(edgeD, cutType) + '<path class="qc-shape-fill" d="' + outline + '"/>' + ideal, zpts, z, sh.prefix, s) : '');
     var over = sh.overlay ? copies.map(function(q, i) { return sh.overlay(c, Tc(i)); }).join('') : '';
     svg.innerHTML = shapePreviewDefs('qc-' + sh.prefix) + defs + waste +
-      (chf ? '' : parts + over + ideal + ($('qc-' + sh.prefix + '-tabs-enable') ? sh.tabs(c).map(function(segs) { return tabMarks(sh.prefix, segs, segs.real); }).join('') : '')) + dims + cap + bit + origin;
+      (chf ? '' : parts + concentricSvg + over + ideal + ($('qc-' + sh.prefix + '-tabs-enable') ? sh.tabs(c).map(function(segs) { return tabMarks(sh.prefix, segs, segs.real); }).join('') : '')) + dims + cap + bit + origin;
     svg.setAttribute('viewBox', [sxA - 3, syA - 3, sxB - sxA + 6, syB - syA + 13].map(function(v) { return v.toFixed(2); }).join(' '));
+    fitShapeCaption(svg, sxB - sxA + 5);
     figPills(svg, '.qc-shp-dimtext, .qc-inset-label');
   }
 
@@ -12868,6 +13333,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     topView(svg, {
       prefix: 'poly', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
       chamfer: state.chamferMode === 'polygon',
+      concentric: concentricOutlines('poly', params, function(q, d) {
+        var qR = q.radius != null ? q.radius : q.diameter / 2, pts = [];
+        for (var j = 0; j < n; j++) pts.push({ x: qR * Math.cos(start + j * 2 * Math.PI / n), y: qR * Math.sin(start + j * 2 * Math.PI / n) });
+        var nm = pts.map(function(v, j) { var w = pts[(j + 1) % n], len = Math.hypot(w.x - v.x, w.y - v.y) || 1; return { x: (w.y - v.y) / len, y: -(w.x - v.x) / len }; });
+        return gen.convexOutline(pts, nm, d, Math.min(Math.max(0, q.cornerRadius || 0), qR * Math.cos(Math.PI / n)));
+      }),
       box: box, typedCR: typedCR, mostCR: apothem, relief: relief, reliefPts: part, deep: apothem,
       CR: relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), apothem),
       offset: offset,
@@ -12914,6 +13385,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     topView(svg, {
       prefix: 'poly', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
       chamfer: state.chamferMode === 'polygon',
+      concentric: concentricOutlines('poly', params, function(q, d) { return gen.starOutline(q, d); }),
       box: box, smooth: true, typedCR: 0, CR: 0, deep: lo,
       offset: function(dd) { return gen.starOutline(params, dd); },
       caption: verts.length / 2 + '-point star ' + roundDisplay(D) + ' / ' + roundDisplay(d) + ' ' + state.unitLabel,
@@ -12965,6 +13437,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     topView(svg, {
       prefix: 'slt', params: params, cutType: cut, copies: gen.computePatternPositions(params.pattern),
       chamfer: state.chamferMode === 'slot',
+      concentric: concentricOutlines('slt', params, function(q, d) { return slotShapeOutline(gen, q, d); }),
       box: box, smooth: true, typedCR: 0, CR: 0, deep: half,
       offset: offset, center: cut === 'center' ? center : null, centerWidth: 2 * half,
       caption: line ? 'slot ' + roundDisplay(params.length) + ' × ' + roundDisplay(2 * half) + ' ' + state.unitLabel
@@ -13116,6 +13589,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     topView(svg, {
       prefix: 'rect', params: params, cutType: cutType, turn: params.startAngleDeg || 0, copies: gen.computePatternPositions(params.pattern),
       chamfer: state.chamferMode === 'rectangle',
+      concentric: concentricOutlines('rect', params, function(q) {
+        var g = gen.computeTrapezoidGeom(q);
+        return gen.convexOutline(g.part, g.normals, 0, Math.max(0, q.cornerRadius || 0));
+      }, params.startAngleDeg),
       box: box, smooth: smooth, typedCR: typedCR, mostCR: most, relief: relief, reliefPts: part, deep: geo.maxInset,
       CR: relief ? typedCR : Math.min(previewCornerRadius(params.cornerRadius, cutType), most),
       offset: function(d, cr) { return gen.convexOutline(part, normals, d, cr); },
@@ -13228,6 +13705,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     topView(svg, {
       prefix: 'circ', params: params, cutType: cutType, copies: gen.computePatternPositions(params.pattern),
       chamfer: state.chamferMode === 'circle',
+      concentric: concentricOutlines('circ', params, function(q, d) { return ring(q.diameter / 2 + d); }),
       box: { x0: -R, x1: R, y0: -R, y1: R }, smooth: true, typedCR: 0, CR: 0, deep: R,
       offset: function(d) { return ring(R + d); },
       caption: 'circle ⌀' + roundDisplay(D) + ' ' + state.unitLabel,
@@ -14770,6 +15248,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       bulgeAngleDeg: num('qc-slt-bulge', 90),
       cutType:       $('qc-slt-cut-type').value,
       tabs:          readTabsForm('slt'),
+      concentric:    readConcentricForm('slt'),
       origin:        $('qc-slt-origin').value,
       inset:         readInset('slt'),
       depth:         num('qc-slt-depth', 0),
@@ -15483,7 +15962,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }).join('') + '<li><a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> &mdash; The starting feeds for each bit in your tool table, or common sizes, by material: Conservative, Average and Aggressive side by side.</li>';
     $('qc-help-body').innerHTML =
       helpCard('Help topics', '<p>Each tab has its own help: what its settings do, every field&rsquo;s tip, and the shared notes on patterns, the tool and typing units. Pick one:</p><ul class="qc-help-index">' + rows + '</ul>' +
-        '<p>On a touchscreen, touch a field (or tab to it) and wait a second to see its tip below it, like a mouse hover would. The <strong>Touch Tooltips</strong> switch at the top right turns them off.</p>') +
+        '<p>On a touchscreen, touch a field (or tab to it) and wait a second to see its tip below it, like a mouse hover would. The <strong>Touch Tooltips</strong> switch at the top right turns them off. <strong>Experimental Features</strong>, above it, shows features still being tried out, each marked <span class="qc-exp-tag">Experimental</span>. Off, they&rsquo;re hidden and left out of the program, but their settings are kept; loading a program that uses one turns it on. Test builds start with it on.</p>') +
       helpDocsCard();
     $('qc-help-for').textContent = ' — All topics';
     $('qc-help-sub').style.display = 'none';
@@ -16867,11 +17346,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var shift;
       if (shape === 'rectangle') {
         positions = withShapeTurn(positions, params.startAngleDeg);
-        shift = resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).shift;
+        shift = resolveShapeOrigin(params, positions, concentricBbox(rectangleShapeBbox(params), concentricPlanFor('rectangle', params), 'rectangle'), rectangleCorners(params)).shift;
       } else if (shape === 'polygon') {
-        shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
+        shift = resolveShapeOrigin(params, positions, concentricBbox(polygonShapeBbox(params), concentricPlanFor('polygon', params), 'polygon'), polygonCorners(params)).shift;
       } else if (shape === 'circle') {
-        shift = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params)).shift;
+        shift = resolveShapeOrigin(params, positions, concentricBbox(circleShapeBbox(params), concentricPlanFor('circle', params), 'circle'), circleCorners(params)).shift;
       } else if (shape === 'slot') {
         var cl = slotCenterline(params);
         if (slotProblem(params, cl, slotHalfWidth(params))) return { x: 0, y: 0 };
@@ -16921,15 +17400,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
       var baseGeom = computeRectangleGeom(params);
+      var concentric = concentricPlan(params, 'rectangle', concentricFits('rectangle'));
+      var rectBox = concentricBbox(rectangleShapeBbox(params), concentric, 'rectangle');
 
       var extras = [
         'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
         'Corner Radius: ' + (params.cornerRadius || 0) + unitsLabel + bitCornerNote(params, unitsLabel) +
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).label
+        'Origin: ' + resolveShapeOrigin(params, positions, rectBox, rectangleCorners(params)).label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      extras.push.apply(extras, concentricNotes(params, concentric, unitsLabel));
       var tabNotes = tabHeaderNotes(params, rectangleSegments(baseGeom), extras);
 
       var lines = programHeader(params, {
@@ -16948,7 +17430,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 
       // Origin is applied to the WHOLE pattern's aggregate bounding box,
       // not to each instance individually — see computePatternAnchorShift.
-      var shift = resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).shift;
+      var shift = resolveShapeOrigin(params, positions, rectBox, rectangleCorners(params)).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -16958,7 +17440,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        emitOneRectangle(lines, params, mx, my, pos.rotDeg);
+        concentric.list.forEach(function(ec) {
+          if (concentric.list.length > 1) lines.push(concentricComment(ec, concentric));
+          emitOneRectangle(lines, ec.params, mx + ec.dx, my + ec.dy, (pos.rotDeg || 0) + ec.turn);
+        });
       }
 
       lines.push('');
@@ -17196,14 +17681,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var baseGeom = computeCircleGeom(params);
+      var concentric = concentricPlan(params, 'circle', concentricFits('circle'));
 
-      var placed = resolveShapeOrigin(params, positions, circleShapeBbox(params), circleCorners(params));
+      var placed = resolveShapeOrigin(params, positions, concentricBbox(circleShapeBbox(params), concentric, 'circle'), circleCorners(params));
       var extras = [
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Origin: ' + placed.label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      extras.push.apply(extras, concentricNotes(params, concentric, unitsLabel));
       var tabNotes = tabHeaderNotes(params, circleSegments(baseGeom), extras);
 
       var lines = programHeader(params, {
@@ -17229,7 +17716,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + ')');
         }
-        emitOneCircle(lines, params, mx, my);
+        concentric.list.forEach(function(ec) {
+          if (concentric.list.length > 1) lines.push(concentricComment(ec, concentric));
+          emitOneCircle(lines, ec.params, mx + ec.dx, my + ec.dy);
+        });
       }
 
       lines.push('');
@@ -18612,6 +19102,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var positions = computePatternPositions(params.pattern);
       var baseGeom = computePolygonGeom(params);
+      var concentric = concentricPlan(params, 'polygon', concentricFits('polygon'));
+      var polyBox = concentricBbox(polygonShapeBbox(params), concentric, 'polygon');
 
       var polyDiameter = params.diameter != null ? params.diameter : params.radius * 2;
       var extras = [
@@ -18624,9 +19116,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           (baseGeom.cornerR > 0 || bitCornerNote(params, unitsLabel)
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
-        'Origin: ' + resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).label
+        'Origin: ' + resolveShapeOrigin(params, positions, polyBox, polygonCorners(params)).label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      extras.push.apply(extras, concentricNotes(params, concentric, unitsLabel));
       var tabNotes = tabHeaderNotes(params, polygonSegments(baseGeom), extras);
 
       var lines = programHeader(params, {
@@ -18643,7 +19136,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       lines.push.apply(lines, tabNotes);
       lines.push.apply(lines, startupBlock(params));
 
-      var shift = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).shift;
+      var shift = resolveShapeOrigin(params, positions, polyBox, polygonCorners(params)).shift;
       for (var p = 0; p < positions.length; p++) {
         var pos = positions[p];
         var mx = pos.x + shift.x;
@@ -18653,8 +19146,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        var geom = computePolygonGeom(params, mx, my, pos.rotDeg);
-        emitOnePolygon(lines, params, geom);
+        concentric.list.forEach(function(ec) {
+          if (concentric.list.length > 1) lines.push(concentricComment(ec, concentric));
+          emitOnePolygon(lines, ec.params, computePolygonGeom(ec.params, mx + ec.dx, my + ec.dy, (pos.rotDeg || 0) + ec.turn));
+        });
       }
 
       lines.push('');
@@ -19491,7 +19986,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var cutType = params.cutType === 'outer' ? 'outer' : 'inner';
       var r = params.bitDiameter / 2;
       var n = Math.max(3, Math.min(12, Math.floor(params.sides || 5)));
-      var placed = resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params));
+      var concentric = concentricPlan(params, 'star', concentricFits('star'));
+      var placed = resolveShapeOrigin(params, positions, concentricBbox(polygonShapeBbox(params), concentric, 'polygon'), polygonCorners(params));
       var extras = [
         'Points: ' + n + ', Diameter: ' + params.diameter + unitsLabel + ' (points), ' + params.innerDiameter + unitsLabel + ' (inner corners)',
         'Start Angle: ' + (params.startAngleDeg || 0) + '°',
@@ -19499,6 +19995,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         'Origin: ' + placed.label
       ];
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      extras.push.apply(extras, concentricNotes(params, concentric, unitsLabel));
       var valid = params.innerDiameter > 0 && params.innerDiameter < params.diameter;
       var base = valid ? starOutline(params, cutType === 'outer' ? r : -r) : null;
       var tabNotes = base ? tabHeaderNotes(params, base, extras) : [];
@@ -19519,11 +20016,164 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length + ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
         }
-        emitOneTrapezoid(lines, params, { segs: placeSegs(base, mx, my, pos.rotDeg), toolRadius: r, rounded: true, allCorners: false });
+        concentric.list.forEach(function(ec) {
+          if (concentric.list.length > 1) lines.push(concentricComment(ec, concentric));
+          var segs = ec.k ? starOutline(ec.params, cutType === 'outer' ? r : -r) : base;
+          emitOneTrapezoid(lines, ec.params, { segs: placeSegs(segs, mx + ec.dx, my + ec.dy, (pos.rotDeg || 0) + ec.turn), toolRadius: r, rounded: true, allCorners: false });
+        });
       }
       lines.push('');
       lines.push.apply(lines, programFooter(params));
       return lines.join('\n');
+    }
+
+    // === CONCENTRIC COPIES =======================================================
+    //
+    // Copies of a shape stepping inside or outside it (params.concentric:
+    // { enabled, copies, direction 'inside'|'outside', stepMode
+    // 'distance'|'ratio', step: a length, or with ratio a percentage,
+    // spacing 'offset'|'scale', shiftX, shiftY, turn }). Offset: the outline
+    // moved `step` in or out per copy, so corners round outward and sharpen
+    // inward; Scale: the same shape smaller or bigger about its center, its
+    // size (a circle's or polygon's radius, a rectangle's half its longer
+    // side) `step` less or more per copy. Ratio: each copy step% of the
+    // last inside, or the last over step% outside. Each copy also moves by
+    // shiftX, shiftY and turns by `turn` degrees more than the last.
+    // A slot's size is half its length (an arc slot's: its outer radius);
+    // offset widens or narrows it about the same centre line.
+    // `shape`: 'circle', 'rectangle', 'polygon', 'star' or 'slot'.
+    function concentricSize(params, shape) {
+      if (shape === 'slot') {
+        var c = slotCenterline(params);
+        return c && c.type === 'arc' ? c.r + slotHalfWidth(params) : (params.length || 0) / 2;
+      }
+      if (shape === 'rectangle') return Math.max(params.width, params.height) / 2;
+      if (shape === 'polygon' && params.radius != null) return params.radius;
+      return (params.diameter || 0) / 2;
+    }
+    function scaledShape(params, shape, f) {
+      if (!(f > 0) || !isFinite(f)) return null;
+      var p = Object.assign({}, params, { concentric: null });
+      if (shape === 'slot') {
+        ['width', 'length', 'radius', 'chord', 'rise'].forEach(function(k) { if (params[k] != null) p[k] = params[k] * f; });
+        return p;
+      }
+      if (shape === 'rectangle') {
+        p.width = params.width * f; p.height = params.height * f; p.cornerRadius = (params.cornerRadius || 0) * f;
+      } else {
+        p.diameter = (params.diameter || 0) * f;
+        if (params.radius != null) p.radius = params.radius * f;
+        if (params.innerDiameter) p.innerDiameter = params.innerDiameter * f;
+        if (params.cornerRadius) p.cornerRadius = params.cornerRadius * f;
+        if (params.sizeValue) p.sizeValue = params.sizeValue * f;
+      }
+      return p;
+    }
+    // A star's (and a circle's) edges all sit as far from its center, so
+    // moving them d out is scaling it about the center.
+    function offsetShape(params, shape, d) {
+      if (shape === 'slot') {
+        var q = Object.assign({}, params, { concentric: null, width: (params.width || 0) + 2 * d });
+        if ((params.slotType || 'straight') !== 'arc') q.length = (params.length || 0) + 2 * d;
+        return q.width > 0 ? q : null;
+      }
+      if (shape === 'circle') return params.diameter + 2 * d > 0 ? Object.assign({}, params, { concentric: null, diameter: params.diameter + 2 * d }) : null;
+      if (shape === 'star') {
+        var v = starVertices(params), a = v[0], b = v[1], len = Math.hypot(b.x - a.x, b.y - a.y);
+        var h = len > 0 ? Math.abs(a.x * b.y - a.y * b.x) / len : 0;
+        return h > 0 ? scaledShape(params, shape, (h + d) / h) : null;
+      }
+      var p = Object.assign({}, params, { concentric: null });
+      p.cornerRadius = Math.max(0, (params.cornerRadius || 0) + d);
+      if (shape === 'rectangle') {
+        p.width = params.width + 2 * d; p.height = params.height + 2 * d;
+        return p.width > 0 && p.height > 0 ? p : null;
+      }
+      var n = Math.max(3, Math.min(12, Math.floor(params.sides || 6)));
+      var R = params.radius != null ? params.radius : (params.diameter || 0) / 2;
+      var R2 = (R * Math.cos(Math.PI / n) + d) / Math.cos(Math.PI / n);
+      if (!(R2 > 0) || !(R > 0)) return null;
+      p.radius = R2; p.diameter = 2 * R2;
+      if (params.sizeValue) p.sizeValue = params.sizeValue * R2 / R;
+      return p;
+    }
+    // The shape and its copies in cutting order, smallest first, each
+    // { k, params, dx, dy, turn } (k 0: the shape itself), leaving out copies
+    // too small to be the shape or too small for the bit (`fits`).
+    function concentricPlan(params, shape, fits) {
+      var e = params.concentric, list = [{ k: 0, params: params, dx: 0, dy: 0, turn: 0 }], skipped = 0;
+      if (!e || !e.enabled) return { list: list, skipped: 0 };
+      var copies = Math.max(0, Math.min(50, Math.floor(e.copies || 0)));
+      var sign = e.direction === 'outside' ? 1 : -1, step = Number(e.step) || 0, ratio = e.stepMode === 'ratio';
+      if (!(step > 0) || (ratio && !(step < 100))) return { list: list, skipped: copies };
+      var size = concentricSize(params, shape);
+      for (var k = 1; k <= copies; k++) {
+        var p = ratio ? scaledShape(params, shape, Math.pow(step / 100, sign < 0 ? k : -k))
+          : e.spacing === 'scale' ? scaledShape(params, shape, size > 0 ? (size + sign * k * step) / size : 0)
+          : offsetShape(params, shape, sign * k * step);
+        if (!p || (fits && !fits(p))) { skipped++; continue; }
+        list.push({ k: k, params: p, dx: k * (Number(e.shiftX) || 0), dy: k * (Number(e.shiftY) || 0), turn: k * (Number(e.turn) || 0) });
+      }
+      return { list: sign < 0 ? list.reverse() : list, skipped: skipped };
+    }
+    function concentricFits(shape) {
+      return function(p) {
+        if (shape === 'circle') return computeCircleGeom(p).pathRadius > 0;
+        if (shape === 'rectangle') { var g = computeRectangleGeom(p); return g.halfW > 0 && g.halfH > 0; }
+        if (shape === 'polygon') return computePolygonGeom(p).pathRadius > 0;
+        if (shape === 'slot') {
+          var half = slotHalfWidth(p);
+          return !slotProblem(p, slotCenterline(p), half) && (p.cutType === 'outer' || half - (p.bitDiameter || 0) / 2 > 1e-9);
+        }
+        return !!starOutline(p, (p.cutType === 'outer' ? 1 : -1) * p.bitDiameter / 2);
+      };
+    }
+    // The shape's box grown to take in its concentric copies, so the origin is
+    // a corner of all of them, as a pattern's is. With copies it's a box for
+    // each pattern position (as Keyhole's), worked out at that position's turn
+    // (pattern turn and the Rectangle's Start Angle): each copy is turned by its
+    // own Turn on top of it, as the program cuts it, and moved along machine X/Y.
+    function concentricBbox(bbox, plan, shape) {
+      if (plan.list.length < 2) return bbox;
+      return function(pos) {
+        var rot = pos.rotDeg || 0, out = rotatedBbox(bbox, rot);
+        plan.list.forEach(function(ec) {
+          if (!ec.k) return;
+          var q = ec.params;
+          var b = shape === 'circle' ? rotatedBbox(circleShapeBbox(q), rot)
+            : shape === 'rectangle' ? rotatedBbox(rectangleShapeBbox(q), rot + ec.turn)
+            : rotatedBbox(polygonShapeBbox(Object.assign({}, q, { startAngleDeg: (Number(q.startAngleDeg) || 0) + ec.turn })), rot);
+          out = { minX: Math.min(out.minX, b.minX + ec.dx), maxX: Math.max(out.maxX, b.maxX + ec.dx),
+            minY: Math.min(out.minY, b.minY + ec.dy), maxY: Math.max(out.maxY, b.maxY + ec.dy) };
+        });
+        return out;
+      };
+    }
+    // A shape's concentric copies as its origin and box see them.
+    function concentricPlanFor(shape, params) {
+      var sh = shape === 'polygon' && params.kind === 'star' ? 'star'
+        : shape === 'rectangle' && (params.triangle || isSmoothKind(params) || isTrapezoid(params)) ? null
+        : shape === 'slot' && (!/^(inner|outer)$/.test(params.cutType || 'inner') || slotIsGrid(params) ||
+            (params.chamfer && params.chamfer.width > 0)) ? null : shape;
+      return sh ? concentricPlan(params, sh, concentricFits(sh)) : { list: [{ k: 0, params: params, dx: 0, dy: 0, turn: 0 }], skipped: 0 };
+    }
+    // The program's lines about them.
+    function concentricNotes(params, plan, unitsLabel) {
+      var e = params.concentric;
+      if (!e || !e.enabled || !(e.copies >= 1)) return [];
+      var made = plan.list.length - 1, notes = [];
+      notes.push('Concentric copies: ' + made + ' ' + (e.direction === 'outside' ? 'outside' : 'inside') + ', ' +
+        (e.stepMode === 'ratio' ? 'each ' + r4(e.direction === 'outside' ? 10000 / e.step : e.step) + '% of the last' : r4(e.step) + unitsLabel + ' apart, ' + (e.spacing === 'scale' ? 'scaled' : 'offset')));
+      var moves = [];
+      if (Number(e.shiftX) || Number(e.shiftY)) moves.push('shift X' + r4(Number(e.shiftX) || 0) + ' Y' + r4(Number(e.shiftY) || 0));
+      if (Number(e.turn)) moves.push('turn ' + r4(Number(e.turn)) + ' deg');
+      if (moves.length) notes.push('Concentric copies step: ' + moves.join(', '));
+      if (plan.skipped) notes.push('Concentric copies too small, left out: ' + plan.skipped);
+      return notes;
+    }
+    function r4(v) { return parseFloat(Number(v).toFixed(4)); }
+    function concentricComment(ec, plan) {
+      return '(' + (ec.k ? 'Concentric copy ' + ec.k : 'The shape') + ': cut ' + (plan.list.indexOf(ec) + 1) + ' of ' + plan.list.length + ')';
     }
 
     // === SLOT ================================================================
@@ -19689,10 +20339,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function slotHalfWidth(params) {
       return ((params.cutType || 'inner') === 'center' ? (params.bitDiameter || 0) : (params.width || 0)) / 2;
     }
+    // A Grid of straight slots: each line spans the grid.
+    function slotIsGrid(params) {
+      return (params.slotType || 'straight') !== 'arc' && !!(params.pattern && params.pattern.enabled && params.pattern.style === 'grid');
+    }
     function slotOriginParts(params, cl) {
-      var half = slotHalfWidth(params);
+      var half = slotHalfWidth(params), plan = concentricPlanFor('slot', params);
       return {
-        bbox: function(pos) { return segmentsBbox(slotOutline(placeSlot(cl, 0, 0, pos.rotDeg), half)); },
+        // The slot and its concentric copies, each moved and turned.
+        bbox: function(pos) {
+          var b = null;
+          plan.list.forEach(function(ec) {
+            var e = segmentsBbox(slotOutline(placeSlot(ec.k ? slotCenterline(ec.params) : cl, ec.dx, ec.dy, (pos.rotDeg || 0) + ec.turn), ec.k ? slotHalfWidth(ec.params) : half));
+            b = !b ? e : { minX: Math.min(b.minX, e.minX), maxX: Math.max(b.maxX, e.maxX), minY: Math.min(b.minY, e.minY), maxY: Math.max(b.maxY, e.maxY) };
+          });
+          return b;
+        },
         corners: function(rot) {
           var pc = placeSlot(cl, 0, 0, rot);
           if (pc.type !== 'line') {
@@ -19750,6 +20412,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       };
       if (op) extras.push('Origin: ' + resolveShapeOrigin(params, positions, op.bbox, op.corners).label);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
+      var concentric = concentricPlanFor('slot', params);
+      // Not with Center, Pocket, a Grid or a chamfer (concentricPlanFor).
+      if (concentric.list.length > 1 || concentric.skipped) extras.push.apply(extras, concentricNotes(params, concentric, unitsLabel));
       // Holding tabs (inner / outer only), noted like the other shapes and
       // checked on the first copy's outline.
       var tabNotes = !problem && (cutType === 'outer' || (cutType === 'inner' && half - tr > 1e-9))
@@ -19783,6 +20448,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var rotStr = pos.rotDeg ? (' rot=' + pos.rotDeg.toFixed(3) + '°') : '';
           lines.push('(Instance ' + (p + 1) + '/' + positions.length +
                      ' at X' + mx.toFixed(3) + ' Y' + my.toFixed(3) + rotStr + ')');
+        }
+        if (concentric.list.length > 1) {
+          concentric.list.forEach(function(ec) {
+            lines.push(concentricComment(ec, concentric));
+            var pk = placeSlot(ec.k ? slotCenterline(ec.params) : cl, mx + ec.dx, my + ec.dy, (pos.rotDeg || 0) + ec.turn);
+            emitOneSlot(lines, ec.params, pk, cutType, ec.k ? slotHalfWidth(ec.params) : half, tr);
+          });
+          continue;
         }
         var pc = placeSlot(clFor(pos), mx, my, pos.rotDeg);
         if (serpentine && here && Math.hypot(pc.x1 - here.x, pc.y1 - here.y) < Math.hypot(pc.x0 - here.x, pc.y0 - here.y) - 1e-9) {
@@ -20203,6 +20876,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       convexShapeProblem: convexShapeProblem,
       starVertices: starVertices,
       starOutline: starOutline,
+      concentricPlan: concentricPlan,
+      concentricFits: concentricFits,
+      placeSegs: placeSegs,
       solveTriangle: solveTriangle,
       triangleMeasures: triangleMeasures,
       computeTrapezoidGeom: computeTrapezoidGeom,
