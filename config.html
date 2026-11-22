@@ -23,6 +23,11 @@
     overflow: hidden;
     position: relative;
   }
+  /* Until the settings, the remembered tab and the tool table are in, the
+     dialog is laid out but not shown (opacity, as a preview's own SVG
+     animation can set visibility), so it doesn't open once and redraw. */
+  .qc-wrapper.qc-loading > * { opacity: 0; pointer-events: none; }
+  .qc-wrapper.qc-loading * { transition: none !important; }
   .qc-container {
     display: flex;
     flex-direction: row;
@@ -2066,7 +2071,7 @@
   }
 </style>
 
-<div class="qc-wrapper">
+<div class="qc-wrapper qc-loading">
   <div class="qc-container">
     <!-- Sidebar -->
     <aside class="qc-sidebar">
@@ -4009,10 +4014,51 @@
   };
   var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
+  // The reads the dialog opens with, started together as init starts and
+  // shared while it opens (readJson), not one after another.
+  var early = null;
+  function readJson(path) {
+    if (early && early[path]) return early[path];
+    return fetch(BASE_URL + path).then(function(r) {
+      if (!r.ok) throw new Error(path + ': ' + r.status);
+      return r.json();
+    });
+  }
+  // Shown (the reads stay shared until init's readers have them all).
+  function revealDialog() {
+    ROOT.classList.remove('qc-loading');
+    [].forEach.call(ROOT.children, function(c) { c.inert = false; });
+  }
+
   async function init() {
+    early = {};
+    // Spoilboard Toolbox's settings too, for wireStockDepth, in case it's on.
+    ['/api/settings', '/api/firmware', '/api/server-state', '/api/tools/active', '/api/plugins',
+      '/api/plugins/com.tmuka.spoilboard-toolbox/settings'].forEach(function(p) {
+      var r = readJson(p);
+      r.catch(function() {});
+      early[p] = r;
+    });
+    // Hidden, nothing in it takes the focus either.
+    [].forEach.call(ROOT.children, function(c) { c.inert = true; });
+    // Never left blank, even if a read doesn't come back.
+    setTimeout(revealDialog, 1500);
+    // A read that never comes back isn't shared for good (X0 Y0 is read again every 5 s).
+    setTimeout(function() { early = null; }, 10000);
     try {
-      var res = await fetch(BASE_URL + '/api/settings');
-      var s = res.ok ? await res.json() : {};
+      await initDialog();
+    } catch (err) {
+      // Shown half wired, as before, rather than blank.
+      revealDialog();
+      throw err;
+    }
+  }
+  async function initDialog() {
+    try {
+      var s = await readJson('/api/settings').catch(function(err) {
+        console.warn('[QuickCut] settings fetch failed, using defaults:', err);
+        return {};
+      });
       state.isImperial = (s.unitsPreference || 'metric') === 'imperial';
       state.unitLabel = state.isImperial ? 'in' : 'mm';
       state.unitDisplay = state.isImperial ? 'IMPERIAL (in)' : 'METRIC (mm)';
@@ -4042,8 +4088,7 @@
       console.warn('[QuickCut] settings fetch failed, using defaults:', err);
     }
     try {
-      var fwRes = await fetch(BASE_URL + '/api/firmware');
-      var fw = fwRes.ok ? await fwRes.json() : null;
+      var fw = await readJson('/api/firmware');
       var fwSettings = fw && fw.settings;
       if (fwSettings && fwSettings['130'] && fwSettings['130'].value) {
         state.machineLimitXmm = parseFloat(fwSettings['130'].value) || 0;
@@ -4089,8 +4134,7 @@
       evt.preventDefault();
       if (!state.atc) useLoadedToolDiameter();
     });
-    if (state.atc) wireToolMenu();
-    else readSpindleTool();
+    var toolsRead = state.atc ? wireToolMenu() : readSpindleTool();
     wireRunNotes();
     wireStartingFeeds();
     ROOT.addEventListener('change', function(e) {
@@ -4118,7 +4162,7 @@
     wireOriginCrosshairs();
     wireCloseButton();
     wireChamferTab();
-    wireStockDepth();
+    var stockRead = wireStockDepth();
     wireIdlePause();
     // First open in this browser (no remembered tab): start on All help
     // topics; Back goes to Rectangle. The tab is remembered at once, so
@@ -4128,6 +4172,15 @@
       openHelp();
       renderHelpIndex();
     }
+    // Shown once the tool table, the stock thickness and X0 Y0 are in and
+    // the run note is written, with the tab drawn.
+    Promise.all([toolsRead, stockRead, refreshWco(), document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
+      early = null;
+      if (!rootAlive() || !ROOT.classList.contains('qc-loading')) return;
+      clearTimeout(_runTimer);
+      updateRunNote();
+      requestAnimationFrame(function() { requestAnimationFrame(revealDialog); });
+    });
   }
 
   function updateUnitBadges() {
@@ -10248,10 +10301,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   async function wireStockDepth() {
     var mm = 0;
     try {
-      var plugins = await (await fetch(BASE_URL + '/api/plugins')).json();
+      var plugins = await readJson('/api/plugins');
       var sbt = (plugins || []).filter(function(p) { return p.id === 'com.tmuka.spoilboard-toolbox'; })[0];
       if (!sbt || sbt.enabled === false) return;
-      var s = await (await fetch(BASE_URL + '/api/plugins/com.tmuka.spoilboard-toolbox/settings')).json();
+      var s = await readJson('/api/plugins/com.tmuka.spoilboard-toolbox/settings');
       var t = parseFloat(s && s.stockT);
       mm = t > 0 ? t * (s.units === 'imperial' ? 25.4 : 1) : 0;
     } catch (e) { return; }
@@ -10284,10 +10337,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // or drag knife there is known without a tap on Bit Diameter's label.
   async function readSpindleTool() {
     try {
-      var st = await (await fetch(BASE_URL + '/api/server-state')).json();
+      var st = await readJson('/api/server-state');
       var n = Number(st && st.machineState && st.machineState.tool);
       if (!(n > 0)) return;
-      var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
+      var tools = await readJson('/api/tools/active');
       var t = (tools || []).filter(function(x) { return (state.toolById ? x.toolId : x.toolNumber) === n; })[0];
       if (!t || !(t.diameter > 0)) return;
       state.spindleTool = { n: n, mm: t.diameter, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 };
@@ -10642,8 +10695,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     showBitTool();
     try {
-      var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
-      var st = await (await fetch(BASE_URL + '/api/server-state')).json();
+      var tools = await readJson('/api/tools/active');
+      var st = await readJson('/api/server-state');
       var loaded = Number(st && st.machineState && st.machineState.tool);
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
         .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, slot: state.toolById && t.toolNumber > 0 ? t.toolNumber : 0, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0, type: t.type, dimensions: t.dimensions }; })
@@ -11063,7 +11116,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     _wcoAt = Date.now();
     var was = JSON.stringify(state.wco);
     try {
-      var ms = ((await (await fetch(BASE_URL + '/api/server-state')).json()) || {}).machineState || {};
+      var ms = ((await readJson('/api/server-state')) || {}).machineState || {};
       var w = String(ms.WCO || '').split(',').map(Number);
       state.wco = ms.homed && w.length >= 2 && isFinite(w[0]) && isFinite(w[1]) ? { x: w[0], y: w[1], ws: String(ms.workspace || 'G54').toUpperCase() } : null;
     } catch (e) { state.wco = null; }
