@@ -18191,10 +18191,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // Wasteboard zero is always the travel's front-left corner.
       var origin = isWasteboard ? 'front-left' : (params.origin || 'front-left');
       var bl = regionBottomLeft(origin, width, height);
-      var startX = bl.x - overrun;
-      var startY = bl.y - overrun;
-      var cutW = width + overrun * 2;
-      var cutH = height + overrun * 2;
+      // Overrun is from the bit's edge, so it plunges and leaves clear of
+      // the stock (Wasteboard has none: its inset is below).
+      var clear = isWasteboard ? 0 : overrun + (bitDiameter || 0) / 2;
+      var startX = bl.x - clear;
+      var startY = bl.y - clear;
+      var cutW = width + clear * 2;
+      var cutH = height + clear * 2;
       // Wasteboard: inset by bit radius so the tool's outer edge stops
       // at machine travel bounds (no over-travel into the frame).
       if (isWasteboard) {
@@ -18230,7 +18233,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (isWasteboard) {
         extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
       }
-      if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + cutW + ' x ' + cutH + ')');
+      if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + +cutW.toFixed(4) + ' x ' + +cutH.toFixed(4) + ')');
       if (isThickness) {
         extras.push('Starting Thickness: ' + startingThickness + unitsLabel +
                     ', Target Thickness: ' + (startingThickness - depth) + unitsLabel);
@@ -18467,7 +18470,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var perpAxis = feedAxis === 'x' ? 'y' : 'x';
       var perpDir = (origin === 'front' || origin === 'left') ? 1 : -1;
       var cutPos = perpDir * (target + bitRadius);
-      var feedFrom = 0;
+      // From a radius and 2 mm before the stock (the corner is at 0), so
+      // the bit plunges beside it.
+      var feedFrom = -(bitRadius + (isImperial ? 2 / 25.4 : 2));
       var feedTo = cuttingLength;
       // Cut Direction is for the kept piece's edge (origin side of the
       // bit): conventional keeps it on the left of the travel (M3).

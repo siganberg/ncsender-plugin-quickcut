@@ -774,10 +774,10 @@ test('planer zigzagY makes long strokes along Y with stepover in X', () => {
   }));
   assert.match(gcode, /^\(QuickCut: Planer\)/m);
   assert.match(gcode, /^\(Pattern: zigzagY\)/m);
-  // Long strokes end at Y=80 or Y=0 (start bottom-left = (0,0)). Should
-  // see both endpoints from the alternating zigzag.
-  assert.match(gcode, /G1 Y80\.000/);
-  assert.match(gcode, /G1 Y0\.000/);
+  // Long strokes end a radius past Y=80 or Y=0 (start bottom-left = (0,0)),
+  // so the bit's edge clears the stock. Both ends from the zigzag.
+  assert.match(gcode, /G1 Y83\.000/);
+  assert.match(gcode, /G1 Y-3\.000/);
 });
 
 test('planer zigzagX makes long strokes along X with stepover in Y', () => {
@@ -786,8 +786,8 @@ test('planer zigzagX makes long strokes along X with stepover in Y', () => {
     width: 60, height: 40, overrun: 0, pattern: 'zigzagX',
     bitDiameter: 6, stepoverPct: 50, depth: 1, depthOfCut: 1
   }));
-  assert.match(gcode, /G1 X60\.000/);
-  assert.match(gcode, /G1 X0\.000/);
+  assert.match(gcode, /G1 X63\.000/);
+  assert.match(gcode, /G1 X-3\.000/);
 });
 
 test('planer overrun extends the cut area past every edge', () => {
@@ -796,10 +796,10 @@ test('planer overrun extends the cut area past every edge', () => {
     width: 40, height: 30, overrun: 5, origin: 'front-left',
     pattern: 'zigzagY', depth: 1, depthOfCut: 1
   }));
-  // Start moved -5 in both X and Y from (0,0) → (-5, -5).
-  assert.match(gcode, /G0 X-5\.000 Y-5\.000/);
-  // Cut extends to -5 + (30 + 5*2) = 35 in Y — top of extended region.
-  assert.match(gcode, /G1 Y35\.000/);
+  // Overrun is from the 6 mm bit's edge: start 5 + 3 out from (0,0).
+  assert.match(gcode, /G0 X-8\.000 Y-8\.000/);
+  // Cut extends to -8 + (30 + 8*2) = 38 in Y — top of extended region.
+  assert.match(gcode, /G1 Y38\.000/);
 });
 
 test('planer spiral pattern spirals outside-in', () => {
@@ -1078,14 +1078,15 @@ test('cutter feed X: tool travels X, cut line on Y at target + bitRadius', () =>
   const gen = makeQuickCutGenerator(false).generateCutterProgram;
   // axis=X → feed along X. target=100, cuttingLength=200, bitRadius=3
   // Cut line at Y = 100 + 3 = 103. The kept piece (Y 0..100) is on the
-  // bit's -Y side, so conventional feeds -X: from X=200 to X=0.
+  // bit's -Y side, so conventional feeds -X: from X=200 to X=-5 (the bit
+  // starts or ends a radius and 2 mm before the stock's corner at 0).
   const gcode = gen(cutterBase({
     axis: 'x', targetSize: 100, cuttingLength: 200, bitDiameter: 6,
     origin: 'front', depth: 5, depthOfCut: 5
   }));
   assert.match(gcode, /^\(QuickCut: Cutter\)/m);
   assert.match(gcode, /G0 X200\.000 Y103\.000/);
-  assert.match(gcode, /G1 X0\.000 Y103\.000/);
+  assert.match(gcode, /G1 X-5\.000 Y103\.000/);
 });
 
 test('cutter feed Y: tool travels Y, cut line on X at target + bitRadius', () => {
@@ -1094,7 +1095,7 @@ test('cutter feed Y: tool travels Y, cut line on X at target + bitRadius', () =>
   const gcode = gen(cutterBase({
     axis: 'y', origin: 'left', targetSize: 80, cuttingLength: 150, bitDiameter: 6
   }));
-  assert.match(gcode, /G0 X83\.000 Y0\.000/);
+  assert.match(gcode, /G0 X83\.000 Y-5\.000/);
   assert.match(gcode, /G1 X83\.000 Y150\.000/);
 });
 
@@ -1104,7 +1105,7 @@ test('cutter origin back flips cut line to negative perpendicular', () => {
   const gcode = gen(cutterBase({
     axis: 'x', origin: 'back', targetSize: 50, cuttingLength: 100, bitDiameter: 6
   }));
-  assert.match(gcode, /G0 X0\.000 Y-53\.000/);
+  assert.match(gcode, /G0 X-5\.000 Y-53\.000/);
   assert.match(gcode, /G1 X100\.000 Y-53\.000/);
 });
 
@@ -1115,7 +1116,7 @@ test('cutter multi-pass depth repeats the same cut line deeper', () => {
   }));
   const plunges = gcode.split('\n').filter(l => /^G1 Z-\d/.test(l.trim())).length;
   assert.equal(plunges, 3, `expected 3 plunges, got ${plunges}`);
-  const cutLines = gcode.split('\n').filter(l => /^G1 X0\.000 Y103\.000/.test(l.trim())).length;
+  const cutLines = gcode.split('\n').filter(l => /^G1 X-5\.000 Y103\.000/.test(l.trim())).length;
   assert.equal(cutLines, 3, `expected 3 identical cut lines, got ${cutLines}`);
 });
 
@@ -1125,8 +1126,8 @@ test('cutter climb reverses feed direction on feed axis', () => {
     axis: 'x', cutDirection: 'climb', origin: 'front',
     targetSize: 100, cuttingLength: 200
   }));
-  // Climb at a front origin: feed +X, from X=0 to X=200.
-  assert.match(gcode, /G0 X0\.000 Y103\.000/);
+  // Climb at a front origin: feed +X, from X=-5 (beside the stock) to X=200.
+  assert.match(gcode, /G0 X-5\.000 Y103\.000/);
   assert.match(gcode, /G1 X200\.000 Y103\.000/);
 });
 
@@ -1176,10 +1177,64 @@ test('cutter Both Ways alternates depth passes, conventional first', () => {
   const gen = makeQuickCutGenerator(false).generateCutterProgram;
   const moves = (g) => g.split('\n').map(l => l.trim()).filter(l => /^G[01] X/.test(l))
     .map(l => Number(l.match(/X(-?[\d.]+)/)[1]));
-  // Front origin: conventional runs -X (X200 to X0). 3 depth passes.
+  // Front origin: conventional runs -X (X200 to X-5). 3 depth passes.
   const both = moves(gen(cutterBase({ origin: 'front', cutDirection: 'both', depth: 6, depthOfCut: 2 })));
-  assert.deepEqual(both, [200, 0, 0, 200, 200, 0]);
+  assert.deepEqual(both, [200, -5, -5, 200, 200, -5]);
   assert.match(gen(cutterBase({ cutDirection: 'both' })), /\(Cut Direction: both\)/);
+});
+
+// Where the bit is at each plunge from above Z0 into the cut (G1 Z-).
+function plungeSpots(gcode) {
+  const out = [];
+  let x = 0, y = 0;
+  for (const raw of gcode.split('\n')) {
+    const line = raw.replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim();
+    const w = (l) => { const m = new RegExp(l + '(-?[\\d.]+)').exec(line); return m ? +m[1] : null; };
+    if (/^G1 Z-/.test(line)) out.push([x, y]);
+    x = w('X') ?? x; y = w('Y') ?? y;
+  }
+  return out;
+}
+
+// The Planer's Overrun is from the bit's edge, as its tip says ("the bit
+// fully clears the stock"): no plunge puts the bit over the stock, which is
+// 0..width x 0..height from a front-left origin.
+test('planer plunges beside the stock, Overrun from the bit edge', () => {
+  for (const imperial of [false, true]) {
+    const k = imperial ? 1 / 25.4 : 1;
+    const gen = makeQuickCutGenerator(imperial).generatePlanerProgram;
+    for (const bit of [3.175, 6.35, 12.7, 25.4]) for (const overrun of [0, 2]) for (const cutDirection of ['conventional', 'climb', 'both'])
+    for (const pattern of ['zigzagX', 'zigzagY', 'spiral']) {
+      const p = planerBase({ width: 100 * k, height: 80 * k, overrun: overrun * k, bitDiameter: bit * k, pattern, cutDirection, depth: 2 * k, depthOfCut: 1 * k });
+      const spots = plungeSpots(gen(p));
+      assert.ok(spots.length > 0);
+      for (const [x, y] of spots) {
+        const dx = Math.max(-x, 0, x - 100 * k), dy = Math.max(-y, 0, y - 80 * k);
+        const gap = Math.hypot(dx, dy) - bit * k / 2;
+        assert.ok(gap >= overrun * k - 0.002 * k, `${imperial ? 'in' : 'mm'} bit ${bit} ${pattern} ${cutDirection}: bit edge ${gap} from the stock at ${x},${y}`);
+      }
+    }
+  }
+});
+
+// The Cutter's X0 Y0 is the stock's corner: every plunge is before it, the
+// bit's edge 2 mm clear, or at Cutting Length (past the stock, as its tip asks).
+test('cutter plunges beside the stock, not on its corner', () => {
+  for (const imperial of [false, true]) {
+    const k = imperial ? 1 / 25.4 : 1;
+    const gen = makeQuickCutGenerator(imperial).generateCutterProgram;
+    for (const [axis, sides] of [['x', ['front', 'back']], ['y', ['left', 'right']]]) for (const origin of sides)
+    for (const cutDirection of ['conventional', 'climb', 'both']) for (const bit of [3.175, 6.35, 12.7]) {
+      const p = cutterBase({ axis, origin, cutDirection, bitDiameter: bit * k, targetSize: 100 * k, cuttingLength: 200 * k, depth: 6 * k, depthOfCut: 2 * k });
+      const spots = plungeSpots(gen(p));
+      assert.equal(spots.length, 3);
+      for (const spot of spots) {
+        const along = spot[axis === 'x' ? 0 : 1];
+        const before = Math.abs(along + (bit / 2 + 2) * k) < 0.002 * k, after = Math.abs(along - 200 * k) < 0.002 * k;
+        assert.ok(before || after, `${imperial ? 'in' : 'mm'} ${origin} ${cutDirection} bit ${bit}: plunge at ${along}`);
+      }
+    }
+  }
 });
 
 // ---------- Degenerate case ----------
@@ -3913,7 +3968,8 @@ test('planer conventional along Y: every pass runs -Y, lifting between passes', 
   const gen = makeQuickCutGenerator(false).generatePlanerProgram;
   const gcode = gen(planerBase({ overrun: 0, width: 20, height: 10, bitDiameter: 10, stepoverPct: 50, depth: 1, depthOfCut: 1, cutDirection: 'conventional' }));
   const passes = planerCuts(gcode).filter((m) => m.x0 === m.x1);
-  assert.equal(passes.length, 5);
+  // 20 + 2 radii wide at a 5 mm stepover.
+  assert.equal(passes.length, 7);
   for (const m of passes) assert.ok(m.y1 < m.y0, JSON.stringify(m));
   assert.match(gcode, /^\(Cut direction: conventional/m);
   // No stepover moves while cutting: each pass starts from a lift.
@@ -3924,7 +3980,7 @@ test('planer climb along X: every pass runs -X', () => {
   const gen = makeQuickCutGenerator(false).generatePlanerProgram;
   const gcode = gen(planerBase({ overrun: 0, width: 20, height: 10, bitDiameter: 10, stepoverPct: 50, depth: 1, depthOfCut: 1, pattern: 'zigzagX', cutDirection: 'climb' }));
   const passes = planerCuts(gcode).filter((m) => m.y0 === m.y1);
-  assert.equal(passes.length, 3);
+  assert.equal(passes.length, 5);
   for (const m of passes) assert.ok(m.x1 < m.x0, JSON.stringify(m));
 });
 
@@ -3934,7 +3990,7 @@ test('planer both ways is the zigzag (unchanged by default)', () => {
   const b = gen(planerBase({ overrun: 0, width: 20, height: 10, bitDiameter: 10, stepoverPct: 50, depth: 1, depthOfCut: 1, cutDirection: 'both' }));
   assert.equal(a, b);
   const dirs = planerCuts(a).filter((m) => m.x0 === m.x1).map((m) => Math.sign(m.y1 - m.y0));
-  assert.deepEqual(dirs, [1, -1, 1, -1, 1]);
+  assert.deepEqual(dirs, [1, -1, 1, -1, 1, -1, 1]);
 });
 
 test('planer spiral from inside: plunges in the middle and ends at the corner, same path reversed', () => {
@@ -3947,7 +4003,7 @@ test('planer spiral from inside: plunges in the middle and ends at the corner, s
     const o = out[out.length - 1 - i];
     assert.deepEqual([m.x0, m.y0, m.x1, m.y1], [o.x1, o.y1, o.x0, o.y0]);
   });
-  assert.deepEqual([inn[inn.length - 1].x1, inn[inn.length - 1].y1], [0, 0]);
+  assert.deepEqual([inn[inn.length - 1].x1, inn[inn.length - 1].y1], [-3, -3]);
 });
 
 test('planer wasteboard: zero is always the travel front-left corner, zones follow', () => {
