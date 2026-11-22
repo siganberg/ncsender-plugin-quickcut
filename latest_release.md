@@ -1,13 +1,15 @@
 ## What's Changed
 
 ### ✨ New Features
-- Load › Merge: combine saved QuickCut programs into one job to run again (for example holes, a pocket and an outline). Each keeps its own tool change; a repeated tool change is left out, and a program without one gets a pause to check the bit
-- Previews: the shape top views enlarge again (click a blank spot or the corner button), and every enlarged preview zooms with the wheel or a pinch, moves with a drag, and has −, +, Fit and × buttons
-- Star: the Inner Diameter label is a menu with Inner Ratio (%) and Classic Star (%), so changing the Diameter keeps the star's shape. New stars start at 5 points and 38.5%
-- The tool change line names the picked tool: `M6 T3 ; Tool change: 1/4" Downcut`
+- Help › Experimental Features: a switch for features still being tried out (off unless you turn it on)
+- Concentric Copies (experimental): cut a shape and then copies of it stepping inside or outside it, like rings on a coaster, nested frames or a star inside a star. On Circle, Rectangle, Polygon, Star, Slot and Arc Slot, by distance or ratio, with an optional shift and turn per copy
 
 ### 🔧 Improvements
-- QuickCut opens straight into your tab, units and tool, without showing defaults first and redrawing, and its startup reads run together
+- Load › Merge refuses programs that can't run as one: a typed-in bit of another size after the previous program's bit, or programs on different work offsets, and says why
+- A preview caption wider than its preview is squeezed to fit
 
 ### 🐛 Bug Fixes
-- Label menus are no longer cut off in ncSender (X Gap showed as "X G"), and refit when renamed
+- Jointer: each trim now takes exactly Trim Width off the edge. Before, the first trim put the bit's center on the edge and took off the bit's radius (about 3 mm with a 1/4" bit) whatever Trim Width said
+- Jointer: a Trim Width wider than the bit is refused, since it would leave strips uncut between trims
+- Jointer and Planer: Overrun is measured from the bit's edge, so the bit always plunges beside the stock, never into its corner
+- Cutter: the cut starts beside the stock instead of with half the bit on its corner
