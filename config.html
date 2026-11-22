@@ -243,6 +243,15 @@
     letter-spacing: 0.02em;
     cursor: pointer;
   }
+  /* ncSender styles every select in a plugin dialog with
+     select:not([multiple]):not([size]) { padding-right: 32px; its arrow
+     12px in, 10 x 6 } !important; a label menu keeps its own, with the
+     arrow right after the words (a stronger !important rule). */
+  select.qc-label-select:not([multiple]):not([size]) {
+    padding-right: 14px !important;
+    background-position: right 1px center !important;
+    background-size: 9px 6px !important;
+  }
   /* No focus box: the browser's ring drew round the whole tap area, over
      the field below. Focused, the label takes the accent colour instead
      (Chrome draws no underline on a select). */
@@ -10939,7 +10948,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         labelMeasure.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
         w = labelMeasure.measureText(job.text).width + (parseFloat(cs.letterSpacing) || 0) * job.text.length;
       }
-      job.sel.style.width = Math.ceil(w + 16) + 'px';
+      // The words, the menu's own padding (its arrow sits in the right
+      // one) and 2px to spare, whatever padding a stylesheet gives it.
+      var pad = cs.boxSizing === 'border-box' ? (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) : 0;
+      job.sel.style.width = Math.ceil(w + pad + 2) + 'px';
     });
   }
   function fitLabelSelects(root) {
