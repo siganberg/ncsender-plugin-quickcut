@@ -18324,8 +18324,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var bitDiameter = params.bitDiameter;
       var feedRate = params.feedRate, plungeFeedRate = params.plungeFeedRate;
 
-      var feedStart = -overrun;
-      var feedEnd = length + overrun;
+      // The bit's edge Overrun past each end of the stock, so it plunges
+      // and leaves beside it.
+      var bitRadius = (bitDiameter || 0) / 2;
+      var feedStart = -(overrun + bitRadius);
+      var feedEnd = length + overrun + bitRadius;
       // With the spindle clockwise (M3), conventional keeps the material
       // (stepDir side) on the left of the travel, climb on the right.
       var plusIsConventional = feedAxis === 'x' ? stepDir > 0 : stepDir < 0;
@@ -18364,7 +18367,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var z = -nextDepth;
         lines.push('(Pass Z' + z.toFixed(3) + ')');
         for (var i = 0; i < numTrims; i++) {
-          var stepOffset = i * trimWidth * stepDir;
+          // The bit's edge (i + 1) trims into the stock from X0 / Y0; its
+          // center a radius back out.
+          var stepOffset = ((i + 1) * trimWidth - bitRadius) * stepDir;
           // Both Ways: every other stroke runs back, from where the last ended.
           var back = cutDirection === 'both' && stroke++ % 2 === 1;
           var a = back ? feedEnd : feedStart, b = back ? feedStart : feedEnd;

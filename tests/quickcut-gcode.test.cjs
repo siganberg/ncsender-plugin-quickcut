@@ -951,55 +951,95 @@ test('jointer front edge: conventional feeds +X, climb -X (uses length param)', 
     length: 150, feedAxis: 'x', cutDirection: 'conventional',
     trimWidth: 1, numTrims: 3, origin: 'front'
   }));
-  // Conventional: feed +X from 0 to length.
-  assert.match(conv, /G0 X0\.000 Y0\.000/);
-  assert.match(conv, /G1 X150\.000/);
+  // Conventional: feed +X, the 6 mm bit's edge clear of both ends; its
+  // center 1 mm - radius in from the front edge.
+  assert.match(conv, /G0 X-3\.000 Y-2\.000/);
+  assert.match(conv, /G1 X153\.000/);
 
   const climb = gen(jointerBase({
     length: 150, feedAxis: 'x', cutDirection: 'climb',
     trimWidth: 1, numTrims: 3, origin: 'front'
   }));
-  // Climb: feed -X from length back to 0.
-  assert.match(climb, /G0 X150\.000 Y0\.000/);
-  assert.match(climb, /G1 X0\.000/);
+  // Climb: feed -X, the other way.
+  assert.match(climb, /G0 X153\.000 Y-2\.000/);
+  assert.match(climb, /G1 X-3\.000/);
 });
 
 test('jointer origin front vs back flips stepover direction (feed X)', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
-  // front → +Y stepover. Trims at Y=0, 1, 2.
+  // front → +Y stepover. The 6 mm bit's edge at Y=1, 2, 3: centers -2, -1, 0.
   const front = gen(jointerBase({ feedAxis: 'x', origin: 'front', trimWidth: 1, numTrims: 3 }));
-  assert.match(front, /G0 X0\.000 Y0\.000/);
-  assert.match(front, /G0 X0\.000 Y1\.000/);
-  assert.match(front, /G0 X0\.000 Y2\.000/);
-  // back → -Y stepover. Trims at Y=0, -1, -2; conventional runs -X.
+  assert.match(front, /G0 X-3\.000 Y-2\.000/);
+  assert.match(front, /G0 X-3\.000 Y-1\.000/);
+  assert.match(front, /G0 X-3\.000 Y0\.000/);
+  // back → -Y stepover. Centers at Y=2, 1, 0; conventional runs -X.
   const back = gen(jointerBase({ feedAxis: 'x', origin: 'back', trimWidth: 1, numTrims: 3 }));
-  assert.match(back, /G0 X150\.000 Y-1\.000/);
-  assert.match(back, /G0 X150\.000 Y-2\.000/);
+  assert.match(back, /G0 X153\.000 Y2\.000/);
+  assert.match(back, /G0 X153\.000 Y1\.000/);
 });
 
 test('jointer origin left vs right flips stepover direction (feed Y)', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
   // Left: material at +X, so conventional runs -Y.
   const left = gen(jointerBase({ feedAxis: 'y', origin: 'left', trimWidth: 1, numTrims: 3 }));
-  assert.match(left, /G0 X0\.000 Y150\.000/);
-  assert.match(left, /G0 X1\.000 Y150\.000/);
+  assert.match(left, /G0 X-2\.000 Y153\.000/);
+  assert.match(left, /G0 X-1\.000 Y153\.000/);
   const right = gen(jointerBase({ feedAxis: 'y', origin: 'right', trimWidth: 1, numTrims: 3 }));
-  assert.match(right, /G0 X-1\.000 Y0\.000/);
+  assert.match(right, /G0 X2\.000 Y-3\.000/);
 });
 
 test('jointer Both Ways alternates strokes, conventional first, across depth passes', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
   const strokes = (g) => g.split('\n').map(l => l.trim()).filter(l => /^G[01] X/.test(l))
     .map(l => Number(l.match(/X(-?[\d.]+)/)[1]));
-  // Front edge: conventional runs +X. 3 trims × 2 depth passes = 6 strokes.
+  // Front edge: conventional runs +X. 3 trims × 2 depth passes = 6 strokes,
+  // each from 2 mm Overrun + the 3 mm radius before the stock to as far past it.
   const both = strokes(gen(jointerBase({ origin: 'front', cutDirection: 'both', overrun: 2, depth: 4, depthOfCut: 2 })));
   const conv = strokes(gen(jointerBase({ origin: 'front', cutDirection: 'conventional', overrun: 2, depth: 4, depthOfCut: 2 })));
   assert.equal(both.length, 12);
   for (let k = 0; k < 6; k++) {
-    assert.deepEqual([both[2 * k], both[2 * k + 1]], k % 2 === 0 ? [-2, 152] : [152, -2], `stroke ${k}`);
-    assert.deepEqual([conv[2 * k], conv[2 * k + 1]], [-2, 152]);
+    assert.deepEqual([both[2 * k], both[2 * k + 1]], k % 2 === 0 ? [-5, 155] : [155, -5], `stroke ${k}`);
+    assert.deepEqual([conv[2 * k], conv[2 * k + 1]], [-5, 155]);
   }
   assert.match(gen(jointerBase({ cutDirection: 'both' })), /\(Cut Direction: both\)/);
+});
+
+// The bit's edge, not its center, goes Trim Width × k inside the edge zeroed
+// on (the stock from 0 to Length along the trim axis, material on the far
+// side of X0 / Y0), and every plunge is beside the stock, the bit's edge
+// Overrun past its end. A user's 1 mm trim took the bit's radius instead.
+test('jointer trims Trim Width per trim from the bit edge, plunging beside the stock', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial).generateJointerProgram;
+    const k = imperial ? 1 / 25.4 : 1;
+    for (const [axis, sides] of [['x', ['front', 'back']], ['y', ['left', 'right']]]) {
+      for (const origin of sides) for (const cutDirection of ['conventional', 'climb', 'both']) {
+        for (const bit of [3.175, 6, 6.35]) for (const [trim, n] of [[1, 1], [0.5, 1], [0.5, 3]]) {
+          const p = jointerBase({ feedAxis: axis, origin, cutDirection, bitDiameter: bit * k, trimWidth: trim * k,
+            numTrims: n, overrun: 2 * k, length: 410 * k, depth: 15.5 * k, depthOfCut: 3.175 * k });
+          const lines = gen(p).split('\n').map(l => l.trim());
+          const into = origin === 'front' || origin === 'left' ? 1 : -1;
+          const cross = axis === 'x' ? 'Y' : 'X', along = axis === 'x' ? 'X' : 'Y';
+          const word = (l, a) => Number(l.match(new RegExp(a + '(-?[\\d.]+)'))[1]);
+          const where = `${imperial ? 'in' : 'mm'} ${origin} ${cutDirection} bit ${bit} trim ${trim}x${n}`;
+          const strokes = [];
+          lines.forEach((l, i) => { if (/^G1 Z-/.test(l)) strokes.push([lines[i - 3], lines[i + 1]]); });
+          assert.equal(strokes.length, n * 5, where);
+          strokes.forEach(([from, to], s) => {
+            const trimNo = s % n + 1, center = word(from, cross);
+            // The bit's edge on the material side, measured into the stock.
+            const edgeIn = (center + into * bit * k / 2) * into;
+            assert.ok(Math.abs(edgeIn - trimNo * trim * k) < 0.002 * k, `${where}: trim ${trimNo} edge ${edgeIn}`);
+            assert.equal(word(to, cross), center, where);
+            for (const end of [word(from, along), word(to, along)]) {
+              const clear = Math.max(-end, end - 410 * k) - bit * k / 2;
+              assert.ok(Math.abs(clear - 2 * k) < 0.002 * k, `${where}: bit edge ${clear} past the end`);
+            }
+          });
+        }
+      }
+    }
+  }
 });
 
 test('jointer multi-depth × multi-trim: depth × numTrims plunges total', () => {
