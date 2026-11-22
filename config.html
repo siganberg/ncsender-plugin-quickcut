@@ -4277,7 +4277,7 @@
     }
     // Shown once the tool table, the stock thickness and X0 Y0 are in and
     // the run note is written, with the tab drawn.
-    Promise.all([toolsRead, stockRead, refreshWco(), document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
+    Promise.all([toolsRead, stockRead, refreshWco(), experimentalRead, document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
       early = null;
       if (!rootAlive() || !ROOT.classList.contains('qc-loading')) return;
       clearTimeout(_runTimer);
@@ -4605,6 +4605,7 @@
     // Not trusted, so it isn't autosaved as a form change; the previews redraw.
     $('qc-experimental').dispatchEvent(new Event('change', { bubbles: true }));
   }
+  var experimentalRead = null;
   async function experimentalDefault() {
     try {
       var plugins = await readJson('/api/plugins');
@@ -5308,6 +5309,7 @@
     var unitFields = document.querySelectorAll('[data-unit]');
     for (var u = 0; u < unitFields.length; u++) normalizeUnitField(unitFields[u]);
     var rules = validationRules();
+    openConcentricMoreOnError(rules);
     for (var id in rules) {
       var el = document.getElementById(id);
       // offsetParent==null → element (or an ancestor) is display:none
@@ -6303,7 +6305,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // A card after each Pattern card, built from one template.
   var CONCENTRIC_TABS = ['rect', 'circ', 'poly', 'slt'];
   experimentalUses.push(function(saved) {
-    return Object.keys(saved).some(function(k) { var e = k !== 'common' && saved[k] && saved[k].concentric; return !!(e && e.enabled && e.copies >= 1); });
+    // `used`: the program cut them (Experimental on, the card not blocked);
+    // programs from before it was kept count as using them.
+    return Object.keys(saved).some(function(k) { var e = k !== 'common' && saved[k] && saved[k].concentric; return !!(e && e.enabled && e.copies >= 1 && e.used !== false); });
   });
   function concentricCardHtml(p) {
     var id = function(k) { return 'qc-' + p + '-concentric-' + k; };
@@ -6370,11 +6374,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       turn: num('qc-' + p + '-concentric-turn', 0)
     };
   }
-  // Saved in mm (a ratio as it is), switched on or off as the card is.
+  // Saved in mm (a ratio as it is), switched on or off as the card is;
+  // `used` says whether the program has them (see experimentalUses).
   function packConcentric(p) {
     var ratio = concentricIsRatio(p);
     return {
       enabled: $('qc-' + p + '-concentric-enable').checked,
+      used: readConcentricForm(p).enabled,
       copies: Math.floor(num('qc-' + p + '-concentric-copies', 3)),
       direction: $('qc-' + p + '-concentric-direction').value,
       stepMode: ratio ? 'ratio' : 'distance',
@@ -6408,7 +6414,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // The More settings changed from their defaults, as words for its label.
   function concentricExtras(p) {
     var pre = 'qc-' + p + '-concentric-', out = [];
-    if ($(pre + 'spacing').value === 'scale') out.push('scaled');
+    if ($(pre + 'spacing').value === 'scale' && !concentricIsRatio(p)) out.push('scaled');
     if (num(pre + 'shift-x', 0) || num(pre + 'shift-y', 0)) out.push('shift');
     if (num(pre + 'turn', 0)) out.push('turn ' + num(pre + 'turn', 0) + '°');
     return out;
@@ -6432,6 +6438,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (mode === 'ratio') el.removeAttribute('data-unit'); else el.setAttribute('data-unit', 'length');
     $('qc-' + p + '-concentric-spacing').disabled = mode === 'ratio';
     sel.setAttribute('data-was', mode);
+  }
+  // A wrong Shift or Turn under a closed More still goes into the program,
+  // so More opens and Generate checks it like any other field.
+  function openConcentricMoreOnError(rules) {
+    CONCENTRIC_TABS.forEach(function(p) {
+      var pre = 'qc-' + p + '-concentric-';
+      if (!$(pre + 'extra') || !$(pre + 'extra').hidden || $(pre + 'body').offsetParent === null) return;
+      var bad = ['spacing', 'shift-x', 'shift-y', 'turn'].some(function(k) { return rules[pre + k] && validateField(pre + k, $(pre + k).value); });
+      if (bad) setConcentricMore(p, true);
+    });
   }
   function concentricValidationRules() {
     var rules = {}, big = state.isImperial ? 200 : 5000;
@@ -6512,10 +6528,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Whether a copy (moved and turned) reaches outside the next bigger one.
   function concentricCross(p, plan) {
     if (plan.list.length < 2) return false;
-    var gen = makeQuickCutGenerator(state.isImperial);
+    var gen = makeQuickCutGenerator(state.isImperial), rect = concentricShape(p) === 'rectangle';
+    // In machine X/Y, as the shift is: the rectangle's outline has no Start Angle of its own.
     var placed = plan.list.map(function(ec) {
       var segs = concentricShapeOutline(p, ec.params);
-      return segs ? outlinePoints(gen.placeSegs(segs, ec.dx, ec.dy, ec.turn)) : null;
+      return segs ? outlinePoints(gen.placeSegs(segs, ec.dx, ec.dy, (rect ? Number(ec.params.startAngleDeg) || 0 : 0) + ec.turn)) : null;
     });
     for (var i = 0; i + 1 < placed.length; i++) {
       var a = placed[i], b = placed[i + 1];
@@ -9001,7 +9018,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         persistSettings({ common: { saveToFileManager: $('qc-save-files').checked } });
       });
       if (typeof common.experimental === 'boolean') setExperimental(common.experimental);
-      else experimentalDefault();
+      else experimentalRead = experimentalDefault();
       $('qc-experimental').addEventListener('change', function(evt) {
         if (evt.isTrusted) setExperimental($('qc-experimental').checked, true);
       });
@@ -17322,11 +17339,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var shift;
       if (shape === 'rectangle') {
         positions = withShapeTurn(positions, params.startAngleDeg);
-        shift = resolveShapeOrigin(params, positions, concentricBbox(rectangleShapeBbox(params), concentricPlanFor('rectangle', params), rectangleShapeBbox, params.startAngleDeg), rectangleCorners(params)).shift;
+        shift = resolveShapeOrigin(params, positions, concentricBbox(rectangleShapeBbox(params), concentricPlanFor('rectangle', params), 'rectangle'), rectangleCorners(params)).shift;
       } else if (shape === 'polygon') {
-        shift = resolveShapeOrigin(params, positions, concentricBbox(polygonShapeBbox(params), concentricPlanFor('polygon', params), polygonShapeBbox), polygonCorners(params)).shift;
+        shift = resolveShapeOrigin(params, positions, concentricBbox(polygonShapeBbox(params), concentricPlanFor('polygon', params), 'polygon'), polygonCorners(params)).shift;
       } else if (shape === 'circle') {
-        shift = resolveShapeOrigin(params, positions, concentricBbox(circleShapeBbox(params), concentricPlanFor('circle', params), circleShapeBbox), circleCorners(params)).shift;
+        shift = resolveShapeOrigin(params, positions, concentricBbox(circleShapeBbox(params), concentricPlanFor('circle', params), 'circle'), circleCorners(params)).shift;
       } else if (shape === 'slot') {
         var cl = slotCenterline(params);
         if (slotProblem(params, cl, slotHalfWidth(params))) return { x: 0, y: 0 };
@@ -17377,7 +17394,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var positions = withShapeTurn(computePatternPositions(params.pattern), params.startAngleDeg);
       var baseGeom = computeRectangleGeom(params);
       var concentric = concentricPlan(params, 'rectangle', concentricFits('rectangle'));
-      var rectBox = concentricBbox(rectangleShapeBbox(params), concentric, rectangleShapeBbox, params.startAngleDeg);
+      var rectBox = concentricBbox(rectangleShapeBbox(params), concentric, 'rectangle');
 
       var extras = [
         'Size: ' + params.width + unitsLabel + ' x ' + params.height + unitsLabel,
@@ -17659,7 +17676,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var baseGeom = computeCircleGeom(params);
       var concentric = concentricPlan(params, 'circle', concentricFits('circle'));
 
-      var placed = resolveShapeOrigin(params, positions, concentricBbox(circleShapeBbox(params), concentric, circleShapeBbox), circleCorners(params));
+      var placed = resolveShapeOrigin(params, positions, concentricBbox(circleShapeBbox(params), concentric, 'circle'), circleCorners(params));
       var extras = [
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
@@ -19079,7 +19096,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var positions = computePatternPositions(params.pattern);
       var baseGeom = computePolygonGeom(params);
       var concentric = concentricPlan(params, 'polygon', concentricFits('polygon'));
-      var polyBox = concentricBbox(polygonShapeBbox(params), concentric, polygonShapeBbox);
+      var polyBox = concentricBbox(polygonShapeBbox(params), concentric, 'polygon');
 
       var polyDiameter = params.diameter != null ? params.diameter : params.radius * 2;
       var extras = [
@@ -19963,7 +19980,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var r = params.bitDiameter / 2;
       var n = Math.max(3, Math.min(12, Math.floor(params.sides || 5)));
       var concentric = concentricPlan(params, 'star', concentricFits('star'));
-      var placed = resolveShapeOrigin(params, positions, concentricBbox(polygonShapeBbox(params), concentric, polygonShapeBbox), polygonCorners(params));
+      var placed = resolveShapeOrigin(params, positions, concentricBbox(polygonShapeBbox(params), concentric, 'polygon'), polygonCorners(params));
       var extras = [
         'Points: ' + n + ', Diameter: ' + params.diameter + unitsLabel + ' (points), ' + params.innerDiameter + unitsLabel + ' (inner corners)',
         'Start Angle: ' + (params.startAngleDeg || 0) + '°',
@@ -20104,21 +20121,26 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         return !!starOutline(p, (p.cutType === 'outer' ? 1 : -1) * p.bitDiameter / 2);
       };
     }
-    // The shape's box grown to take in its concentric copies (each turned and moved),
-    // so the origin is a corner of all of them, as a pattern's is. `rot`:
-    // the shape's own turn (the Rectangle's Start Angle), which the box is
-    // in, so a shift along machine X/Y is turned back into it.
-    function concentricBbox(bbox, plan, bboxOf, rot) {
+    // The shape's box grown to take in its concentric copies, so the origin is
+    // a corner of all of them, as a pattern's is. With copies it's a box for
+    // each pattern position (as Keyhole's), worked out at that position's turn
+    // (pattern turn and the Rectangle's Start Angle): each copy is turned by its
+    // own Turn on top of it, as the program cuts it, and moved along machine X/Y.
+    function concentricBbox(bbox, plan, shape) {
       if (plan.list.length < 2) return bbox;
-      var a = -(rot || 0) * Math.PI / 180, out = { minX: bbox.minX, maxX: bbox.maxX, minY: bbox.minY, maxY: bbox.maxY };
-      plan.list.forEach(function(ec) {
-        if (!ec.k) return;
-        var b = rotatedBbox(bboxOf(ec.params), ec.turn);
-        var dx = ec.dx * Math.cos(a) - ec.dy * Math.sin(a), dy = ec.dx * Math.sin(a) + ec.dy * Math.cos(a);
-        out.minX = Math.min(out.minX, b.minX + dx); out.maxX = Math.max(out.maxX, b.maxX + dx);
-        out.minY = Math.min(out.minY, b.minY + dy); out.maxY = Math.max(out.maxY, b.maxY + dy);
-      });
-      return out;
+      return function(pos) {
+        var rot = pos.rotDeg || 0, out = rotatedBbox(bbox, rot);
+        plan.list.forEach(function(ec) {
+          if (!ec.k) return;
+          var q = ec.params;
+          var b = shape === 'circle' ? rotatedBbox(circleShapeBbox(q), rot)
+            : shape === 'rectangle' ? rotatedBbox(rectangleShapeBbox(q), rot + ec.turn)
+            : rotatedBbox(polygonShapeBbox(Object.assign({}, q, { startAngleDeg: (Number(q.startAngleDeg) || 0) + ec.turn })), rot);
+          out = { minX: Math.min(out.minX, b.minX + ec.dx), maxX: Math.max(out.maxX, b.maxX + ec.dx),
+            minY: Math.min(out.minY, b.minY + ec.dy), maxY: Math.max(out.maxY, b.maxY + ec.dy) };
+        });
+        return out;
+      };
     }
     // A shape's concentric copies as its origin and box see them.
     function concentricPlanFor(shape, params) {
@@ -20134,7 +20156,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (!e || !e.enabled || !(e.copies >= 1)) return [];
       var made = plan.list.length - 1, notes = [];
       notes.push('Concentric copies: ' + made + ' ' + (e.direction === 'outside' ? 'outside' : 'inside') + ', ' +
-        (e.stepMode === 'ratio' ? 'each ' + r4(e.step) + '% of the last' : r4(e.step) + unitsLabel + ' apart, ' + (e.spacing === 'scale' ? 'scaled' : 'offset')));
+        (e.stepMode === 'ratio' ? 'each ' + r4(e.direction === 'outside' ? 10000 / e.step : e.step) + '% of the last' : r4(e.step) + unitsLabel + ' apart, ' + (e.spacing === 'scale' ? 'scaled' : 'offset')));
       var moves = [];
       if (Number(e.shiftX) || Number(e.shiftY)) moves.push('shift X' + r4(Number(e.shiftX) || 0) + ' Y' + r4(Number(e.shiftY) || 0));
       if (Number(e.turn)) moves.push('turn ' + r4(Number(e.turn)) + ' deg');

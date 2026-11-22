@@ -158,3 +158,42 @@ test('slot: not with Center, Pocket or a Grid; the origin takes in the copies', 
   near(Math.min(...ys), -1.5, 'front-most cut');
   near(gen.shapeOriginOffset('slot', slotP({ cutType: 'outer', origin: 'front-left', concentric: on })).x, -60, 'origin X');
 });
+
+// X0 Y0 at the front-left of everything cut: the shape and its copies,
+// each at its own turn, worked out from their corners.
+const frontLeft = (pts) => ({ x: Math.min(...pts.map(q => q.x)), y: Math.min(...pts.map(q => q.y)) });
+const turned = (x, y, deg) => { const a = deg * Math.PI / 180; return { x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) }; };
+
+test('origin: turning circle copies does not move X0 Y0', () => {
+  const p = (turn) => ({ ...common, origin: 'front-left', diameter: 40, cutType: 'outer', concentric: concentric({ direction: 'outside', copies: 1, step: 5, turn }) });
+  const o = gen.shapeOriginOffset('circle', p(45));
+  near(o.x, -25, 'x'); near(o.y, -25, 'y');
+});
+
+test('origin: turned polygon copies sit on X0 Y0 at their corners', () => {
+  const p = { ...common, origin: 'front-left', sides: 6, diameter: 40, cutType: 'outer', concentric: concentric({ direction: 'outside', copies: 1, step: 5, spacing: 'scale', turn: 30 }) };
+  const pts = [];
+  plan(p, 'polygon').list.forEach(ec => {
+    const R = ec.params.radius != null ? ec.params.radius : ec.params.diameter / 2;
+    for (let j = 0; j < 6; j++) { const a = Math.PI / 6 - Math.PI / 2 + j * Math.PI / 3 + ec.turn * Math.PI / 180; pts.push({ x: R * Math.cos(a) + ec.dx, y: R * Math.sin(a) + ec.dy }); }
+  });
+  const want = frontLeft(pts), o = gen.shapeOriginOffset('polygon', p);
+  near(o.x, want.x, 'x'); near(o.y, want.y, 'y');
+});
+
+test('origin: shifted copies of a rectangle with a Start Angle', () => {
+  const p = { ...common, origin: 'front-left', width: 40, height: 20, cornerRadius: 0, startAngleDeg: 30, cutType: 'outer',
+    concentric: concentric({ direction: 'outside', copies: 2, step: 5, spacing: 'scale', shiftX: 10, turn: 15 }) };
+  const pts = [];
+  plan(p, 'rectangle').list.forEach(ec => {
+    const w = ec.params.width / 2, h = ec.params.height / 2;
+    [[-w, -h], [w, -h], [w, h], [-w, h]].forEach(([x, y]) => { const q = turned(x, y, 30 + ec.turn); pts.push({ x: q.x + ec.dx, y: q.y + ec.dy }); });
+  });
+  const want = frontLeft(pts), o = gen.shapeOriginOffset('rectangle', p);
+  near(o.x, want.x, 'x'); near(o.y, want.y, 'y');
+});
+
+test('the header gives an outside ratio as each copy over the last', () => {
+  const g = gen.generateCircleProgram({ ...common, diameter: 20, cutType: 'outer', concentric: concentric({ direction: 'outside', stepMode: 'ratio', step: 80, copies: 2 }) });
+  assert.match(g, /\(Concentric copies: 2 outside, each 125% of the last\)/);
+});
