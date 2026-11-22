@@ -23,6 +23,11 @@
     overflow: hidden;
     position: relative;
   }
+  /* Until the settings, the remembered tab and the tool table are in, the
+     dialog is laid out but not shown (opacity, as a preview's own SVG
+     animation can set visibility), so it doesn't open once and redraw. */
+  .qc-wrapper.qc-loading > * { opacity: 0; pointer-events: none; }
+  .qc-wrapper.qc-loading * { transition: none !important; }
   .qc-container {
     display: flex;
     flex-direction: row;
@@ -242,6 +247,15 @@
     color: var(--color-text-secondary);
     letter-spacing: 0.02em;
     cursor: pointer;
+  }
+  /* ncSender styles every select in a plugin dialog with
+     select:not([multiple]):not([size]) { padding-right: 32px; its arrow
+     12px in, 10 x 6 } !important; a label menu keeps its own, with the
+     arrow right after the words (a stronger !important rule). */
+  select.qc-label-select:not([multiple]):not([size]) {
+    padding-right: 14px !important;
+    background-position: right 1px center !important;
+    background-size: 9px 6px !important;
   }
   /* No focus box: the browser's ring drew round the whole tap area, over
      the field below. Focused, the label takes the accent colour instead
@@ -925,7 +939,7 @@
   .qc-origin-stack .qc-inset-field .qc-label-select { align-self: center; }
   .qc-tool-pop .qc-tool-filter { font-family: inherit; }
   /* Bit Diameter's tool menu: a filter on top, then the tool table. */
-  .qc-tool-pop { position: absolute; z-index: 30; width: 420px; max-width: calc(100% - 16px); display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  .qc-tool-pop { position: absolute; z-index: 30; width: max-content; min-width: min(420px, calc(100% - 16px)); max-width: calc(100% - 16px); display: flex; flex-direction: column; gap: 6px; padding: 8px;
     background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38); }
   .qc-tool-pop[hidden] { display: none; }
   .qc-tool-pop .qc-tool-filter { width: 100%; text-align: left; }
@@ -933,12 +947,14 @@
   /* Rows keep their height in the scrolling list: a long name wraps, it doesn't overlap the next. */
   .qc-tool-list > * { flex-shrink: 0; }
   .qc-tool-head { padding: 4px 10px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
-  .qc-tool-item { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
+  .qc-tool-item { -webkit-appearance: none; appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0; padding: 8px 10px !important; text-align: left;
     background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
     font-family: inherit; font-size: 0.88rem; line-height: 1.3; cursor: pointer; }
   .qc-tool-item:hover, .qc-tool-item.qc-active { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; }
   .qc-tool-item[aria-selected="true"] { font-weight: 600; }
-  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); white-space: nowrap; }
+  .qc-tool-item b { white-space: nowrap; color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+  .qc-tool-item .qc-tool-name { flex: 1 1 auto; min-width: 0; }
+  .qc-tool-item .qc-tool-size { color: var(--color-text-secondary); font-weight: 400; font-variant-numeric: tabular-nums; margin-left: auto; text-align: right; white-space: nowrap; }
   .qc-tool-empty { padding: 8px 10px; font-size: 0.85rem; color: var(--color-text-secondary); }
   .qc-material-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 10px; }
   /* Beside Generate: about how long it runs, and the travel check. */
@@ -1199,23 +1215,23 @@
   }
   /* The drawing scales up; lines keep their on-screen width and the
      labels stay readable-sized. */
-  .qc-shape-preview-cell.qc-preview-big svg * { vector-effect: non-scaling-stroke; }
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg * { vector-effect: non-scaling-stroke; }
   /* Not inside arrowhead markers: they're drawn at the line's own scale,
      and a non-scaling outline there all but vanishes. Sized from the thin
      on-screen line, the open (outline) heads also come out tiny, so they
      grow about their tip. */
-  .qc-shape-preview-cell.qc-preview-big svg marker * { vector-effect: none; }
-  .qc-shape-preview-cell.qc-preview-big svg marker { overflow: visible; }
-  .qc-shape-preview-cell.qc-preview-big svg marker path[fill="none"] {
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker * { vector-effect: none; }
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker { overflow: visible; }
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker path[fill="none"] {
     transform: scale(2.5);
     transform-origin: 8px 5px;
   }
-  .qc-shape-preview-cell.qc-preview-big svg marker .qc-arrowhead {
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) svg marker .qc-arrowhead {
     transform: scale(2);
     transform-origin: 6px 5px;
   }
-  .qc-shape-preview-cell.qc-preview-big .qc-shape-dim-label {
-    font-size: 3px;
+  .qc-shape-preview-cell.qc-preview-big:not(.qc-shp-big, .qc-drl-big) .qc-shape-dim-label {
+    font-size: calc(3px * var(--qc-ts, 1));
     stroke-width: 0.6px;
   }
   .qc-shape-preview-cell.qc-preview-big.qc-dragging::before {
@@ -1241,6 +1257,39 @@
     color: var(--color-text-secondary, #888);
     pointer-events: none;
   }
+  /* The big top views enlarge too (their own rules make them frameless). */
+  .qc-shp-top > .qc-shape-preview-cell.qc-shp-big.qc-preview-big, .qc-drl-top > .qc-shape-preview-cell.qc-drl-big.qc-preview-big {
+    background: var(--color-surface, #fff);
+    border: 2px solid var(--color-border, #888);
+  }
+  /* Enlarged, the wheel zooms at the pointer and two fingers pinch; zoomed
+     in, a drag moves the drawing. The words and dimension lines grow with
+     the enlarging only to 1.3 times, and not with the zoom (--qc-ts). */
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shape-dim-label { font-size: calc(3.6px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shape-dim-line { stroke-width: calc(0.4px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-dimtext, .qc-drl-dimtext) { font-size: calc(2.6px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-cap, .qc-drl-cap) { font-size: calc(3.4px * var(--qc-ts, 1)); }
+  .qc-preview-big.qc-shp-big .qc-inset-label { font-size: calc(2.5px * var(--qc-ts, 1)); }
+  .qc-preview-big.qc-drl-big .qc-inset-label { font-size: calc(2.6px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) :is(.qc-shp-dim, .qc-drl-dim) { stroke-width: calc(0.45px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-shp-ext { stroke-width: calc(0.25px * var(--qc-ts, 1)); }
+  .qc-preview-big:is(.qc-shp-big, .qc-drl-big) .qc-fig-pill--small { stroke-width: calc(0.4px * var(--qc-ts, 1)); }
+  .qc-shape-preview-cell.qc-preview-big svg { touch-action: none; }
+  .qc-shape-preview-cell.qc-preview-big svg.qc-zoomed { cursor: move; }
+  .qc-shape-preview-cell.qc-preview-big svg.qc-zoomed.qc-panning { cursor: grabbing !important; }
+  /* ⤢ in a top view's corner enlarges it (as a blank-spot click does). */
+  .qc-shape-preview-cell { position: relative; }
+  .qc-zoom-open {
+    position: absolute; top: 4px; right: 4px; z-index: 2;
+    width: 30px; height: 28px; padding: 0 !important; margin: 0 !important;
+    border: none !important; border-radius: 6px !important; background: transparent !important;
+    color: var(--color-text-secondary) !important; font-size: 1.05rem !important; line-height: 1; cursor: pointer;
+  }
+  .qc-zoom-open:hover { color: var(--color-accent) !important; }
+  .qc-preview-big > .qc-zoom-open { display: none; }
+  .qc-zoom-bar { position: absolute; top: 8px; right: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 4px; }
+  .qc-zoom-bar .qc-secondary-btn { min-width: 40px; height: 32px; padding: 0 10px !important; }
+  .qc-zoom-level { min-width: 2.8em; text-align: center; font-size: 0.85rem; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
   /* Over an origin dot, end or hole a click picks it; while a twist is
      under way the hand closes. (Beats the per-preview grab below.) */
   .qc-shape-preview-cell svg.qc-over-pick { cursor: pointer !important; }
@@ -1808,9 +1857,9 @@
   button.qc-tool-row[hidden] { display: none; }
   button.qc-tool-row b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
   button.qc-tool-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  button.qc-tool-row em { font-style: normal; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
   button.qc-tool-row .qc-tool-row-empty { color: var(--color-text-secondary); }
   button.qc-tool-row[aria-expanded="true"] { border-color: var(--color-accent) !important; }
+  button.qc-tool-row.qc-input-error { border-color: #d32f2f !important; }
   /* With the Tool Library switch there, Bit Diameter's label is just a label. */
   .qc-has-tool-lib .qc-bit-label { text-decoration: none; cursor: default; }
   /* The band in either orientation: rows fill their width (Feed and Plunge
@@ -1829,8 +1878,12 @@
     .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-row-3,
     .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-row-2 { display: contents; }
     .qc-panel > .qc-header-cards > .qc-header-card:first-child > .qc-header-card-title { grid-column: 1 / -1; }
-    .qc-panel > .qc-header-cards .qc-bit-mode, .qc-panel > .qc-header-cards button.qc-tool-row { grid-column: span 2; align-self: end; }
-    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) { grid-column: span 2; }
+    .qc-panel > .qc-header-cards .qc-bit-mode { grid-column: span 2; align-self: end; }
+    /* The picked tool and the typed size: the same box, as tall as the switch. */
+    .qc-panel > .qc-header-cards button.qc-tool-row { grid-column: span 2; align-self: stretch; }
+    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) { grid-column: span 2; align-self: stretch; }
+    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit):not(.qc-bit-hidden) { display: flex; flex-direction: column; }
+    .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field > #qc-bit { flex: 1; height: auto; }
     .qc-has-tool-lib .qc-panel > .qc-header-cards .qc-field:has(> #qc-bit) > label { display: none; }
     .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 10px; }
     .qc-panel > .qc-header-cards > .qc-header-card + .qc-header-card > .qc-header-card-title,
@@ -2068,7 +2121,7 @@
   }
 </style>
 
-<div class="qc-wrapper">
+<div class="qc-wrapper qc-loading">
   <div class="qc-container">
     <!-- Sidebar -->
     <aside class="qc-sidebar">
@@ -2437,7 +2490,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-rect-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -2684,7 +2737,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-circ-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -2810,8 +2863,12 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-star-dia" min="0.001" step="0.01" value="40" title="Across the star's points.">
                   </div>
                   <div class="qc-field qc-poly-star-only" style="display: none;">
-                    <label for="qc-poly-inner">Inner Diameter</label>
-                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inner" min="0.001" step="0.01" value="16" title="Across the corners between the points: smaller for sharper points.">
+                    <select class="qc-label-select" id="qc-poly-inner-mode" aria-label="Inner corners set by" title="Inner Diameter: type the distance across the corners between the points. Inner Ratio: type it as a percentage of the Diameter, so the star keeps its shape when you change its size. Classic Star: the ratio of a regular star (every second point joined: 38.2% for 5 points), set by the number of points. Changing it converts the number so the star stays the same.">
+                      <option value="diameter" selected>Inner Diameter</option>
+                      <option value="ratio">Inner Ratio (%)</option>
+                      <option value="classic">Classic Star (%)</option>
+                    </select>
+                    <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-poly-inner" min="0.001" step="0.01" value="16" aria-labelledby="qc-poly-inner-mode" title="Across the corners between the points (smaller for sharper points), or with Inner Ratio, that as a percentage of the Diameter.">
                   </div>
                   <div class="qc-field" id="qc-poly-start-field">
                     <label for="qc-poly-start-angle">Start Angle (°)</label>
@@ -2905,7 +2962,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-poly-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3150,7 +3207,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-slt-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3315,7 +3372,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-shp-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-shp-big">
                   <svg id="qc-key-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3476,7 +3533,7 @@
                   </div>
                 </div>
               </div>
-                <div class="qc-shape-preview-cell qc-drl-big qc-no-enlarge">
+                <div class="qc-shape-preview-cell qc-drl-big">
                   <svg id="qc-drl-preview" viewBox="-50 -50 100 100" aria-hidden="true"></svg>
                 </div>
               </div>
@@ -3999,6 +4056,8 @@
     feedsAuto: false,
     // Tabs (by field prefix) whose Depth of Cut was typed by hand.
     stepTyped: {},
+    // A pen's or drag knife's feeds as last typed, by T number (mm, mm/min).
+    toolFeeds: {},
     feedsStyle: 'average',
     // A tool changer is on (ncSender's tool.source and tool.count), so a
     // bit picked from the tool table starts the program with M6 T<n>.
@@ -4009,10 +4068,51 @@
   };
   var TOOL_SHAPES = ['rectangle', 'circle', 'planer', 'jointer', 'cutter', 'polygon', 'slot', 'keyhole', 'drill'];
 
+  // The reads the dialog opens with, started together as init starts and
+  // shared while it opens (readJson), not one after another.
+  var early = null;
+  function readJson(path) {
+    if (early && early[path]) return early[path];
+    return fetch(BASE_URL + path).then(function(r) {
+      if (!r.ok) throw new Error(path + ': ' + r.status);
+      return r.json();
+    });
+  }
+  // Shown (the reads stay shared until init's readers have them all).
+  function revealDialog() {
+    ROOT.classList.remove('qc-loading');
+    [].forEach.call(ROOT.children, function(c) { c.inert = false; });
+  }
+
   async function init() {
+    early = {};
+    // Spoilboard Toolbox's settings too, for wireStockDepth, in case it's on.
+    ['/api/settings', '/api/firmware', '/api/server-state', '/api/tools/active', '/api/plugins',
+      '/api/plugins/com.tmuka.spoilboard-toolbox/settings'].forEach(function(p) {
+      var r = readJson(p);
+      r.catch(function() {});
+      early[p] = r;
+    });
+    // Hidden, nothing in it takes the focus either.
+    [].forEach.call(ROOT.children, function(c) { c.inert = true; });
+    // Never left blank, even if a read doesn't come back.
+    setTimeout(revealDialog, 1500);
+    // A read that never comes back isn't shared for good (X0 Y0 is read again every 5 s).
+    setTimeout(function() { early = null; }, 10000);
     try {
-      var res = await fetch(BASE_URL + '/api/settings');
-      var s = res.ok ? await res.json() : {};
+      await initDialog();
+    } catch (err) {
+      // Shown half wired, as before, rather than blank.
+      revealDialog();
+      throw err;
+    }
+  }
+  async function initDialog() {
+    try {
+      var s = await readJson('/api/settings').catch(function(err) {
+        console.warn('[QuickCut] settings fetch failed, using defaults:', err);
+        return {};
+      });
       state.isImperial = (s.unitsPreference || 'metric') === 'imperial';
       state.unitLabel = state.isImperial ? 'in' : 'mm';
       state.unitDisplay = state.isImperial ? 'IMPERIAL (in)' : 'METRIC (mm)';
@@ -4042,8 +4142,7 @@
       console.warn('[QuickCut] settings fetch failed, using defaults:', err);
     }
     try {
-      var fwRes = await fetch(BASE_URL + '/api/firmware');
-      var fw = fwRes.ok ? await fwRes.json() : null;
+      var fw = await readJson('/api/firmware');
       var fwSettings = fw && fw.settings;
       if (fwSettings && fwSettings['130'] && fwSettings['130'].value) {
         state.machineLimitXmm = parseFloat(fwSettings['130'].value) || 0;
@@ -4089,13 +4188,21 @@
       evt.preventDefault();
       if (!state.atc) useLoadedToolDiameter();
     });
-    if (state.atc) wireToolMenu();
+    var toolsRead = state.atc ? wireToolMenu() : readSpindleTool();
     wireRunNotes();
     wireStartingFeeds();
     ROOT.addEventListener('change', function(e) {
       if (e.target.classList && e.target.classList.contains('qc-label-select')) fitLabelSelects(e.target.parentNode);
     });
     if (document.fonts) document.fonts.ready.then(function() { fitLabelSelects(ROOT); });
+    // A font that loads later (ncSender's Inter, first drawn here) changes
+    // the words' width: fit them again.
+    if (document.fonts && document.fonts.addEventListener) {
+      document.fonts.addEventListener('loadingdone', function refit() {
+        if (!rootAlive()) { document.fonts.removeEventListener('loadingdone', refit); return; }
+        fitLabelSelects(ROOT);
+      });
+    }
     wireRectangleForm();
     wireCircleForm();
     wirePlanerForm();
@@ -4117,7 +4224,7 @@
     wireOriginCrosshairs();
     wireCloseButton();
     wireChamferTab();
-    wireStockDepth();
+    var stockRead = wireStockDepth();
     wireIdlePause();
     // First open in this browser (no remembered tab): start on All help
     // topics; Back goes to Rectangle. The tab is remembered at once, so
@@ -4127,6 +4234,15 @@
       openHelp();
       renderHelpIndex();
     }
+    // Shown once the tool table, the stock thickness and X0 Y0 are in and
+    // the run note is written, with the tab drawn.
+    Promise.all([toolsRead, stockRead, refreshWco(), document.fonts && document.fonts.ready]).catch(function() {}).then(function() {
+      early = null;
+      if (!rootAlive() || !ROOT.classList.contains('qc-loading')) return;
+      clearTimeout(_runTimer);
+      updateRunNote();
+      requestAnimationFrame(function() { requestAnimationFrame(revealDialog); });
+    });
   }
 
   function updateUnitBadges() {
@@ -4399,7 +4515,7 @@
     var parts = [(t.n ? '<b>T' + t.n + '</b> ' : '') + 'Bit <b>' + esc($('qc-bit').value) + ' ' + u + '</b>'];
     if (!$('qc-feed').disabled) parts.push('Feed <b>' + esc($('qc-feed').value) + '</b> ' + u + '/min');
     parts.push('Plunge <b>' + esc($('qc-plunge').value) + '</b> ' + u + '/min');
-    parts.push('<b>' + esc($('qc-rpm').value) + '</b> RPM');
+    parts.push(/^(pen|drag[-_ ]?knife)$/i.test(String(bitToolInfo().type || '').trim()) ? 'Spindle off' : '<b>' + esc($('qc-rpm').value) + '</b> RPM');
     if (mat.value) parts.push(esc(mat.options[mat.selectedIndex].textContent));
     if ($('qc-mist').checked || $('qc-flood').checked) parts.push([$('qc-mist').checked ? 'Mist' : '', $('qc-flood').checked ? 'Flood' : ''].filter(Boolean).join(' + '));
     toolSummary.innerHTML = parts.map(function(p) { return '<span>' + p + '</span>'; }).join('') + '<span class="qc-tool-summary-up">Edit \u2191</span>';
@@ -4947,8 +5063,12 @@
     return el && !validateField(id, el.value) ? num(id, NaN) : NaN;
   }
   function validateField(id, value) {
-    var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE : validationRules()[id];
+    var rules = id === 'qc-key-length' && keyLengthIsRatio() ? KEYHOLE_RATIO_RULE
+      : id === 'qc-poly-inner' && starInnerMode() !== 'diameter' ? STAR_RATIO_RULE : validationRules()[id];
     if (!rules) return null;
+    if (id === 'qc-poly-inner' && polyKind() === 'star' && starInnerMode() === 'classic' && !(polygonSides() >= 5)) {
+      return 'A classic star needs 5 or more points';
+    }
     // An Inside / Outside Radius is an edge distance: 0 is a copy touching the center.
     var edgeRadius = /^qc-(\w+)-pattern-radius$/.exec(id);
     if (edgeRadius && patternRadiusMode(edgeRadius[1]) !== 'center') {
@@ -5018,7 +5138,8 @@
     // A star's inner diameter is inside its diameter.
     if (id === 'qc-poly-inner' && polyKind() === 'star') {
       var starD = okNum('qc-poly-star-dia');
-      if (n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
+      if (starInnerMode() === 'diameter' && n >= starD - 1e-9) return 'Inner Diameter must be less than the Diameter (' + starD + ')';
+      n = starInnerDiameterFrom(n, starD, starInnerMode());
       // The bit has to fit its points (Inner) or the corners between them (Outer).
       var starP = Object.assign(readPolygonForm(), { innerDiameter: n });
       var starBit = Math.max(0, num('qc-bit', 0)) / 2;
@@ -5312,7 +5433,7 @@
 
   // Parsing what's typed in a length or feed field (1/4", 6.35mm, 100ipm,
   // 8mm*2) comes from the shared ncsender-unit-input library.
-// BEGIN ncsender-unit-input 0.1.4 (cf09fa9): pasted by node .scripts/sync-unit-input.mjs; edit the library, not this.
+// BEGIN ncsender-unit-input 0.1.5 (e15fb62): pasted by node .scripts/sync-unit-input.mjs; edit the library, not this.
 // Generated from src/unit-input.js by build.mjs: edit that, then npm run build.
 var NcUnitInput = (function () {
 /**
@@ -5343,9 +5464,10 @@ var MM_PER_INCH = 25.4;
 function parseUnitValue(text, isImperial, kind) {
   // A decimal comma (1,5mm, ,25in) reads as a point, but not one before
   // exactly three digits: 1,000 or 2,540 may be a thousands separator, and
-  // 1 or 2.54 instead would be quietly wrong, so that's unreadable.
+  // 1 or 2.54 instead would be quietly wrong, so that's unreadable. After a
+  // 0 (0,125) it can only be a decimal.
   text = String(text == null ? '' : text);
-  if (/\d,\d{3}(?!\d)/.test(text)) return null;
+  if (THOUSANDS.test(text)) return null;
   text = text.replace(/,/g, '.');
   var one = parseUnitQuantity(text, isImperial, kind);
   return one !== null ? one : parseUnitMath(text, isImperial, kind);
@@ -5354,11 +5476,16 @@ function parseUnitValue(text, isImperial, kind) {
 // digits: a message to show the operator, e.g. "1,000 could be 1000 or
 // 1.000: write 1000, or 1,0 for a decimal". null otherwise.
 function unitValueProblem(text) {
-  var m = /(\d+),(\d{3})(?!\d)/.exec(String(text == null ? '' : text));
+  var m = THOUSANDS.exec(String(text == null ? '' : text));
   if (!m) return null;
-  return m[0] + ' could be ' + m[1] + m[2] + ' or ' + m[1] + '.' + m[2] + ': write ' + m[1] + m[2] + ', or ' +
-    m[1] + ',' + (m[2].replace(/0+$/, '') || '0') + ' for a decimal';
+  // The decimal with the comma shortened (1,0), or with a point when it can't be (1.125).
+  var short = m[3].replace(/0+$/, '') || '0';
+  return m[2] + ',' + m[3] + ' could be ' + m[2] + m[3] + ' or ' + m[2] + '.' + m[3] + ': write ' + m[2] + m[3] + ', or ' +
+    (short.length < 3 ? m[2] + ',' + short : m[2] + '.' + m[3]) + ' for a decimal';
 }
+// A comma that may be a thousands separator: digits not starting with 0, a
+// comma, exactly three digits.
+var THOUSANDS = /(^|[^\d])([1-9]\d*),(\d{3})(?!\d)/;
 // mm per unit (per minute for feeds) of the units a field takes.
 function unitMmPer(kind) {
   var MM_PER = { mm: 1, cm: 10, 'in': 25.4, inch: 25.4, inches: 25.4, '"': 25.4 };
@@ -5700,8 +5827,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       spindleDelay:   num('qc-delay', 0),
       mistM7:         $('qc-mist').checked,
       floodM8:        $('qc-flood').checked,
-      toolNumber:     bitToolNumber()
+      toolNumber:     bitToolNumber(),
+      toolName:       bitToolName(),
+      toolType:       bitToolType(),
+      toolMaxPlungeMm: bitToolInfo().fluteMm,
+      // A laser (no tool type for one yet) goes straight down at each
+      // start like a pen; it keeps its M3, whose S is its power.
+      straightIn:     bitToolIsLaser() ? 'laser' : ''
     };
+  }
+  function bitToolIsLaser() {
+    var t = bitToolInfo();
+    return t.type === 'laser' || /\blaser\b/i.test(t.name || '');
   }
 
   function readRectangleForm() {
@@ -6005,6 +6142,38 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     return polygonCornerDiameterFrom(num('qc-poly-diameter', def), polygonSides(), $('qc-poly-size-mode').value);
   }
 
+  // A star's inner corners: typed across them (Inner Diameter), as a
+  // percentage of the Diameter so resizing keeps the shape (Inner Ratio),
+  // or a regular star's for its points (Classic Star: every second point
+  // joined, 38.2% for 5; none under 5 points).
+  var STAR_RATIO_RULE = { min: 1, max: 99, label: 'Inner Ratio' };
+  var STAR_DEFAULT = { points: 5, ratio: 38.5, version: 1 };
+  function starInnerMode() { return $('qc-poly-inner-mode').value; }
+  function classicStarRatio(points) {
+    return points >= 5 ? Math.cos(2 * Math.PI / points) / Math.cos(Math.PI / points) : NaN;
+  }
+  function starInnerDiameterFrom(value, diameter, mode) {
+    if (mode === 'classic') return classicStarRatio(polygonSides()) * diameter;
+    return mode === 'ratio' ? value / 100 * diameter : value;
+  }
+  function starInnerDiameter() {
+    return starInnerDiameterFrom(num('qc-poly-inner', 0), num('qc-poly-star-dia', 0), starInnerMode());
+  }
+  function roundPercent(v) { return Math.round(v * 10) / 10; }
+  // A ratio has no unit, so the field stops converting typed units; a
+  // classic star's is set by its points.
+  function setStarInnerMode(mode) {
+    var el = $('qc-poly-inner');
+    $('qc-poly-inner-mode').value = mode;
+    if (mode === 'diameter') el.setAttribute('data-unit', 'length');
+    else el.removeAttribute('data-unit');
+    el.readOnly = mode === 'classic';
+    if (mode === 'classic') {
+      var r = classicStarRatio(polygonSides());
+      el.value = isFinite(r) ? roundPercent(r * 100) : '';
+    }
+  }
+
   function readPolygonForm() {
     var common = readCommonParams();
     var diameter = polyKind() === 'star' ? num('qc-poly-star-dia', 0) : polygonCornerDiameter(0);
@@ -6020,7 +6189,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       radius:        diameter / 2,
       startAngleDeg: num('qc-poly-start-angle', 0),
       kind:          polyKind(),
-      innerDiameter: num('qc-poly-inner', 0),
+      innerDiameter: starInnerDiameter(),
+      innerMode:     starInnerMode(),
+      innerRatio:    starInnerMode() === 'ratio' ? num('qc-poly-inner', 0) : null,
       cornerRadius:  polyKind() === 'star' ? 0 : num('qc-poly-corner', 0),
       cutType:       $('qc-poly-cut-type').value,
       cornerRelief:  $('qc-poly-corner-relief').value,
@@ -7336,10 +7507,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   var previewPicked = false;
   function markPreviewPick() { previewPicked = true; }
   function setPreviewEnlarged(cell, big) {
-    cell.classList.toggle('qc-preview-big', big);
-    // Previews with a magnified origin view (originZoom) redraw for it.
     var svg = cell.querySelector('svg');
+    var ctm = svg && svg.getScreenCTM(), before = ctm ? ctm.a : 0;
+    if (svg) watchPreviewZoom(svg, false);
+    cell.classList.toggle('qc-preview-big', big);
+    if (svg) {
+      // A top view's words and dimension lines grow with it only to 1.3
+      // times (the pattern previews have their own enlarged sizes).
+      ctm = svg.getScreenCTM();
+      var k = before > 0 && ctm ? ctm.a / before : 1;
+      svg.qcTextScale = big && k > 1.3 && cell.matches('.qc-shp-big, .qc-drl-big') ? 1.3 / k : 1;
+      svg.style.setProperty('--qc-ts', svg.qcTextScale);
+    }
+    setPreviewZoomBar(cell, big);
+    // Previews with a magnified origin view (originZoom) redraw for it.
     if (svg) redrawPreview(svg);
+    if (svg) watchPreviewZoom(svg, big);
   }
   function closeEnlargedPreview() {
     var big = ROOT.querySelector('.qc-preview-big');
@@ -7348,13 +7531,24 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   function wirePreviewEnlarge() {
     ROOT.querySelectorAll('.qc-shape-preview-cell:not(.qc-no-enlarge)').forEach(function(cell) {
-      cell.setAttribute('data-return-hint', 'Click a blank spot or press Esc to return');
+      cell.setAttribute('data-return-hint', 'Scroll or pinch to zoom; zoomed in, drag to move. Click a blank spot or press Esc to return');
       cell.addEventListener('pointerdown', function() { previewPicked = false; }, true);
       cell.addEventListener('click', function() {
         if (previewPicked) return;
         setPreviewEnlarged(cell, !cell.classList.contains('qc-preview-big'));
       });
+      // The top views also get a button in their corner.
+      if (!cell.matches('.qc-shp-big, .qc-drl-big')) return;
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'qc-zoom-open';
+      open.textContent = '⤢';
+      open.setAttribute('aria-label', 'Enlarge the top view');
+      open.title = 'See it over the whole window, to zoom in';
+      open.addEventListener('click', function(e) { e.stopPropagation(); setPreviewEnlarged(cell, true); });
+      cell.appendChild(open);
     });
+    wirePreviewZoom();
     // Esc closes an enlarged preview, not the dialog: ncSender closes the
     // dialog from a window keydown listener (bubble phase), so this one
     // runs first in the capture phase and stops it. Page-wide, so it
@@ -7366,6 +7560,200 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       evt.stopPropagation();
     }
     window.addEventListener('keydown', closeEnlargedOnEscape, true);
+  }
+
+  // ---------- Zoom in an enlarged preview ----------
+  // The wheel zooms at the pointer, two fingers pinch, and zoomed in a
+  // drag moves the drawing (at 1x a drag still turns the shape); or -, +
+  // and Fit at the top. The drawing sets its own viewBox each time it's
+  // drawn; the zoom is kept on top of that (qcBase: the drawing's box,
+  // qcZoom: { s, cx, cy }), so it survives edits. Words and dimension
+  // lines keep their size on screen (--qc-ts).
+  var PREVIEW_ZOOM_MAX = 20;
+  // The zoom of the preview last pressed or hovered: taps reach as far on
+  // screen zoomed in as not, so a zoomed-in view picks more precisely.
+  var pickZoom = 1;
+  function previewZoom(svg) { return svg && svg.qcZoom ? svg.qcZoom.s : 1; }
+  function showPreviewZoom(svg) {
+    var b = svg.qcBase, z = svg.qcZoom;
+    if (!b) return;
+    var vb = !z || z.s <= 1 ? [b.x, b.y, b.w, b.h]
+      : [Math.min(Math.max(z.cx, b.x), b.x + b.w) - b.w / z.s / 2, Math.min(Math.max(z.cy, b.y), b.y + b.h) - b.h / z.s / 2, b.w / z.s, b.h / z.s];
+    svg.qcShown = vb.map(function(v) { return +v.toFixed(4); }).join(' ');
+    svg.setAttribute('viewBox', svg.qcShown);
+    var s = previewZoom(svg);
+    svg.style.setProperty('--qc-ts', (svg.qcTextScale || 1) / s);
+    svg.classList.toggle('qc-zoomed', s > 1);
+    fitPills(svg);
+    fitAxes(svg);
+    var cell = svg.closest('.qc-shape-preview-cell'), lv = cell && cell.querySelector('.qc-zoom-level');
+    if (lv) lv.textContent = (Math.round(s * 10) / 10) + '×';
+  }
+  function watchPreviewZoom(svg, on) {
+    if (svg.qcWatch) { svg.qcWatch.disconnect(); svg.qcWatch = null; }
+    if (svg.qcBase) svg.setAttribute('viewBox', [svg.qcBase.x, svg.qcBase.y, svg.qcBase.w, svg.qcBase.h].join(' '));
+    svg.qcBase = null; svg.qcZoom = null; svg.qcShown = null;
+    // A pinch or touch drag ends with no click to clear these; left set,
+    // the small preview would no longer twist or pick.
+    svg.qcPanned = false; svg.qcPinching = false;
+    clearTimeout(svg.qcRedrawSoon);
+    svg.classList.remove('qc-zoomed', 'qc-panning');
+    if (!on || typeof MutationObserver !== 'function') return;
+    var take = function() {
+      var v = svg.getAttribute('viewBox');
+      if (!v || v === svg.qcShown) return;
+      var n = v.split(/[\s,]+/).map(Number);
+      svg.qcBase = { x: n[0], y: n[1], w: n[2], h: n[3] };
+      showPreviewZoom(svg);
+    };
+    take();
+    svg.qcWatch = new MutationObserver(take);
+    svg.qcWatch.observe(svg, { attributes: true, attributeFilter: ['viewBox'] });
+  }
+  // Zoom to s with the drawing's point p (its units) at the screen point at.
+  function zoomPreviewAt(svg, s, p, at) {
+    var b = svg.qcBase, m = svg.getScreenCTM();
+    if (!b || !m) return;
+    s = Math.min(PREVIEW_ZOOM_MAX, Math.max(1, s));
+    var s0 = previewZoom(svg), z = svg.qcZoom || { s: 1, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
+    var mid = { x: m.a * z.cx + m.e, y: m.d * z.cy + m.f }, k = m.a * s / s0;
+    svg.qcZoom = s <= 1 ? null : { s: s, cx: p.x - (at.x - mid.x) / k, cy: p.y - (at.y - mid.y) / k };
+    showPreviewZoom(svg);
+    // The magnified origin view (originZoom) shows only at 1x.
+    if ((s0 > 1) !== (s > 1)) redrawPreview(svg);
+    // A pattern's edge lines are sized for the screen: redrawn once the
+    // zoom settles.
+    else if (s !== s0 && /-pattern-preview$/.test(svg.id)) {
+      clearTimeout(svg.qcRedrawSoon);
+      svg.qcRedrawSoon = setTimeout(function() { if (svg.qcWatch) redrawPreview(svg); }, 150);
+    }
+  }
+  function previewPointAt(svg, x, y) {
+    var pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function bigPreviewSvg() {
+    var cell = ROOT.querySelector('.qc-shape-preview-cell.qc-preview-big');
+    return cell ? cell.querySelector('svg') : null;
+  }
+  // The bar's buttons: twice or half, about the middle; Fit.
+  function zoomPreviewBy(svg, f) {
+    if (!svg || !svg.qcBase) return;
+    var r = svg.getBoundingClientRect(), at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    zoomPreviewAt(svg, f ? previewZoom(svg) * f : 1, previewPointAt(svg, at.x, at.y), at);
+  }
+  function setPreviewZoomBar(cell, big) {
+    var bar = cell.querySelector('.qc-zoom-bar');
+    if (!big) { if (bar) bar.remove(); return; }
+    if (bar) return;
+    bar = document.createElement('div');
+    bar.className = 'qc-zoom-bar';
+    bar.innerHTML = '<button type="button" class="qc-secondary-btn" data-zoom="0.5" aria-label="Zoom out" title="Zoom out (or the mouse wheel, or pinch)">&minus;</button>' +
+      '<span class="qc-zoom-level">1&times;</span>' +
+      '<button type="button" class="qc-secondary-btn" data-zoom="2" aria-label="Zoom in" title="Zoom in (or the mouse wheel, or pinch)">+</button>' +
+      '<button type="button" class="qc-secondary-btn" data-zoom="0" title="Show all of it again">Fit</button>' +
+      '<button type="button" class="qc-secondary-btn" data-close aria-label="Close" title="Back to the settings (Esc)">&times;</button>';
+    // Its clicks don't reach the cell (which would close it).
+    bar.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var b = e.target.closest('button');
+      if (!b) return;
+      if (b.hasAttribute('data-close')) setPreviewEnlarged(cell, false);
+      else zoomPreviewBy(cell.querySelector('svg'), +b.getAttribute('data-zoom'));
+    });
+    cell.appendChild(bar);
+  }
+  // The pills behind dimension values (figPills) are sized for the words
+  // as drawn; as the zoom changes the words' size, they follow.
+  function fitPills(svg) {
+    var ts = parseFloat(svg.style.getPropertyValue('--qc-ts')) || 1;
+    svg.querySelectorAll('rect[data-pill-ts]').forEach(function(r) {
+      var f = ts / (+r.getAttribute('data-pill-ts') || 1);
+      var w = +r.getAttribute('data-pill-w') * f, h = +r.getAttribute('data-pill-h') * f;
+      r.setAttribute('x', (+r.getAttribute('data-pill-cx') - w / 2).toFixed(3));
+      r.setAttribute('y', (+r.getAttribute('data-pill-cy') - h / 2).toFixed(3));
+      r.setAttribute('width', w.toFixed(3)); r.setAttribute('height', h.toFixed(3));
+      r.setAttribute('rx', (h / 2).toFixed(3));
+    });
+  }
+  function wirePreviewZoom() {
+    var notePickZoom = function(e) {
+      var cell = e.target.closest && e.target.closest('.qc-shape-preview-cell');
+      pickZoom = cell ? previewZoom(cell.querySelector('svg')) : 1;
+    };
+    ROOT.addEventListener('pointerdown', notePickZoom, true);
+    ROOT.addEventListener('pointermove', notePickZoom, true);
+    var onWheel = function(e) {
+      var svg = bigPreviewSvg();
+      if (!svg || !svg.contains(e.target)) return;
+      e.preventDefault();
+      if (!e.deltaY) return;
+      // A mouse notch (about 100) 1.25 times; a trackpad's small steps a little each.
+      var dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      zoomPreviewAt(svg, previewZoom(svg) * Math.pow(1.25, -Math.max(-3, Math.min(3, dy / 100))),
+                    previewPointAt(svg, e.clientX, e.clientY), { x: e.clientX, y: e.clientY });
+    };
+    // Only on the previews (non-passive: it stops the page scrolling), so a
+    // scroll anywhere else in the dialog isn't held up.
+    ROOT.querySelectorAll('.qc-shape-preview-cell:not(.qc-no-enlarge)').forEach(function(cell) {
+      cell.addEventListener('wheel', onWheel, { passive: false });
+    });
+    // One pointer on the zoomed-in drawing drags it; two pinch (and stop a
+    // twist the first finger began: wirePreviewAngleDrag reads qcPinching).
+    var pts = new Map(), g = null;
+    var start = function(svg) {
+      var list = Array.from(pts.values());
+      if (list.length === 1) g = { svg: svg, s: previewZoom(svg), p: previewPointAt(svg, list[0].x, list[0].y), down: list[0] };
+      else {
+        var a = list[0], b = list[1], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        g = { svg: svg, s: previewZoom(svg), p: previewPointAt(svg, mid.x, mid.y), d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+      }
+    };
+    ROOT.addEventListener('pointerdown', function(e) {
+      var svg = bigPreviewSvg();
+      if (!svg || !svg.contains(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (e.isPrimary) { pts.clear(); g = null; svg.qcPanned = false; svg.qcPinching = false; }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Its pointerup reaches here even if let go outside the dialog.
+      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+      if (pts.size > 2) return;
+      if (pts.size === 2) { svg.qcPinching = true; markPreviewPick(); }
+      start(svg);
+    });
+    ROOT.addEventListener('pointermove', function(e) {
+      if (!g || !pts.has(e.pointerId)) return;
+      var at = { x: e.clientX, y: e.clientY };
+      pts.set(e.pointerId, at);
+      var list = Array.from(pts.values()), svg = g.svg;
+      if (list.length === 1) {
+        if (g.ignore || previewZoom(svg) <= 1) return;
+        if (!svg.qcPanned && Math.hypot(at.x - g.down.x, at.y - g.down.y) < 5) return;
+        // A drag, not a tap: nothing is picked and the view stays enlarged.
+        svg.qcPanned = true;
+        svg.classList.add('qc-panning');
+        markPreviewPick();
+        zoomPreviewAt(svg, g.s, g.p, at);
+        return;
+      }
+      var a = list[0], b = list[1];
+      zoomPreviewAt(svg, g.s * Math.hypot(a.x - b.x, a.y - b.y) / g.d, g.p, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    });
+    // A pinch ends when either finger lifts; the other doesn't start a drag.
+    var end = function(e) {
+      if (!pts.delete(e.pointerId)) return;
+      if (g && g.d) g.ignore = true;
+      if (!pts.size) { if (g) g.svg.classList.remove('qc-panning'); g = null; }
+    };
+    ROOT.addEventListener('pointerup', end);
+    ROOT.addEventListener('pointercancel', end);
+    // The click that ends a drag or pinch picks nothing (the Rectangle's
+    // and Drill's taps are click handlers).
+    ROOT.addEventListener('click', function(e) {
+      var svg = bigPreviewSvg();
+      if (!svg || !svg.contains(e.target) || !(svg.qcPanned || svg.qcPinching)) return;
+      e.stopPropagation();
+      svg.qcPanned = false; svg.qcPinching = false;
+    }, true);
   }
 
   // While a drag turns an enlarged preview, the field it sets and its value
@@ -7473,7 +7861,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!outlines) caption.push('start points');
     // Drawing units per screen pixel (the viewBox is 100 across, fitted).
     var box = svg.getBoundingClientRect();
-    var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160);
+    var unitPx = 100 / Math.max(1, Math.min(box.width, box.height) || 160) / previewZoom(svg);
     svg.innerHTML = drawPatternTrace(trace, bitRadius, caption.length, tab.prefix, outlines ? cutType || 'cut' : null, unitPx,
                                      patternRadiusRing(tab.prefix, gen, params, trace), outlines ? patternDims(tab.prefix, gen, params, trace) : null) +
       patternPreviewCaption(caption, 44 - (caption.length - 1) * PATTERN_PREVIEW_LINE);
@@ -7743,8 +8131,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
     var span = Math.max(maxX - minX, maxY - minY) || 1;
     var s = (80 - extra) / span, midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
-    var X = function(v) { return ((v - midX) * s).toFixed(2); };
-    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(2); };
+    var X = function(v) { return ((v - midX) * s).toFixed(4); };
+    var Y = function(v) { return ((midY - v) * s - 4 - extra / 2).toFixed(4); };
 
     var pathD = function(moves) {
       var d = '', penX = null, penY = null;
@@ -7757,7 +8145,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           var a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx), a1 = Math.atan2(m.y1 - m.cy, m.x1 - m.cx);
           var sweepAngle = m.cw ? a0 - a1 : a1 - a0;
           sweepAngle = ((sweepAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(2) + ',' + (r * s).toFixed(2) + ' 0 ';
+          var flag = m.cw ? 1 : 0, rr = (r * s).toFixed(4) + ',' + (r * s).toFixed(4) + ' 0 ';
           if (sweepAngle < 1e-9) {
             var ox = 2 * m.cx - m.x0, oy = 2 * m.cy - m.y0;
             d += 'A' + rr + '0 ' + flag + ' ' + X(ox) + ',' + Y(oy) + 'A' + rr + '0 ' + flag + ' ' + X(m.x1) + ',' + Y(m.y1);
@@ -7774,11 +8162,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var ox = Number(X(0)), oy = Number(Y(0));
     var origin = figAxes(ox, oy);
     var marks = origin + (prefix ? insetMarks(prefix, ox, oy, s) : '') +
-      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(2) + '"/>' : '') +
+      (ring ? '<circle class="qc-shape-dim-line" cx="' + X(ring.x) + '" cy="' + Y(ring.y) + '" r="' + (ring.r * s).toFixed(4) + '"/>' : '') +
       (measured ? measured.svg(X, Y) : '');
     if (cutType) return patternCuts(trace, pathD, X, Y, s, bitRadius, cutType, prefix, 1.5 * (unitPx || 1)) + marks;
 
-    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(2);
+    var dotR = Math.max(bitRadius * s, Math.min(1.2, 30 / Math.sqrt(trace.plunges.length || 1))).toFixed(4);
     var dots = trace.plunges.map(function(p) {
       return '<circle class="qc-pattern-plunge" cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + dotR + '"/>';
     }).join('');
@@ -7804,17 +8192,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var d = pathD(trace.moves), all = d + trace.plunges.map(dot).join('');
     var hatch = 'url(#qc-' + prefix + '-pat-hatch)';
     var band = function(cls) {
-      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+      return '<path class="qc-pattern-cut ' + cls + '" stroke-width="' + width.toFixed(4) + '" d="' + all + '"/>';
     };
     var inside = function(cls) { return '<path class="' + cls + '" d="' + d + '"/>'; };
     var clearing = cutType === 'clearing';
     // The dashed edge: thinner, with dashes the shape preview's length on screen.
-    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(2);
+    var thin = edge * 2 / 3, dash = (edge * 3.2).toFixed(4);
     var out = shapePreviewDefs('qc-' + prefix + '-pat');
     if (cutType === 'inner' || cutType === 'outer') out += inside('qc-pattern-part');
     out += band(cutType === 'outer' ? 'qc-pattern-band' : 'qc-pattern-band qc-pattern-tint');
     if (clearing) out += inside('qc-pattern-part') + '<path class="qc-shape-hatch" fill="' + hatch + '" d="' + d + '"/>';
-    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(2) + '" d="' + all + '"/>';
+    out += '<path class="qc-pattern-cut qc-pattern-hatch" stroke="' + hatch + '" stroke-width="' + width.toFixed(4) + '" d="' + all + '"/>';
     // Hundreds of masks get slow to draw; past that many copies the edges
     // are drawn for all of them at once, and overlaps merge.
     var each = patternCopies(trace), copies = each;
@@ -7834,18 +8222,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '</filter><g class="qc-pattern-overlap" filter="url(#' + fid + ')">' +
         each.map(function(copy) {
           return '<g opacity="0.5"><path class="qc-pattern-cut" style="stroke: ' + (outerOnly ? 'none' : '#000') + (filled ? '; fill: #000' : '') +
-            '" stroke-width="' + width.toFixed(2) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
+            '" stroke-width="' + width.toFixed(4) + '" d="' + pathD(copy.moves) + copy.plunges.map(dot).join('') + '"/></g>';
         }).join('') + '</g>';
     }
     copies.forEach(function(copy, i) {
       var b = traceBounds(copy, bitRadius);
       if (!b) return;
       var cd = pathD(copy.moves) + copy.plunges.map(dot).join('');
-      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(2) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(2) +
-        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(2) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(2) + '"';
+      var box = 'x="' + (Number(X(b.minX)) - 2 * edge).toFixed(4) + '" y="' + (Number(Y(b.maxY)) - 2 * edge).toFixed(4) +
+        '" width="' + ((b.maxX - b.minX) * s + 4 * edge).toFixed(4) + '" height="' + ((b.maxY - b.minY) * s + 4 * edge).toFixed(4) + '"';
       var ring = function(color, w, style) {
         return '<path class="qc-pattern-cut" style="stroke: ' + color + (clearing ? '; fill: ' + color : '') + (style || '') +
-          '" stroke-width="' + w.toFixed(2) + '" d="' + cd + '"/>';
+          '" stroke-width="' + w.toFixed(4) + '" d="' + cd + '"/>';
       };
       var id = 'qc-' + prefix + '-pat-edge' + i;
       var outline = function(key, white, extra, clip) {
@@ -7858,7 +8246,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       var solid = ring('#fff', width + 2 * edge);
       var dashed = '<path class="qc-pattern-cut" style="stroke: #fff; stroke-linecap: butt; stroke-dasharray: ' + dash + ' ' + dash +
-        '" stroke-width="' + thin.toFixed(2) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
+        '" stroke-width="' + thin.toFixed(4) + '" d="' + pathD(offsetMoves(copy.moves, bitRadius + thin / 2 / s)) + '"/>';
       var inner = cutType === 'inner';
       out += '<clipPath id="' + id + 'c"><path d="' + pathD(copy.moves) + '"/></clipPath>' +
         outline('o', inner ? solid : dashed, '<path style="fill: #000" d="' + pathD(copy.moves) + '"/>') +
@@ -8069,6 +8457,27 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else { bit.removeAttribute('data-tool'); bit.removeAttribute('data-tool-mm'); }
     showBitTool();
   }
+  // The tool table's name for the tool picked from the menu, when it counts.
+  function bitToolName() {
+    var t = toolEntry(bitToolNumber());
+    return t ? t.name : '';
+  }
+  // The bit's Tool Library type: the tool picked from the table, or
+  // (no tool changer) the loaded tool Bit Diameter was read from, while the
+  // field still shows its diameter. A pen or drag knife gets no M3.
+  function bitToolType() { return bitToolInfo().type; }
+  // With it, the tool's flute length (mm), which ncSender calls Max plunge
+  // for a pen or drag knife: how far below Z0 its tip may go.
+  function bitToolInfo() {
+    var n = bitToolNumber();
+    if (n) { var t = toolEntry(n) || {}; return { n: n, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 }; }
+    if (state.atc) return { type: '', fluteMm: 0 };
+    var bit = $('qc-bit'), mm = Number(bit.getAttribute('data-loaded-mm')), typed = displayToMm(num('qc-bit', 0));
+    if (mm > 0 && Math.abs(typed - mm) < 0.002) return { n: Number(bit.getAttribute('data-loaded-n')) || 0, type: bit.getAttribute('data-loaded-type') || '', name: bit.getAttribute('data-loaded-name') || '', fluteMm: Number(bit.getAttribute('data-loaded-flute')) || 0 };
+    // Else the tool in the spindle, when the Bit Diameter is its size.
+    var t = state.spindleTool;
+    return t && Math.abs(typed - t.mm) < 0.002 ? t : { type: '', fluteMm: 0 };
+  }
   function bitToolNumber() {
     var t = bitTool();
     var near = function(mm) { return Math.abs(mm - t.mm) < 0.002; };
@@ -8217,6 +8626,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!loaded) $('qc-material').value = common.material != null ? common.material : fresh ? 'mdf' : '';
     if (!loaded) state.feedsAuto = fresh || !!common.feedsAuto;
     if (!loaded && common.stepTyped && typeof common.stepTyped === 'object') state.stepTyped = Object.assign({}, common.stepTyped);
+    if (!loaded && common.toolFeeds && typeof common.toolFeeds === 'object') state.toolFeeds = Object.assign({}, common.toolFeeds);
     // How hard the starting feeds push: a preference, not part of a program.
     if (!loaded) {
       state.feedsStyle = /^(conservative|aggressive)$/.test(common.feedsStyle) ? common.feedsStyle : 'average';
@@ -8363,6 +8773,22 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (poly.cutType)               $('qc-poly-cut-type').value = poly.cutType;
     if (saved.polygon)              $('qc-poly-kind').value = poly.kind === 'star' ? 'star' : 'polygon';
     if (poly.innerDiameter > 0)     $('qc-poly-inner').value = roundDisplay(mmToDisplay(poly.innerDiameter));
+    // STAR_DEFAULT once for every star, saved ones too (starDefaults marks
+    // it done), when QuickCut opens; the star's 5 points when it's next
+    // shown. A loaded program brings back its own; another shape's leaves
+    // the star alone.
+    if (!loaded) state.starDefaults = poly.starDefaults !== STAR_DEFAULT.version;
+    else if (saved.polygon) state.starDefaults = false;
+    if (!loaded || saved.polygon) {
+      setStarInnerMode(state.starDefaults ? 'ratio' : poly.innerMode === 'ratio' || poly.innerMode === 'classic' ? poly.innerMode : 'diameter');
+      if (state.starDefaults) $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+      else if (poly.innerMode === 'ratio' && poly.innerRatio > 0) $('qc-poly-inner').value = poly.innerRatio;
+      if (state.starDefaults && poly.kind === 'star') {
+        state.starDefaults = false;
+        $('qc-poly-sides').value = STAR_DEFAULT.points;
+      }
+      $('qc-poly-inner-mode').setAttribute('data-was', starInnerMode());
+    }
     if (poly.starDiameter > 0)      $('qc-poly-star-dia').value = roundDisplay(mmToDisplay(poly.starDiameter));
     showPolyKind(false);
     if (saved.polygon)              $('qc-poly-corner-relief').value = poly.cornerRelief || 'none';
@@ -8618,6 +9044,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         sizeValue:     displayToMm(params.sizeValue),
         kind:          params.kind,
         innerDiameter: displayToMm(params.innerDiameter),
+        innerMode:     params.innerMode,
+        innerRatio:    params.innerRatio,
+        starDefaults:  state.starDefaults ? undefined : STAR_DEFAULT.version,
         startAngleDeg: params.startAngleDeg,
         starDiameter:  displayToMm(num('qc-poly-star-dia', 0)),
         cornerRadius:  displayToMm(num('qc-poly-corner', 0)),
@@ -9584,8 +10013,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateChamferNote();
   }
   // Why a chamfer can't be cut, and the field to fix, or null.
+  // A pen, drag knife or laser in the Tool card: what it is, or ''.
+  function nonSpinningTool(p) {
+    if (p.straightIn) return String(p.straightIn);
+    var t = String(p.toolType || '').trim();
+    return /^pen$/i.test(t) ? 'pen' : /^drag[-_ ]?knife$/i.test(t) ? 'drag knife' : '';
+  }
   function chamferProblem(p, plan) {
     var u = ' ' + state.unitLabel, f = function(v) { return roundDisplay(v); };
+    var still = nonSpinningTool(p);
+    // The tool row when the tool comes from the table (the size field is hidden then).
+    var row = $('qc-bit-tool');
+    if (still) return { id: row && row.offsetParent ? 'qc-bit-tool' : 'qc-bit', msg: 'A ' + still + ' can\u2019t cut a chamfer: it takes a spinning V-bit. Pick a V-bit in the Tool card' };
     if (!plan) return { id: 'qc-chamfer-width', msg: 'No chamfer for this shape: turn Chamfer off to cut it' };
     if (plan.noHole) return { id: 'qc-chamfer-hole', msg: 'Hole Diameter: the size of the holes drilled' };
     if (plan.noKeyhole) return { id: num('qc-chamfer-key-bit', 0) > 0 ? 'qc-chamfer-key-neck' : 'qc-chamfer-key-bit', msg: 'Keyhole Bit: its head\u2019s diameter, wider than its Neck' };
@@ -10296,10 +10735,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   async function wireStockDepth() {
     var mm = 0;
     try {
-      var plugins = await (await fetch(BASE_URL + '/api/plugins')).json();
+      var plugins = await readJson('/api/plugins');
       var sbt = (plugins || []).filter(function(p) { return p.id === 'com.tmuka.spoilboard-toolbox'; })[0];
       if (!sbt || sbt.enabled === false) return;
-      var s = await (await fetch(BASE_URL + '/api/plugins/com.tmuka.spoilboard-toolbox/settings')).json();
+      var s = await readJson('/api/plugins/com.tmuka.spoilboard-toolbox/settings');
       var t = parseFloat(s && s.stockT);
       mm = t > 0 ? t * (s.units === 'imperial' ? 25.4 : 1) : 0;
     } catch (e) { return; }
@@ -10328,6 +10767,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // table. The loaded tool is T<n>, which names a magazine slot or a Tool ID
   // depending on Settings -> Tool Changer -> Tool Numbering; /api/tools/active
   // lists the tools that numbering gives.
+  // No tool changer: the tool in the spindle as the dialog opens, so a pen
+  // or drag knife there is known without a tap on Bit Diameter's label.
+  async function readSpindleTool() {
+    try {
+      var st = await readJson('/api/server-state');
+      var n = Number(st && st.machineState && st.machineState.tool);
+      if (!(n > 0)) return;
+      var tools = await readJson('/api/tools/active');
+      var t = (tools || []).filter(function(x) { return (state.toolById ? x.toolId : x.toolNumber) === n; })[0];
+      if (!t || !(t.diameter > 0)) return;
+      state.spindleTool = { n: n, mm: t.diameter, type: t.type || '', name: t.name || '', fluteMm: Number(t.dimensions && t.dimensions.flute_length) || 0 };
+      scheduleRunNote();
+    } catch (e) {}
+  }
   async function useLoadedToolDiameter() {
     var bit = $('qc-bit');
     try {
@@ -10344,10 +10797,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       var fl = flutesFromTool({ name: tool.name, notes: tool.metadata && tool.metadata.notes, flutes: tool.metadata && tool.metadata.flutes });
       bit.value = roundDisplay(mmToDisplay(tool.diameter));
+      bit.setAttribute('data-loaded-mm', String(tool.diameter));
+      bit.setAttribute('data-loaded-type', tool.type || '');
+      bit.setAttribute('data-loaded-name', tool.name || '');
+      bit.setAttribute('data-loaded-n', String(n));
+      bit.setAttribute('data-loaded-flute', String(Number(tool.dimensions && tool.dimensions.flute_length) || 0));
+      var maxText = Number(tool.dimensions && tool.dimensions.flute_length) > 0 ? ', at most ' + roundDisplay(mmToDisplay(tool.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '';
+      var still = /^(pen|drag[-_ ]?knife)$/i.test(String(tool.type || '').trim());
       bit.dispatchEvent(new Event('input', { bubbles: true }));
       bit.dispatchEvent(new Event('change', { bubbles: true }));
       var name = (tool.name || '').length > 40 ? tool.name.slice(0, 39) + '\u2026' : tool.name || '';
-      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
+      showTooltip(bit, 'T' + n + (name ? ': ' + name : '') + ' (' + bit.value + ' ' + state.unitLabel + (still ? ', a ' + (/^pen$/i.test(tool.type.trim()) ? 'pen' : 'drag knife') + ': the spindle stays off' + maxText : fl ? ', ' + fl + ' flute' + (fl === 1 ? '' : 's') : '') + ')', TOOLTIP_OK, true);
     } catch (e) {
       showTooltip(bit, 'Couldn\u2019t read the tool table from ncSender.', null, true);
     }
@@ -10421,6 +10881,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // quiet when that's from a new Bit Diameter or Flutes rather than a pick.
   function fillStartingFeeds(quiet) {
     var v = $('qc-material').value, feed = $('qc-feed');
+    // A pen or drag knife needs no material.
+    var pen = penTool();
+    if (pen) { fillPenFeeds(pen, quiet, state.chamferMode ? null : TAB_PREFIX[state.currentTab]); return; }
     if (!v) return;
     var bit = displayToMm(num('qc-bit', 0));
     if (!(bit > 0)) { if (!quiet) setTimeout(function() { showTooltip($('qc-bit'), 'Give the Bit Diameter first, then pick the material again.', null, true); }, 0); return; }
@@ -10453,18 +10916,66 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       (v === 'aluminum' ? ' Aluminum: a 1-flute bit, and air or mist.' : '') +
       ' A start: listen, look at the chips, and adjust.', TOOLTIP_OK, true); }, 0);
   }
+  // A pen or drag knife (its tool type), with its T number and Max plunge, or null.
+  function penTool() {
+    var t = bitToolInfo(), type = String(t.type || '').trim();
+    var kind = /^pen$/i.test(type) ? 'pen' : /^drag[-_ ]?knife$/i.test(type) ? 'drag knife' : '';
+    return kind ? { kind: kind, n: t.n || 0, fluteMm: t.fluteMm || 0 } : null;
+  }
+  // A pen or drag knife has no chip to size its feeds by: what was last
+  // typed with it, else 75 in/min (1905 mm/min) by the Material menu's
+  // style (x0.75, x1.25, as a bit's), within the machine's max ($110/$111),
+  // the plunge 30% of it (within $112), and the whole depth in one pass
+  // (held to its Max plunge).
+  var PEN_FEED_MM = 1905, PEN_STYLE = { conservative: 0.75, aggressive: 1.25 };
+  function fillPenFeeds(pen, quiet, pre) {
+    // Picking the material or its style asks for them afresh.
+    if (!quiet && pen.n && state.toolFeeds[pen.n]) { delete state.toolFeeds[pen.n]; persistSettings({ common: { toolFeeds: state.toolFeeds } }); }
+    if (!quiet && pre && state.stepTyped[pre]) { delete state.stepTyped[pre]; persistSettings({ common: { stepTyped: state.stepTyped } }); }
+    var saved = pen.n ? state.toolFeeds[pen.n] : null, style = PEN_STYLE[state.feedsStyle] || 1;
+    var feed = saved && saved.feed > 0 ? saved.feed : Math.round(Math.min(state.maxFeedMm || Infinity, PEN_FEED_MM * style));
+    var plunge = saved && saved.plunge > 0 ? saved.plunge : Math.round(Math.min(state.maxPlungeMm || Infinity, Math.max(60, feed * 0.3)));
+    writeFeed('qc-feed', feed);
+    writeFeed('qc-plunge', plunge);
+    var filled = ['qc-feed', 'qc-plunge'], step = 0;
+    if (pre && pre !== 'plan' && $('qc-' + pre + '-step') && !state.stepTyped[pre]) {
+      var depth = $('qc-' + pre + '-depth') ? displayToMm(num('qc-' + pre + '-depth', 0)) : 0;
+      step = saved && saved.step > 0 ? saved.step : Math.min(depth > 0 ? depth : Infinity, pen.fluteMm > 0 ? pen.fluteMm : Infinity);
+      if (isFinite(step) && step > 0) { $('qc-' + pre + '-step').value = roundDisplay(mmToDisplay(step)); filled.push('qc-' + pre + '-step'); }
+    }
+    filled.forEach(function(id) { $(id).dispatchEvent(new Event('input', { bubbles: true })); });
+    if (quiet) return;
+    setFeedsAuto(true);
+    var u = state.unitLabel, name = 'A ' + pen.kind + (pen.n ? ' (T' + pen.n + ')' : '');
+    setTimeout(function() { showTooltip($('qc-feed'), saved ? name + ': the feeds last typed with it.'
+      : name + ': no chip to size it by, so ' + feedToDisplay(feed) + ' ' + state.unitLabel + '/min, a usual start' +
+        (step > 0 && isFinite(step) ? ', the whole depth in one pass' : '') + '. Faster or slower as it cuts or draws cleanly; what you type is kept for it.', TOOLTIP_OK, true); }, 0);
+  }
+  // What's typed with a pen or drag knife is kept for it, saved half a second after.
+  var toolFeedsTimer = null;
+  function rememberPenFeeds(el) {
+    var pen = penTool();
+    if (!pen || !pen.n) return;
+    var m = /^qc-([a-z]+)-step$/.exec(el.id), prev = state.toolFeeds[pen.n] || {};
+    var next = { feed: feedMm('qc-feed'), plunge: feedMm('qc-plunge'), step: m ? displayToMm(num(el.id, 0)) : prev.step || 0 };
+    if (!(next.feed > 0 && next.plunge > 0)) return;
+    state.toolFeeds[pen.n] = next;
+    clearTimeout(toolFeedsTimer);
+    toolFeedsTimer = setTimeout(function() { persistSettings({ common: { toolFeeds: state.toolFeeds } }); }, 500);
+  }
   // Typing (or arrow-stepping) a feed, the RPM or a Stepover keeps the
   // feeds from being filled in again. A Depth of Cut typed is kept, and
   // the feed follows it (a deep pass takes a thinner chip); a new Total
   // Depth refills a compression bit's passes.
   function noteHandEdit(el) {
+    if (/^qc-(feed|plunge|[a-z]+-step)$/.test(el.id)) rememberPenFeeds(el);
     var m = /^qc-([a-z]+)-(step|depth)$/.exec(el.id), deep = m && deepFeeds(m[1]);
     if (deep && m[2] === 'step') {
       if (!state.stepTyped[m[1]]) { state.stepTyped[m[1]] = true; persistSettings({ common: { stepTyped: state.stepTyped } }); }
       if (state.feedsAuto) fillStartingFeeds(true);
       return;
     }
-    if (deep && state.feedsAuto && !state.stepTyped[m[1]] && deep.compression) { fillStartingFeeds(true); return; }
+    if (deep && state.feedsAuto && !state.stepTyped[m[1]] && (deep.compression || penTool())) { fillStartingFeeds(true); return; }
     if (/^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(el.id)) setFeedsAuto(false);
   }
   // A compression bit: its tool type, or its name says so (not its notes,
@@ -10511,9 +11022,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       showBitTool();
       fillStartingFeeds(false);
     });
-    // A new bit gets its own feeds, unless they've been changed by hand.
+    // A new bit gets its own feeds, unless they've been changed by hand;
+    // going to or from a pen or drag knife always does (neither's feeds suit the other).
+    var lastPen = '';
     $('qc-bit').addEventListener('change', function() {
-      if (state.feedsAuto) setTimeout(function() { fillStartingFeeds(true); }, 0);
+      setTimeout(function() {
+        var pen = penTool(), key = pen ? 'T' + pen.n + ' ' + pen.kind : '';
+        var switched = key !== lastPen;
+        lastPen = key;
+        if (state.feedsAuto || switched) fillStartingFeeds(true);
+      }, 0);
     });
     ROOT.addEventListener('input', function(e) { if (e.isTrusted) noteHandEdit(e.target); });
   }
@@ -10611,8 +11129,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     showBitTool();
     try {
-      var tools = await (await fetch(BASE_URL + '/api/tools/active')).json();
-      var st = await (await fetch(BASE_URL + '/api/server-state')).json();
+      var tools = await readJson('/api/tools/active');
+      var st = await readJson('/api/server-state');
       var loaded = Number(st && st.machineState && st.machineState.tool);
       state.tools = (tools || []).filter(function(t) { return t.type !== 'probe'; })
         .map(function(t) { return { n: state.toolById ? t.toolId : t.toolNumber, slot: state.toolById && t.toolNumber > 0 ? t.toolNumber : 0, mm: t.diameter, name: t.name || '', notes: (t.metadata && t.metadata.notes) || '', flutes: (t.metadata && t.metadata.flutes) || 0, type: t.type, dimensions: t.dimensions }; })
@@ -10634,6 +11152,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
     } catch (e) { state.tools = []; }
     showBitTool();
+    // Opened while the tool table was on its way: now as wide as its tools.
+    if (toolPop.open) placeToolPop();
   }
   function openToolPop() {
     var btn = $('qc-bit-tool'), pop = $('qc-tool-pop');
@@ -10642,13 +11162,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-tool-filter').value = '';
     pop.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
-    // Under the label, inside the dialog.
+    renderToolList();
+    placeToolPop();
+    $('qc-tool-filter').focus();
+  }
+  // Sized to its widest tool (a pixel over, as offsetWidth rounds down),
+  // then kept that width while filtering; under the row, inside the dialog.
+  function placeToolPop() {
+    var btn = $('qc-bit-tool'), pop = $('qc-tool-pop');
+    pop.style.width = '';
+    pop.style.width = (pop.offsetWidth + 1) + 'px';
     var r = btn.getBoundingClientRect(), w = ROOT.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(r.left - w.left, w.width - pop.offsetWidth - 8)) + 'px';
     var below = r.bottom - w.top + 4, room = w.height - below - 8;
     pop.style.top = (room >= Math.min(pop.offsetHeight, 240) ? below : Math.max(8, r.top - w.top - pop.offsetHeight - 4)) + 'px';
-    renderToolList();
-    $('qc-tool-filter').focus();
   }
   function closeToolPop() {
     toolPop.open = false;
@@ -10673,6 +11200,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var hay = ('t' + t.n + ' ' + t.name + ' ' + t.notes + ' ' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ' slot ' + t.slot : '') + (t.n === state.loadedTool ? ' in the spindle' : '')).toLowerCase();
       return words.every(function(w) { return hay.indexOf(w) >= 0; });
     });
+    // The picked tool first, with its details; the rest in table order.
+    tools = tools.filter(function(t) { return t.n === n; }).concat(tools.filter(function(t) { return t.n !== n; }));
+    var pickedFirst = tools.length && tools[0].n === n;
     toolPop.items = tools.map(function(t) { return { value: String(t.n), t: t }; });
     if (n) toolPop.items.push({ value: 'none' });
     var esc = function(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
@@ -10682,15 +11212,23 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     else if (!tools.length) html = '<div class="qc-tool-empty">No tool matches “' + esc($('qc-tool-filter').value) + '”.</div>';
     // Headed In the magazine and Tool table when both have tools.
     var grouped = tools.some(function(t) { return t.slot; }) && tools.some(function(t) { return !t.slot; });
-    if (state.tools && tools.length && !grouped) html = '<div class="qc-tool-head">Tool change to</div>';
+    if (state.tools && tools.length && !grouped && !pickedFirst) html = '<div class="qc-tool-head">Tool change to</div>';
     html += toolPop.items.map(function(it, i) {
-      var t = it.t, text = t ? (t.n === n ? '✓ ' : '') + 'T' + t.n + (t.name ? ' ' + esc(t.name) : '') + ' <span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + '</span>'
+      var t = it.t, text = t ? '<b>' + (t.n === n ? '✓ ' : '') + 'T' + t.n + '</b>' + (t.name ? '<span class="qc-tool-name">' + esc(t.name) + '</span>' : '') + '<span class="qc-tool-size">' + roundDisplay(mmToDisplay(t.mm)) + ' ' + u + (t.slot ? ', slot ' + t.slot : '') + (t.n === state.loadedTool ? ', in the spindle' : '') + (t.n === n ? ' · ' + toolDetails(t) : '') + '</span>'
         : 'No tool change';
-      var prev = i > 0 && toolPop.items[i - 1].t, head = grouped && t && (i === 0 || !!prev.slot !== !!t.slot) ? '<div class="qc-tool-head">' + (t.slot ? 'In the magazine' : 'Tool table') + '</div>' : '';
+      var picked = pickedFirst && i === 0, prev = i > 0 && !(pickedFirst && i === 1) && toolPop.items[i - 1].t;
+      var head = !t ? '' : picked ? 'Picked' : grouped ? (!prev || !!prev.slot !== !!t.slot ? (t.slot ? 'In the magazine' : 'Tool table') : '') : pickedFirst && i === 1 ? 'Tool change to' : '';
+      if (head) head = '<div class="qc-tool-head">' + head + '</div>';
       return head + '<button type="button" class="qc-tool-item' + (i === toolPop.active ? ' qc-active' : '') + '" role="option" aria-selected="' + (t && t.n === n) + '" data-v="' + it.value + '">' + text + '</button>';
     }).join('');
     list.innerHTML = html;
     list.querySelectorAll('.qc-tool-item').forEach(function(b) { b.addEventListener('click', function() { pickBitTool(b.getAttribute('data-v')); }); });
+  }
+  // A pen or drag knife: spindle off and its reach; a bit: its flutes.
+  function toolDetails(t) {
+    if (!/^(pen|drag[-_ ]?knife)$/i.test(String(t.type || '').trim())) return $('qc-flutes').value + ' fl';
+    var reach = t.dimensions && t.dimensions.flute_length > 0 ? ', max ' + roundDisplay(mmToDisplay(t.dimensions.flute_length)) + ' ' + state.unitLabel + ' deep' : '';
+    return (/^pen$/i.test(t.type.trim()) ? 'pen' : 'drag knife') + ', spindle off' + reach;
   }
   function showBitTool() {
     var btn = $('qc-bit-tool');
@@ -10711,9 +11249,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // The tool table has the flutes: asked for a typed size, or for a picked
     // tool whose table entry doesn't give them (guessed from its name, else 2).
     $('qc-flutes').closest('.qc-field').classList.toggle('qc-bit-hidden', table && !(t && !(t.flutes > 0)));
+    // Just the T number and name, so the row stays one line; the size and
+    // the rest show on the picked tool at the top of the list.
     btn.innerHTML = t
-      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span><em>' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + $('qc-flutes').value + ' fl</em>'
+      ? '<b>T' + t.n + '</b><span>' + esc(t.name || 'Tool ' + t.n) + '</span>'
       : '<span class="qc-tool-row-empty">' + (state.tools && !state.tools.length ? 'No tools in the tool table' : 'Pick a tool') + '</span>';
+    btn.title = (t ? 'T' + t.n + ' ' + (t.name || 'Tool ' + t.n) + '\n' + roundDisplay(mmToDisplay(t.mm)) + ' ' + state.unitLabel + ' · ' + toolDetails(t) + '\n' : '') + 'Opens ncSender’s tool table: the program starts with a tool change to the tool you pick (M6 T).';
     if (toolPop.open) renderToolList();
   }
   // The Tool card takes a tool from the table: flutes first, so the bit's
@@ -10731,6 +11272,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var bit = $('qc-bit');
     closeToolPop();
     if (!v) return;
+    if ($('qc-bit-tool').classList.contains('qc-input-error')) setFieldError($('qc-bit-tool'), '');
     var t = (state.tools || []).filter(function(x) { return String(x.n) === v; })[0], fl = null;
     var chamferMsg = '';
     if (t) {
@@ -10830,17 +11372,60 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       .map(function(x) { return x.pr; });
   }
   // Each label menu as wide as the choice it shows, so its arrow sits
-  // right after the text.
+  // right after the text. The words are measured as the page draws them
+  // (a hidden copy beside the menu, in its font), not on a canvas, which
+  // can use another font or size than the one on screen; a canvas only
+  // for a menu not shown yet. A menu fits itself again whenever its
+  // choices are renamed (the Pattern's X Gap / Row Gap...).
   var labelMeasure = document.createElement('canvas').getContext('2d');
-  function fitLabelSelects(root) {
-    root.querySelectorAll('select.qc-label-select').forEach(function(sel) {
+  var labelRefit = typeof MutationObserver === 'function' ? new MutationObserver(function(list) {
+    var seen = [];
+    list.forEach(function(m) {
+      var sel = m.target.closest ? m.target.closest('select') : m.target.parentNode && m.target.parentNode.closest('select');
+      if (sel && seen.indexOf(sel) < 0) seen.push(sel);
+    });
+    fitLabelSelectList(seen);
+  }) : null;
+  // All the menus' words are measured first, then all the widths set, so
+  // the page lays out once, not once per menu (it matters on the Pi).
+  function fitLabelSelectList(sels) {
+    var jobs = [];
+    sels.forEach(function(sel) {
+      if (labelRefit && !sel._qcRefit) {
+        sel._qcRefit = true;
+        labelRefit.observe(sel, { childList: true, subtree: true, characterData: true });
+      }
       var opt = sel.options[sel.selectedIndex];
       if (!opt) return;
-      var cs = getComputedStyle(sel);
-      labelMeasure.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-      var w = labelMeasure.measureText(opt.text).width + (parseFloat(cs.letterSpacing) || 0) * opt.text.length;
-      sel.style.width = Math.ceil(w + 16) + 'px';
+      var cs = getComputedStyle(sel), job = { sel: sel, text: opt.text, cs: cs, w: 0 };
+      if (sel.offsetParent && sel.parentNode) {
+        job.probe = document.createElement('span');
+        job.probe.textContent = opt.text;
+        job.probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;padding:0;border:0;margin:0;' +
+          'font:' + cs.font + ';letter-spacing:' + cs.letterSpacing + ';text-transform:' + cs.textTransform;
+        sel.parentNode.appendChild(job.probe);
+      }
+      jobs.push(job);
     });
+    jobs.forEach(function(job) {
+      // offsetWidth: in the page's px, whatever scales the dialog on screen.
+      if (job.probe) job.w = job.probe.offsetWidth ? job.probe.offsetWidth + 1 : 0;
+    });
+    jobs.forEach(function(job) {
+      if (job.probe) job.probe.remove();
+      var w = job.w, cs = job.cs;
+      if (!w) {
+        labelMeasure.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+        w = labelMeasure.measureText(job.text).width + (parseFloat(cs.letterSpacing) || 0) * job.text.length;
+      }
+      // The words, the menu's own padding (its arrow sits in the right
+      // one) and 2px to spare, whatever padding a stylesheet gives it.
+      var pad = cs.boxSizing === 'border-box' ? (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) : 0;
+      job.sel.style.width = Math.ceil(w + pad + 2) + 'px';
+    });
+  }
+  function fitLabelSelects(root) {
+    fitLabelSelectList(Array.prototype.slice.call(root.querySelectorAll('select.qc-label-select')));
   }
   function updateRunNote() {
     // A field left as the dialog closes schedules one: nothing to update.
@@ -10925,6 +11510,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function fluteDepthNote(prefix) {
     if (state.chamferMode) return '';
     var n = bitToolNumber(), depth = prefix && $('qc-' + prefix + '-depth') ? num('qc-' + prefix + '-depth', 0) : 0;
+    // A pen or drag knife: the program stops at its Max plunge.
+    var info = bitToolInfo(), kind = /^pen$/i.test(String(info.type || '').trim()) ? 'pen' : /^drag[-_ ]?knife$/i.test(String(info.type || '').trim()) ? 'drag knife' : '';
+    if (kind) return info.fluteMm > 0 && depth > roundDisplay(mmToDisplay(info.fluteMm)) + 1e-9
+      ? 'It stops at the ' + kind + '\u2019s ' + roundDisplay(mmToDisplay(info.fluteMm)) + ' ' + state.unitLabel + ' Max plunge.' : '';
     var t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
     var fl = t && t.dimensions && t.dimensions.flute_length;
     if (!(fl > 0) || !(depth > roundDisplay(mmToDisplay(fl + Math.max(1, fl / 10))) + 1e-9)) return '';
@@ -11004,7 +11593,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     _wcoAt = Date.now();
     var was = JSON.stringify(state.wco);
     try {
-      var ms = ((await (await fetch(BASE_URL + '/api/server-state')).json()) || {}).machineState || {};
+      var ms = ((await readJson('/api/server-state')) || {}).machineState || {};
       var w = String(ms.WCO || '').split(',').map(Number);
       state.wco = ms.homed && w.length >= 2 && isFinite(w[0]) && isFinite(w[1]) ? { x: w[0], y: w[1], ws: String(ms.workspace || 'G54').toUpperCase() } : null;
     } catch (e) { state.wco = null; }
@@ -11116,7 +11705,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // crosshair shows where the Origin is.
   // A tap on the preview: the nearest node within reach becomes the Origin.
   function nearestPreviewNode(nodes, pt) {
-    var best = null, bestD = 8;
+    var best = null, bestD = 8 / pickZoom;
     (nodes || []).forEach(function(nd) {
       var d = Math.hypot(nd.x - pt.x, nd.y - pt.y);
       if (d < bestD) { bestD = d; best = nd; }
@@ -13478,6 +14067,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return Math.atan2(-pt.y, pt.x) * 180 / Math.PI;
     }
     function setFromPointer(ev) {
+      // Zoomed in, a drag moves the drawing instead; a pinch puts back
+      // whatever its first finger turned.
+      if (svg.qcPinching) {
+        if (twisting && String(baseDeg) !== input.value) { input.value = baseDeg; input.dispatchEvent(new Event('input', { bubbles: true })); }
+        return;
+      }
+      if (previewZoom(svg) > 1) return;
       var deg = pointerDeg(ev);
       if (deg == null) return;
       if (relative) {
@@ -13508,6 +14104,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       input.dispatchEvent(new Event('input', { bubbles: true }));
     }
     svg.addEventListener('pointerdown', function(ev) {
+      // A second finger pinches (wirePreviewZoom); the first one's twist
+      // stays as it began.
+      if (!ev.isPrimary) return;
       dragging = true;
       twisting = false;
       if (typeof inputId === 'function') input = inputId();
@@ -13522,7 +14121,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     svg.addEventListener('pointermove', function(ev) { if (dragging) setFromPointer(ev); });
     svg.addEventListener('pointerup', function(ev) {
       if (dragging && (twisting || !relative)) markPreviewPick();
-      if (dragging && relative && !twisting && onTap && downPt) onTap(downPt);
+      if (dragging && relative && !twisting && onTap && downPt && !svg.qcPanned && !svg.qcPinching) onTap(downPt);
       dragging = false;
     });
     svg.addEventListener('pointerup', function() { hideDragAngle(cell); svg.classList.remove('qc-twisting'); });
@@ -13696,6 +14295,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       rect.setAttribute('y', (b.y + b.height / 2 - h / 2).toFixed(2));
       rect.setAttribute('width', w.toFixed(2)); rect.setAttribute('height', h.toFixed(2));
       rect.setAttribute('rx', (h / 2).toFixed(2));
+      // fitPills resizes it as a zoom changes the words' size.
+      rect.setAttribute('data-pill-cx', (b.x + b.width / 2).toFixed(3));
+      rect.setAttribute('data-pill-cy', (b.y + b.height / 2).toFixed(3));
+      rect.setAttribute('data-pill-w', w.toFixed(3)); rect.setAttribute('data-pill-h', h.toFixed(3));
+      rect.setAttribute('data-pill-ts', parseFloat(svg.style.getPropertyValue('--qc-ts')) || 1);
       if (t.getAttribute('transform')) rect.setAttribute('transform', t.getAttribute('transform'));
       t.parentNode.insertBefore(rect, t);
       t.classList.add('qc-on-pill');
@@ -13951,7 +14555,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     function drillHoleAt(pt) {
       var map = drillPreviewMap;
       if (!map || !pt) return -1;
-      var best = -1, bestD = Math.max(map.r * 1.5, 6);
+      var best = -1, bestD = Math.max(map.r * 1.5, 6 / pickZoom);
       for (var i = 0; i < map.positions.length; i++) {
         var d = Math.hypot((map.positions[i].x - map.cx) * map.scale - pt.x,
                            -(map.positions[i].y - map.cy) * map.scale - pt.y);
@@ -14040,13 +14644,42 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     $('qc-poly-sub').textContent = star
       ? 'Cut a star: its points round a diameter, the corners between them on a smaller one.'
       : 'Regular N-sided polygon, sized across the corners, across the flats, or by edge length.';
-    if (star && picked && !(num('qc-poly-inner', 0) > 0 && num('qc-poly-inner', 0) < num('qc-poly-star-dia', 0))) {
-      $('qc-poly-inner').value = roundDisplay(num('qc-poly-star-dia', 0) * 0.4);
+    if (star && picked && state.starDefaults) {
+      state.starDefaults = false;
+      $('qc-poly-sides').value = STAR_DEFAULT.points;
+      setStarInnerMode('ratio');
+      $('qc-poly-inner').value = STAR_DEFAULT.ratio;
+    }
+    if (star && picked && starInnerMode() !== 'classic' && !(starInnerDiameter() > 0 && starInnerDiameter() < num('qc-poly-star-dia', 0))) {
+      $('qc-poly-inner').value = starInnerMode() === 'ratio' ? 40 : roundDisplay(num('qc-poly-star-dia', 0) * 0.4);
     }
   }
   function wirePolygonForm() {
     $('qc-poly-kind').addEventListener('change', function() { showPolyKind(true); updatePolygonPreview(); kindPicked('polygon'); });
     $('qc-poly-inner').addEventListener('input', updatePolygonPreview);
+    // Switching Inner Diameter / Inner Ratio / Classic Star converts the
+    // number, so the star stays the same (Classic sets its own).
+    var innerMode = $('qc-poly-inner-mode');
+    innerMode.setAttribute('data-was', innerMode.value);
+    innerMode.addEventListener('change', function() {
+      var was = innerMode.getAttribute('data-was'), mode = innerMode.value, dia = num('qc-poly-star-dia', NaN);
+      setStarInnerMode(was);
+      var inner = starInnerDiameterFrom(num('qc-poly-inner', NaN), dia, was);
+      setStarInnerMode(mode);
+      if (mode !== was && mode !== 'classic' && isFinite(inner) && inner > 0 && dia > 0) {
+        $('qc-poly-inner').value = mode === 'ratio' ? roundPercent(inner / dia * 100) : roundDisplay(inner);
+      } else if (mode !== 'classic' && !$('qc-poly-inner').value.trim()) {
+        $('qc-poly-inner').value = mode === 'ratio' ? STAR_DEFAULT.ratio : dia > 0 ? roundDisplay(dia * STAR_DEFAULT.ratio / 100) : '';
+      }
+      innerMode.setAttribute('data-was', mode);
+      recheckField('qc-poly-inner');
+      updatePolygonPreview();
+    });
+    $('qc-poly-sides').addEventListener('input', function() {
+      if (polyKind() !== 'star' || starInnerMode() !== 'classic') return;
+      setStarInnerMode('classic');
+      recheckField('qc-poly-inner');
+    });
     $('qc-poly-star-dia').addEventListener('input', function() {
       if ($('qc-poly-inner').value.trim()) recheckField('qc-poly-inner');
       updatePolygonPreview();
@@ -14201,7 +14834,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var dx = pt.x - fr.mx, dy = pt.y - fr.my;
       var along = dx * fr.ux + dy * fr.uy, across = dx * fr.nx + dy * fr.ny;
       var out = Math.abs(across) - fr.h;
-      if (out > 0 && out <= SLOT_SNAP_BAND && Math.abs(along) <= fr.len / 2 + fr.h) {
+      if (out > 0 && out <= SLOT_SNAP_BAND / pickZoom && Math.abs(along) <= fr.len / 2 + fr.h) {
         var part = along < -fr.len / 6 ? 0 : along > fr.len / 6 ? 2 : 1;
         // [start corner, side middle, end corner]: left 6, 8, 5; right 3, 7, 4.
         var n = (across > 0 ? [6, 8, 5] : [3, 7, 4])[part];
@@ -14246,6 +14879,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   function originZoom(key, ox, oy, inner, pts, z, insetPrefix, scale) {
     originZoomFrames[key] = null;
     if (!isFinite(ox) || !isFinite(oy) || !(z > 1)) return '';
+    // Zoomed in, the drawing itself shows it; an enlarged top view zooms
+    // instead (its fitted viewBox isn't the 100 units this box assumes).
+    var zel = $('qc-' + key + '-preview'), zcell = zel && zel.closest('.qc-shape-preview-cell');
+    if (previewZoom(zel) > 1 || (zcell && zcell.matches('.qc-preview-big:is(.qc-shp-big, .qc-drl-big)'))) return '';
     z = Math.min(12, z);
     // The preview's own edges in its units: the drawing area is square
     // when small, wider than the 100-unit view when enlarged. The box sits
@@ -14502,7 +15139,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Grid placement: the Origin box includes the bit&rsquo;s width, so with a corner or edge origin the outer lines sit one bit radius in from X0 Y0. With a <strong>V-bit</strong>, set <strong>Inset</strong> to the negative bit radius (e.g. &minus;3.175 for a 6.35&nbsp;mm bit) so the first lines run along X0 and Y0. Always <strong>air carve</strong> first (Z zeroed above the work) to check the starting position before cutting.',
       'For a ring of arc slots, use a <strong>Circular (Path Direction)</strong> pattern with <strong>Radius 0</strong>: each copy turns about the arc&rsquo;s center (4 copies with a 90&deg; Sweep make a full circle; a smaller Sweep leaves gaps). A pattern Radius above 0 puts each arc&rsquo;s <em>center</em> on that circle.',
       '<strong>Round a stock corner</strong> (zero on the corner): Arc, <strong>Radius</strong> = corner radius + bit radius, the Start Angle that faces the corner (front-left 180, front-right 270, back-right 0, back-left 90), <strong>Sweep</strong> 90, <strong>Center line</strong>, that corner as the Origin, and <strong>Inset</strong> = minus the bit diameter. E.g. a 10 mm round with a 6 mm bit: Radius 13, Inset &minus;6.',
-      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. With one of these picked, and always in the enlarged preview, a magnified view in a corner of the preview shows where X0 Y0 sits on the slot; tap a point inside it to pick that one instead. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
+      'Twist the preview to turn the slot, in half degrees; it sticks at miter angles such as 15, 22.5, 30 and 45&deg; (on an arc, the radius line to the slot&rsquo;s middle does). Tap an <strong>end</strong> (its center) or, on an arc, the <strong>arc&rsquo;s center</strong> to make it X0 Y0; the straight slot&rsquo;s center is the middle dot of the Origin picker. On a straight slot you can also tap a <strong>corner</strong> (where a long side meets an end) or the <strong>middle of a long side</strong>, at any angle: on a Center line cut that puts that edge of the cut on X0 Y0. They&rsquo;re close together on a thin slot, so a tap just outside a long side snaps to it: beside the middle third for that side&rsquo;s middle, toward an end for that corner. To see where X0 Y0 sits on the slot, enlarge the preview and zoom in there; a tap then picks among the points more precisely. Along X or Y the Origin picker&rsquo;s edge points do the same, since its box includes the bit.',
       '<strong>Center line</strong> runs the bit once along the middle, so the slot is the bit&rsquo;s width (Width is greyed out), going back and forth one Depth of Cut at a time. The other cut types are as on the other shapes: ' + HELP_CUT_TYPES.replace('<strong>Cut Type:</strong> ', ''),
       HELP_SHAPE_ORIGIN, HELP_DEPTH, HELP_TABS, HELP_CHAMFER + ' A Center line slot is as wide as the bit that cut it: the card asks for that <strong>Cut Bit</strong>.' ] },
     keyhole: { name: 'Keyhole', notes: [
@@ -14541,7 +15178,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<strong>Spacing</strong> is center-to-center between neighbours. The X and Y Spacing labels are menus, one for each direction: <strong>Extent</strong> gives the first-to-last center distance instead (e.g. a row of holes), and on Linear and Honeycomb <strong>Overall</strong> the size from the outer edge of the first copy to the outer edge of the last (the solid lines on the preview), so every copy fits inside it; either way the copies spread evenly. <strong>Gap</strong> (Linear and Honeycomb) gives the distance between neighbouring copies&rsquo; edges at their closest instead, the solid lines on the preview: the stock left between their cuts, or on an Outer cut between the parts themselves (at least a bit diameter, so the bit can pass between them). The spacing then follows the shape and the bit: change the size and the gap stays. On Honeycomb, <strong>Row Gap</strong> is to the nearest copy in the next row, so equal gaps give an even web. As with Spacing, a negative number runs the copies the other way.',
       '<strong>Angle</strong> turns the rows (counter-clockwise from +X); <strong>Measure</strong> takes it from the machine. <strong>Rotate shapes</strong> turns each copy with the rows.',
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
-      'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s, to enlarge it; click a blank spot again or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
+      'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s (or &#x2922; in a top view&rsquo;s corner), to enlarge it; there the mouse wheel zooms at the pointer, two fingers pinch, and zoomed in a drag moves it, or use &minus;, + and Fit; click a blank spot again, &times; or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
       '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
@@ -15106,6 +15743,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // 0.0005 mm in metric but 0.0127 mm in inches (error:33), so inches get 5,
     // like the arc words themselves.
     var xyDp = isImperial ? 5 : 3;
+    // A drag knife, pen or laser: straight down at each start, in place of
+    // every ramp and helix (set by programHeader from straightEntry).
+    var straightIn = false;
 
     function coreSafeZLine(safeZHeightMm) {
       if (typeof safeZHeightMm !== 'number' || !isFinite(safeZHeightMm)) return null;
@@ -15137,18 +15777,44 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return '(' + String(text).replace(/\(/g, '[').replace(/\)/g, ']') + ')';
     }
 
+    // M6 with the picked tool's name after it, as printable ASCII without the
+    // realtime characters ! ? ~, in 79 characters like every QuickCut line.
+    function toolChangeLine(params) {
+      var line = 'M6 T' + params.toolNumber + ' ; Tool change';
+      var name = String(params.toolName || '').replace(/[^\x20-\x7e]|[!?~]/g, '').replace(/\s+/g, ' ').trim();
+      return name ? (line + ': ' + name).slice(0, 79).trim() : line;
+    }
+
+    // A pen or a drag knife (ncSender's tool types) doesn't spin: ncSender
+    // refuses M3/M4 while one is loaded and stops the job, so its program
+    // has no spindle start, wait or stop. Older ncSender ignores the type.
+    function toolSpins(params) {
+      return !/^(pen|drag[-_ ]?knife)$/i.test(String((params && params.toolType) || '').trim());
+    }
+    // A tool that doesn't spin goes straight down at each start: what it
+    // is ('pen', 'drag knife', or params.straightIn, e.g. 'laser'), or ''
+    // for a bit that ramps in.
+    function straightEntry(params) {
+      if (params.straightIn) return String(params.straightIn);
+      if (toolSpins(params)) return '';
+      return /^pen$/i.test(String(params.toolType).trim()) ? 'pen' : 'drag knife';
+    }
+
     function programHeader(params, opts) {
       var unitsCode = isImperial ? 'G20' : 'G21';
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var lines = [];
+      var entry = straightEntry(params);
+      straightIn = !!entry;
       lines.push(comment('QuickCut: ' + opts.shapeLabel));
       if (opts.extraComments) {
         for (var i = 0; i < opts.extraComments.length; i++) lines.push(comment(opts.extraComments[i]));
       }
       if (params.cutType) lines.push(comment('Cut Type: ' + params.cutType));
+      if (straightIn) lines.push(comment('Entry: straight down, no ramps, for a ' + entry));
       lines.push(comment('Z0: ' + (opts.z0 || 'the top of the stock')));
       lines.push('(Bit Diameter: ' + params.bitDiameter + unitsLabel + (params.toolNumber > 0 ? ', T' + params.toolNumber : '') + ')');
-      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + params.spindleRpm + 'RPM)');
+      lines.push('(Feed Rate: ' + params.feedRate + unitsLabel + '/min, Spindle: ' + (toolSpins(params) ? params.spindleRpm + 'RPM' : 'off, the tool does not spin') + ')');
       lines.push('');
       lines.push(unitsCode + ' ; ' + (isImperial ? 'Imperial' : 'Metric') + ' units');
       lines.push('G17 ; XY plane selection');
@@ -15161,7 +15827,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // A tool changer's machine: change to the bit's tool first, then back
       // up to safe Z, as the tool change may leave it lower.
       if (params.toolNumber > 0) {
-        lines.push('M6 T' + params.toolNumber + ' ; Tool change');
+        lines.push(toolChangeLine(params));
         lines.push(unitsCode + ' G90 ; Units and absolute again after it');
         lines.push((csz || 'G53 G0 Z0') + ' ; Move to safe Z');
       }
@@ -15179,7 +15845,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (csz) lines.push(csz + ' ; Return to safe Z');
       else lines.push('G53 G0 Z0 ; Return to machine Z0');
       if (params.mistM7 || params.floodM8) lines.push('M9 ; Coolant off');
-      if (params.spindleRpm > 0) lines.push('M5 ; Stop spindle');
+      if (params.spindleRpm > 0 && toolSpins(params)) lines.push('M5 ; Stop spindle');
       lines.push('M30 ; Program end');
       return lines;
     }
@@ -15188,7 +15854,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var lines = [];
       if (params.mistM7) lines.push('M7 ; Mist coolant on');
       if (params.floodM8) lines.push('M8 ; Flood coolant on');
-      if (params.spindleRpm > 0) {
+      if (params.spindleRpm > 0 && toolSpins(params)) {
         lines.push('M3 S' + params.spindleRpm + ' ; Start spindle');
         if (params.spindleDelay > 0) {
           lines.push('G4 P' + params.spindleDelay + ' ; Wait ' + params.spindleDelay + ' seconds');
@@ -15948,7 +16614,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var trips = Math.min(8, Math.ceil(drop / (2 * len * rampSlope) - 1e-9));
       lines.push('G1 Z' + fromZ.toFixed(3) + ' F' + plungeFeedRate);
       if (drop <= 1e-9) return;
-      if (room < minRamp) {
+      if (room < minRamp || straightIn) {
         lines.push('G1 Z' + toZ.toFixed(3) + ' F' + plungeFeedRate);
         return;
       }
@@ -16347,9 +17013,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           (Number(params.startAngleDeg) ? ', Start Angle: ' + Number(params.startAngleDeg) + '°' : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
-        'Entry: helical bore then expanding outward',
+        straightEntry(params) ? null : 'Entry: helical bore then expanding outward',
         'Origin: ' + resolveShapeOrigin(params, positions, rectangleShapeBbox(params), rectangleCorners(params)).label
-      ];
+      ].filter(Boolean);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
@@ -16420,7 +17086,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 
       var helixRadius = base.toolRadius * 0.6;
       helixRadius = Math.min(helixRadius, base.halfW - 0.001, base.halfH - 0.001);
-      var useHelix = helixRadius > base.toolRadius * 0.1;
+      var useHelix = !straightIn && helixRadius > base.toolRadius * 0.1;
       if (!useHelix) helixRadius = 0;
       var helixStartX = base.cx + helixRadius;
       var helixStartY = base.cy;
@@ -16489,6 +17155,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         currentDepth = nextDepth;
 
         if (currentDepth < depth - 1e-6) {
+          // A pen or knife would drag across the floor: lift first.
+          if (straightIn) lines.push('G0 Z' + safeHeight);
           lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + helixStartY.toFixed(xyDp));
         }
       }
@@ -16596,9 +17264,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         // As many turns as keep it to rampSlope (a small hole has a short
         // lap), up to 64.
         var lap = 2 * Math.PI * pathRadius;
-        if (lap < minRamp) {
+        if (lap < minRamp || straightIn) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
           prevZ = targetZ;
+          // A tool that goes straight down cuts its lap at each depth; the
+          // last one before the cleanup lap is that lap.
+          var lastHere = i === levels.length - 1 || (tabTop != null && levels[i + 1] > tabTop + 1e-6);
+          if (straightIn && !lastHere) {
+            lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                       ' I' + (-pathRadius).toFixed(5) + ' J0 F' + feedRate);
+            lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
+                       ' I' + pathRadius.toFixed(5) + ' J0');
+          }
           continue;
         }
         var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (lap * rampSlope) - 1e-9)));
@@ -16905,7 +17582,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var unitsLabel = isImperial ? 'inch' : 'mm';
       var f = function(v) { return v.toFixed(isImperial ? 4 : 3); };
       var lines = programHeader(params, { shapeLabel: shapeLabel, extraComments: extras });
-      var problem = chamferRefusal(plan);
+      // A pen, drag knife or laser can't cut a bevel: that takes a V-bit's
+      // spinning flank.
+      var entry = straightEntry(params);
+      var problem = entry ? 'a chamfer needs a spinning V-bit, not a ' + entry : chamferRefusal(plan);
       if (problem) {
         lines.push('(WARNING: ' + problem + '; nothing to cut)');
         lines.push.apply(lines, programFooter(params));
@@ -17173,7 +17853,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var prevZ = parseFloat(slowPlungeStart);
       for (var k = 1; k <= passes; k++) {
         var targetZ = -(plan.height * Math.sqrt(k / passes) + plan.tipOffset);
-        if (lap < minRamp) {
+        if (lap < minRamp || straightIn) {
           lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
           prevZ = targetZ;
           continue;
@@ -17210,9 +17890,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         'Diameter: ' + params.diameter + unitsLabel,
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
-        'Entry: helical bore then expanding outward',
+        straightEntry(params) ? null : 'Entry: helical bore then expanding outward',
         'Origin: ' + placed.label
-      ];
+      ].filter(Boolean);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
@@ -17273,7 +17953,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 
       var helixRadius = toolRadius * 0.6;
       helixRadius = Math.min(helixRadius, pathRadius - (isImperial ? 0.00004 : 0.001));
-      var useHelix = 2 * Math.PI * helixRadius >= minRamp;
+      var useHelix = !straightIn && 2 * Math.PI * helixRadius >= minRamp;
       if (!useHelix) helixRadius = 0;
       var helixStartX = cx + helixRadius;
 
@@ -17331,6 +18011,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         currentDepth = nextDepth;
 
         if (currentDepth < depth - 1e-6) {
+          // A pen or knife would drag across the floor: lift first.
+          if (straightIn) lines.push('G0 Z' + safeHeight);
           lines.push('G0 X' + helixStartX.toFixed(xyDp) + ' Y' + cy.toFixed(xyDp));
         }
       }
@@ -18044,9 +18726,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
             ? ', Corner Radius: ' + baseGeom.cornerR + unitsLabel + bitCornerNote(params, unitsLabel) : ''),
         'Depth: ' + params.depth + unitsLabel + ', Step: ' + params.depthOfCut + unitsLabel,
         'Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')',
-        'Entry: ramp along the innermost ring',
+        straightEntry(params) ? null : 'Entry: ramp along the innermost ring',
         'Origin: ' + resolveShapeOrigin(params, positions, polygonShapeBbox(params), polygonCorners(params)).label
-      ];
+      ].filter(Boolean);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
 
       var lines = programHeader(params, {
@@ -18610,7 +19292,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       ]).filter(Boolean);
       if (clearing) {
         extras.push('Stepover: ' + stepoverPct + '% (' + step.toFixed(3) + unitsLabel + ')');
-        extras.push('Entry: ramp along the innermost ring');
+        if (!straightEntry(params)) extras.push('Entry: ramp along the innermost ring');
       }
       extras.push('Origin: ' + origin.label);
       if (positions.length > 1) extras.push('Pattern: ' + patternDescription(params.pattern));
@@ -19403,7 +20085,39 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return out.join('\n') + '\n';
     }
 
-    return {
+    // A pen or drag knife: Z0 stays on the stock's top and the tip goes no
+    // lower than its Max plunge (the tool table's flute_length, which ncSender
+    // calls Max plunge for these types: params.toolMaxPlungeMm), whatever
+    // Total Depth, Depth of Cut, pecks or a chamfer ask. The depths are
+    // capped first, so the passes are planned for it, then any Z word still
+    // below it (machine-coordinate G53 lines aside) is raised to it. Without
+    // a Max plunge the depths are as typed.
+    function penMaxPlunge(params) {
+      if (!params || toolSpins(params) || !(params.toolMaxPlungeMm > 0)) return 0;
+      return isImperial ? params.toolMaxPlungeMm / 25.4 : params.toolMaxPlungeMm;
+    }
+    function penLimited(gen) {
+      return function(params) {
+        var max = penMaxPlunge(params);
+        if (!max) return gen.apply(null, arguments);
+        var p = Object.assign({}, params);
+        if (p.depth > max) p.depth = max;
+        if (p.depthOfCut > p.depth) p.depthOfCut = p.depth;
+        if (p.peckDepth > p.depth) p.peckDepth = p.depth;
+        if (p.tabs && !(p.tabs.height < p.depth)) p.tabs = null;
+        var out = gen.apply(null, [p].concat([].slice.call(arguments, 1)));
+        if (typeof out !== 'string') return out;
+        var floor = -max, dp = isImperial ? 4 : 3;
+        var word = 'Z' + (Math.ceil(floor * Math.pow(10, dp) - 1e-9) / Math.pow(10, dp)).toFixed(dp);
+        return out.split('\n').map(function(line) {
+          if (/^\s*\(/.test(line) || /\bG53\b/.test(line)) return line;
+          var cut = line.search(/[;(]/), code = cut < 0 ? line : line.slice(0, cut), rest = cut < 0 ? '' : line.slice(cut);
+          return code.replace(/Z(-?\d*\.?\d+)/g, function(m, v) { return +v < floor - 1e-9 ? word : m; }) + rest;
+        }).join('\n');
+      };
+    }
+
+    var api = {
       generateRectangleProgram: generateRectangleProgram,
       mergePrograms: mergePrograms,
       generateCircleProgram: generateCircleProgram,
@@ -19442,6 +20156,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       segmentsBbox: segmentsBbox,
       slotProblem: slotProblem
     };
+    Object.keys(api).forEach(function(k) { if (/^generate\w*Program$/.test(k)) api[k] = penLimited(api[k]); });
+    return api;
   }
 
   init();
