@@ -1042,6 +1042,18 @@ test('jointer trims Trim Width per trim from the bit edge, plunging beside the s
   }
 });
 
+test('jointer refuses a Trim Width wider than the bit, and a missing bit', () => {
+  const gen = makeQuickCutGenerator(false).generateJointerProgram;
+  const wide = gen(jointerBase({ bitDiameter: 6.35, trimWidth: 10, numTrims: 2 }));
+  assert.match(wide, /WARNING: Trim Width is more than the bit diameter/);
+  assert.doesNotMatch(wide, /^G1 /m);
+  assert.match(gen(jointerBase({ bitDiameter: 6.35, trimWidth: 6.35, numTrims: 2 })), /^G1 X/m);
+  const noBit = gen(jointerBase({ bitDiameter: undefined }));
+  assert.match(noBit, /WARNING: invalid parameters/);
+  assert.doesNotMatch(noBit, /^G1 /m);
+  assert.match(gen(jointerBase({})), /\(Trim: 1mm x 3 passes = 3mm total\)/);
+});
+
 test('jointer multi-depth × multi-trim: depth × numTrims plunges total', () => {
   const gen = makeQuickCutGenerator(false).generateJointerProgram;
   const gcode = gen(jointerBase({

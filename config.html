@@ -5097,6 +5097,13 @@
     }
     if (n > rules.max)                             return rules.label + ' must not exceed ' + rules.max + units;
 
+    // A Jointer trim wider than the bit would leave a strip uncut between
+    // trims (the first a thin wall on the stock's face): more trims instead.
+    if (id === 'qc-join-width') {
+      var joinBit = num('qc-bit', 0);
+      if (joinBit > 0 && n > joinBit + 1e-9) return rules.label + ' is more than the Bit Diameter, ' + roundDisplay(joinBit) + units + '; take more trims instead';
+    }
+
     // A Slot shape that can't be cut shows on the field to change.
     if (/^qc-slt-(width|length|radius|sweep|chord|rise)$/.test(id)) {
       var slotProblem = slotShapeProblem();
@@ -18340,7 +18347,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         shapeLabel: 'Jointer',
         extraComments: [
           'Length: ' + length + unitsLabel + ' along ' + feedAxis.toUpperCase() + '-axis',
-          'Trim: ' + trimWidth + unitsLabel + ' × ' + numTrims +
+          'Trim: ' + trimWidth + unitsLabel + ' x ' + numTrims +
             ' pass' + (numTrims === 1 ? '' : 'es') + ' = ' + totalTrim + unitsLabel + ' total',
           'Cut Direction: ' + cutDirection,
           'Side to Cut: ' + origin,
@@ -18349,8 +18356,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         ]
       });
 
-      if (bitDiameter <= 0 || trimWidth <= 0 || numTrims < 1 || length <= 0) {
+      if (!(bitDiameter > 0) || trimWidth <= 0 || numTrims < 1 || length <= 0) {
         lines.push('(WARNING: invalid parameters; nothing to cut)');
+        lines.push.apply(lines, programFooter(params));
+        return lines.join('\n');
+      }
+      // Wider than the bit, a trim would leave a strip uncut beside the last.
+      if (trimWidth > bitDiameter + 1e-9) {
+        lines.push('(WARNING: Trim Width is more than the bit diameter; nothing to cut)');
         Array.prototype.push.apply(lines, programFooter(params));
         return lines.join('\n');
       }
