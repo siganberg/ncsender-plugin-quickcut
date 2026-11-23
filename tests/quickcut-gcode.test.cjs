@@ -4261,3 +4261,52 @@ test('planer wasteboard: one continuous zigzag around edge and corner zones, saf
     assert.equal(missed, 0, `${name} ${pattern}: ${missed} spots left uncut`);
   }
 });
+
+test('planer wasteboard Bit Edge Past Travel: the center reaches the travel edge, never past it', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial).generatePlanerProgram;
+    const k = imperial ? 1 / 25.4 : 1, r4 = (v) => Math.round(v * 1e4) / 1e4;
+    // The Pi: 812 x 1230 travel from machine 0, X0 Y0 at the homing pull-off.
+    const W = r4(812 * k), H = r4(1230 * k), wo = { x: r4(2 * k), y: r4(2 * k) }, bit = r4(49.2125 * k);
+    const zone = { name: 'RCATC', minX: r4(625 * k), minY: r4(725 * k), maxX: W, maxY: H };
+    for (const pattern of ['zigzagY', 'zigzagX', 'spiral']) {
+      for (const cutDirection of ['both', 'conventional']) {
+        for (const keepouts of [[], [zone]]) {
+          const p = planerBase({ mode: 'wasteboard', width: W, height: H, pattern, cutDirection, bitDiameter: bit, stepoverPct: 54,
+            travelMin: { x: 0, y: 0 }, workOrigin: wo, keepouts, pastTravel: true });
+          const g = gen(p), what = `${imperial ? 'in' : 'mm'} ${pattern} ${cutDirection} zones ${keepouts.length}`;
+          assert.match(g, new RegExp('^\\(Bit center to the travel\'s edge: its edge cuts up to ' + (bit / 2).toFixed(2).slice(0, -1) + '\\d+' + (imperial ? 'inch' : 'mm') + ' past it\\)$', 'm'), what);
+          // Every XY the program goes to (rapids too), in machine coordinates.
+          let x = 0, y = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
+          for (const raw of g.split('\n')) {
+            const line = raw.replace(/\(.*?\)/g, '');
+            if (!/^G[0-3]\b/.test(line) || /G53/.test(line)) continue;
+            const mx = /X(-?[\d.]+)/.exec(line), my = /Y(-?[\d.]+)/.exec(line);
+            if (mx) x = +mx[1]; if (my) y = +my[1];
+            if (!mx && !my) continue;
+            const X = x + wo.x, Y = y + wo.y;
+            assert.ok(X >= 0 && X <= W && Y >= 0 && Y <= H, `${what}: ${X},${Y} is past the travel`);
+            lo = [Math.min(lo[0], X), Math.min(lo[1], Y)]; hi = [Math.max(hi[0], X), Math.max(hi[1], Y)];
+          }
+          // It reaches each edge it can (the back right is the zone's).
+          const near = imperial ? 0.001 : 0.02;
+          assert.ok(lo[0] < near && lo[1] < near, `${what}: low ${lo}`);
+          if (!keepouts.length) assert.ok(hi[0] > W - near && hi[1] > H - near, `${what}: high ${hi}`);
+          // Zones are still kept clear by the bit radius and the gap.
+          // (less the output's rounding: 3 decimals, 4 in inches)
+          const R = bit / 2 + (imperial ? 0.125 - 0.00005 : 3 - 0.0005);
+          for (const m of planerCuts(g)) for (const [px, py] of [[m.x0, m.y0], [m.x1, m.y1]]) {
+            for (const z of keepouts) {
+              const X = px + wo.x, Y = py + wo.y;
+              assert.ok(!(X > z.minX - R && X < z.maxX + R && Y > z.minY - R && Y < z.maxY + R), `${what}: cut at ${X},${Y} near ${z.name}`);
+            }
+          }
+          // Off, the bit's edge stays inside, as before.
+          const off = gen(Object.assign({}, p, { pastTravel: false }));
+          assert.ok(!/Bit center to the travel/.test(off));
+          assert.notEqual(off, g);
+        }
+      }
+    }
+  }
+});

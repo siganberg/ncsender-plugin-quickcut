@@ -3688,6 +3688,15 @@
                       </span>
                     </label>
                   </div>
+                <div class="qc-field qc-plan-past-field" style="display: none;">
+                    <label class="qc-switch-label" title="The bit's center goes to the edge of the machine's travel, so its edge surfaces a bit radius past it: all of the bed the bit can reach. Turn it off when a frame, clamp or stop is within a bit radius of the travel: the bit's edge then stays inside it. Keepout zones are left out either way.">
+                      <span>Bit Edge Past Travel</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-plan-past-travel" checked>
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
+                  </div>
                 <p class="qc-mode-hint" id="qc-plan-mode-hint"></p>
                 <div class="qc-row-2">
                   <div class="qc-field">
@@ -6030,6 +6039,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depth:        num('qc-plan-depth', 0),
       depthOfCut:   num('qc-plan-step', 0),
       avoidKeepout: $('qc-plan-keepout').checked,
+      pastTravel:   mode === 'wasteboard' && $('qc-plan-past-travel').checked,
       keepouts:     mode === 'wasteboard' ? planerKeepouts() : [],
       travelMin:    mode === 'wasteboard' && state.machineMinXmm != null
         ? { x: roundDisplay(mmToDisplay(state.machineMinXmm)), y: roundDisplay(mmToDisplay(state.machineMinYmm)) } : null,
@@ -6088,6 +6098,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var overrunField = document.querySelector('.qc-plan-overrun-field');
     if (overrunField) overrunField.style.display = isWasteboard ? 'none' : '';
     document.querySelector('.qc-plan-keepout-field').style.display = isWasteboard && state.keepoutZonesMm.length ? '' : 'none';
+    document.querySelector('.qc-plan-past-field').style.display = isWasteboard ? '' : 'none';
     // Wasteboard: auto-fill width/height from grblHAL $130/$131 and lock
     // the fields so the user can't drift off machine limits. Origin
     // selector is locked to front-left: G54 zero goes on the travel's
@@ -9122,6 +9133,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (plan.depth != null)      $('qc-plan-depth').value    = roundDisplay(mmToDisplay(plan.depth));
     if (plan.depthOfCut != null) $('qc-plan-step').value     = roundDisplay(mmToDisplay(plan.depthOfCut));
     if (plan.avoidKeepout != null) $('qc-plan-keepout').checked = !!plan.avoidKeepout;
+    if (plan.pastTravel != null) $('qc-plan-past-travel').checked = !!plan.pastTravel;
     updatePlanerModeVisibility();
 
     var join = saved.jointer || {};
@@ -9405,7 +9417,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         stepoverPct:  params.stepoverPct,
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
-        avoidKeepout: params.avoidKeepout
+        avoidKeepout: params.avoidKeepout,
+        pastTravel:   $('qc-plan-past-travel').checked
       };
     } else if (params.shape === 'jointer') {
       body.jointer = {
@@ -10182,6 +10195,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     wireCrossCheck($('qc-plan-start-thickness'), 'qc-plan-depth');
     $('qc-plan-keepout').addEventListener('change', updatePlanerModeVisibility);
+    $('qc-plan-past-travel').addEventListener('change', updatePlanerModeVisibility);
     ['qc-plan-depth', 'qc-plan-start-thickness'].forEach(function(id) {
       var el = $(id);
       if (el) el.addEventListener('input', updatePlanerPreview);
@@ -15676,7 +15690,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.',
       HELP_CHAMFER + ' On Drill, the card asks for the <strong>Hole Diameter</strong> (the drill&rsquo;s size, as the Tool card holds the V-bit), and the Feed Rate comes back on for the chamfer&rsquo;s laps. <strong>Method</strong> Plunge goes straight down at each hole&rsquo;s center instead, like a countersink, until the V&rsquo;s cone meets the chamfer&rsquo;s edge: quicker, but the V-bit has to be wider than the hole and chamfer, and the tip goes the hole&rsquo;s radius deeper (at 90&deg;). Keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' ] },
     planer: { name: 'Planer', notes: [
-      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
+      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131). With <strong>Bit Edge Past Travel</strong> on, the bit&rsquo;s center goes to the travel&rsquo;s edge, so its edge surfaces a bit radius past it: all of the bed it can reach. Turn it off when a frame, clamp or stop is that close, and the bit&rsquo;s edge stays inside the travel. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.',
       'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius and 3&nbsp;mm (1/8&nbsp;in), cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided. Once the machine is homed, the program is made from where X0&nbsp;Y0 is then (homing&rsquo;s pull-off often leaves it a few mm in from the corner), so the travel and the zones line up; don&rsquo;t move X0&nbsp;Y0 before running it.' ] },
@@ -18847,8 +18861,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var cutH = height + clear * 2;
       // Wasteboard: inset by bit radius so the tool's outer edge stops
       // at machine travel bounds (no over-travel into the frame).
+      // pastTravel: the bit's center goes to the travel's edge instead, so its
+      // edge surfaces a bit radius past it, all of the bed it can reach (a
+      // hair in, so rounding never asks for a move past a soft limit).
+      var pastTravel = isWasteboard && !!params.pastTravel;
       if (isWasteboard) {
-        var inset = bitDiameter / 2;
+        var inset = pastTravel ? (isImperial ? 0.0005 : 0.01) : bitDiameter / 2;
         startX += inset + travelMin.x - wo.x;
         startY += inset + travelMin.y - wo.y;
         cutW  -= inset * 2;
@@ -18896,6 +18914,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         } else {
           extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
         }
+        if (pastTravel) extras.push('Bit center to the travel\'s edge: its edge cuts up to ' + +(bitDiameter / 2).toFixed(4) + unitsLabel + ' past it');
       }
       if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + +cutW.toFixed(4) + ' x ' + +cutH.toFixed(4) + ')');
       if (isThickness) {
