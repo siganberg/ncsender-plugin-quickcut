@@ -10407,8 +10407,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }
   }
   // The open chamfer's own drawing, after a Chamfer card field changes.
-  function updateChamferPreview() {
-    var update = { cutter: updateCutterPreview, circle: updateCirclePreview, rectangle: updateRectanglePreview, polygon: updatePolygonPreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[state.chamferMode];
+  function updateChamferPreview() { redrawChamferShape(state.chamferMode); }
+  function redrawChamferShape(tab) {
+    var update = { cutter: updateCutterPreview, circle: updateCirclePreview, rectangle: updateRectanglePreview, polygon: updatePolygonPreview, slot: updateSlotPreview, keyhole: updateKeyholePreview }[tab];
     if (update) update();
   }
   function updateChamferVisibility() {
@@ -10664,6 +10665,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     state.wasPocket = null;
     // Back on the shape's own tool.
     if (target && state.toolByShape[target]) writeToolToInputs(state.toolByShape[target]);
+    // The shape's own drawing again: Cutter and Circle aren't redrawn when
+    // their tab opens, so the V-bit's side view would stay.
+    redrawChamferShape(target);
   }
   // From a shape tab: the Chamfer tab with that shape's numbers.
   function chamferFromTab(tab) {
