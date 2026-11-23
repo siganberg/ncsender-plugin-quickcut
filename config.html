@@ -18581,29 +18581,57 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return out;
     }
 
-    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay) {
+    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay, firstFeed) {
+      if (firstFeed == null) firstFeed = feedRate;
       if (pattern === 'spiral') {
-        emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate);
+        emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate, firstFeed);
         return;
       }
       var invert = (pattern === 'zigzagX');
-      if (oneWay) { emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, oneWay); return; }
+      if (oneWay) { emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, oneWay, firstFeed); return; }
       var stepDim = invert ? cutH : cutW;
       var numPasses = Math.ceil(stepDim / step) + 1;
-      var direction = 1;
+      // Passes run along `a` (Y, or X when invert) and step across `b`. Each
+      // turnaround's two corners are rounded with arcs of a quarter of the
+      // stepover (half the step at most, on a short last one): at a square
+      // corner the machine all but stops while the bit spins on the floor,
+      // which burns; round, it keeps speed through the turn. The arcs stay
+      // inside the old corners, so the bit reaches no farther.
+      var aLo = invert ? startX : startY, aHi = invert ? startX + cutW : startY + cutH;
+      var bLo = invert ? startY : startX, bHi = invert ? startY + cutH : startX + cutW;
+      var pt = function(a, b) { return invert ? { x: a, y: b } : { x: b, y: a }; };
+      var fmtXY = function(p) { return 'X' + p.x.toFixed(xyDp) + ' Y' + p.y.toFixed(xyDp); };
+      var arc = function(from, to, c, ta, tb) {
+        // Clockwise when the turn from heading ta to tb is to the right.
+        var cross = ta.x * tb.y - ta.y * tb.x;
+        lines.push((cross < 0 ? 'G2 ' : 'G3 ') + fmtXY(to) + ' I' + (c.x - from.x).toFixed(xyDp) + ' J' + (c.y - from.y).toFixed(xyDp) + ' F' + feedRate);
+      };
+      var dir = 1, b = bLo;
       for (var p = 0; p < numPasses; p++) {
-        if (invert) {
-          var y = Math.min(startY + p * step, startY + cutH);
-          if (p > 0) lines.push('G1 Y' + y.toFixed(3) + ' F' + feedRate);
-          var xEnd = direction === 1 ? (startX + cutW) : startX;
-          lines.push('G1 X' + xEnd.toFixed(xyDp) + ' F' + feedRate);
-        } else {
-          var x = Math.min(startX + p * step, startX + cutW);
-          if (p > 0) lines.push('G1 X' + x.toFixed(xyDp) + ' F' + feedRate);
-          var yEnd = direction === 1 ? (startY + cutH) : startY;
-          lines.push('G1 Y' + yEnd.toFixed(3) + ' F' + feedRate);
+        var aEnd = dir === 1 ? aHi : aLo;
+        var nextB = p + 1 < numPasses ? Math.min(bLo + (p + 1) * step, bHi) : null;
+        var gap = nextB == null ? 0 : nextB - b;
+        var r = Math.min(step / 4, gap / 2, (aHi - aLo) / 2);
+        var f = p === 0 ? firstFeed : feedRate;
+        if (nextB == null || gap <= 1e-9) {
+          lines.push('G1 ' + (invert ? 'X' : 'Y') + aEnd.toFixed(invert ? xyDp : 3) + ' F' + f);
+          if (nextB != null) b = nextB;
+          dir *= -1;
+          continue;
         }
-        direction *= -1;
+        if (r < 0.01) {
+          lines.push('G1 ' + (invert ? 'X' : 'Y') + aEnd.toFixed(invert ? xyDp : 3) + ' F' + f);
+          lines.push('G1 ' + (invert ? 'Y' + nextB.toFixed(3) : 'X' + nextB.toFixed(xyDp)) + ' F' + feedRate);
+        } else {
+          var p1 = pt(aEnd - dir * r, b), p2 = pt(aEnd, b + r), p3 = pt(aEnd, nextB - r), p4 = pt(aEnd - dir * r, nextB);
+          var along = pt(dir, 0), across = pt(0, 1), back = pt(-dir, 0);
+          lines.push('G1 ' + fmtXY(p1) + ' F' + f);
+          arc(p1, p2, pt(aEnd - dir * r, b + r), along, across);
+          if (nextB - r - (b + r) > 1e-9) lines.push('G1 ' + fmtXY(p3) + ' F' + feedRate);
+          arc(p3, p4, pt(aEnd - dir * r, nextB - r), across, back);
+        }
+        b = nextB;
+        dir *= -1;
       }
     }
 
@@ -18612,7 +18640,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // with it on the bit's left is conventional (as on the Jointer): along Y
     // that runs -Y, along X +X. Climb runs the other way. Between passes:
     // up to the hop height, across to the next start, down at the plunge rate.
-    function emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, o) {
+    function emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, o, firstFeed) {
       var stepDim = invert ? cutH : cutW;
       var numPasses = Math.ceil(stepDim / step) + 1;
       var plus = invert ? !o.climb : o.climb;
@@ -18634,7 +18662,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           down = true;
         }
         var ex = invert ? to : across, ey = invert ? across : to;
-        lines.push('G1 X' + ex.toFixed(xyDp) + ' Y' + ey.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + ex.toFixed(xyDp) + ' Y' + ey.toFixed(xyDp) + ' F' + (p === 0 && firstFeed ? firstFeed : feedRate));
         at = { x: ex, y: ey };
       }
     }
@@ -18659,25 +18687,27 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
     }
 
-    function emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate) {
+    function emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate, firstFeed) {
+      // The first lap, four legs, cuts the full bit width.
+      var legs = 0, F = function() { return legs++ < 4 && firstFeed ? firstFeed : feedRate; };
       var effStep = Math.max(Math.min(step, Math.min(cutW, cutH) / 2), 0.1);
       var left = startX, right = startX + cutW;
       var bottom = startY, top = startY + cutH;
       var curX = left, curY = bottom;
       while (right - left > 0 && top - bottom > 0) {
-        lines.push('G1 X' + right.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + right.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + F());
         curX = right; curY = bottom;
         bottom += effStep; if (bottom >= top) break;
-        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + top.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + top.toFixed(xyDp) + ' F' + F());
         curY = top;
         right -= effStep; if (left >= right) break;
-        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + F());
         curX = left;
         top -= effStep; if (bottom >= top) break;
-        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + F());
         curY = bottom;
         left += effStep; if (left >= right) break;
-        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + F());
         curX = left;
       }
     }
@@ -18736,6 +18766,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         cutH  -= inset * 2;
       }
       var stepoverDist = bitDiameter * (stepoverPct / 100);
+      // The first pass of each lap cuts the bit's full width, not a stepover's,
+      // so it runs at 70% of the feed (still a full chip, unlike a slower one).
+      var firstFeed = stepoverPct < 70 ? Math.round(feedRate * 0.7 * 10) / 10 : feedRate;
       // Wasteboard: leave out ncSender Pro's keepout zone, widened by the
       // bit radius; what's left is up to four rectangles.
       // Each zone (ncSender's, the ATCi's) is taken out of what's left of
@@ -18776,6 +18809,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       extras.push('Stepover: ' + stepoverPct + '% (' + stepoverDist.toFixed(3) + unitsLabel + ')');
       extras.push('Pattern: ' + pattern);
+      if (firstFeed !== feedRate) extras.push('First pass at 70% feed [' + firstFeed + unitsLabel + '/min]: it cuts the full bit width');
       if (cutDirection !== 'both') extras.push('Cut direction: ' + cutDirection + ' (every pass the same way)');
       if (fromInside) extras.push('Spiral: from the inside out');
       keepoutsHit.forEach(function(k) {
@@ -18842,7 +18876,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           }
           if (fromInside) emitSpiralFromInside(lines, a.x, a.y, a.w, a.h, stepoverDist, feedRate, { approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
           else emitPlanerLap(lines, pattern, a.x, a.y, a.w, a.h, stepoverDist, feedRate,
-            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
+            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate }, firstFeed);
           lines.push('G0 Z' + safeHopWork);
         }
         currentDepth = nextDepth;

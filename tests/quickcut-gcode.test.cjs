@@ -776,8 +776,8 @@ test('planer zigzagY makes long strokes along Y with stepover in X', () => {
   assert.match(gcode, /^\(Pattern: zigzagY\)/m);
   // Long strokes end a radius past Y=80 or Y=0 (start bottom-left = (0,0)),
   // so the bit's edge clears the stock. Both ends from the zigzag.
-  assert.match(gcode, /G1 Y83\.000/);
-  assert.match(gcode, /G1 Y-3\.000/);
+  assert.match(gcode, /^G[123] .*Y83\.000/m);
+  assert.match(gcode, /^G[123] .*Y-3\.000/m);
 });
 
 test('planer zigzagX makes long strokes along X with stepover in Y', () => {
@@ -3954,11 +3954,16 @@ function planerCuts(gcode) {
   let x = 0, y = 0, z = 0;
   for (const raw of gcode.split('\n')) {
     const line = raw.replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim();
-    const g = /^G([01])\b/.exec(line);
+    const g = /^G([0-3])\b/.exec(line);
     if (!g) continue;
     const w = (l) => { const m = new RegExp(l + '(-?[\\d.]+)').exec(line); return m ? +m[1] : null; };
     const nx = w('X') ?? x, ny = w('Y') ?? y, nz = w('Z') ?? z;
-    if (g[1] === '1' && z < 0 && nz < 0 && (nx !== x || ny !== y)) out.push({ x0: x, y0: y, x1: nx, y1: ny });
+    if (g[1] !== '0' && z < 0 && nz < 0 && (nx !== x || ny !== y)) {
+      const m = { x0: x, y0: y, x1: nx, y1: ny };
+      // Arcs (the zigzag's rounded turnarounds) with their center.
+      if (g[1] !== '1') Object.assign(m, { arc: g[1] === '2' ? 'cw' : 'ccw', cx: x + (w('I') || 0), cy: y + (w('J') || 0) });
+      out.push(m);
+    }
     x = nx; y = ny; z = nz;
   }
   return out;
@@ -4136,4 +4141,57 @@ test('planer wasteboard: made from where X0 Y0 really is, the bit stays in the t
         old.replace(/^\(Set G54[^\n]*\n/m, ''));
     }
   }
+});
+
+// The Pi, 2026-11-23: a 2" bit surfacing MDF burned where the zigzag turned
+// around (square corners: the machine all but stops there), and the first
+// pass, cutting the full bit width, loaded the spindle hardest.
+test('planer zigzag turnarounds are rounded: tangent everywhere, true arcs, no farther than before', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  for (const pattern of ['zigzagX', 'zigzagY']) for (const [w, h, d, so] of [[812, 1230, 49.212, 40], [100, 80, 6, 50], [60, 41, 6, 33], [40, 30, 10, 90]]) {
+    const p = planerBase({ mode: 'wasteboard', overrun: 0, width: w, height: h, pattern, bitDiameter: d, stepoverPct: so, depth: 1, depthOfCut: 1 });
+    const cuts = planerCuts(gen(p));
+    const dirAt = (m, end) => {
+      if (!m.arc) { const l = Math.hypot(m.x1 - m.x0, m.y1 - m.y0); return [(m.x1 - m.x0) / l, (m.y1 - m.y0) / l]; }
+      const [px, py] = end ? [m.x1, m.y1] : [m.x0, m.y0], rx = px - m.cx, ry = py - m.cy, rl = Math.hypot(rx, ry);
+      return m.arc === 'ccw' ? [-ry / rl, rx / rl] : [ry / rl, -rx / rl];
+    };
+    let arcs = 0;
+    cuts.forEach((m, i) => {
+      if (m.arc) {
+        arcs++;
+        const r0 = Math.hypot(m.x0 - m.cx, m.y0 - m.cy), r1 = Math.hypot(m.x1 - m.cx, m.y1 - m.cy);
+        assert.ok(Math.abs(r0 - r1) < 0.002 && r0 <= d * so / 100 / 4 + 0.002, `${pattern} arc radius ${r0} ${r1}`);
+      }
+      const n = cuts[i + 1];
+      if (!n || Math.hypot(n.x0 - m.x1, n.y0 - m.y1) > 1e-6) return;
+      const a = dirAt(m, true), b = dirAt(n, false);
+      // Within a lap no square corner is left: each move leaves the way the last one arrived.
+      assert.ok(a[0] * b[0] + a[1] * b[1] > 0.999, `${pattern} ${w}x${h} corner at ${m.x1},${m.y1}`);
+    });
+    assert.ok(arcs > 0, 'has arcs');
+    // Reaches the same rectangle as before, and no farther.
+    const xs = cuts.flatMap(m => [m.x0, m.x1]), ys = cuts.flatMap(m => [m.y0, m.y1]), r = d / 2;
+    assert.deepEqual([Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)].map(v => +v.toFixed(3)), [r, w - r, r, h - r].map(v => +v.toFixed(3)));
+  }
+});
+
+test('planer: the first pass of each lap, cutting the full bit width, runs at 70% feed', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  for (const [pattern, cutDirection] of [['zigzagX', 'both'], ['zigzagY', 'both'], ['zigzagX', 'climb'], ['spiral', 'both']]) {
+    const g = gen(planerBase({ mode: 'depth', overrun: 0, width: 200, height: 100, pattern, cutDirection, bitDiameter: 20, stepoverPct: 40, depth: 2, depthOfCut: 1, feedRate: 7500 }));
+    assert.match(g, /^\(First pass at 70% feed \[5250mm\/min\]: it cuts the full bit width\)$/m);
+    // Per depth: the first cutting move(s) at 5250, then 7500.
+    const passes = g.split('(Pass Z').slice(1);
+    assert.equal(passes.length, 2);
+    for (const pass of passes) {
+      const feeds = pass.split('\n').filter(l => /^G[123] .*[XY]/.test(l)).map(l => +/F([\d.]+)/.exec(l)[1]);
+      assert.equal(feeds[0], 5250, pattern);
+      assert.ok(feeds.slice(-3).every(f => f === 7500), pattern);
+      assert.ok(feeds.filter(f => f === 5250).length <= 4, pattern);
+    }
+  }
+  // A stepover of 70% or more is near full width anyway: no change.
+  const wide = gen(planerBase({ overrun: 0, width: 200, height: 100, bitDiameter: 20, stepoverPct: 75, depth: 1, depthOfCut: 1, feedRate: 7500 }));
+  assert.ok(!/First pass at/.test(wide) && !/F5250/.test(wide));
 });
