@@ -11876,6 +11876,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         text = 'About ' + (min < 1.5 ? '1 min' : Math.round(min) + ' min') + (params.toolNumber > 0 ? ' after the tool change' : '');
         var t = travelCheck(lines, k);
         if (t) { text += '. ' + t.text; bad = t.bad; }
+        var z = originZoneNote();
+        if (z) { text += '. ' + z; bad = true; }
         text += '.';
         tabNote = tabsNote(lines);
         var fl = fluteDepthNote(TAB_PREFIX[view]);
@@ -12004,6 +12006,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var from = ' from ' + state.wco.ws + '\u2019s X0 Y0';
     if (!past.length) return { text: 'Fits the machine\u2019s travel' + from, bad: false };
     return { text: 'Runs ' + roundDisplay(mmToDisplay(past[0][1])) + ' ' + state.unitLabel + ' past ' + past[0][0] + from + ': move X0 Y0 or the shape', bad: true };
+  }
+  // ncSender Pro won't start a program whose path, as drawn, starts in a
+  // keepout zone, and the drawn path starts at X0 Y0: say so when X0 Y0
+  // is in a zone that's on (e.g. zeroed at the tool rack).
+  function originZoneNote() {
+    var w = state.wco;
+    if (!w) return '';
+    var hit = (state.keepoutZonesMm || []).filter(function(z) { return w.x > z.minX && w.x < z.maxX && w.y > z.minY && w.y < z.maxY; });
+    if (!hit.length) return '';
+    return w.ws + '\u2019s X0 Y0 is inside ' + hit.map(function(z) { return z.name; }).join(', ') +
+      ' (machine X ' + roundDisplay(mmToDisplay(w.x)) + ' Y ' + roundDisplay(mmToDisplay(w.y)) + '), so ncSender won\u2019t start the program: set X0 Y0 outside it';
   }
   async function refreshWco() {
     _wcoAt = Date.now();
