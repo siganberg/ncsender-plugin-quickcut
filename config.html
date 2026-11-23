@@ -3680,7 +3680,7 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20" title="Current height of the stock, measured from the wasteboard.">
                   </div>
                 <div class="qc-field qc-plan-keepout-field" style="display: none;">
-                    <label class="qc-switch-label" title="Leave out the keepout zones that are on (ncSender's in Settings › Advanced, and the ATCi tool rack's, $684-$687), plus the bit radius, so the cutter never enters them">
+                    <label class="qc-switch-label" title="Leave out the keepout zones that are on (ncSender's in Settings › Advanced, and the ATCi tool rack's, $684-$687), plus the bit radius and 3 mm (1/8 in), so the cutter never enters them">
                       <span>Avoid Keepout Zone</span>
                       <span class="qc-switch">
                         <input type="checkbox" id="qc-plan-keepout" checked>
@@ -6033,6 +6033,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       keepouts:     mode === 'wasteboard' ? planerKeepouts() : [],
       travelMin:    mode === 'wasteboard' && state.machineMinXmm != null
         ? { x: roundDisplay(mmToDisplay(state.machineMinXmm)), y: roundDisplay(mmToDisplay(state.machineMinYmm)) } : null,
+      // Where X0 Y0 is now (machine), once homed: the program cuts the
+      // travel and leaves the zones out from there.
+      workOrigin:   mode === 'wasteboard' && state.wco && state.machineMinXmm != null
+        ? { x: roundDisplay(mmToDisplay(state.wco.x)), y: roundDisplay(mmToDisplay(state.wco.y)) } : null,
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     });
@@ -6117,7 +6121,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return '<span class="qc-z0-callout"><span class="qc-z0-tag">Set Z0 on</span><span class="qc-z0-target">' + target + '</span></span>';
     }
     if (mode === 'thickness') return z0('the wasteboard (bottom of stock)') + '<br>Remove a set amount and end at a known thickness.';
-    if (mode === 'wasteboard') return z0('the highest spot of the wasteboard') + '<br>Surfaces the machine’s whole travel. Set G54 X0 Y0 at the front-left corner of the travel.';
+    if (mode === 'wasteboard') return z0('the highest spot of the wasteboard') + '<br>Surfaces the machine’s whole travel from where X0 Y0 is now (once homed; otherwise set X0 Y0 at the front-left corner of the travel). Don’t move X0 Y0 before running it.';
     return z0('the highest spot of the stock') + '<br>Flattens an uneven top, a pass at a time.';
   }
 
@@ -13876,8 +13880,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<rect x="' + f(sx) + '" y="' + f(sy) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="3" fill="url(#qc-plan-wood)" class="qc-fig-edge"/>' + woodGrain(sx, sy, sw, sh, 3) +
       (p.keepouts || []).map(function(k) {
         // Zones are in machine coordinates; the drawing is in work ones,
-        // zero on the travel's front-left corner.
-        var tm = p.travelMin || { x: 0, y: 0 };
+        // zero at X0 Y0 (the travel's front-left corner when not known).
+        var tm = p.workOrigin || p.travelMin || { x: 0, y: 0 };
         k = { name: k.name, minX: k.minX - tm.x, maxX: k.maxX - tm.x, minY: k.minY - tm.y, maxY: k.maxY - tm.y };
         var kx = X(Math.max(k.minX, rx)), ky = Y(Math.min(k.maxY, ry + Hh)), kw = X(Math.min(k.maxX, rx + W)) - kx, kh = Y(Math.max(k.minY, ry)) - ky;
         if (!(kw > 0 && kh > 0)) return '';
@@ -15650,7 +15654,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.',
-      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius, cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided.' ] },
+      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius and 3&nbsp;mm (1/8&nbsp;in), cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided. Once the machine is homed, the program is made from where X0&nbsp;Y0 is then (homing&rsquo;s pull-off often leaves it a few mm in from the corner), so the travel and the zones line up; don&rsquo;t move X0&nbsp;Y0 before running it.' ] },
     jointer: { name: 'Jointer', notes: [
       'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong># of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
       'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work. <strong>Both Ways</strong> alternates the trims, each starting where the last ended, to save the trip back (every other one climbs). The arrows in the preview show the way the bit travels; tap one to switch.',
@@ -18678,6 +18682,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // there, -$130/-$131 on machines whose coordinates run negative); the
       // keepout zones, kept in machine coordinates, are moved by it.
       var travelMin = isWasteboard && params.travelMin ? { x: params.travelMin.x, y: params.travelMin.y } : { x: 0, y: 0 };
+      // Where X0 Y0 really is, in machine coordinates (ncSender's work
+      // offset, read once homed). Given, the program cuts the travel and
+      // leaves the zones out from there, wherever X0 Y0 was set (homing's
+      // pull-off often leaves it a few mm in). Without it, X0 Y0 must be
+      // the travel's front-left corner.
+      var workOrigin = isWasteboard && params.workOrigin ? { x: params.workOrigin.x, y: params.workOrigin.y } : null;
+      var wo = workOrigin || travelMin;
+      // Zones are kept this far beyond the bit's edge as well.
+      var keepoutGap = isImperial ? 0.125 : 3;
       // Wasteboard zero is always the travel's front-left corner.
       var origin = isWasteboard ? 'front-left' : (params.origin || 'front-left');
       var bl = regionBottomLeft(origin, width, height);
@@ -18692,8 +18705,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // at machine travel bounds (no over-travel into the frame).
       if (isWasteboard) {
         var inset = bitDiameter / 2;
-        startX += inset;
-        startY += inset;
+        startX += inset + travelMin.x - wo.x;
+        startY += inset + travelMin.y - wo.y;
         cutW  -= inset * 2;
         cutH  -= inset * 2;
       }
@@ -18703,14 +18716,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // Each zone (ncSender's, the ATCi's) is taken out of what's left of
       // the last; keepoutsHit are those that removed something.
       var keepouts = isWasteboard && params.keepouts ? params.keepouts.map(function(k) {
-        var dx = bl.x - travelMin.x, dy = bl.y - travelMin.y;
+        var dx = bl.x - wo.x, dy = bl.y - wo.y;
         return { name: k.name, minX: k.minX + dx, maxX: k.maxX + dx, minY: k.minY + dy, maxY: k.maxY + dy, m: k };
       }) : [];
       var areas = [{ x: startX, y: startY, w: cutW, h: cutH }];
       var keepoutsHit = [];
       keepouts.forEach(function(k) {
         var next = [];
-        areas.forEach(function(a) { next = next.concat(subtractKeepout(a, k, bitDiameter / 2)); });
+        areas.forEach(function(a) { next = next.concat(subtractKeepout(a, k, bitDiameter / 2 + keepoutGap)); });
         if (next.length !== areas.length || next.some(function(a, i) { return a !== areas[i]; })) keepoutsHit.push(k);
         areas = next;
       });
@@ -18721,7 +18734,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         'Region: ' + width + ' x ' + height + ' ' + unitsLabel
       ];
       if (isWasteboard) {
-        extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
+        if (workOrigin) {
+          extras.push('Made for X0 Y0 at machine X ' + +wo.x.toFixed(4) + ', Y ' + +wo.y.toFixed(4) + unitsLabel + ': keep it there');
+          extras.push('Cuts the travel from machine X ' + travelMin.x + ', Y ' + travelMin.y + '; Z0 on the wasteboard surface');
+        } else {
+          extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
+        }
       }
       if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + +cutW.toFixed(4) + ' x ' + +cutH.toFixed(4) + ')');
       if (isThickness) {
@@ -18738,7 +18756,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       keepoutsHit.forEach(function(k) {
         var mk = k.m || k;
         extras.push('Keepout zone left out: ' + (k.name ? k.name + ', ' : '') + 'machine X ' + mk.minX + '-' + mk.maxX +
-                    ', Y ' + mk.minY + '-' + mk.maxY + unitsLabel + ' plus the bit radius');
+                    ', Y ' + mk.minY + '-' + mk.maxY + unitsLabel);
+      extras.push('  kept clear by the bit radius plus ' + keepoutGap + unitsLabel);
       });
       if (keepoutsHit.length) extras.push('Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
       // A zone that's on but outside the surfacing area, e.g. on a machine
