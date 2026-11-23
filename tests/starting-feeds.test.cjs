@@ -78,9 +78,9 @@ test('conservative slows the feed even when the machine max holds it', () => {
   assert.equal(con.feedMm, 1875);
   assert.equal(con.capped, false);
   // The chip shown is the one the held feed cuts, not the formula's: the
-  // spindle came down to 10000 RPM for it first.
-  assert.equal(avg.rpm, 10000);
-  assert.ok(Math.abs(avg.chipMm - 2500 / 20000) < 1e-12);
+  // spindle came down to 12000 RPM for it first.
+  assert.equal(avg.rpm, 12000);
+  assert.ok(Math.abs(avg.chipMm - 2500 / 24000) < 1e-12);
 });
 
 test('conservative keeps the chip where a thin one melts or rubs: plastics and aluminum', () => {
@@ -163,7 +163,7 @@ test('deepChip is what the deep pass took off the feed, after the caps', () => {
   const f = startingFeeds(6.35, 4, 'mdf', null, 'aggressive', { stepMm: 19 });
   assert.ok(f.feedMm < 4000);
   assert.ok(Math.abs(f.deepChip - f.feedMm / 4000) < 1e-3);
-  // Held even deep (a 1/4" 6-flute at 10000 RPM, the slowest): nothing taken off.
+  // Held even deep (a 1/4" 6-flute at 12000 RPM, the slowest): nothing taken off.
   const h = startingFeeds(6.35, 6, 'mdf', { maxFeed: 4000 }, 'aggressive', { stepMm: 7 });
   assert.equal(h.feedMm, 4000);
   assert.equal(h.deepChip, 1);
@@ -186,8 +186,8 @@ test('a big compression bit cuts full depth only on Aggressive', () => {
 test('a bit whose chip needs more than the starting feed turns slower, then gets the machine\'s feed', () => {
   for (const style of ['average', 'aggressive']) {
     const f = startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000 }, style);
-    assert.equal(f.rpm, 10000, style);
-    assert.equal(f.feedMm, 7500, style);
+    assert.equal(f.rpm, 12000, style);
+    assert.equal(f.feedMm, 9000, style);
     assert.ok(Math.abs(f.chipMm - 0.25) < 1e-9, style);
     assert.equal(f.rpmLowered, true);
     assert.equal(f.plungeMm, 1200);   // a fast feed, not a fast plunge
@@ -195,11 +195,13 @@ test('a bit whose chip needs more than the starting feed turns slower, then gets
   }
   // A 1/2" bit: the feed stays at 4000, the spindle comes down for its chip.
   const half = startingFeeds(12.7, 2, 'mdf', { maxFeed: 15000 });
-  assert.ok(half.rpm > 10000 && half.rpm < 18000 && half.feedMm <= 4000 && half.feedMm > 3900);
+  assert.ok(half.rpm > 12000 && half.rpm < 18000 && half.feedMm <= 4000 && half.feedMm > 3900);
   assert.ok(Math.abs(half.chipMm - 0.1524) < 0.002);
-  // Not below the spindle's minimum, nor 10000.
-  assert.equal(startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000, minRpm: 12000 }).rpm, 12000);
-  assert.equal(startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000, minRpm: 12000 }).feedMm, 9000);
+  // Not below the spindle's minimum, nor 12000, where a hobby spindle's
+  // torque falls off (the Pi's 2.2 kW one ran this bit well at 15000).
+  assert.equal(startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000, minRpm: 15000 }).rpm, 15000);
+  assert.equal(startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000, minRpm: 15000 }).feedMm, 11250);
+  assert.equal(startingFeeds(19.05, 2, 'mdf', { maxFeed: 15000 }).rpm, 12000);
   // The machine's max holds it; unknown, the 4000 starting limit does.
   const slow = startingFeeds(49.212, 3, 'mdf', { maxFeed: 5000 });
   assert.equal(slow.feedMm, 5000); assert.equal(slow.capped, true); assert.equal(slow.maxFeedMm, 5000);
