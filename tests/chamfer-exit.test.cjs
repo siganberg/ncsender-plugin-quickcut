@@ -49,3 +49,14 @@ for (const tab of SHAPES) {
     assert.ok(!calls.some((c) => /still/.test(c)), calls.join(', '));
   });
 }
+
+// Another Edge picked on the Chamfer tab leaves the first shape's panel with
+// the chamfer drawing and no exitChamferMode for it: opening any chamfer
+// shape's tab must redraw it.
+test('opening a chamfer shape\'s tab redraws its preview', () => {
+  const sw = fn('switchTab');
+  SHAPES.forEach((tab) => {
+    const re = new RegExp("if \\(target === '" + tab + "'\\) (setTimeout\\()?" + PREVIEWS[tab] + '\\b');
+    assert.match(sw, re, tab);
+  });
+});

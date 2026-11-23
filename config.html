@@ -4330,6 +4330,10 @@
     if (PATTERN_LABEL_TABS.indexOf(TAB_PREFIX[target]) >= 0) updatePatternAngleLabels(TAB_PREFIX[target]);
     if (target === 'keyhole') updateKeyholePreview();
     if (target === 'drill') updateDrillPreview();
+    // Cutter and Circle too: a Chamfer drawing left on them (another Edge
+    // picked on the Chamfer tab) goes.
+    if (target === 'cutter') updateCutterPreview();
+    if (target === 'circle') updateCirclePreview();
     if (target === 'rectangle') updateRectanglePreview();
     if (target === 'polygon') updatePolygonPreview();
     if (target === 'slot') updateSlotPreview();
