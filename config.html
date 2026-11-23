@@ -2298,12 +2298,12 @@
             </div>
             <div class="qc-row-2 qc-material-row">
               <div class="qc-field">
-                <select class="qc-label-select" id="qc-feeds-style" aria-label="Material, and how hard the starting feeds push" title="How hard the starting feeds push. Average: as they are. Conservative, for a light machine, a long bit or a first try: Feed Rate and Plunge Rate x0.75 (even when the machine's max holds them), Depth of Cut and Stepover x0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs. Aggressive, for a rigid machine: Feed Rate and Plunge Rate x1.25 (up to the material's chip limit and the machine's max), Depth of Cut and Stepover x1.2, so about 1.5 to 1.8 times the load. RPM stays. Picking it fills the feeds in again; kept for every tab.">
+                <select class="qc-label-select" id="qc-feeds-style" aria-label="Material, and how hard the starting feeds push" title="How hard the starting feeds push. Average: as they are. Conservative, for a light machine, a long bit or a first try: Feed Rate and Plunge Rate x0.75 (even when the machine's max holds them), Depth of Cut and Stepover x0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs. Aggressive, for a rigid machine: Feed Rate and Plunge Rate x1.25 (up to the material's chip limit and the machine's max), Depth of Cut and Stepover x1.2, so about 1.5 to 1.8 times the load. The style doesn't change the RPM. Picking it fills the feeds in again; kept for every tab.">
                   <option value="average">Material &middot; Average</option>
                   <option value="conservative">Material &middot; Conservative</option>
                   <option value="aggressive">Material &middot; Aggressive</option>
                 </select>
-                <select class="qc-select" aria-labelledby="qc-feeds-style" id="qc-material" title="Fills in starting feeds for the material: Spindle RPM, Feed Rate, Plunge Rate, and this tab's Depth of Cut and Stepover, for the Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. Changing the Bit Diameter or Flutes fills them in again. A start: listen, look at the chips, and adjust.">
+                <select class="qc-select" aria-labelledby="qc-feeds-style" id="qc-material" title="Fills in starting feeds for the material: Spindle RPM, Feed Rate, Plunge Rate, and this tab's Depth of Cut and Stepover, for the Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. A big bit turns slower (down to 10000 RPM) rather than take a thin chip, which rubs and burns. Changing the Bit Diameter or Flutes fills them in again. A start: listen, look at the chips, and adjust.">
                   <option value="">Pick for starting feeds</option>
                   <option value="mdf">MDF / Plywood</option>
                   <option value="softwood">Softwood</option>
@@ -11270,8 +11270,18 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var m = MATERIALS[material] || MATERIALS.mdf, L = limits || {};
     var S = { conservative: { chip: 0.75, cut: 0.75 }, aggressive: { chip: 1.25, cut: 1.2 } }[style] || { chip: 1, cut: 1 };
     var rpm = Math.round(Math.min(L.maxRpm || 24000, Math.max(L.minRpm || 0, m.rpm)));
-    var maxFeed = Math.min(L.maxFeed || 4000, 4000), perRev = rpm * (flutes || 2);
-    var avg = Math.min(maxFeed, perRev * Math.min(m.maxChip, m.chip * bitMm));
+    // The feed starts at most 4000 mm/min (or the machine's max, if less).
+    // A bit whose chip needs more at that RPM turns slower instead, so the
+    // chip stays the material's (a thin chip rubs and burns), down to
+    // 10000 RPM or the spindle's minimum; one that still needs more there,
+    // a surfacing bit, say, gets it, up to the machine's max feed ($110).
+    var cut = Math.min(m.maxChip, m.chip * bitMm), n = flutes || 2;
+    var startFeed = Math.min(L.maxFeed || 4000, 4000), slowest = Math.min(rpm, Math.max(L.minRpm || 0, 10000));
+    var rpmLowered = rpm * n * cut > startFeed && rpm > slowest;
+    if (rpmLowered) rpm = Math.max(slowest, Math.round(startFeed / (n * cut) / 100) * 100);
+    var maxFeed = rpm <= slowest && rpm * n * cut > startFeed ? Math.max(startFeed, L.maxFeed || 0) : startFeed;
+    var perRev = rpm * n;
+    var avg = Math.min(maxFeed, perRev * cut);
     var raw = S.chip < 1 ? avg * (m.keepChip ? 1 : S.chip) : perRev * Math.min(m.maxChip, m.chip * bitMm * S.chip);
     var D = deep || {}, step = Math.max(0.05, bitMm * m.stepdown * S.cut), passes = 0;
     if (D.compression && m.wood && D.depthMm > 0 && bitMm > 0) {
@@ -11290,8 +11300,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       raw = Math.max(eased, least);
     }
     var exact = Math.min(maxFeed, Math.max(150, raw)), feed = Math.round(exact), deepChip = exact / shallow;
-    return { rpm: rpm, chipMm: exact / perRev, feedMm: feed, capped: raw > maxFeed, deepChip: deepChip, passes: passes,
-             plungeMm: Math.round(Math.min(L.maxPlunge || Infinity, Math.max(60, feed * 0.3))), stepMm: step, stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
+    return { rpm: rpm, chipMm: exact / perRev, feedMm: feed, capped: raw > maxFeed, maxFeedMm: maxFeed, rpmLowered: rpmLowered, deepChip: deepChip, passes: passes,
+             plungeMm: Math.round(Math.min(L.maxPlunge || Infinity, startFeed * 0.3, Math.max(60, feed * 0.3))), stepMm: step, stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
   }
   // Fill in the starting feeds for the Material (and the Flutes) picked;
   // quiet when that's from a new Bit Diameter or Flutes rather than a pick.
@@ -11325,7 +11335,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var styleSel = $('qc-feeds-style'), styleName = state.feedsStyle && state.feedsStyle !== 'average' ? ' \u00b7 ' + styleSel.options[styleSel.selectedIndex].textContent.replace(/^Material \u00b7 /, '') : '';
     setTimeout(function() { showTooltip(feed, sel.options[sel.selectedIndex].textContent + styleName + ', a ' + state.flutes + '-flute ' +
       roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
-      (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
+      (f.rpmLowered ? ', RPM lowered so the feed doesn\u2019t thin the chip' : '') +
+      (f.capped ? ', feed held to ' + (f.maxFeedMm !== 4000 ? 'the machine\u2019s max' : 'the 4000 mm/min starting limit') : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
       (f.passes ? ' (' + (f.passes === 1 ? 'one full-depth pass' : f.passes + ' equal passes') + ' for a compression bit)' : '') +
       (f.deepChip < 1 ? ', a deep pass: chip ' + Math.round(f.deepChip * 100) + '%' : '') +
       ($('qc-' + pre + '-stepover') && pre !== 'plan' ? ', Stepover ' + f.stepoverPct + '%' : '') + '.' +
@@ -15690,7 +15701,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s (or &#x2922; in a top view&rsquo;s corner), to enlarge it; there the mouse wheel zooms at the pointer, two fingers pinch, and zoomed in a drag moves it, or use &minus;, + and Fit; click a blank spot again, &times; or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range, and the feed starts at most 4000&nbsp;mm/min: a bigger bit whose chip needs more turns slower instead (down to 10000 RPM or the spindle&rsquo;s minimum), so the chip stays full and doesn&rsquo;t rub and burn; a surfacing bit that still needs more there gets it, up to the machine&rsquo;s max feed. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). The style doesn&rsquo;t change the RPM; Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
       'A field that can&rsquo;t be used gets a red border, and a red bubble over the field you&rsquo;re in (or just left) says why. The note beside <strong>Generate</strong> shows the first problem, with &ldquo;(+N more)&rdquo; when there are others; tap it to go to that field.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
@@ -15865,7 +15876,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (style === 'average') {
           if (f.passes) notes.push('compression bit: ' + (f.passes === 1 ? 'one full-depth pass' : f.passes + ' equal passes'));
           if (f.deepChip < 1) notes.push('deep pass: chip ' + Math.round(f.deepChip * 100) + '%');
-          if (f.capped) { notes.push('<span class="qc-fh-flag">feed held at the ' + feedToDisplay(Math.min(state.maxFeedMm || 4000, 4000)) + ' ' + u + '/min starting limit</span>'); odd = true; }
+          if (f.rpmLowered) notes.push('RPM lowered for a full chip at the starting feed');
+          if (f.capped) { notes.push('<span class="qc-fh-flag">feed held at ' + feedToDisplay(f.maxFeedMm) + ' ' + u + '/min</span>'); odd = true; }
           if (mat !== 'aluminum' && f.chipMm < 0.025) { notes.push('<span class="qc-fh-flag">thin chip: may rub; try a higher feed or lower RPM</span>'); odd = true; }
         }
         return '<td class="qc-fh-num">' + feedToDisplay(f.feedMm) + ' <span class="qc-fh-sub">plunge ' + feedToDisplay(f.plungeMm) + '</span>' +
