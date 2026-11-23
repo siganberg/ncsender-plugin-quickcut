@@ -18581,7 +18581,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return out;
     }
 
-    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay, firstFeed) {
+    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay, firstFeed, maxTurn) {
       if (firstFeed == null) firstFeed = feedRate;
       if (pattern === 'spiral') {
         emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate, firstFeed);
@@ -18611,7 +18611,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var aEnd = dir === 1 ? aHi : aLo;
         var nextB = p + 1 < numPasses ? Math.min(bLo + (p + 1) * step, bHi) : null;
         var gap = nextB == null ? 0 : nextB - b;
-        var r = Math.min(step / 4, gap / 2, (aHi - aLo) / 2);
+        var r = Math.min(step / 4, maxTurn || Infinity, gap / 2, (aHi - aLo) / 2);
         var f = p === 0 ? firstFeed : feedRate;
         if (nextB == null || gap <= 1e-9) {
           lines.push('G1 ' + (invert ? 'X' : 'Y') + aEnd.toFixed(invert ? xyDp : 3) + ' F' + f);
@@ -18631,6 +18631,94 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           arc(p3, p4, pt(aEnd - dir * r, nextB - r), across, back);
         }
         b = nextB;
+        dir *= -1;
+      }
+    }
+
+    // Around keepout zones at an edge or a corner of the bed, the zigzag can
+    // run as one: each pass (row) just stops short of the zones, so the
+    // L-shaped (or notched) area is surfaced without lifting, moving to
+    // another area and plunging again, and with no seam between areas.
+    // Rows are the usual stepover ones plus one on each edge of every zone's
+    // band (zone + bit radius + gap, R), so the cut reaches right up to it.
+    // null when a row would be split in two (a zone in the middle) or a step
+    // between rows would cross a zone: then the areas are cut one by one.
+    function planerRows(invert, rect, zones, R, step) {
+      var aLo = invert ? rect.x : rect.y, aHi = invert ? rect.x + rect.w : rect.y + rect.h;
+      var bLo = invert ? rect.y : rect.x, bHi = invert ? rect.y + rect.h : rect.x + rect.w;
+      if (!(aHi > aLo) || !(bHi > bLo) || !(step > 0)) return null;
+      var zs = zones.map(function(k) {
+        return invert ? { a0: k.minX - R, a1: k.maxX + R, b0: k.minY - R, b1: k.maxY + R }
+                      : { a0: k.minY - R, a1: k.maxY + R, b0: k.minX - R, b1: k.maxX + R };
+      });
+      var bs = [];
+      for (var p = 0; p < 100000; p++) {
+        var b = Math.min(bLo + p * step, bHi);
+        bs.push(b);
+        if (b >= bHi - 1e-9) break;
+      }
+      zs.forEach(function(z) { [z.b0, z.b1].forEach(function(v) { if (v > bLo + 1e-9 && v < bHi - 1e-9) bs.push(v); }); });
+      bs.sort(function(u, v) { return u - v; });
+      var uniq = [];
+      bs.forEach(function(v) { if (!uniq.length || v - uniq[uniq.length - 1] > 1e-3) uniq.push(v); });
+      var rows = [];
+      for (var i = 0; i < uniq.length; i++) {
+        var iv = [[aLo, aHi]];
+        zs.forEach(function(z) {
+          if (!(uniq[i] > z.b0 + 1e-9 && uniq[i] < z.b1 - 1e-9)) return;
+          var out = [];
+          iv.forEach(function(s) {
+            if (z.a1 <= s[0] || z.a0 >= s[1]) { out.push(s); return; }
+            if (z.a0 - s[0] > 1e-6) out.push([s[0], z.a0]);
+            if (s[1] - z.a1 > 1e-6) out.push([z.a1, s[1]]);
+          });
+          iv = out;
+        });
+        if (iv.length !== 1) return null;
+        rows.push({ b: uniq[i], lo: iv[0][0], hi: iv[0][1] });
+      }
+      // Each step to the next row, at the end the zigzag turns at, clear of
+      // every zone.
+      for (var k = 0; k + 1 < rows.length; k++) {
+        var up = k % 2 === 0, s = up ? Math.min(rows[k].hi, rows[k + 1].hi) : Math.max(rows[k].lo, rows[k + 1].lo);
+        for (var j = 0; j < zs.length; j++) {
+          var z = zs[j];
+          if (s > z.a0 + 1e-9 && s < z.a1 - 1e-9 && rows[k + 1].b > z.b0 + 1e-9 && rows[k].b < z.b1 - 1e-9) return null;
+        }
+      }
+      return rows;
+    }
+
+    // The zigzag over planerRows' rows, both ways, turnarounds rounded as in
+    // emitPlanerLap. Where the next row ends short of this one (a zone), the
+    // bit runs back along this row to it before stepping over; where it ends
+    // past it, the bit steps over and runs out to it first.
+    function emitPlanerRows(lines, invert, rows, step, feedRate, firstFeed, maxTurn) {
+      var pt = function(a, b) { return invert ? { x: a, y: b } : { x: b, y: a }; };
+      var fmtXY = function(p) { return 'X' + p.x.toFixed(xyDp) + ' Y' + p.y.toFixed(xyDp); };
+      var arc = function(from, to, c, ta, tb) {
+        var cross = ta.x * tb.y - ta.y * tb.x;
+        lines.push((cross < 0 ? 'G2 ' : 'G3 ') + fmtXY(to) + ' I' + (c.x - from.x).toFixed(xyDp) + ' J' + (c.y - from.y).toFixed(xyDp) + ' F' + feedRate);
+      };
+      var dir = 1;
+      for (var k = 0; k < rows.length; k++) {
+        var row = rows[k], next = rows[k + 1], end = dir === 1 ? row.hi : row.lo, f = k === 0 ? firstFeed : feedRate;
+        if (!next) { lines.push('G1 ' + fmtXY(pt(end, row.b)) + ' F' + f); break; }
+        var nEnd = dir === 1 ? next.hi : next.lo, gap = next.b - row.b;
+        var r = Math.min(step / 4, maxTurn || Infinity, gap / 2, (row.hi - row.lo) / 2, (next.hi - next.lo) / 2);
+        if (Math.abs(end - nEnd) < 1e-9 && r >= 0.01) {
+          var p1 = pt(end - dir * r, row.b), p2 = pt(end, row.b + r), p3 = pt(end, next.b - r), p4 = pt(end - dir * r, next.b);
+          lines.push('G1 ' + fmtXY(p1) + ' F' + f);
+          arc(p1, p2, pt(end - dir * r, row.b + r), pt(dir, 0), pt(0, 1));
+          if (next.b - r - (row.b + r) > 1e-9) lines.push('G1 ' + fmtXY(p3) + ' F' + feedRate);
+          arc(p3, p4, pt(end - dir * r, next.b - r), pt(0, 1), pt(-dir, 0));
+        } else {
+          var s = dir === 1 ? Math.min(end, nEnd) : Math.max(end, nEnd);
+          lines.push('G1 ' + fmtXY(pt(end, row.b)) + ' F' + f);
+          if (Math.abs(s - end) > 1e-9) lines.push('G1 ' + fmtXY(pt(s, row.b)) + ' F' + feedRate);
+          lines.push('G1 ' + fmtXY(pt(s, next.b)) + ' F' + feedRate);
+          if (Math.abs(nEnd - s) > 1e-9) lines.push('G1 ' + fmtXY(pt(nEnd, next.b)) + ' F' + feedRate);
+        }
         dir *= -1;
       }
     }
@@ -18768,6 +18856,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var stepoverDist = bitDiameter * (stepoverPct / 100);
       // The first pass of each lap cuts the bit's full width, not a stepover's,
       // so it runs at 70% of the feed (still a full chip, unlike a slower one).
+      // Rounded turnarounds pull the pass ends in by their radius, and so
+      // the reach toward the edge where a turn isn't: no matter past the
+      // stock's overrun, but at the travel's edge on Wasteboard, so 2 mm there.
+      var maxTurn = isWasteboard ? (isImperial ? 0.08 : 2) : Infinity;
       var firstFeed = stepoverPct < 70 ? Math.round(feedRate * 0.7 * 10) / 10 : feedRate;
       // Wasteboard: leave out ncSender Pro's keepout zone, widened by the
       // bit radius; what's left is up to four rectangles.
@@ -18785,6 +18877,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (next.length !== areas.length || next.some(function(a, i) { return a !== areas[i]; })) keepoutsHit.push(k);
         areas = next;
       });
+
+      // Both ways along X or Y around zones at an edge or corner: one
+      // continuous zigzag (planerRows) instead of separate areas.
+      var rowPlan = keepoutsHit.length && cutDirection === 'both' && pattern !== 'spiral'
+        ? planerRows(pattern === 'zigzagX', { x: startX, y: startY, w: cutW, h: cutH }, keepouts, bitDiameter / 2 + keepoutGap, stepoverDist) : null;
 
       var modeLabels = { depth: 'Target Depth', thickness: 'Target Thickness', wasteboard: 'Wasteboard Surfacing' };
       var extras = [
@@ -18818,7 +18915,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
                     ', Y ' + mk.minY + '-' + mk.maxY + unitsLabel);
       extras.push('  kept clear by the bit radius plus ' + keepoutGap + unitsLabel);
       });
-      if (keepoutsHit.length) extras.push('Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
+      if (keepoutsHit.length) extras.push(rowPlan ? 'Surfacing around the keepout in one continuous zigzag' : 'Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
       // A zone that's on but outside the surfacing area, e.g. on a machine
       // whose coordinates run negative, removes nothing; say so rather than
       // let it look avoided.
@@ -18857,6 +18954,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var nextDepth = Math.min(depth, currentDepth + depthOfCut);
         var z = isThickness ? (startingThickness - nextDepth) : -nextDepth;
         lines.push('(Pass Z' + z.toFixed(3) + ')');
+        if (rowPlan) {
+          var r0 = rowPlan[0], s0 = pattern === 'zigzagX' ? { x: r0.lo, y: r0.b } : { x: r0.b, y: r0.lo };
+          // Back to the start of the next depth: lift clear of the zones first.
+          if (currentDepth > 0) lines.push(machineSafeZLine(params));
+          lines.push('G0 X' + s0.x.toFixed(xyDp) + ' Y' + s0.y.toFixed(xyDp));
+          lines.push('G0 Z' + safeHopWork);
+          var rowApproach = isThickness ? (startingThickness - currentDepth + 0.5).toFixed(3) : (parseFloat(slowPlungeStart) - currentDepth).toFixed(3);
+          lines.push('G0 Z' + rowApproach);
+          lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
+          emitPlanerRows(lines, pattern === 'zigzagX', rowPlan, stepoverDist, feedRate, firstFeed, maxTurn);
+          lines.push('G0 Z' + safeHopWork);
+          currentDepth = nextDepth;
+          continue;
+        }
         for (var ai = 0; ai < areas.length; ai++) {
           var a = areas[ai];
           // Around a keepout, the move to the next area would cross the zone
@@ -18876,7 +18987,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           }
           if (fromInside) emitSpiralFromInside(lines, a.x, a.y, a.w, a.h, stepoverDist, feedRate, { approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
           else emitPlanerLap(lines, pattern, a.x, a.y, a.w, a.h, stepoverDist, feedRate,
-            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate }, firstFeed);
+            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate }, firstFeed, maxTurn);
           lines.push('G0 Z' + safeHopWork);
         }
         currentDepth = nextDepth;
