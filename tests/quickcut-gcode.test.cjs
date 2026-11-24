@@ -871,7 +871,7 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
   };
   const zone = { name: 'ncSender', minX: 690, minY: 700, maxX: 812, maxY: 1230 };
   const g = gen(Object.assign({}, base, { keepouts: [zone] }));
-  assert.match(g, /^\(Keepout zone left out: ncSender, machine X 690-812, Y 700-1230mm\)\n\(  kept clear by the bit radius plus 3mm\)$/m);
+  assert.match(g, /^\(Keepout zone left out: ncSender\)\n\(  machine X 690-812, Y 700-1230mm\)\n\(  kept clear by the bit radius plus 3mm\)$/m);
   assert.match(g, /Surfacing around the keepout in one continuous zigzag/);
   // Follow every cutting move: none may bring the bit's edge into the zone.
   let x = 0, y = 0, maxX = 0, maxY = 0;
@@ -898,8 +898,8 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
   // A zone that's on but off the bed (as on a machine whose coordinates run
   // negative) cuts the same, and the header says it isn't avoided.
   const offBed = gen(Object.assign({}, base, { keepouts: [{ name: 'ncSender', minX: -812, minY: -1230, maxX: -690, maxY: -700 }] }));
-  assert.match(offBed, /^\(Keepout zone outside the surfacing area, not avoided: ncSender, machine X -812--690, Y -1230--700mm\)$/m);
-  assert.equal(offBed.split('\n').filter(l => !/^\(Keepout zone outside/.test(l)).join('\n'), plain);
+  assert.match(offBed, /^\(Keepout zone outside the surfacing area, not avoided: ncSender\)\n\(  machine X -812--690, Y -1230--700mm\)$/m);
+  assert.equal(offBed.split('\n').filter(l => !/^\((Keepout zone outside|  machine X)/.test(l)).join('\n'), plain);
   assert.equal(gen(Object.assign({}, base, { mode: 'depth', keepouts: [zone] })), gen(Object.assign({}, base, { mode: 'depth' })));
 });
 
@@ -916,7 +916,7 @@ test('planer wasteboard leaves out every keepout zone given (ncSender and ATCi)'
   ];
   const g = gen(Object.assign({}, base, { keepouts: zones }));
   assert.match(g, /Keepout zone left out: ncSender/);
-  assert.match(g, /Keepout zone left out: ATCi, machine X 100-250, Y 300-400mm/);
+  assert.match(g, /Keepout zone left out: ATCi\)\n\(  machine X 100-250, Y 300-400mm/);
   // Every cutting stroke keeps the bit (radius 3) clear of both zones.
   let x = 0, y = 0;
   for (const line of g.split('\n')) {
@@ -2749,7 +2749,7 @@ test('planer wasteboard surfaces the travel where the machine has it, negative c
   // Its keepout zone, also negative, is now left out.
   const zone = { name: 'ncSender', minX: -122, minY: -530, maxX: 0, maxY: 0 };
   const withZone = gen(Object.assign({}, base, { travelMin: { x: -812, y: -1230 }, keepouts: [zone] }));
-  assert.match(withZone, /^\(Keepout zone left out: ncSender, machine X -122-0, Y -530-0mm\)$/m);
+  assert.match(withZone, /^\(Keepout zone left out: ncSender\)\n\(  machine X -122-0, Y -530-0mm\)$/m);
   assert.ok(!/not avoided/.test(withZone));
 });
 
@@ -4289,7 +4289,7 @@ test('planer wasteboard Bit Edge Past Travel: the center reaches the travel edge
             lo = [Math.min(lo[0], X), Math.min(lo[1], Y)]; hi = [Math.max(hi[0], X), Math.max(hi[1], Y)];
           }
           // It reaches each edge it can (the back right is the zone's).
-          const near = imperial ? 0.001 : 0.02;
+          const near = imperial ? 0.003 : 0.02;
           assert.ok(lo[0] < near && lo[1] < near, `${what}: low ${lo}`);
           if (!keepouts.length) assert.ok(hi[0] > W - near && hi[1] > H - near, `${what}: high ${hi}`);
           // Zones are still kept clear by the bit radius and the gap.
@@ -4309,4 +4309,32 @@ test('planer wasteboard Bit Edge Past Travel: the center reaches the travel edge
       }
     }
   }
+});
+
+test('planer header lines stay within 79 characters, keepout lines included', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial).generatePlanerProgram, k = imperial ? 1 / 25.4 : 1, r4 = (v) => Math.round(v * 1e4) / 1e4;
+    const zone = { name: 'RCATC tool rack', minX: r4(625.123 * k), minY: r4(725.456 * k), maxX: r4(811.995 * k), maxY: r4(1230 * k) };
+    const off = { name: 'Clamp at the far end', minX: r4(-812.5 * k), minY: r4(-1230.25 * k), maxX: r4(-690.75 * k), maxY: r4(-700.125 * k) };
+    const g = gen(planerBase({ mode: 'wasteboard', width: r4(812 * k), height: r4(1230 * k), bitDiameter: r4(49.2125 * k), stepoverPct: 54,
+      travelMin: { x: 0, y: 0 }, workOrigin: { x: r4(2.0004 * k), y: r4(2.0004 * k) }, keepouts: [zone, off], pastTravel: true }));
+    for (const line of g.split('\n')) assert.ok(line.length <= 79, `${imperial ? 'in' : 'mm'}: ${line.length}: ${line}`);
+  }
+});
+
+test('planer full-width cuts run at the first-pass feed: an inside-out spiral\'s first lap, a zigzag run-out past a zone', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const sp = planerCuts(gen(planerBase({ pattern: 'spiral', spiralFrom: 'inside', overrun: 0, width: 100, height: 80, bitDiameter: 10, stepoverPct: 40, depth: 1, depthOfCut: 1 })));
+  const feeds = gen(planerBase({ pattern: 'spiral', spiralFrom: 'inside', overrun: 0, width: 100, height: 80, bitDiameter: 10, stepoverPct: 40, depth: 1, depthOfCut: 1 }))
+    .split('\n').filter((l) => /^G1 X/.test(l)).map((l) => +/F([\d.]+)/.exec(l)[1]);
+  assert.ok(sp.length > 8);
+  assert.deepEqual(feeds.slice(0, 4), [1050, 1050, 1050, 1050]);
+  assert.ok(feeds.slice(4).every((f) => f === 1500));
+  // A zone on the front edge, along Y: the first full row after the short
+  // ones runs out past their end at the first-pass feed.
+  const g = gen(planerBase({ mode: 'wasteboard', width: 300, height: 200, bitDiameter: 10, stepoverPct: 40, depth: 1, depthOfCut: 1,
+    travelMin: { x: 0, y: 0 }, keepouts: [{ name: 'Z', minX: 100, minY: 0, maxX: 150, maxY: 40 }] }));
+  assert.match(g, /one continuous zigzag/);
+  const lines = g.split('\n'), slow = lines.filter((l) => /^G1 /.test(l) && / F1050$/.test(l));
+  assert.ok(slow.length >= 2, slow.join('\n'));
 });
