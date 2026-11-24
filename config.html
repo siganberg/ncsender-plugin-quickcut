@@ -4072,6 +4072,8 @@
     unitLabel: 'mm',
     unitDisplay: 'METRIC (mm)',
     safeZHeightMm: null,
+    // This ncSender runs $SAFEZ (ncSenderHasSafeZ): retracts use it.
+    safeZCommand: false,
     // grblHAL $130/$131 (max travel X/Y, mm). Populated on init from
     // /api/firmware — used by Planer wasteboard mode to auto-fill the
     // surfacing region with the machine's full travel area.
@@ -4119,6 +4121,40 @@
   // The reads the dialog opens with, started together as init starts and
   // shared while it opens (readJson), not one after another.
   var early = null;
+  // ncSender's $SAFEZ raises Z to the Safe Z setting, in machine coordinates and
+  // in the program's own units. It arrived in ncSender 2.0.228 and ncSender Pro
+  // 2.0.326. Older versions pass it on to the controller, which rejects it, so
+  // ask which version this is first. When in doubt, the answer is no.
+  function safeZVersionOk(edition, version) {
+    var v = String(version || '');
+    if (v === 'dev' || /-dev\b/.test(v)) return true;
+    var m = /^v?(\d+)\.(\d+)\.(\d+)(-.*)?$/.exec(v.trim());
+    if (!m) return false;
+    var min = edition === 'pro' ? [2, 0, 326] : [2, 0, 228];
+    for (var i = 0; i < 3; i++) {
+      var d = Number(m[i + 1]) - min[i];
+      if (d) return d > 0;
+    }
+    return !m[4]; // a beta of the first version that has it may not
+  }
+
+  // Resolves true when this ncSender runs $SAFEZ. /api/app-info (2.0.76 on)
+  // names the edition; /api/updates/check reports the running version even
+  // when it can't reach GitHub. Gives up after 5 s.
+  function ncSenderHasSafeZ(base) {
+    var get = function(path) {
+      return fetch((base || '') + path).then(function(r) {
+        if (!r.ok) throw new Error(path + ': ' + r.status);
+        return r.json();
+      });
+    };
+    var check = Promise.all([get('/api/app-info'), get('/api/updates/check')])
+      .then(function(r) { return safeZVersionOk(r[0] && r[0].edition, r[1] && r[1].currentVersion); })
+      .catch(function() { return false; });
+    var late = new Promise(function(resolve) { setTimeout(function() { resolve(false); }, 5000); });
+    return Promise.race([check, late]);
+  }
+
   function readJson(path) {
     if (early && early[path]) return early[path];
     return fetch(BASE_URL + path).then(function(r) {
@@ -4141,6 +4177,8 @@
       r.catch(function() {});
       early[p] = r;
     });
+    // Whether retracts can be $SAFEZ, without holding up the dialog.
+    ncSenderHasSafeZ(BASE_URL).then(function(ok) { state.safeZCommand = ok; });
     // Hidden, nothing in it takes the focus either.
     [].forEach.call(ROOT.children, function(c) { c.inert = true; });
     // Never left blank, even if a read doesn't come back.
@@ -5963,7 +6001,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       pattern:      readPatternForm('rect'),
       concentric:       readConcentricForm('rect'),
       isImperial:      state.isImperial,
-      safeZHeightMm:   state.safeZHeightMm
+      safeZHeightMm:   state.safeZHeightMm,
+      safeZCommand:    state.safeZCommand
     }));
   }
 
@@ -6023,7 +6062,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       pattern:      readPatternForm('circ'),
       concentric:       readConcentricForm('circ'),
       isImperial:      state.isImperial,
-      safeZHeightMm:   state.safeZHeightMm
+      safeZHeightMm:   state.safeZHeightMm,
+      safeZCommand:    state.safeZCommand
     }));
   }
 
@@ -6055,7 +6095,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       workOrigin:   mode === 'wasteboard' && state.wco && state.machineMinXmm != null
         ? { x: roundDisplay(mmToDisplay(state.wco.x)), y: roundDisplay(mmToDisplay(state.wco.y)) } : null,
       isImperial:      state.isImperial,
-      safeZHeightMm:   state.safeZHeightMm
+      safeZHeightMm:   state.safeZHeightMm,
+      safeZCommand:    state.safeZCommand
     });
   }
 
@@ -6155,7 +6196,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depthOfCut:    num('qc-cut-step', 0),
       chamfer:       readChamferForm('cut'),
       isImperial:      state.isImperial,
-      safeZHeightMm:   state.safeZHeightMm
+      safeZHeightMm:   state.safeZHeightMm,
+      safeZCommand:    state.safeZCommand
     });
   }
 
@@ -6226,7 +6268,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depth:        num('qc-join-depth', 0),
       depthOfCut:   num('qc-join-step', 0),
       isImperial:      state.isImperial,
-      safeZHeightMm:   state.safeZHeightMm
+      safeZHeightMm:   state.safeZHeightMm,
+      safeZCommand:    state.safeZCommand
     });
   }
 
@@ -6305,7 +6348,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       pattern:       readPatternForm('poly'),
       concentric:        readConcentricForm('poly'),
       isImperial:    state.isImperial,
-      safeZHeightMm: state.safeZHeightMm
+      safeZHeightMm: state.safeZHeightMm,
+      safeZCommand:  state.safeZCommand
     }));
   }
 
@@ -8460,7 +8504,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // A pattern's copies each start with an (Instance n/N ...) comment.
       if (/^\(Instance \d/.test(lines[i])) copies.push({ m: moves.length, p: plunges.length });
       line = lines[i].replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim().toUpperCase();
-      if (!line || /\bG53\b/.test(line)) continue;
+      // Machine-coordinate lines (G53, ncSender's $SAFEZ) aren't work moves.
+      if (!line || /\bG53\b/.test(line) || line.charAt(0) === '$') continue;
       var g = line.match(/\bG0*([0-3])(?![0-9])/);
       if (g) mode = Number(g[1]);
       var x = word('X'), y = word('Y'), z = word('Z');
@@ -11976,7 +12021,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   // Roughly how long a program takes, in minutes: its moves at their feed
   // (rapids at rapid, in the program's units a minute) and its dwells.
-  // Machine-coordinate (G53) moves count as nothing.
+  // Machine-coordinate moves (G53, $SAFEZ) count as nothing.
   // A line's words (X, Y, F...), each its first value, in one pass.
   var WORD_RE = /(?:^|\s)([A-Z])(-?[\d.]+)/g;
   function lineWords(line) {
@@ -14464,7 +14509,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       chamfer:       readChamferForm('key'),
       pattern:       readPatternForm('key'),
       isImperial:    state.isImperial,
-      safeZHeightMm: state.safeZHeightMm
+      safeZHeightMm: state.safeZHeightMm,
+      safeZCommand:  state.safeZCommand
     }));
   }
 
@@ -14753,7 +14799,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       chamfer:       readChamferForm('drl'),
       pattern:       readPatternForm('drl'),
       isImperial:    state.isImperial,
-      safeZHeightMm: state.safeZHeightMm
+      safeZHeightMm: state.safeZHeightMm,
+      safeZCommand:  state.safeZCommand
     }));
   }
 
@@ -15330,7 +15377,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       stepoverPct:   num('qc-slt-stepover', 40),
       pattern:       readPatternForm('slt'),
       isImperial:    state.isImperial,
-      safeZHeightMm: state.safeZHeightMm
+      safeZHeightMm: state.safeZHeightMm,
+      safeZCommand:  state.safeZCommand
     }));
   }
 
@@ -16313,6 +16361,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return 'G53 G0 Z' + (isImperial ? (safeZHeightMm * 0.0393701) : safeZHeightMm).toFixed(3);
     }
 
+    // ncSender 2.0.228 and Pro 2.0.326 run $SAFEZ: up to the Safe Z setting
+    // when the line runs, in the program's units, with no G20/G21 left behind.
+    // params.safeZCommand says this ncSender has it; older ones get the move.
+    function safeZRetract(params, note) {
+      return params && params.safeZCommand ? '$SAFEZ' + (note ? ' ; ' + note : '') : null;
+    }
+
     function originOffset(origin, width, height) {
       // Returns where the bounding-box center sits relative to the
       // named origin point. `back` = +Y, `front` = -Y, matching the
@@ -16383,27 +16438,31 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       lines.push('G94 ; Feed rate per minute');
       lines.push('');
       var csz = coreSafeZLine(params.safeZHeightMm);
-      if (csz) lines.push(csz + ' ; Move to safe Z');
+      var sz = safeZRetract(params, 'Move to safe Z');
+      if (sz) lines.push(sz);
+      else if (csz) lines.push(csz + ' ; Move to safe Z');
       else lines.push('G53 G0 Z0 ; Move to machine Z0');
       // A tool changer's machine: change to the bit's tool first, then back
       // up to safe Z, as the tool change may leave it lower.
       if (params.toolNumber > 0) {
         lines.push(toolChangeLine(params));
         lines.push(unitsCode + ' G90 ; Units and absolute again after it');
-        lines.push((csz || 'G53 G0 Z0') + ' ; Move to safe Z');
+        lines.push(sz || ((csz || 'G53 G0 Z0') + ' ; Move to safe Z'));
       }
       lines.push('');
       return lines;
     }
 
     function machineSafeZLine(params) {
-      return coreSafeZLine(params.safeZHeightMm) || 'G53 G0 Z0';
+      return safeZRetract(params) || coreSafeZLine(params.safeZHeightMm) || 'G53 G0 Z0';
     }
 
     function programFooter(params) {
       var lines = [];
       var csz = coreSafeZLine(params.safeZHeightMm);
-      if (csz) lines.push(csz + ' ; Return to safe Z');
+      var sz = safeZRetract(params, 'Return to safe Z');
+      if (sz) lines.push(sz);
+      else if (csz) lines.push(csz + ' ; Return to safe Z');
       else lines.push('G53 G0 Z0 ; Return to machine Z0');
       if (params.mistM7 || params.floodM8) lines.push('M9 ; Coolant off');
       if (params.spindleRpm > 0 && toolSpins(params)) lines.push('M5 ; Stop spindle');
@@ -21028,7 +21087,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // calls Max plunge for these types: params.toolMaxPlungeMm), whatever
     // Total Depth, Depth of Cut, pecks or a chamfer ask. The depths are
     // capped first, so the passes are planned for it, then any Z word still
-    // below it (machine-coordinate G53 lines aside) is raised to it. Without
+    // below it (G53 and $SAFEZ lines aside) is raised to it. Without
     // a Max plunge the depths are as typed.
     function penMaxPlunge(params) {
       if (!params || toolSpins(params) || !(params.toolMaxPlungeMm > 0)) return 0;
@@ -21048,7 +21107,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var floor = -max, dp = isImperial ? 4 : 3;
         var word = 'Z' + (Math.ceil(floor * Math.pow(10, dp) - 1e-9) / Math.pow(10, dp)).toFixed(dp);
         return out.split('\n').map(function(line) {
-          if (/^\s*\(/.test(line) || /\bG53\b/.test(line)) return line;
+          if (/^\s*[($]/.test(line) || /\bG53\b/.test(line)) return line;
           var cut = line.search(/[;(]/), code = cut < 0 ? line : line.slice(0, cut), rest = cut < 0 ? '' : line.slice(cut);
           return code.replace(/Z(-?\d*\.?\d+)/g, function(m, v) { return +v < floor - 1e-9 ? word : m; }) + rest;
         }).join('\n');
