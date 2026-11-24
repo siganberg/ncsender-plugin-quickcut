@@ -776,8 +776,8 @@ test('planer zigzagY makes long strokes along Y with stepover in X', () => {
   assert.match(gcode, /^\(Pattern: zigzagY\)/m);
   // Long strokes end a radius past Y=80 or Y=0 (start bottom-left = (0,0)),
   // so the bit's edge clears the stock. Both ends from the zigzag.
-  assert.match(gcode, /G1 Y83\.000/);
-  assert.match(gcode, /G1 Y-3\.000/);
+  assert.match(gcode, /^G[123] .*Y83\.000/m);
+  assert.match(gcode, /^G[123] .*Y-3\.000/m);
 });
 
 test('planer zigzagX makes long strokes along X with stepover in Y', () => {
@@ -871,8 +871,8 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
   };
   const zone = { name: 'ncSender', minX: 690, minY: 700, maxX: 812, maxY: 1230 };
   const g = gen(Object.assign({}, base, { keepouts: [zone] }));
-  assert.match(g, /Keepout zone left out: ncSender, machine X 690-812, Y 700-1230mm plus the bit radius/);
-  assert.match(g, /Surfacing 2 areas around the keepout/);
+  assert.match(g, /^\(Keepout zone left out: ncSender\)\n\(  machine X 690-812, Y 700-1230mm\)\n\(  kept clear by the bit radius plus 3mm\)$/m);
+  assert.match(g, /Surfacing around the keepout in one continuous zigzag/);
   // Follow every cutting move: none may bring the bit's edge into the zone.
   let x = 0, y = 0, maxX = 0, maxY = 0;
   for (const line of g.split('\n')) {
@@ -882,10 +882,10 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
       // A straight move along one axis: its farthest corner from the zone's
       // corner is either end.
       for (const [px, py] of [[x, y], [nx, ny]]) {
-        assert.ok(!(px > zone.minX - 3 + 1e-6 && py > zone.minY - 3 + 1e-6), `cut at ${px},${py} reaches the zone`);
+        assert.ok(!(px > zone.minX - 6 + 1e-6 && py > zone.minY - 6 + 1e-6), `cut at ${px},${py} comes within 3 mm of the zone`);
       }
-      if (x === nx) assert.ok(!(x > zone.minX - 3 + 1e-6 && Math.max(y, ny) > zone.minY - 3 + 1e-6), `stroke at X${x} crosses the zone`);
-      if (y === ny) assert.ok(!(y > zone.minY - 3 + 1e-6 && Math.max(x, nx) > zone.minX - 3 + 1e-6), `stroke at Y${y} crosses the zone`);
+      if (x === nx) assert.ok(!(x > zone.minX - 6 + 1e-6 && Math.max(y, ny) > zone.minY - 6 + 1e-6), `stroke at X${x} crosses the zone`);
+      if (y === ny) assert.ok(!(y > zone.minY - 6 + 1e-6 && Math.max(x, nx) > zone.minX - 6 + 1e-6), `stroke at Y${y} crosses the zone`);
       maxX = Math.max(maxX, nx); maxY = Math.max(maxY, ny);
     }
     x = nx; y = ny;
@@ -898,8 +898,8 @@ test('planer wasteboard leaves out the keepout zone plus the bit radius', () => 
   // A zone that's on but off the bed (as on a machine whose coordinates run
   // negative) cuts the same, and the header says it isn't avoided.
   const offBed = gen(Object.assign({}, base, { keepouts: [{ name: 'ncSender', minX: -812, minY: -1230, maxX: -690, maxY: -700 }] }));
-  assert.match(offBed, /^\(Keepout zone outside the surfacing area, not avoided: ncSender, machine X -812--690, Y -1230--700mm\)$/m);
-  assert.equal(offBed.split('\n').filter(l => !/^\(Keepout zone outside/.test(l)).join('\n'), plain);
+  assert.match(offBed, /^\(Keepout zone outside the surfacing area, not avoided: ncSender\)\n\(  machine X -812--690, Y -1230--700mm\)$/m);
+  assert.equal(offBed.split('\n').filter(l => !/^\((Keepout zone outside|  machine X)/.test(l)).join('\n'), plain);
   assert.equal(gen(Object.assign({}, base, { mode: 'depth', keepouts: [zone] })), gen(Object.assign({}, base, { mode: 'depth' })));
 });
 
@@ -916,7 +916,7 @@ test('planer wasteboard leaves out every keepout zone given (ncSender and ATCi)'
   ];
   const g = gen(Object.assign({}, base, { keepouts: zones }));
   assert.match(g, /Keepout zone left out: ncSender/);
-  assert.match(g, /Keepout zone left out: ATCi, machine X 100-250, Y 300-400mm/);
+  assert.match(g, /Keepout zone left out: ATCi\)\n\(  machine X 100-250, Y 300-400mm/);
   // Every cutting stroke keeps the bit (radius 3) clear of both zones.
   let x = 0, y = 0;
   for (const line of g.split('\n')) {
@@ -2680,7 +2680,9 @@ test('planer wasteboard lifts to machine safe Z before crossing to another area 
     depth: 1, depthOfCut: 0.5, bitDiameter: 6, feedRate: 2000, plungeFeedRate: 500,
     spindleRpm: 15000, spindleDelay: 1, mistM7: false, floodM8: false, safeZHeightMm: -5
   };
-  const lines = gen(Object.assign({}, base, { keepouts: [{ name: 'ncSender', minX: 300, minY: 700, maxX: 500, maxY: 800 }] })).split('\n');
+  // A zone in the middle splits passes in two, so the areas are cut one by one.
+  const lines = gen(Object.assign({}, base, { keepouts: [{ name: 'ncSender', minX: 300, minY: 300, maxX: 500, maxY: 500 }] })).split('\n');
+  assert.ok(lines.some(l => /^\(Surfacing 4 areas around the keepout\)$/.test(l)));
   const approaches = lines.map((l, i) => i).filter(i => /^G0 X/.test(lines[i]));
   assert.ok(approaches.length >= 6, `${approaches.length} area approaches`);
   // Every XY move to an area comes right after a machine-coordinate lift:
@@ -2747,7 +2749,7 @@ test('planer wasteboard surfaces the travel where the machine has it, negative c
   // Its keepout zone, also negative, is now left out.
   const zone = { name: 'ncSender', minX: -122, minY: -530, maxX: 0, maxY: 0 };
   const withZone = gen(Object.assign({}, base, { travelMin: { x: -812, y: -1230 }, keepouts: [zone] }));
-  assert.match(withZone, /^\(Keepout zone left out: ncSender, machine X -122-0, Y -530-0mm plus the bit radius\)$/m);
+  assert.match(withZone, /^\(Keepout zone left out: ncSender\)\n\(  machine X -122-0, Y -530-0mm\)$/m);
   assert.ok(!/not avoided/.test(withZone));
 });
 
@@ -3954,11 +3956,16 @@ function planerCuts(gcode) {
   let x = 0, y = 0, z = 0;
   for (const raw of gcode.split('\n')) {
     const line = raw.replace(/;.*$/, '').replace(/\(.*?\)/g, '').trim();
-    const g = /^G([01])\b/.exec(line);
+    const g = /^G([0-3])\b/.exec(line);
     if (!g) continue;
     const w = (l) => { const m = new RegExp(l + '(-?[\\d.]+)').exec(line); return m ? +m[1] : null; };
     const nx = w('X') ?? x, ny = w('Y') ?? y, nz = w('Z') ?? z;
-    if (g[1] === '1' && z < 0 && nz < 0 && (nx !== x || ny !== y)) out.push({ x0: x, y0: y, x1: nx, y1: ny });
+    if (g[1] !== '0' && z < 0 && nz < 0 && (nx !== x || ny !== y)) {
+      const m = { x0: x, y0: y, x1: nx, y1: ny };
+      // Arcs (the zigzag's rounded turnarounds) with their center.
+      if (g[1] !== '1') Object.assign(m, { arc: g[1] === '2' ? 'cw' : 'ccw', cx: x + (w('I') || 0), cy: y + (w('J') || 0) });
+      out.push(m);
+    }
     x = nx; y = ny; z = nz;
   }
   return out;
@@ -4018,7 +4025,7 @@ test('planer wasteboard: zero is always the travel front-left corner, zones foll
   // Any other origin (a stale saved one, or the centre) is ignored.
   for (const o of ['back-right', 'center']) assert.equal(gen(Object.assign({}, base, { origin: o })), fl);
   // The zone in the machine's back-right corner lands at work X 700…800, Y 400…600.
-  assert.match(fl, /Surfacing 2 areas around the keepout/);
+  assert.match(fl, /Surfacing around the keepout in one continuous zigzag/);
   assert.ok(!/^G1 X7[5-9]\d\.\d+ Y5\d\d\./m.test(fl), 'never cuts inside the zone');
 });
 
@@ -4090,4 +4097,244 @@ test('a pen or drag knife never goes below its Max plunge (flute_length)', () =>
     assert.equal(g.generateRectangleProgram(sz(baseParams({ toolType: 'flat', toolMaxPlungeMm: 0.254 }))), g.generateRectangleProgram(sz(baseParams())));
   }
   assert.equal(makeQuickCutGenerator(true).penMaxPlunge({ toolType: 'pen', toolMaxPlungeMm: 0.254 }), 0.01);
+});
+
+// The Pi on 2026-11-23: G54 X0 Y0 at machine X2 Y2 (homing's pull-off), a
+// 49.212 mm bit and a tool-rack zone in the back right. Made for the
+// corner, the bit's edge reached 2 mm into the zone and past the travel.
+test('planer wasteboard: made from where X0 Y0 really is, the bit stays in the travel and 3 mm off zones', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial).generatePlanerProgram;
+    const k = imperial ? 1 / 25.4 : 1, gap = imperial ? 0.125 : 3;
+    const rd = v => +v.toFixed(imperial ? 4 : 3);   // as the dialog rounds them
+    const zone = { name: 'RCATC', minX: rd(638.379 * k), minY: rd(714.651 * k), maxX: rd(811.995 * k), maxY: rd(1230 * k) };
+    const wo = { x: rd(2 * k), y: rd(2 * k) }, d = rd(49.212 * k), r = d / 2;
+    for (const pattern of ['zigzagX', 'zigzagY', 'spiral']) {
+      const params = {
+        mode: 'wasteboard', width: rd(812 * k), height: rd(1230 * k), pattern, stepoverPct: 40,
+        depth: rd(1 * k), depthOfCut: 1 * k, bitDiameter: d, feedRate: 4000 * k, plungeFeedRate: 1200 * k,
+        spindleRpm: 15000, spindleDelay: 3, travelMin: { x: 0, y: 0 }, workOrigin: wo, keepouts: [zone]
+      };
+      const g = gen(params);
+      assert.match(g, /^\(Made for X0 Y0 at machine X [\d.]+, Y [\d.]+(mm|inch): keep it there\)$/m);
+      assert.ok(!/Set G54 X0\/Y0 at the front-left/.test(g));
+      g.split('\n').forEach(l => assert.ok(l.length <= 79 || !/^\((Made|Cuts|Keepout|  kept)/.test(l), l));
+      // Every cutting move, in machine coordinates: the bit inside the
+      // travel, and its edge the gap clear of the zone.
+      let x = null, y = null, cuts = 0;
+      for (const line of g.split('\n')) {
+        if (/^G53|^\(/.test(line)) continue;
+        const mx = /X(-?[\d.]+)/.exec(line), my = /Y(-?[\d.]+)/.exec(line);
+        const nx = mx ? +mx[1] : x, ny = my ? +my[1] : y;
+        if (/^G1/.test(line) && (mx || my)) {
+          cuts++;
+          const x0 = Math.min(x, nx) + wo.x, x1 = Math.max(x, nx) + wo.x, y0 = Math.min(y, ny) + wo.y, y1 = Math.max(y, ny) + wo.y;
+          assert.ok(x0 - r > -1e-3 && y0 - r > -1e-3 && x1 + r < 812 * k + 1e-3 && y1 + r < 1230 * k + 1e-3, `${pattern} ${line} leaves the travel`);
+          const inside = x1 + r > zone.minX - gap + 1e-3 && y1 + r > zone.minY - gap + 1e-3;
+          assert.ok(!inside, `${pattern} ${imperial ? 'in' : 'mm'}: ${line} comes within ${gap} of the zone`);
+        }
+        x = nx; y = ny;
+      }
+      assert.ok(cuts > 10);
+      // Without the origin, X0 Y0 is taken as the travel's corner, as before.
+      const old = gen(Object.assign({}, params, { workOrigin: null }));
+      assert.match(old, /Set G54 X0\/Y0 at the front-left corner/);
+      assert.equal(gen(Object.assign({}, params, { workOrigin: { x: 0, y: 0 } })).replace(/^\((Made|Cuts)[^\n]*\n/gm, ''),
+        old.replace(/^\(Set G54[^\n]*\n/m, ''));
+    }
+  }
+});
+
+// The Pi, 2026-11-23: a 2" bit surfacing MDF burned where the zigzag turned
+// around (square corners: the machine all but stops there), and the first
+// pass, cutting the full bit width, loaded the spindle hardest.
+test('planer zigzag turnarounds are rounded: tangent everywhere, true arcs, no farther than before', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  for (const pattern of ['zigzagX', 'zigzagY']) for (const [w, h, d, so] of [[812, 1230, 49.212, 40], [100, 80, 6, 50], [60, 41, 6, 33], [40, 30, 10, 90]]) {
+    const p = planerBase({ mode: 'wasteboard', overrun: 0, width: w, height: h, pattern, bitDiameter: d, stepoverPct: so, depth: 1, depthOfCut: 1 });
+    const cuts = planerCuts(gen(p));
+    const dirAt = (m, end) => {
+      if (!m.arc) { const l = Math.hypot(m.x1 - m.x0, m.y1 - m.y0); return [(m.x1 - m.x0) / l, (m.y1 - m.y0) / l]; }
+      const [px, py] = end ? [m.x1, m.y1] : [m.x0, m.y0], rx = px - m.cx, ry = py - m.cy, rl = Math.hypot(rx, ry);
+      return m.arc === 'ccw' ? [-ry / rl, rx / rl] : [ry / rl, -rx / rl];
+    };
+    let arcs = 0;
+    cuts.forEach((m, i) => {
+      if (m.arc) {
+        arcs++;
+        const r0 = Math.hypot(m.x0 - m.cx, m.y0 - m.cy), r1 = Math.hypot(m.x1 - m.cx, m.y1 - m.cy);
+        assert.ok(Math.abs(r0 - r1) < 0.002 && r0 <= Math.min(d * so / 100 / 4, 2) + 0.002, `${pattern} arc radius ${r0} ${r1}`);
+      }
+      const n = cuts[i + 1];
+      if (!n || Math.hypot(n.x0 - m.x1, n.y0 - m.y1) > 1e-6) return;
+      const a = dirAt(m, true), b = dirAt(n, false);
+      // Within a lap no square corner is left: each move leaves the way the last one arrived.
+      assert.ok(a[0] * b[0] + a[1] * b[1] > 0.999, `${pattern} ${w}x${h} corner at ${m.x1},${m.y1}`);
+    });
+    assert.ok(arcs > 0, 'has arcs');
+    // Reaches the same rectangle as before, and no farther.
+    const xs = cuts.flatMap(m => [m.x0, m.x1]), ys = cuts.flatMap(m => [m.y0, m.y1]), r = d / 2;
+    assert.deepEqual([Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)].map(v => +v.toFixed(3)), [r, w - r, r, h - r].map(v => +v.toFixed(3)));
+  }
+});
+
+test('planer: the first pass of each lap, cutting the full bit width, runs at 70% feed', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  for (const [pattern, cutDirection] of [['zigzagX', 'both'], ['zigzagY', 'both'], ['zigzagX', 'climb'], ['spiral', 'both']]) {
+    const g = gen(planerBase({ mode: 'depth', overrun: 0, width: 200, height: 100, pattern, cutDirection, bitDiameter: 20, stepoverPct: 40, depth: 2, depthOfCut: 1, feedRate: 7500 }));
+    assert.match(g, /^\(First pass at 70% feed \[5250mm\/min\]: it cuts the full bit width\)$/m);
+    // Per depth: the first cutting move(s) at 5250, then 7500.
+    const passes = g.split('(Pass Z').slice(1);
+    assert.equal(passes.length, 2);
+    for (const pass of passes) {
+      const feeds = pass.split('\n').filter(l => /^G[123] .*[XY]/.test(l)).map(l => +/F([\d.]+)/.exec(l)[1]);
+      assert.equal(feeds[0], 5250, pattern);
+      assert.ok(feeds.slice(-3).every(f => f === 7500), pattern);
+      assert.ok(feeds.filter(f => f === 5250).length <= 4, pattern);
+    }
+  }
+  // A stepover of 70% or more is near full width anyway: no change.
+  const wide = gen(planerBase({ overrun: 0, width: 200, height: 100, bitDiameter: 20, stepoverPct: 75, depth: 1, depthOfCut: 1, feedRate: 7500 }));
+  assert.ok(!/First pass at/.test(wide) && !/F5250/.test(wide));
+});
+
+// Around a keepout at an edge or a corner, Wasteboard runs one continuous
+// zigzag (each pass stops short of the zone) instead of separate areas
+// with a lift, a move and a plunge between them. Simulated: the bit stays
+// the gap clear of every zone and surfaces everything it could reach.
+test('planer wasteboard: one continuous zigzag around edge and corner zones, safe and complete', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const W = 200, H = 150, d = 10, R = d / 2, gap = 3;
+  const cases = [
+    // Continuous for: [zigzagX, zigzagY]. A notch in the back edge splits
+    // passes along X in two, so those cut it in areas.
+    ['corner', [{ name: 'A', minX: 140, minY: 100, maxX: 200, maxY: 150 }], [true, true]],
+    ['back edge', [{ name: 'A', minX: 60, minY: 120, maxX: 110, maxY: 150 }], [false, true]],
+    ['two corners', [{ name: 'A', minX: 150, minY: 110, maxX: 200, maxY: 150 }, { name: 'B', minX: 0, minY: 0, maxX: 30, maxY: 40 }], [true, true]],
+    ['middle', [{ name: 'A', minX: 80, minY: 60, maxX: 120, maxY: 90 }], [false, false]]
+  ];
+  for (const [name, zones, both] of cases) for (const pattern of ['zigzagX', 'zigzagY']) {
+    const continuous = both[pattern === 'zigzagX' ? 0 : 1];
+    const g = gen(planerBase({ mode: 'wasteboard', overrun: 0, width: W, height: H, pattern, bitDiameter: d, stepoverPct: 40, depth: 1, depthOfCut: 1, keepouts: zones }));
+    assert.equal(/one continuous zigzag/.test(g), continuous, `${name} ${pattern}`);
+    if (continuous) assert.equal((g.match(/^G1 Z-1\.000/gm) || []).length, 1, `${name} ${pattern}: one plunge`);
+    // Sample every cutting move (arcs too) every 0.25 mm.
+    const pts = [];
+    for (const m of planerCuts(g)) {
+      if (!m.arc) {
+        const n = Math.max(1, Math.ceil(Math.hypot(m.x1 - m.x0, m.y1 - m.y0) / 0.25));
+        for (let i = 0; i <= n; i++) pts.push([m.x0 + (m.x1 - m.x0) * i / n, m.y0 + (m.y1 - m.y0) * i / n]);
+      } else {
+        const r = Math.hypot(m.x0 - m.cx, m.y0 - m.cy), a0 = Math.atan2(m.y0 - m.cy, m.x0 - m.cx);
+        let da = Math.atan2(m.y1 - m.cy, m.x1 - m.cx) - a0;
+        if (m.arc === 'ccw' && da < 0) da += 2 * Math.PI;
+        if (m.arc === 'cw' && da > 0) da -= 2 * Math.PI;
+        for (let i = 0; i <= 16; i++) pts.push([m.cx + r * Math.cos(a0 + da * i / 16), m.cy + r * Math.sin(a0 + da * i / 16)]);
+      }
+    }
+    // Safe: no bit center inside any zone grown by the radius plus the gap.
+    for (const [x, y] of pts) for (const z of zones) {
+      assert.ok(!(x > z.minX - R - gap + 1e-3 && x < z.maxX + R + gap - 1e-3 && y > z.minY - R - gap + 1e-3 && y < z.maxY + R + gap - 1e-3), `${name} ${pattern}: ${x},${y} too near ${z.name}`);
+    }
+    // Complete: every point the bit could reach (within R of an allowed
+    // center: inside the travel inset, outside every grown zone) is cut,
+    // less the zigzag's own scallop along the row ends.
+    const allowed = (x, y) => x >= R - 1e-9 && x <= W - R + 1e-9 && y >= R - 1e-9 && y <= H - R + 1e-9 &&
+      zones.every(z => !(x > z.minX - R - gap && x < z.maxX + R + gap && y > z.minY - R - gap && y < z.maxY + R + gap));
+    // The scallop between pass ends, plus the rounded turns' radius (Wasteboard: 2 mm at most).
+    const tol = (d * 0.4 / 2) ** 2 / (2 * R) + Math.min(d * 0.4 / 4, 2) + 0.1;
+    const grid = new Map();
+    for (const p of pts) { const k = Math.floor(p[0] / 4) + ',' + Math.floor(p[1] / 4); (grid.get(k) || grid.set(k, []).get(k)).push(p); }
+    const covered = (x, y) => {
+      for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) for (const p of grid.get((Math.floor(x / 4) + i) + ',' + (Math.floor(y / 4) + j)) || []) if (Math.hypot(p[0] - x, p[1] - y) <= R + 1e-6) return true;
+      return false;
+    };
+    let missed = 0;
+    for (let x = 0.5; x < W; x += 1) for (let y = 0.5; y < H; y += 1) {
+      // Reachable with margin: an allowed center within R - tol of it.
+      let reach = false;
+      for (let a = 0; a < 16 && !reach; a++) for (const rr of [0, (R - tol) / 2, R - tol]) {
+        if (allowed(x + rr * Math.cos(a * Math.PI / 8), y + rr * Math.sin(a * Math.PI / 8))) { reach = true; break; }
+      }
+      if (reach && !covered(x, y)) missed++;
+    }
+    assert.equal(missed, 0, `${name} ${pattern}: ${missed} spots left uncut`);
+  }
+});
+
+test('planer wasteboard Bit Edge Past Travel: the center reaches the travel edge, never past it', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial).generatePlanerProgram;
+    const k = imperial ? 1 / 25.4 : 1, r4 = (v) => Math.round(v * 1e4) / 1e4;
+    // The Pi: 812 x 1230 travel from machine 0, X0 Y0 at the homing pull-off.
+    const W = r4(812 * k), H = r4(1230 * k), wo = { x: r4(2 * k), y: r4(2 * k) }, bit = r4(49.2125 * k);
+    const zone = { name: 'RCATC', minX: r4(625 * k), minY: r4(725 * k), maxX: W, maxY: H };
+    for (const pattern of ['zigzagY', 'zigzagX', 'spiral']) {
+      for (const cutDirection of ['both', 'conventional']) {
+        for (const keepouts of [[], [zone]]) {
+          const p = planerBase({ mode: 'wasteboard', width: W, height: H, pattern, cutDirection, bitDiameter: bit, stepoverPct: 54,
+            travelMin: { x: 0, y: 0 }, workOrigin: wo, keepouts, pastTravel: true });
+          const g = gen(p), what = `${imperial ? 'in' : 'mm'} ${pattern} ${cutDirection} zones ${keepouts.length}`;
+          assert.match(g, new RegExp('^\\(Bit center to the travel\'s edge: its edge cuts up to ' + (bit / 2).toFixed(2).slice(0, -1) + '\\d+' + (imperial ? 'inch' : 'mm') + ' past it\\)$', 'm'), what);
+          // Every XY the program goes to (rapids too), in machine coordinates.
+          let x = 0, y = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
+          for (const raw of g.split('\n')) {
+            const line = raw.replace(/\(.*?\)/g, '');
+            if (!/^G[0-3]\b/.test(line) || /G53/.test(line)) continue;
+            const mx = /X(-?[\d.]+)/.exec(line), my = /Y(-?[\d.]+)/.exec(line);
+            if (mx) x = +mx[1]; if (my) y = +my[1];
+            if (!mx && !my) continue;
+            const X = x + wo.x, Y = y + wo.y;
+            assert.ok(X >= 0 && X <= W && Y >= 0 && Y <= H, `${what}: ${X},${Y} is past the travel`);
+            lo = [Math.min(lo[0], X), Math.min(lo[1], Y)]; hi = [Math.max(hi[0], X), Math.max(hi[1], Y)];
+          }
+          // It reaches each edge it can (the back right is the zone's).
+          const near = imperial ? 0.003 : 0.02;
+          assert.ok(lo[0] < near && lo[1] < near, `${what}: low ${lo}`);
+          if (!keepouts.length) assert.ok(hi[0] > W - near && hi[1] > H - near, `${what}: high ${hi}`);
+          // Zones are still kept clear by the bit radius and the gap.
+          // (less the output's rounding: 3 decimals, 4 in inches)
+          const R = bit / 2 + (imperial ? 0.125 - 0.00005 : 3 - 0.0005);
+          for (const m of planerCuts(g)) for (const [px, py] of [[m.x0, m.y0], [m.x1, m.y1]]) {
+            for (const z of keepouts) {
+              const X = px + wo.x, Y = py + wo.y;
+              assert.ok(!(X > z.minX - R && X < z.maxX + R && Y > z.minY - R && Y < z.maxY + R), `${what}: cut at ${X},${Y} near ${z.name}`);
+            }
+          }
+          // Off, the bit's edge stays inside, as before.
+          const off = gen(Object.assign({}, p, { pastTravel: false }));
+          assert.ok(!/Bit center to the travel/.test(off));
+          assert.notEqual(off, g);
+        }
+      }
+    }
+  }
+});
+
+test('planer header lines stay within 79 characters, keepout lines included', () => {
+  for (const imperial of [false, true]) {
+    const gen = makeQuickCutGenerator(imperial).generatePlanerProgram, k = imperial ? 1 / 25.4 : 1, r4 = (v) => Math.round(v * 1e4) / 1e4;
+    const zone = { name: 'RCATC tool rack', minX: r4(625.123 * k), minY: r4(725.456 * k), maxX: r4(811.995 * k), maxY: r4(1230 * k) };
+    const off = { name: 'Clamp at the far end', minX: r4(-812.5 * k), minY: r4(-1230.25 * k), maxX: r4(-690.75 * k), maxY: r4(-700.125 * k) };
+    const g = gen(planerBase({ mode: 'wasteboard', width: r4(812 * k), height: r4(1230 * k), bitDiameter: r4(49.2125 * k), stepoverPct: 54,
+      travelMin: { x: 0, y: 0 }, workOrigin: { x: r4(2.0004 * k), y: r4(2.0004 * k) }, keepouts: [zone, off], pastTravel: true }));
+    for (const line of g.split('\n')) assert.ok(line.length <= 79, `${imperial ? 'in' : 'mm'}: ${line.length}: ${line}`);
+  }
+});
+
+test('planer full-width cuts run at the first-pass feed: an inside-out spiral\'s first lap, a zigzag run-out past a zone', () => {
+  const gen = makeQuickCutGenerator(false).generatePlanerProgram;
+  const sp = planerCuts(gen(planerBase({ pattern: 'spiral', spiralFrom: 'inside', overrun: 0, width: 100, height: 80, bitDiameter: 10, stepoverPct: 40, depth: 1, depthOfCut: 1 })));
+  const feeds = gen(planerBase({ pattern: 'spiral', spiralFrom: 'inside', overrun: 0, width: 100, height: 80, bitDiameter: 10, stepoverPct: 40, depth: 1, depthOfCut: 1 }))
+    .split('\n').filter((l) => /^G1 X/.test(l)).map((l) => +/F([\d.]+)/.exec(l)[1]);
+  assert.ok(sp.length > 8);
+  assert.deepEqual(feeds.slice(0, 4), [1050, 1050, 1050, 1050]);
+  assert.ok(feeds.slice(4).every((f) => f === 1500));
+  // A zone on the front edge, along Y: the first full row after the short
+  // ones runs out past their end at the first-pass feed.
+  const g = gen(planerBase({ mode: 'wasteboard', width: 300, height: 200, bitDiameter: 10, stepoverPct: 40, depth: 1, depthOfCut: 1,
+    travelMin: { x: 0, y: 0 }, keepouts: [{ name: 'Z', minX: 100, minY: 0, maxX: 150, maxY: 40 }] }));
+  assert.match(g, /one continuous zigzag/);
+  const lines = g.split('\n'), slow = lines.filter((l) => /^G1 /.test(l) && / F1050$/.test(l));
+  assert.ok(slow.length >= 2, slow.join('\n'));
 });

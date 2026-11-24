@@ -77,8 +77,10 @@ test('conservative slows the feed even when the machine max holds it', () => {
   assert.equal(avg.capped, true);
   assert.equal(con.feedMm, 1875);
   assert.equal(con.capped, false);
-  // The chip shown is the one the held feed cuts, not the formula's.
-  assert.ok(Math.abs(avg.chipMm - 2500 / 36000) < 1e-12);
+  // The chip shown is the one the held feed cuts, not the formula's: the
+  // spindle came down to 12000 RPM for it first.
+  assert.equal(avg.rpm, 12000);
+  assert.ok(Math.abs(avg.chipMm - 2500 / 24000) < 1e-12);
 });
 
 test('conservative keeps the chip where a thin one melts or rubs: plastics and aluminum', () => {
@@ -156,10 +158,15 @@ test('compression passes are for wood only: metals and plastics keep their shall
 });
 
 test('deepChip is what the deep pass took off the feed, after the caps', () => {
-  // A 1/4" 4-flute, Aggressive: held at 4000 shallow or deep, so nothing taken off.
+  // A 1/4" 4-flute, Aggressive: held at 4000 shallow (its RPM lowered for
+  // the chip); the deep pass eases it under that.
   const f = startingFeeds(6.35, 4, 'mdf', null, 'aggressive', { stepMm: 19 });
-  assert.equal(f.feedMm, 4000);
-  assert.equal(f.deepChip, 1);
+  assert.ok(f.feedMm < 4000);
+  assert.ok(Math.abs(f.deepChip - f.feedMm / 4000) < 1e-3);
+  // Held even deep (a 1/4" 6-flute at 12000 RPM, the slowest): nothing taken off.
+  const h = startingFeeds(6.35, 6, 'mdf', { maxFeed: 4000 }, 'aggressive', { stepMm: 7 });
+  assert.equal(h.feedMm, 4000);
+  assert.equal(h.deepChip, 1);
   // Not held: the feed it took off.
   const g = startingFeeds(6.35, 2, 'mdf', null, null, { stepMm: 19.05 });
   assert.ok(Math.abs(g.deepChip - g.feedMm / startingFeeds(6.35, 2, 'mdf').feedMm) < 1e-3);
@@ -171,4 +178,35 @@ test('a big compression bit cuts full depth only on Aggressive', () => {
   // 1/4" is unchanged: full depth in every style.
   const q = (style) => startingFeeds(6.35, 2, 'mdf', null, style, { compression: true, depthMm: 19.05, fluteMm: 25.4 }).passes;
   assert.deepEqual([q('conservative'), q('average'), q('aggressive')], [1, 1, 1]);
+});
+
+// The Pi, 2026-11-23: a 2" 3-flute surfacing bit in MDF burned at 15000 RPM
+// and 6000 mm/min (0.133 mm a tooth); QuickCut's own start was 18000 RPM at
+// 4000 (0.074 mm), held by its 4000 mm/min starting limit.
+test('a bit whose chip needs more than the starting feed turns slower, then gets the machine\'s feed', () => {
+  for (const style of ['average', 'aggressive']) {
+    const f = startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000 }, style);
+    assert.equal(f.rpm, 12000, style);
+    assert.equal(f.feedMm, 9000, style);
+    assert.ok(Math.abs(f.chipMm - 0.25) < 1e-9, style);
+    assert.equal(f.rpmLowered, true);
+    assert.equal(f.plungeMm, 1200);   // a fast feed, not a fast plunge
+    assert.equal(f.capped, false);
+  }
+  // A 1/2" bit: the feed stays at 4000, the spindle comes down for its chip.
+  const half = startingFeeds(12.7, 2, 'mdf', { maxFeed: 15000 });
+  assert.ok(half.rpm > 12000 && half.rpm < 18000 && half.feedMm <= 4000 && half.feedMm > 3900);
+  assert.ok(Math.abs(half.chipMm - 0.1524) < 0.002);
+  // Not below the spindle's minimum, nor 12000, where a hobby spindle's
+  // torque falls off (the Pi's 2.2 kW one ran this bit well at 15000).
+  assert.equal(startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000, minRpm: 15000 }).rpm, 15000);
+  assert.equal(startingFeeds(49.212, 3, 'mdf', { maxFeed: 15000, minRpm: 15000 }).feedMm, 11250);
+  assert.equal(startingFeeds(19.05, 2, 'mdf', { maxFeed: 15000 }).rpm, 12000);
+  // The machine's max holds it; unknown, the 4000 starting limit does.
+  const slow = startingFeeds(49.212, 3, 'mdf', { maxFeed: 5000 });
+  assert.equal(slow.feedMm, 5000); assert.equal(slow.capped, true); assert.equal(slow.maxFeedMm, 5000);
+  assert.equal(startingFeeds(49.212, 3, 'mdf').feedMm, 4000);
+  // Small bits as before.
+  assert.deepEqual([startingFeeds(6.35, 2, 'mdf', { maxFeed: 15000 }).rpm, startingFeeds(6.35, 2, 'mdf', { maxFeed: 15000 }).feedMm], [18000, 2743]);
+  assert.equal(startingFeeds(3.175, 2, 'mdf', { maxFeed: 15000 }).rpmLowered, false);
 });

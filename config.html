@@ -2027,6 +2027,9 @@
   .qc-plan-marks { fill: none; stroke: var(--qc-m-ink2); stroke-opacity: 0.16; }
   .qc-plan-removed { fill: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)); stroke: var(--color-accent); stroke-width: 1; }
   .qc-join-gone { fill: var(--color-surface-muted); }
+  /* Wasteboard with Bit Edge Past Travel: the travel, inside the bed the bit reaches. */
+  .qc-plan-travel { fill: none; stroke: var(--color-accent); stroke-width: 1.4; stroke-dasharray: 6 4; }
+  .qc-plan-travel-label { fill: var(--color-accent); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
   .qc-plan-keepout { fill: rgba(229, 83, 75, 0.18); stroke: #e5534b; stroke-width: 1.4; stroke-dasharray: 5 3; }
   .qc-plan-keep-note { margin: 0; padding: 10px 14px; border-radius: 10px; font-size: 0.92rem; line-height: 1.45; color: var(--color-text-primary); background: rgba(229, 83, 75, 0.12); border: 1px solid rgba(229, 83, 75, 0.45); }
   .qc-plan-keep-note[hidden] { display: none; }
@@ -2298,12 +2301,12 @@
             </div>
             <div class="qc-row-2 qc-material-row">
               <div class="qc-field">
-                <select class="qc-label-select" id="qc-feeds-style" aria-label="Material, and how hard the starting feeds push" title="How hard the starting feeds push. Average: as they are. Conservative, for a light machine, a long bit or a first try: Feed Rate and Plunge Rate x0.75 (even when the machine's max holds them), Depth of Cut and Stepover x0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs. Aggressive, for a rigid machine: Feed Rate and Plunge Rate x1.25 (up to the material's chip limit and the machine's max), Depth of Cut and Stepover x1.2, so about 1.5 to 1.8 times the load. RPM stays. Picking it fills the feeds in again; kept for every tab.">
+                <select class="qc-label-select" id="qc-feeds-style" aria-label="Material, and how hard the starting feeds push" title="How hard the starting feeds push. Average: as they are. Conservative, for a light machine, a long bit or a first try: Feed Rate and Plunge Rate x0.75 (even when the machine's max holds them), Depth of Cut and Stepover x0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs. Aggressive, for a rigid machine: Feed Rate and Plunge Rate x1.25 (up to the material's chip limit and the machine's max), Depth of Cut and Stepover x1.2, so about 1.5 to 1.8 times the load. The style doesn't change the RPM. Picking it fills the feeds in again; kept for every tab.">
                   <option value="average">Material &middot; Average</option>
                   <option value="conservative">Material &middot; Conservative</option>
                   <option value="aggressive">Material &middot; Aggressive</option>
                 </select>
-                <select class="qc-select" aria-labelledby="qc-feeds-style" id="qc-material" title="Fills in starting feeds for the material: Spindle RPM, Feed Rate, Plunge Rate, and this tab's Depth of Cut and Stepover, for the Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. Changing the Bit Diameter or Flutes fills them in again. A start: listen, look at the chips, and adjust.">
+                <select class="qc-select" aria-labelledby="qc-feeds-style" id="qc-material" title="Fills in starting feeds for the material: Spindle RPM, Feed Rate, Plunge Rate, and this tab's Depth of Cut and Stepover, for the Bit Diameter and the bit's flutes, within the machine's max feed and spindle range. A big bit turns slower (down to 12000 RPM) rather than take a thin chip, which rubs and burns. Changing the Bit Diameter or Flutes fills them in again. A start: listen, look at the chips, and adjust.">
                   <option value="">Pick for starting feeds</option>
                   <option value="mdf">MDF / Plywood</option>
                   <option value="softwood">Softwood</option>
@@ -3680,10 +3683,19 @@
                     <input class="qc-input" type="text" autocomplete="off" spellcheck="false" data-unit="length" id="qc-plan-start-thickness" min="0.001" step="0.01" value="20" title="Current height of the stock, measured from the wasteboard.">
                   </div>
                 <div class="qc-field qc-plan-keepout-field" style="display: none;">
-                    <label class="qc-switch-label" title="Leave out the keepout zones that are on (ncSender's in Settings › Advanced, and the ATCi tool rack's, $684-$687), plus the bit radius, so the cutter never enters them">
+                    <label class="qc-switch-label" title="Leave out the keepout zones that are on (ncSender's in Settings › Advanced, and the ATCi tool rack's, $684-$687), plus the bit radius and 3 mm (1/8 in), so the cutter never enters them">
                       <span>Avoid Keepout Zone</span>
                       <span class="qc-switch">
                         <input type="checkbox" id="qc-plan-keepout" checked>
+                        <span class="qc-switch-track"></span>
+                      </span>
+                    </label>
+                  </div>
+                <div class="qc-field qc-plan-past-field" style="display: none;">
+                    <label class="qc-switch-label" title="The bit's center goes to the edge of the machine's travel, so its edge surfaces a bit radius past it: all of the bed the bit can reach. Turn it off when a frame, clamp or stop is within a bit radius of the travel: the bit's edge then stays inside it. Keepout zones are left out either way.">
+                      <span>Bit Edge Past Travel</span>
+                      <span class="qc-switch">
+                        <input type="checkbox" id="qc-plan-past-travel" checked>
                         <span class="qc-switch-track"></span>
                       </span>
                     </label>
@@ -6030,9 +6042,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depth:        num('qc-plan-depth', 0),
       depthOfCut:   num('qc-plan-step', 0),
       avoidKeepout: $('qc-plan-keepout').checked,
+      pastTravel:   mode === 'wasteboard' && $('qc-plan-past-travel').checked,
       keepouts:     mode === 'wasteboard' ? planerKeepouts() : [],
       travelMin:    mode === 'wasteboard' && state.machineMinXmm != null
         ? { x: roundDisplay(mmToDisplay(state.machineMinXmm)), y: roundDisplay(mmToDisplay(state.machineMinYmm)) } : null,
+      // Where X0 Y0 is now (machine), once homed: the program cuts the
+      // travel and leaves the zones out from there.
+      workOrigin:   mode === 'wasteboard' && state.wco && state.machineMinXmm != null
+        ? { x: roundDisplay(mmToDisplay(state.wco.x)), y: roundDisplay(mmToDisplay(state.wco.y)) } : null,
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     });
@@ -6064,7 +6081,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (!on || !/ATCi/.test(on.name || '') || !(parseInt(on.value, 10) & 1)) return null;
     var v = ids.map(function(id) { return fw[id] && /ATCi Keepout/.test(fw[id].name || '') ? parseFloat(fw[id].value) : NaN; });
     if (!v.every(isFinite)) return null;
-    return { name: 'ATCi', minX: v[0], minY: v[1], maxX: v[2], maxY: v[3] };
+    return { name: 'ATCi', firmware: true, minX: v[0], minY: v[1], maxX: v[2], maxY: v[3] };
   }
 
   // The keepout zones in display units, when the switch is on.
@@ -6084,6 +6101,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var overrunField = document.querySelector('.qc-plan-overrun-field');
     if (overrunField) overrunField.style.display = isWasteboard ? 'none' : '';
     document.querySelector('.qc-plan-keepout-field').style.display = isWasteboard && state.keepoutZonesMm.length ? '' : 'none';
+    document.querySelector('.qc-plan-past-field').style.display = isWasteboard ? '' : 'none';
     // Wasteboard: auto-fill width/height from grblHAL $130/$131 and lock
     // the fields so the user can't drift off machine limits. Origin
     // selector is locked to front-left: G54 zero goes on the travel's
@@ -6117,7 +6135,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return '<span class="qc-z0-callout"><span class="qc-z0-tag">Set Z0 on</span><span class="qc-z0-target">' + target + '</span></span>';
     }
     if (mode === 'thickness') return z0('the wasteboard (bottom of stock)') + '<br>Remove a set amount and end at a known thickness.';
-    if (mode === 'wasteboard') return z0('the highest spot of the wasteboard') + '<br>Surfaces the machine’s whole travel. Set G54 X0 Y0 at the front-left corner of the travel.';
+    if (mode === 'wasteboard') return z0('the highest spot of the wasteboard') + '<br>Surfaces the machine’s whole travel from where X0 Y0 is now (once homed; otherwise set X0 Y0 at the front-left corner of the travel). Don’t move X0 Y0 before running it.';
     return z0('the highest spot of the stock') + '<br>Flattens an uneven top, a pass at a time.';
   }
 
@@ -9118,6 +9136,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (plan.depth != null)      $('qc-plan-depth').value    = roundDisplay(mmToDisplay(plan.depth));
     if (plan.depthOfCut != null) $('qc-plan-step').value     = roundDisplay(mmToDisplay(plan.depthOfCut));
     if (plan.avoidKeepout != null) $('qc-plan-keepout').checked = !!plan.avoidKeepout;
+    if (plan.pastTravel != null) $('qc-plan-past-travel').checked = !!plan.pastTravel;
     updatePlanerModeVisibility();
 
     var join = saved.jointer || {};
@@ -9401,7 +9420,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         stepoverPct:  params.stepoverPct,
         depth:        displayToMm(params.depth),
         depthOfCut:   displayToMm(params.depthOfCut),
-        avoidKeepout: params.avoidKeepout
+        avoidKeepout: params.avoidKeepout,
+        pastTravel:   $('qc-plan-past-travel').checked
       };
     } else if (params.shape === 'jointer') {
       body.jointer = {
@@ -10178,6 +10198,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     });
     wireCrossCheck($('qc-plan-start-thickness'), 'qc-plan-depth');
     $('qc-plan-keepout').addEventListener('change', updatePlanerModeVisibility);
+    $('qc-plan-past-travel').addEventListener('change', updatePlanerModeVisibility);
     ['qc-plan-depth', 'qc-plan-start-thickness'].forEach(function(id) {
       var el = $(id);
       if (el) el.addEventListener('input', updatePlanerPreview);
@@ -11266,8 +11287,19 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var m = MATERIALS[material] || MATERIALS.mdf, L = limits || {};
     var S = { conservative: { chip: 0.75, cut: 0.75 }, aggressive: { chip: 1.25, cut: 1.2 } }[style] || { chip: 1, cut: 1 };
     var rpm = Math.round(Math.min(L.maxRpm || 24000, Math.max(L.minRpm || 0, m.rpm)));
-    var maxFeed = Math.min(L.maxFeed || 4000, 4000), perRev = rpm * (flutes || 2);
-    var avg = Math.min(maxFeed, perRev * Math.min(m.maxChip, m.chip * bitMm));
+    // The feed starts at most 4000 mm/min (or the machine's max, if less).
+    // A bit whose chip needs more at that RPM turns slower instead, so the
+    // chip stays the material's (a thin chip rubs and burns), down to
+    // 12000 RPM or the spindle's minimum (below it a hobby
+    // spindle's torque falls off); one that still needs more there,
+    // a surfacing bit, say, gets it, up to the machine's max feed ($110).
+    var cut = Math.min(m.maxChip, m.chip * bitMm), n = flutes || 2;
+    var startFeed = Math.min(L.maxFeed || 4000, 4000), slowest = Math.min(rpm, Math.max(L.minRpm || 0, 12000));
+    var rpmLowered = rpm * n * cut > startFeed && rpm > slowest;
+    if (rpmLowered) rpm = Math.max(slowest, Math.round(startFeed / (n * cut) / 100) * 100);
+    var maxFeed = rpm <= slowest && rpm * n * cut > startFeed ? Math.max(startFeed, L.maxFeed || 0) : startFeed;
+    var perRev = rpm * n;
+    var avg = Math.min(maxFeed, perRev * cut);
     var raw = S.chip < 1 ? avg * (m.keepChip ? 1 : S.chip) : perRev * Math.min(m.maxChip, m.chip * bitMm * S.chip);
     var D = deep || {}, step = Math.max(0.05, bitMm * m.stepdown * S.cut), passes = 0;
     if (D.compression && m.wood && D.depthMm > 0 && bitMm > 0) {
@@ -11286,8 +11318,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       raw = Math.max(eased, least);
     }
     var exact = Math.min(maxFeed, Math.max(150, raw)), feed = Math.round(exact), deepChip = exact / shallow;
-    return { rpm: rpm, chipMm: exact / perRev, feedMm: feed, capped: raw > maxFeed, deepChip: deepChip, passes: passes,
-             plungeMm: Math.round(Math.min(L.maxPlunge || Infinity, Math.max(60, feed * 0.3))), stepMm: step, stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
+    return { rpm: rpm, chipMm: exact / perRev, feedMm: feed, capped: raw > maxFeed, maxFeedMm: maxFeed, rpmLowered: rpmLowered, deepChip: deepChip, passes: passes,
+             plungeMm: Math.round(Math.min(L.maxPlunge || Infinity, startFeed * 0.3, Math.max(60, feed * 0.3))), stepMm: step, stepoverPct: Math.round(Math.min(0.9, m.stepover * S.cut) * 100) };
   }
   // Fill in the starting feeds for the Material (and the Flutes) picked;
   // quiet when that's from a new Bit Diameter or Flutes rather than a pick.
@@ -11321,7 +11353,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var styleSel = $('qc-feeds-style'), styleName = state.feedsStyle && state.feedsStyle !== 'average' ? ' \u00b7 ' + styleSel.options[styleSel.selectedIndex].textContent.replace(/^Material \u00b7 /, '') : '';
     setTimeout(function() { showTooltip(feed, sel.options[sel.selectedIndex].textContent + styleName + ', a ' + state.flutes + '-flute ' +
       roundDisplay(mmToDisplay(bit)) + ' ' + u + ' bit: ' + f.rpm + ' RPM, ' + chip + ' ' + u + ' a tooth' +
-      (f.capped ? ', feed held to the machine\u2019s max' : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
+      (f.rpmLowered ? ', RPM lowered so the feed doesn\u2019t thin the chip' : '') +
+      (f.capped ? ', feed held to ' + (f.maxFeedMm !== 4000 ? 'the machine\u2019s max' : 'the 4000 mm/min starting limit') : '') + '. Depth of Cut ' + roundDisplay(mmToDisplay(f.stepMm)) + ' ' + u +
       (f.passes ? ' (' + (f.passes === 1 ? 'one full-depth pass' : f.passes + ' equal passes') + ' for a compression bit)' : '') +
       (f.deepChip < 1 ? ', a deep pass: chip ' + Math.round(f.deepChip * 100) + '%' : '') +
       ($('qc-' + pre + '-stepover') && pre !== 'plan' ? ', Stepover ' + f.stepoverPct + '%' : '') + '.' +
@@ -11872,6 +11905,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         text = 'About ' + (min < 1.5 ? '1 min' : Math.round(min) + ' min') + (params.toolNumber > 0 ? ' after the tool change' : '');
         var t = travelCheck(lines, k);
         if (t) { text += '. ' + t.text; bad = t.bad; }
+        var z = originZoneNote();
+        if (z) { text += '. ' + z; bad = true; }
         text += '.';
         tabNote = tabsNote(lines);
         var fl = fluteDepthNote(TAB_PREFIX[view]);
@@ -12000,6 +12035,17 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     var from = ' from ' + state.wco.ws + '\u2019s X0 Y0';
     if (!past.length) return { text: 'Fits the machine\u2019s travel' + from, bad: false };
     return { text: 'Runs ' + roundDisplay(mmToDisplay(past[0][1])) + ' ' + state.unitLabel + ' past ' + past[0][0] + from + ': move X0 Y0 or the shape', bad: true };
+  }
+  // ncSender Pro won't start a program whose path, as drawn, starts in a
+  // keepout zone, and the drawn path starts at X0 Y0: say so when X0 Y0
+  // is in a zone that's on (e.g. zeroed at the tool rack).
+  function originZoneNote() {
+    var w = state.wco;
+    if (!w) return '';
+    var hit = (state.keepoutZonesMm || []).filter(function(z) { return !z.firmware && w.x > z.minX && w.x < z.maxX && w.y > z.minY && w.y < z.maxY; });
+    if (!hit.length) return '';
+    return w.ws + '\u2019s X0 Y0 is inside ' + hit.map(function(z) { return z.name; }).join(', ') +
+      ' (machine X ' + roundDisplay(mmToDisplay(w.x)) + ' Y ' + roundDisplay(mmToDisplay(w.y)) + '), so ncSender won\u2019t start the program: set X0 Y0 outside it';
   }
   async function refreshWco() {
     _wcoAt = Date.now();
@@ -13864,6 +13910,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // shows under it evenly, with no build-up where passes overlap.
     var trails = '<g opacity="0.55">' + layer('qc-plan-surfaced', tw) + '</g>';
     var sx = SX0, sy = SY0, sw = SX1 - SX0, sh = SY1 - SY0;
+    // The machine's travel, which Width and Height are: on Wasteboard it
+    // starts at the travel's corner (from X0 Y0), and with Bit Edge Past
+    // Travel the bed the bit reaches runs a bit radius past it.
+    var tx = sx, ty = sy, tw2 = sw, th = sh, pastT = false;
+    if (p.mode === 'wasteboard') {
+      var tmin = p.travelMin || { x: 0, y: 0 }, wo0 = p.workOrigin || tmin;
+      tx = X(tmin.x - wo0.x); ty = Y(tmin.y - wo0.y + p.height); tw2 = X(tmin.x - wo0.x + p.width) - tx; th = Y(tmin.y - wo0.y) - ty;
+      pastT = !!p.pastTravel;
+    }
     var br = Math.max(5, Math.min(11, bitR * sc));
     svg.innerHTML =
       '<defs>' +
@@ -13876,8 +13931,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<rect x="' + f(sx) + '" y="' + f(sy) + '" width="' + f(sw) + '" height="' + f(sh) + '" rx="3" fill="url(#qc-plan-wood)" class="qc-fig-edge"/>' + woodGrain(sx, sy, sw, sh, 3) +
       (p.keepouts || []).map(function(k) {
         // Zones are in machine coordinates; the drawing is in work ones,
-        // zero on the travel's front-left corner.
-        var tm = p.travelMin || { x: 0, y: 0 };
+        // zero at X0 Y0 (the travel's front-left corner when not known).
+        var tm = p.workOrigin || p.travelMin || { x: 0, y: 0 };
         k = { name: k.name, minX: k.minX - tm.x, maxX: k.maxX - tm.x, minY: k.minY - tm.y, maxY: k.maxY - tm.y };
         var kx = X(Math.max(k.minX, rx)), ky = Y(Math.min(k.maxY, ry + Hh)), kw = X(Math.min(k.maxX, rx + W)) - kx, kh = Y(Math.max(k.minY, ry)) - ky;
         if (!(kw > 0 && kh > 0)) return '';
@@ -13892,10 +13947,14 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<g pointer-events="none"><circle r="' + f(br) + '" fill="url(#qc-plan-rod)" class="qc-fig-edge"/>' +
         '<g class="qc-fig-spin"><path d="M0 ' + f(-br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(br * 0.82) + ' ' + f(br * 0.55) + ' L0 0Z M0 ' + f(br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(-br * 0.82) + ' ' + f(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
         (CUT_REDUCED ? '' : '<animateMotion dur="' + dur.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.92;1" path="' + d + '"/>') + '</g>' +
+      (pastT ? '<rect x="' + f(tx) + '" y="' + f(ty) + '" width="' + f(tw2) + '" height="' + f(th) + '" class="qc-plan-travel"/>' +
+        '<text x="' + f(tx + tw2 / 2) + '" y="' + f(ty + th - 6) + '" text-anchor="middle" class="qc-plan-travel-label">TRAVEL ' + roundDisplay(p.width) + ' \u00d7 ' + roundDisplay(p.height) + ' ' + u + '</text>' : '') +
+      // The dimensions measure the bed surfaced: past the travel, the
+      // bit's reach (the travel's own size is in its label).
       '<line x1="' + f(sx) + '" y1="' + f(sy + sh + 18) + '" x2="' + f(sx + sw) + '" y2="' + f(sy + sh + 18) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
-      cutPill(f(sx + sw / 2), f(sy + sh + 18), roundDisplay(p.width) + ' ' + u, false) +
+      cutPill(f(sx + sw / 2), f(sy + sh + 18), (pastT ? +W.toFixed(state.isImperial ? 2 : 1) : roundDisplay(p.width)) + ' ' + u, false) +
       '<line x1="' + f(sx + sw + 18) + '" y1="' + f(sy) + '" x2="' + f(sx + sw + 18) + '" y2="' + f(sy + sh) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
-      cutPill(f(sx + sw + 18), f(sy + sh / 2), roundDisplay(p.height) + ' ' + u, true) +
+      cutPill(f(sx + sw + 18), f(sy + sh / 2), (pastT ? +Hh.toFixed(state.isImperial ? 2 : 1) : roundDisplay(p.height)) + ' ' + u, true) +
       figAxes(X(0), Y(0)) +
       '<text x="220" y="' + f(vh - 8) + '" class="qc-fig-cap">Front (Y−)</text>';
   }
@@ -15647,10 +15706,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'With a pattern, the Origin is a point of the <strong>box around the holes</strong>, OR tap a hole in the preview to make that hole X0 Y0.',
       HELP_CHAMFER + ' On Drill, the card asks for the <strong>Hole Diameter</strong> (the drill&rsquo;s size, as the Tool card holds the V-bit), and the Feed Rate comes back on for the chamfer&rsquo;s laps. <strong>Method</strong> Plunge goes straight down at each hole&rsquo;s center instead, like a countersink, until the V&rsquo;s cone meets the chamfer&rsquo;s edge: quicker, but the V-bit has to be wider than the hole and chamfer, and the tip goes the hole&rsquo;s radius deeper (at 90&deg;). Keep the Origin and pattern the drill program used, so each chamfer lands on its hole.' ] },
     planer: { name: 'Planer', notes: [
-      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131), kept a bit radius inside it. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
+      '<strong>Target Depth</strong> flattens the top: Z0 on the top surface, cutting down <strong>Total Depth</strong>. <strong>Target Thickness</strong>: Z0 on the wasteboard; enter the stock&rsquo;s <strong>Starting Thickness</strong> and Total Depth comes off the top. <strong>Wasteboard Surfacing</strong> covers the machine&rsquo;s whole travel (from grblHAL $130 / $131). With <strong>Bit Edge Past Travel</strong> on, the bit&rsquo;s center goes to the travel&rsquo;s edge, so its edge surfaces a bit radius past it: all of the bed it can reach. Turn it off when a frame, clamp or stop is that close, and the bit&rsquo;s edge stays inside the travel. It works out where that travel is in machine coordinates from the homing settings: 0 to the travel on an axis that homes to its minimum with $22 &ldquo;Set machine origin to 0&rdquo;, otherwise minus the travel to 0, as on most grbl machines. The hint shows the range it found.',
       '<strong>Pattern</strong>: zigzag strokes along Y or X, or a spiral from the outside in. <strong>Stepover</strong> is the % of the bit each stroke moves over.',
       '<strong>Overrun</strong> carries the cut past every edge so the boundary is flat too. The Origin picks which corner of the region (before overrun) is X0 Y0.',
-      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius, cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided.' ] },
+      'With a keepout zone on (ncSender Pro&rsquo;s, or the ATCi tool rack&rsquo;s in the firmware), <strong>Wasteboard Surfacing</strong> shows <strong>Avoid Keepout Zone</strong>: the surfacing leaves out each zone plus the bit radius and 3&nbsp;mm (1/8&nbsp;in), cutting the rest of the bed around them, and lifts to machine safe Z before crossing to the next area. A zone outside the machine&rsquo;s travel is named as not avoided. Once the machine is homed, the program is made from where X0&nbsp;Y0 is then (homing&rsquo;s pull-off often leaves it a few mm in from the corner), so the travel and the zones line up; don&rsquo;t move X0&nbsp;Y0 before running it.' ] },
     jointer: { name: 'Jointer', notes: [
       'Makes a straight reference edge: takes <strong>Trim Width</strong> off the edge <strong># of Trims</strong> times, along <strong>Trim Axis</strong>, for <strong>Length</strong> plus <strong>Overrun</strong> at each end.',
       'Every stroke runs the same way, so <strong>Cut Direction</strong> stays true: <strong>Conventional</strong> is the safer default; <strong>Climb</strong> leaves a cleaner edge but needs a rigid machine and well-held work. <strong>Both Ways</strong> alternates the trims, each starting where the last ended, to save the trip back (every other one climbs). The arrows in the preview show the way the bit travels; tap one to switch.',
@@ -15673,7 +15732,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       'Circular: <strong>Total Angle</strong> 360 spaces the copies all the way round; less puts the first and last copy at the ends of the arc; negative runs clockwise. The <strong>Radius</strong> label is a menu: <strong>Center Radius</strong> is to each copy&rsquo;s center; <strong>Inside Radius</strong> is to the nearest edge of any copy, the clear circle left in the middle (e.g. around a center hole); <strong>Outside Radius</strong> is to the farthest edge, so the pattern fits in a circle that size. Edges are the solid lines on the preview: on an Outer cut the part&rsquo;s own edge, otherwise the edge of the cut. Changing it converts the number so the copies stay put.',
       'The pattern preview shows every copy as you type, and measures what the X and Y menus set (Spacing, Extent, Overall or Gap) and a Circular pattern&rsquo;s Radius in green. Click a blank spot on any preview, this one or a shape&rsquo;s (or &#x2922; in a top view&rsquo;s corner), to enlarge it; there the mouse wheel zooms at the pointer, two fingers pinch, and zoomed in a drag moves it, or use &minus;, + and Fit; click a blank spot again, &times; or press Esc to go back. Clicks on corners, ends, holes and sides still pick them, there or enlarged; dragging an enlarged preview shows the angle as it changes. Drag it to turn the <strong>Angle</strong> (Circular: <strong>Start Angle</strong>) in half degrees; it snaps square within 5&deg; and sticks at miter angles such as 15, 18, 22.5, 30, 36 and 45&deg;.' ] },
     tool: { title: 'Tool, spindle, and saving', notes: [
-      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). RPM stays, Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
+      '<strong>Feed Rate</strong> is for moves in X and Y; <strong>Plunge Rate</strong> for moves down in Z. Pick the <strong>Material</strong> for starting feeds (Spindle RPM, Feed Rate and Plunge Rate) for the Bit Diameter and the bit&rsquo;s <strong>Flutes</strong>. It also fills in Depth of Cut and, for shapes that clear pockets, Stepover, and fills them in again for a new Bit Diameter until you change them yourself. A new install starts with MDF / Plywood&rsquo;s. They stay within the machine&rsquo;s max feed and spindle range, and the feed starts at most 4000&nbsp;mm/min: a bigger bit whose chip needs more turns slower instead (down to 12000 RPM or the spindle&rsquo;s minimum, below which a hobby spindle&rsquo;s torque falls off), so the chip stays full and doesn&rsquo;t rub and burn; a surfacing bit that still needs more there gets it, up to the machine&rsquo;s max feed. The <strong>Material</strong> label is a menu of how hard they push: <strong>Average</strong>; <strong>Conservative</strong> for a light machine, a long bit or a first try (Feed Rate and Plunge Rate &times;0.75, even when the machine&rsquo;s max holds them, and Depth of Cut and Stepover &times;0.75; on plastics and aluminum the feed stays, since a thinner chip melts or rubs); <strong>Aggressive</strong> for a rigid one (Feed Rate and Plunge Rate &times;1.25, up to the material&rsquo;s chip limit and the machine&rsquo;s max, and Depth of Cut and Stepover &times;1.2: about 1.5 to 1.8 times the load). The style doesn&rsquo;t change the RPM; Plunge Rate stays within the Z axis&rsquo;s max rate, and the style is kept for every tab. A start: listen, look at the chips, and adjust. <a href="#" class="qc-help-topic" data-help-topic="feeds">Feeds &amp; Speeds</a> lists them for every bit in your tool table. <strong>Delay</strong> waits after starting the spindle so it reaches speed. <strong>Mist</strong> and <strong>Flood</strong> turn on coolant (M7 / M8).',
       'Each tab remembers its own tool settings, and the values you last generated with. Scrolled down, one line at the top sums them up; tap it to go back up to them.',
       'A field that can&rsquo;t be used gets a red border, and a red bubble over the field you&rsquo;re in (or just left) says why. The note beside <strong>Generate</strong> shows the first problem, with &ldquo;(+N more)&rdquo; when there are others; tap it to go to that field.',
       'Click the <strong>Bit Diameter</strong> label to fill in the loaded tool&rsquo;s diameter from ncSender&rsquo;s tool table (the tool your Tool Numbering setting names, by slot or Tool ID). With a tool changer, the label is a menu of the tool table instead: pick the tool to cut with, and the program starts with a tool change to it (<kbd>M6 T</kbd>). Typing another diameter, or <strong>No tool change</strong>, leaves it out.',
@@ -15848,7 +15907,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (style === 'average') {
           if (f.passes) notes.push('compression bit: ' + (f.passes === 1 ? 'one full-depth pass' : f.passes + ' equal passes'));
           if (f.deepChip < 1) notes.push('deep pass: chip ' + Math.round(f.deepChip * 100) + '%');
-          if (f.capped) { notes.push('<span class="qc-fh-flag">feed held at the ' + feedToDisplay(Math.min(state.maxFeedMm || 4000, 4000)) + ' ' + u + '/min starting limit</span>'); odd = true; }
+          if (f.rpmLowered) notes.push('RPM lowered for a full chip at the starting feed');
+          if (f.capped) { notes.push('<span class="qc-fh-flag">feed held at ' + feedToDisplay(f.maxFeedMm) + ' ' + u + '/min</span>'); odd = true; }
           if (mat !== 'aluminum' && f.chipMm < 0.025) { notes.push('<span class="qc-fh-flag">thin chip: may rub; try a higher feed or lower RPM</span>'); odd = true; }
         }
         return '<td class="qc-fh-num">' + feedToDisplay(f.feedMm) + ' <span class="qc-fh-sub">plunge ' + feedToDisplay(f.plungeMm) + '</span>' +
@@ -18552,29 +18612,146 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return out;
     }
 
-    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay) {
+    function emitPlanerLap(lines, pattern, startX, startY, cutW, cutH, step, feedRate, oneWay, firstFeed, maxTurn) {
+      if (firstFeed == null) firstFeed = feedRate;
       if (pattern === 'spiral') {
-        emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate);
+        emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate, firstFeed);
         return;
       }
       var invert = (pattern === 'zigzagX');
-      if (oneWay) { emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, oneWay); return; }
+      if (oneWay) { emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, oneWay, firstFeed); return; }
       var stepDim = invert ? cutH : cutW;
       var numPasses = Math.ceil(stepDim / step) + 1;
-      var direction = 1;
+      // Passes run along `a` (Y, or X when invert) and step across `b`. Each
+      // turnaround's two corners are rounded with arcs of a quarter of the
+      // stepover (half the step at most, on a short last one): at a square
+      // corner the machine all but stops while the bit spins on the floor,
+      // which burns; round, it keeps speed through the turn. The arcs stay
+      // inside the old corners, so the bit reaches no farther.
+      var aLo = invert ? startX : startY, aHi = invert ? startX + cutW : startY + cutH;
+      var bLo = invert ? startY : startX, bHi = invert ? startY + cutH : startX + cutW;
+      var pt = function(a, b) { return invert ? { x: a, y: b } : { x: b, y: a }; };
+      var fmtXY = function(p) { return 'X' + p.x.toFixed(xyDp) + ' Y' + p.y.toFixed(xyDp); };
+      var arc = function(from, to, c, ta, tb) {
+        // Clockwise when the turn from heading ta to tb is to the right.
+        var cross = ta.x * tb.y - ta.y * tb.x;
+        lines.push((cross < 0 ? 'G2 ' : 'G3 ') + fmtXY(to) + ' I' + (c.x - from.x).toFixed(xyDp) + ' J' + (c.y - from.y).toFixed(xyDp) + ' F' + feedRate);
+      };
+      var dir = 1, b = bLo;
       for (var p = 0; p < numPasses; p++) {
-        if (invert) {
-          var y = Math.min(startY + p * step, startY + cutH);
-          if (p > 0) lines.push('G1 Y' + y.toFixed(3) + ' F' + feedRate);
-          var xEnd = direction === 1 ? (startX + cutW) : startX;
-          lines.push('G1 X' + xEnd.toFixed(xyDp) + ' F' + feedRate);
-        } else {
-          var x = Math.min(startX + p * step, startX + cutW);
-          if (p > 0) lines.push('G1 X' + x.toFixed(xyDp) + ' F' + feedRate);
-          var yEnd = direction === 1 ? (startY + cutH) : startY;
-          lines.push('G1 Y' + yEnd.toFixed(3) + ' F' + feedRate);
+        var aEnd = dir === 1 ? aHi : aLo;
+        var nextB = p + 1 < numPasses ? Math.min(bLo + (p + 1) * step, bHi) : null;
+        var gap = nextB == null ? 0 : nextB - b;
+        var r = Math.min(step / 4, maxTurn || Infinity, gap / 2, (aHi - aLo) / 2);
+        var f = p === 0 ? firstFeed : feedRate;
+        if (nextB == null || gap <= 1e-9) {
+          lines.push('G1 ' + (invert ? 'X' : 'Y') + aEnd.toFixed(invert ? xyDp : 3) + ' F' + f);
+          if (nextB != null) b = nextB;
+          dir *= -1;
+          continue;
         }
-        direction *= -1;
+        if (r < 0.01) {
+          lines.push('G1 ' + (invert ? 'X' : 'Y') + aEnd.toFixed(invert ? xyDp : 3) + ' F' + f);
+          lines.push('G1 ' + (invert ? 'Y' + nextB.toFixed(3) : 'X' + nextB.toFixed(xyDp)) + ' F' + feedRate);
+        } else {
+          var p1 = pt(aEnd - dir * r, b), p2 = pt(aEnd, b + r), p3 = pt(aEnd, nextB - r), p4 = pt(aEnd - dir * r, nextB);
+          var along = pt(dir, 0), across = pt(0, 1), back = pt(-dir, 0);
+          lines.push('G1 ' + fmtXY(p1) + ' F' + f);
+          arc(p1, p2, pt(aEnd - dir * r, b + r), along, across);
+          if (nextB - r - (b + r) > 1e-9) lines.push('G1 ' + fmtXY(p3) + ' F' + feedRate);
+          arc(p3, p4, pt(aEnd - dir * r, nextB - r), across, back);
+        }
+        b = nextB;
+        dir *= -1;
+      }
+    }
+
+    // Around keepout zones at an edge or a corner of the bed, the zigzag can
+    // run as one: each pass (row) just stops short of the zones, so the
+    // L-shaped (or notched) area is surfaced without lifting, moving to
+    // another area and plunging again, and with no seam between areas.
+    // Rows are the usual stepover ones plus one on each edge of every zone's
+    // band (zone + bit radius + gap, R), so the cut reaches right up to it.
+    // null when a row would be split in two (a zone in the middle) or a step
+    // between rows would cross a zone: then the areas are cut one by one.
+    function planerRows(invert, rect, zones, R, step) {
+      var aLo = invert ? rect.x : rect.y, aHi = invert ? rect.x + rect.w : rect.y + rect.h;
+      var bLo = invert ? rect.y : rect.x, bHi = invert ? rect.y + rect.h : rect.x + rect.w;
+      if (!(aHi > aLo) || !(bHi > bLo) || !(step > 0)) return null;
+      var zs = zones.map(function(k) {
+        return invert ? { a0: k.minX - R, a1: k.maxX + R, b0: k.minY - R, b1: k.maxY + R }
+                      : { a0: k.minY - R, a1: k.maxY + R, b0: k.minX - R, b1: k.maxX + R };
+      });
+      var bs = [];
+      for (var p = 0; p < 100000; p++) {
+        var b = Math.min(bLo + p * step, bHi);
+        bs.push(b);
+        if (b >= bHi - 1e-9) break;
+      }
+      zs.forEach(function(z) { [z.b0, z.b1].forEach(function(v) { if (v > bLo + 1e-9 && v < bHi - 1e-9) bs.push(v); }); });
+      bs.sort(function(u, v) { return u - v; });
+      var uniq = [];
+      bs.forEach(function(v) { if (!uniq.length || v - uniq[uniq.length - 1] > 1e-3) uniq.push(v); });
+      var rows = [];
+      for (var i = 0; i < uniq.length; i++) {
+        var iv = [[aLo, aHi]];
+        zs.forEach(function(z) {
+          if (!(uniq[i] > z.b0 + 1e-9 && uniq[i] < z.b1 - 1e-9)) return;
+          var out = [];
+          iv.forEach(function(s) {
+            if (z.a1 <= s[0] || z.a0 >= s[1]) { out.push(s); return; }
+            if (z.a0 - s[0] > 1e-6) out.push([s[0], z.a0]);
+            if (s[1] - z.a1 > 1e-6) out.push([z.a1, s[1]]);
+          });
+          iv = out;
+        });
+        if (iv.length !== 1) return null;
+        rows.push({ b: uniq[i], lo: iv[0][0], hi: iv[0][1] });
+      }
+      // Each step to the next row, at the end the zigzag turns at, clear of
+      // every zone.
+      for (var k = 0; k + 1 < rows.length; k++) {
+        var up = k % 2 === 0, s = up ? Math.min(rows[k].hi, rows[k + 1].hi) : Math.max(rows[k].lo, rows[k + 1].lo);
+        for (var j = 0; j < zs.length; j++) {
+          var z = zs[j];
+          if (s > z.a0 + 1e-9 && s < z.a1 - 1e-9 && rows[k + 1].b > z.b0 + 1e-9 && rows[k].b < z.b1 - 1e-9) return null;
+        }
+      }
+      return rows;
+    }
+
+    // The zigzag over planerRows' rows, both ways, turnarounds rounded as in
+    // emitPlanerLap. Where the next row ends short of this one (a zone), the
+    // bit runs back along this row to it before stepping over; where it ends
+    // past it, the bit steps over and runs out to it first.
+    function emitPlanerRows(lines, invert, rows, step, feedRate, firstFeed, maxTurn) {
+      var pt = function(a, b) { return invert ? { x: a, y: b } : { x: b, y: a }; };
+      var fmtXY = function(p) { return 'X' + p.x.toFixed(xyDp) + ' Y' + p.y.toFixed(xyDp); };
+      var arc = function(from, to, c, ta, tb) {
+        var cross = ta.x * tb.y - ta.y * tb.x;
+        lines.push((cross < 0 ? 'G2 ' : 'G3 ') + fmtXY(to) + ' I' + (c.x - from.x).toFixed(xyDp) + ' J' + (c.y - from.y).toFixed(xyDp) + ' F' + feedRate);
+      };
+      var dir = 1;
+      for (var k = 0; k < rows.length; k++) {
+        var row = rows[k], next = rows[k + 1], end = dir === 1 ? row.hi : row.lo, f = k === 0 ? firstFeed : feedRate;
+        if (!next) { lines.push('G1 ' + fmtXY(pt(end, row.b)) + ' F' + f); break; }
+        var nEnd = dir === 1 ? next.hi : next.lo, gap = next.b - row.b;
+        var r = Math.min(step / 4, maxTurn || Infinity, gap / 2, (row.hi - row.lo) / 2, (next.hi - next.lo) / 2);
+        if (Math.abs(end - nEnd) < 1e-9 && r >= 0.01) {
+          var p1 = pt(end - dir * r, row.b), p2 = pt(end, row.b + r), p3 = pt(end, next.b - r), p4 = pt(end - dir * r, next.b);
+          lines.push('G1 ' + fmtXY(p1) + ' F' + f);
+          arc(p1, p2, pt(end - dir * r, row.b + r), pt(dir, 0), pt(0, 1));
+          if (next.b - r - (row.b + r) > 1e-9) lines.push('G1 ' + fmtXY(p3) + ' F' + feedRate);
+          arc(p3, p4, pt(end - dir * r, next.b - r), pt(0, 1), pt(-dir, 0));
+        } else {
+          var s = dir === 1 ? Math.min(end, nEnd) : Math.max(end, nEnd);
+          lines.push('G1 ' + fmtXY(pt(end, row.b)) + ' F' + f);
+          if (Math.abs(s - end) > 1e-9) lines.push('G1 ' + fmtXY(pt(s, row.b)) + ' F' + feedRate);
+          lines.push('G1 ' + fmtXY(pt(s, next.b)) + ' F' + feedRate);
+          // Past where this row ended, fresh material on both sides: full width.
+          if (Math.abs(nEnd - s) > 1e-9) lines.push('G1 ' + fmtXY(pt(nEnd, next.b)) + ' F' + firstFeed);
+        }
+        dir *= -1;
       }
     }
 
@@ -18583,7 +18760,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // with it on the bit's left is conventional (as on the Jointer): along Y
     // that runs -Y, along X +X. Climb runs the other way. Between passes:
     // up to the hop height, across to the next start, down at the plunge rate.
-    function emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, o) {
+    function emitPlanerOneWay(lines, invert, startX, startY, cutW, cutH, step, feedRate, o, firstFeed) {
       var stepDim = invert ? cutH : cutW;
       var numPasses = Math.ceil(stepDim / step) + 1;
       var plus = invert ? !o.climb : o.climb;
@@ -18605,7 +18782,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           down = true;
         }
         var ex = invert ? to : across, ey = invert ? across : to;
-        lines.push('G1 X' + ex.toFixed(xyDp) + ' Y' + ey.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + ex.toFixed(xyDp) + ' Y' + ey.toFixed(xyDp) + ' F' + (p === 0 && firstFeed ? firstFeed : feedRate));
         at = { x: ex, y: ey };
       }
     }
@@ -18613,7 +18790,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // The outside-in spiral run backwards: plunge where it would end, in the
     // middle, and work out to the corner. Still conventional (the uncut
     // stock stays on the bit's left, now outside it as it turns clockwise).
-    function emitSpiralFromInside(lines, startX, startY, cutW, cutH, step, feedRate, o) {
+    function emitSpiralFromInside(lines, startX, startY, cutW, cutH, step, feedRate, o, firstFeed) {
       var fwd = [];
       emitSpiral(fwd, startX, startY, cutW, cutH, step, feedRate);
       var pts = [[startX, startY]];
@@ -18626,29 +18803,32 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       lines.push('G0 Z' + o.approach);
       lines.push('G1 Z' + o.z + ' F' + o.plunge);
       for (var i = 1; i < pts.length; i++) {
-        lines.push('G1 X' + pts[i][0].toFixed(xyDp) + ' Y' + pts[i][1].toFixed(xyDp) + ' F' + feedRate);
+        // From the middle out, the first lap (four legs) cuts the full width.
+        lines.push('G1 X' + pts[i][0].toFixed(xyDp) + ' Y' + pts[i][1].toFixed(xyDp) + ' F' + (i <= 4 && firstFeed ? firstFeed : feedRate));
       }
     }
 
-    function emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate) {
+    function emitSpiral(lines, startX, startY, cutW, cutH, step, feedRate, firstFeed) {
+      // The first lap, four legs, cuts the full bit width.
+      var legs = 0, F = function() { return legs++ < 4 && firstFeed ? firstFeed : feedRate; };
       var effStep = Math.max(Math.min(step, Math.min(cutW, cutH) / 2), 0.1);
       var left = startX, right = startX + cutW;
       var bottom = startY, top = startY + cutH;
       var curX = left, curY = bottom;
       while (right - left > 0 && top - bottom > 0) {
-        lines.push('G1 X' + right.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + right.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + F());
         curX = right; curY = bottom;
         bottom += effStep; if (bottom >= top) break;
-        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + top.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + top.toFixed(xyDp) + ' F' + F());
         curY = top;
         right -= effStep; if (left >= right) break;
-        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + F());
         curX = left;
         top -= effStep; if (bottom >= top) break;
-        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + curX.toFixed(xyDp) + ' Y' + bottom.toFixed(xyDp) + ' F' + F());
         curY = bottom;
         left += effStep; if (left >= right) break;
-        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + feedRate);
+        lines.push('G1 X' + left.toFixed(xyDp) + ' Y' + curY.toFixed(xyDp) + ' F' + F());
         curX = left;
       }
     }
@@ -18678,6 +18858,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       // there, -$130/-$131 on machines whose coordinates run negative); the
       // keepout zones, kept in machine coordinates, are moved by it.
       var travelMin = isWasteboard && params.travelMin ? { x: params.travelMin.x, y: params.travelMin.y } : { x: 0, y: 0 };
+      // Where X0 Y0 really is, in machine coordinates (ncSender's work
+      // offset, read once homed). Given, the program cuts the travel and
+      // leaves the zones out from there, wherever X0 Y0 was set (homing's
+      // pull-off often leaves it a few mm in). Without it, X0 Y0 must be
+      // the travel's front-left corner.
+      var workOrigin = isWasteboard && params.workOrigin ? { x: params.workOrigin.x, y: params.workOrigin.y } : null;
+      var wo = workOrigin || travelMin;
+      // Zones are kept this far beyond the bit's edge as well.
+      var keepoutGap = isImperial ? 0.125 : 3;
       // Wasteboard zero is always the travel's front-left corner.
       var origin = isWasteboard ? 'front-left' : (params.origin || 'front-left');
       var bl = regionBottomLeft(origin, width, height);
@@ -18690,30 +18879,46 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var cutH = height + clear * 2;
       // Wasteboard: inset by bit radius so the tool's outer edge stops
       // at machine travel bounds (no over-travel into the frame).
+      // pastTravel: the bit's center goes to the travel's edge instead, so its
+      // edge surfaces a bit radius past it, all of the bed it can reach (a
+      // hair in, so rounding never asks for a move past a soft limit).
+      var pastTravel = isWasteboard && !!params.pastTravel;
       if (isWasteboard) {
-        var inset = bitDiameter / 2;
-        startX += inset;
-        startY += inset;
+        var inset = pastTravel ? (isImperial ? 0.002 : 0.01) : bitDiameter / 2;
+        startX += inset + travelMin.x - wo.x;
+        startY += inset + travelMin.y - wo.y;
         cutW  -= inset * 2;
         cutH  -= inset * 2;
       }
       var stepoverDist = bitDiameter * (stepoverPct / 100);
+      // The first pass of each lap cuts the bit's full width, not a stepover's,
+      // so it runs at 70% of the feed (still a full chip, unlike a slower one).
+      // Rounded turnarounds pull the pass ends in by their radius, and so
+      // the reach toward the edge where a turn isn't: no matter past the
+      // stock's overrun, but at the travel's edge on Wasteboard, so 2 mm there.
+      var maxTurn = isWasteboard ? (isImperial ? 0.08 : 2) : Infinity;
+      var firstFeed = stepoverPct < 70 ? Math.round(feedRate * 0.7 * 10) / 10 : feedRate;
       // Wasteboard: leave out ncSender Pro's keepout zone, widened by the
       // bit radius; what's left is up to four rectangles.
       // Each zone (ncSender's, the ATCi's) is taken out of what's left of
       // the last; keepoutsHit are those that removed something.
       var keepouts = isWasteboard && params.keepouts ? params.keepouts.map(function(k) {
-        var dx = bl.x - travelMin.x, dy = bl.y - travelMin.y;
+        var dx = bl.x - wo.x, dy = bl.y - wo.y;
         return { name: k.name, minX: k.minX + dx, maxX: k.maxX + dx, minY: k.minY + dy, maxY: k.maxY + dy, m: k };
       }) : [];
       var areas = [{ x: startX, y: startY, w: cutW, h: cutH }];
       var keepoutsHit = [];
       keepouts.forEach(function(k) {
         var next = [];
-        areas.forEach(function(a) { next = next.concat(subtractKeepout(a, k, bitDiameter / 2)); });
+        areas.forEach(function(a) { next = next.concat(subtractKeepout(a, k, bitDiameter / 2 + keepoutGap)); });
         if (next.length !== areas.length || next.some(function(a, i) { return a !== areas[i]; })) keepoutsHit.push(k);
         areas = next;
       });
+
+      // Both ways along X or Y around zones at an edge or corner: one
+      // continuous zigzag (planerRows) instead of separate areas.
+      var rowPlan = keepoutsHit.length && cutDirection === 'both' && pattern !== 'spiral'
+        ? planerRows(pattern === 'zigzagX', { x: startX, y: startY, w: cutW, h: cutH }, keepouts, bitDiameter / 2 + keepoutGap, stepoverDist) : null;
 
       var modeLabels = { depth: 'Target Depth', thickness: 'Target Thickness', wasteboard: 'Wasteboard Surfacing' };
       var extras = [
@@ -18721,7 +18926,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         'Region: ' + width + ' x ' + height + ' ' + unitsLabel
       ];
       if (isWasteboard) {
-        extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
+        if (workOrigin) {
+          extras.push('Made for X0 Y0 at machine X ' + +wo.x.toFixed(4) + ', Y ' + +wo.y.toFixed(4) + unitsLabel + ': keep it there');
+          extras.push('Cuts the travel from machine X ' + travelMin.x + ', Y ' + travelMin.y + '; Z0 on the wasteboard surface');
+        } else {
+          extras.push('Set G54 X0/Y0 at the front-left corner of the machine travel (machine X ' + travelMin.x + ', Y ' + travelMin.y + '); Z0 on the wasteboard surface');
+        }
+        if (pastTravel) extras.push('Bit center to the travel\'s edge: its edge cuts up to ' + +(bitDiameter / 2).toFixed(4) + unitsLabel + ' past it');
       }
       if (!isWasteboard) extras.push('Overrun: ' + overrun + unitsLabel + ' (cut area ' + +cutW.toFixed(4) + ' x ' + +cutH.toFixed(4) + ')');
       if (isThickness) {
@@ -18733,22 +18944,24 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
       extras.push('Stepover: ' + stepoverPct + '% (' + stepoverDist.toFixed(3) + unitsLabel + ')');
       extras.push('Pattern: ' + pattern);
+      if (firstFeed !== feedRate) extras.push('First pass at 70% feed [' + firstFeed + unitsLabel + '/min]: it cuts the full bit width');
       if (cutDirection !== 'both') extras.push('Cut direction: ' + cutDirection + ' (every pass the same way)');
       if (fromInside) extras.push('Spiral: from the inside out');
       keepoutsHit.forEach(function(k) {
         var mk = k.m || k;
-        extras.push('Keepout zone left out: ' + (k.name ? k.name + ', ' : '') + 'machine X ' + mk.minX + '-' + mk.maxX +
-                    ', Y ' + mk.minY + '-' + mk.maxY + unitsLabel + ' plus the bit radius');
+        extras.push('Keepout zone left out: ' + (k.name || 'ncSender'));
+        extras.push('  machine X ' + mk.minX + '-' + mk.maxX + ', Y ' + mk.minY + '-' + mk.maxY + unitsLabel);
+      extras.push('  kept clear by the bit radius plus ' + keepoutGap + unitsLabel);
       });
-      if (keepoutsHit.length) extras.push('Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
+      if (keepoutsHit.length) extras.push(rowPlan ? 'Surfacing around the keepout in one continuous zigzag' : 'Surfacing ' + areas.length + ' area' + (areas.length === 1 ? '' : 's') + ' around the keepout');
       // A zone that's on but outside the surfacing area, e.g. on a machine
       // whose coordinates run negative, removes nothing; say so rather than
       // let it look avoided.
       keepouts.forEach(function(k) {
         if (keepoutsHit.indexOf(k) >= 0) return;
         var mo = k.m || k;
-        extras.push('Keepout zone outside the surfacing area, not avoided: ' + (k.name ? k.name + ', ' : '') + 'machine X ' + mo.minX + '-' + mo.maxX +
-                    ', Y ' + mo.minY + '-' + mo.maxY + unitsLabel);
+        extras.push('Keepout zone outside the surfacing area, not avoided: ' + (k.name || 'ncSender'));
+        extras.push('  machine X ' + mo.minX + '-' + mo.maxX + ', Y ' + mo.minY + '-' + mo.maxY + unitsLabel);
       });
       extras.push('Origin: ' + origin);
 
@@ -18779,6 +18992,20 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         var nextDepth = Math.min(depth, currentDepth + depthOfCut);
         var z = isThickness ? (startingThickness - nextDepth) : -nextDepth;
         lines.push('(Pass Z' + z.toFixed(3) + ')');
+        if (rowPlan) {
+          var r0 = rowPlan[0], s0 = pattern === 'zigzagX' ? { x: r0.lo, y: r0.b } : { x: r0.b, y: r0.lo };
+          // Back to the start of the next depth: lift clear of the zones first.
+          if (currentDepth > 0) lines.push(machineSafeZLine(params));
+          lines.push('G0 X' + s0.x.toFixed(xyDp) + ' Y' + s0.y.toFixed(xyDp));
+          lines.push('G0 Z' + safeHopWork);
+          var rowApproach = isThickness ? (startingThickness - currentDepth + 0.5).toFixed(3) : (parseFloat(slowPlungeStart) - currentDepth).toFixed(3);
+          lines.push('G0 Z' + rowApproach);
+          lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
+          emitPlanerRows(lines, pattern === 'zigzagX', rowPlan, stepoverDist, feedRate, firstFeed, maxTurn);
+          lines.push('G0 Z' + safeHopWork);
+          currentDepth = nextDepth;
+          continue;
+        }
         for (var ai = 0; ai < areas.length; ai++) {
           var a = areas[ai];
           // Around a keepout, the move to the next area would cross the zone
@@ -18796,9 +19023,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
             lines.push('G0 Z' + approachZ);
             lines.push('G1 Z' + z.toFixed(3) + ' F' + plungeFeedRate);
           }
-          if (fromInside) emitSpiralFromInside(lines, a.x, a.y, a.w, a.h, stepoverDist, feedRate, { approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
+          if (fromInside) emitSpiralFromInside(lines, a.x, a.y, a.w, a.h, stepoverDist, feedRate, { approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate }, firstFeed);
           else emitPlanerLap(lines, pattern, a.x, a.y, a.w, a.h, stepoverDist, feedRate,
-            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate });
+            cutDirection === 'both' ? null : { climb: cutDirection === 'climb', hop: safeHopWork, approach: approachZ, z: z.toFixed(3), plunge: plungeFeedRate }, firstFeed, maxTurn);
           lines.push('G0 Z' + safeHopWork);
         }
         currentDepth = nextDepth;
