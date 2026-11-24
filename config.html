@@ -2027,6 +2027,9 @@
   .qc-plan-marks { fill: none; stroke: var(--qc-m-ink2); stroke-opacity: 0.16; }
   .qc-plan-removed { fill: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)); stroke: var(--color-accent); stroke-width: 1; }
   .qc-join-gone { fill: var(--color-surface-muted); }
+  /* Wasteboard with Bit Edge Past Travel: the travel, inside the bed the bit reaches. */
+  .qc-plan-travel { fill: none; stroke: var(--color-accent); stroke-width: 1.4; stroke-dasharray: 6 4; }
+  .qc-plan-travel-label { fill: var(--color-accent); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
   .qc-plan-keepout { fill: rgba(229, 83, 75, 0.18); stroke: #e5534b; stroke-width: 1.4; stroke-dasharray: 5 3; }
   .qc-plan-keep-note { margin: 0; padding: 10px 14px; border-radius: 10px; font-size: 0.92rem; line-height: 1.45; color: var(--color-text-primary); background: rgba(229, 83, 75, 0.12); border: 1px solid rgba(229, 83, 75, 0.45); }
   .qc-plan-keep-note[hidden] { display: none; }
@@ -13907,6 +13910,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     // shows under it evenly, with no build-up where passes overlap.
     var trails = '<g opacity="0.55">' + layer('qc-plan-surfaced', tw) + '</g>';
     var sx = SX0, sy = SY0, sw = SX1 - SX0, sh = SY1 - SY0;
+    // The machine's travel, which Width and Height are: on Wasteboard it
+    // starts at the travel's corner (from X0 Y0), and with Bit Edge Past
+    // Travel the bed the bit reaches runs a bit radius past it.
+    var tx = sx, ty = sy, tw2 = sw, th = sh, pastT = false;
+    if (p.mode === 'wasteboard') {
+      var tmin = p.travelMin || { x: 0, y: 0 }, wo0 = p.workOrigin || tmin;
+      tx = X(tmin.x - wo0.x); ty = Y(tmin.y - wo0.y + p.height); tw2 = X(tmin.x - wo0.x + p.width) - tx; th = Y(tmin.y - wo0.y) - ty;
+      pastT = !!p.pastTravel;
+    }
     var br = Math.max(5, Math.min(11, bitR * sc));
     svg.innerHTML =
       '<defs>' +
@@ -13935,10 +13947,12 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       '<g pointer-events="none"><circle r="' + f(br) + '" fill="url(#qc-plan-rod)" class="qc-fig-edge"/>' +
         '<g class="qc-fig-spin"><path d="M0 ' + f(-br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(br * 0.82) + ' ' + f(br * 0.55) + ' L0 0Z M0 ' + f(br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(-br * 0.82) + ' ' + f(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
         (CUT_REDUCED ? '' : '<animateMotion dur="' + dur.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.92;1" path="' + d + '"/>') + '</g>' +
-      '<line x1="' + f(sx) + '" y1="' + f(sy + sh + 18) + '" x2="' + f(sx + sw) + '" y2="' + f(sy + sh + 18) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
-      cutPill(f(sx + sw / 2), f(sy + sh + 18), roundDisplay(p.width) + ' ' + u, false) +
-      '<line x1="' + f(sx + sw + 18) + '" y1="' + f(sy) + '" x2="' + f(sx + sw + 18) + '" y2="' + f(sy + sh) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
-      cutPill(f(sx + sw + 18), f(sy + sh / 2), roundDisplay(p.height) + ' ' + u, true) +
+      (pastT ? '<rect x="' + f(tx) + '" y="' + f(ty) + '" width="' + f(tw2) + '" height="' + f(th) + '" class="qc-plan-travel"/>' +
+        '<text x="' + f(tx + 5) + '" y="' + f(ty + 13) + '" class="qc-plan-travel-label">TRAVEL</text>' : '') +
+      '<line x1="' + f(tx) + '" y1="' + f(sy + sh + 18) + '" x2="' + f(tx + tw2) + '" y2="' + f(sy + sh + 18) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
+      cutPill(f(tx + tw2 / 2), f(sy + sh + 18), roundDisplay(p.width) + ' ' + u, false) +
+      '<line x1="' + f(sx + sw + 18) + '" y1="' + f(ty) + '" x2="' + f(sx + sw + 18) + '" y2="' + f(ty + th) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
+      cutPill(f(sx + sw + 18), f(ty + th / 2), roundDisplay(p.height) + ' ' + u, true) +
       figAxes(X(0), Y(0)) +
       '<text x="220" y="' + f(vh - 8) + '" class="qc-fig-cap">Front (Y−)</text>';
   }
