@@ -13948,11 +13948,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         '<g class="qc-fig-spin"><path d="M0 ' + f(-br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(br * 0.82) + ' ' + f(br * 0.55) + ' L0 0Z M0 ' + f(br) + ' A' + f(br) + ' ' + f(br) + ' 0 0 1 ' + f(-br * 0.82) + ' ' + f(-br * 0.55) + ' L0 0Z" fill="rgba(43,48,56,.55)"/></g>' +
         (CUT_REDUCED ? '' : '<animateMotion dur="' + dur.toFixed(2) + 's" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.92;1" path="' + d + '"/>') + '</g>' +
       (pastT ? '<rect x="' + f(tx) + '" y="' + f(ty) + '" width="' + f(tw2) + '" height="' + f(th) + '" class="qc-plan-travel"/>' +
-        '<text x="' + f(tx + 5) + '" y="' + f(ty + 13) + '" class="qc-plan-travel-label">TRAVEL</text>' : '') +
-      '<line x1="' + f(tx) + '" y1="' + f(sy + sh + 18) + '" x2="' + f(tx + tw2) + '" y2="' + f(sy + sh + 18) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
-      cutPill(f(tx + tw2 / 2), f(sy + sh + 18), roundDisplay(p.width) + ' ' + u, false) +
-      '<line x1="' + f(sx + sw + 18) + '" y1="' + f(ty) + '" x2="' + f(sx + sw + 18) + '" y2="' + f(ty + th) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
-      cutPill(f(sx + sw + 18), f(ty + th / 2), roundDisplay(p.height) + ' ' + u, true) +
+        '<text x="' + f(tx + tw2 / 2) + '" y="' + f(ty + th - 6) + '" text-anchor="middle" class="qc-plan-travel-label">TRAVEL ' + roundDisplay(p.width) + ' \u00d7 ' + roundDisplay(p.height) + ' ' + u + '</text>' : '') +
+      // The dimensions measure the bed surfaced: past the travel, the
+      // bit's reach (the travel's own size is in its label).
+      '<line x1="' + f(sx) + '" y1="' + f(sy + sh + 18) + '" x2="' + f(sx + sw) + '" y2="' + f(sy + sh + 18) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
+      cutPill(f(sx + sw / 2), f(sy + sh + 18), (pastT ? +W.toFixed(state.isImperial ? 2 : 1) : roundDisplay(p.width)) + ' ' + u, false) +
+      '<line x1="' + f(sx + sw + 18) + '" y1="' + f(sy) + '" x2="' + f(sx + sw + 18) + '" y2="' + f(sy + sh) + '" class="qc-fig-dim" marker-start="url(#qc-plan-a)" marker-end="url(#qc-plan-a)"/>' +
+      cutPill(f(sx + sw + 18), f(sy + sh / 2), (pastT ? +Hh.toFixed(state.isImperial ? 2 : 1) : roundDisplay(p.height)) + ' ' + u, true) +
       figAxes(X(0), Y(0)) +
       '<text x="220" y="' + f(vh - 8) + '" class="qc-fig-cap">Front (Y−)</text>';
   }
