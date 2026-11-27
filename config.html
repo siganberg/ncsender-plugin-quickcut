@@ -1709,6 +1709,15 @@
   .qc-field > label:has(> .qc-stock-angle) { white-space: nowrap; gap: 4px; }
   .qc-field > label:has(> .qc-stock-angle) .qc-measure-link { margin-left: 0; }
   button.qc-stock-angle { padding: 0 5px !important; }
+  /* The Stock button's menu by Pattern Angle: the stock's long and short sides. */
+  .qc-stock-menu { position: absolute; z-index: 30; display: flex; flex-direction: column; gap: 2px; padding: 6px;
+    background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38); }
+  .qc-stock-menu-item { -webkit-appearance: none; appearance: none; display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    min-height: 40px; margin: 0 !important; padding: 6px 10px !important; text-align: left; white-space: nowrap; cursor: pointer;
+    background: transparent !important; border: none !important; border-radius: 6px !important; color: var(--color-text-primary) !important;
+    font-family: inherit; font-size: 0.88rem; }
+  .qc-stock-menu-item:hover, .qc-stock-menu-item:focus-visible { background: color-mix(in srgb, var(--color-accent) 16%, transparent) !important; outline: none; }
+  .qc-stock-menu-item b { color: var(--color-accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
   button.qc-stock-depth {
     margin: 0 0 0 auto !important; padding: 0 8px !important; min-height: 0 !important; height: 18px; line-height: 16px;
     font-size: 0.72rem !important; font-weight: 600; border-radius: 999px !important; cursor: pointer;
@@ -11228,7 +11237,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   // Total Depth puts it in. Hidden otherwise.
   var STOCK_DEPTH_IDS = ['qc-rect-depth', 'qc-circ-depth', 'qc-poly-depth', 'qc-slt-depth', 'qc-drl-depth', 'qc-join-depth', 'qc-cut-depth'];
   async function wireStockDepth() {
-    var mm = 0, turn = 0;
+    var mm = 0, sides = [];
     try {
       var plugins = await readJson('/api/plugins');
       var sbt = (plugins || []).filter(function(p) { return p.id === 'com.tmuka.spoilboard-toolbox'; })[0];
@@ -11236,9 +11245,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var s = await readJson('/api/plugins/com.tmuka.spoilboard-toolbox/settings');
       var t = parseFloat(s && s.stockT);
       mm = t > 0 ? t * (s.units === 'imperial' ? 25.4 : 1) : 0;
-      turn = stockTurnFrom(s);
+      sides = stockSidesFrom(s);
     } catch (e) { return; }
-    if (turn) wireStockAngle(turn);
+    if (sides.length) wireStockAngle(sides);
     if (!(mm > 0)) return;
     var shown = roundDisplay(mmToDisplay(mm)) + ' ' + state.unitLabel;
     STOCK_DEPTH_IDS.forEach(function(id) {
@@ -11272,31 +11281,89 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     d = Math.round(d * 1e4) / 1e4;
     return Math.abs(d) >= 0.005 ? d : 0;
   }
-  // A Stock button by each Pattern Angle, as by Total Depth: it puts the
-  // stock's angle in and turns Rotate shapes on, so the rows and the shapes
-  // turn with the stock. Pattern Angle turns the copies about the first one;
-  // with X0 Y0 on the first copy (its center or a point of it) that's the
-  // same as turning about X0 Y0, but a corner or edge of the pattern's box
-  // is measured square to the machine, so it says so.
+  // The stock's sides, from Spoilboard Toolbox's settings: its long and
+  // short sides' angles (stockTurnLongDeg, stockTurnShortDeg, -90 to 90),
+  // or from an older Spoilboard Toolbox only stockTurnDeg (the Width X
+  // side's). [] when the stock is square, not placed or off.
+  function stockSidesFrom(s) {
+    if (!s || (s.stockTurnLongDeg == null && s.stockTurnShortDeg == null)) {
+      var t = stockTurnFrom(s);
+      return t ? [{ side: 'stock', deg: t }] : [];
+    }
+    var lg = stockTurnFrom({ stockTurnDeg: s.stockTurnLongDeg }), sh = stockTurnFrom({ stockTurnDeg: s.stockTurnShortDeg });
+    return lg || sh ? [{ side: 'long', deg: lg }, { side: 'short', deg: sh }] : [];
+  }
+  // Which side the rows (Angle's direction) should run along first: the
+  // long side when the pattern reaches clearly farther along its rows than
+  // across them, the short side when clearly the other way; null when it
+  // isn't clear (one copy, or about as far both ways).
+  function stockSideFirst(along, across) {
+    along = Math.abs(along) || 0; across = Math.abs(across) || 0;
+    if (along > across * 1.05) return 'long';
+    if (across > along * 1.05) return 'short';
+    return null;
+  }
+  // "63.42\u00b0", "\u221226.58\u00b0" (a true minus sign).
+  function stockSideDeg(deg) {
+    var r = Math.round(deg * 100) / 100;
+    return (r < 0 ? '\u2212' : '') + Math.abs(r) + '\u00b0';
+  }
+  // A Stock button by each Pattern Angle, as by Total Depth. With both
+  // sides known it opens a small menu (Long side, Short side; the one the
+  // pattern's longer way should follow first); with only stockTurnDeg it
+  // puts that in at once. Either way it turns Rotate shapes on, so the rows
+  // and the shapes turn with the stock. Pattern Angle turns the copies about
+  // the first one; with X0 Y0 at the center or a point of the first copy
+  // that's the same as turning about X0 Y0, but a corner or edge of the
+  // pattern's box is measured square to the machine, so it says so.
   var STOCK_ANGLE_TABS = ['rect', 'circ', 'poly', 'slt', 'key', 'drl'];
   function stockAngleBoxOrigin(origin) { return /^(front|back|left|right)-/.test(origin || ''); }
-  function wireStockAngle(deg) {
-    var way = Math.abs(deg) + '\u00b0 ' + (deg > 0 ? 'counterclockwise' : 'clockwise') + ' from X';
+  // How far the pattern reaches along its rows and across them, center to
+  // center (Spacing, Extent, Overall and Gap all worked out).
+  function patternReach(prefix) {
+    try {
+      var pat = PATTERN_PREVIEW_TABS[PATTERN_TAB_OF[prefix]].read().pattern || {};
+      var reach = function(axis) {
+        var n = Math.max(1, Math.floor(pat[axis + 'Count'] || 1)), d = Math.abs(pat[axis + 'Dist'] || 0);
+        return n > 1 ? (patternAxisExtentOf(pat, axis) ? d : d * (n - 1)) : 0;
+      };
+      return { along: reach('x'), across: reach('y') };
+    } catch (e) { return { along: 0, across: 0 }; }
+  }
+  var stockMenu = { pop: null, btn: null };
+  function closeStockMenu(refocus) {
+    if (!stockMenu.pop) return false;
+    var btn = stockMenu.btn;
+    stockMenu.pop.remove();
+    stockMenu.pop = stockMenu.btn = null;
+    btn.setAttribute('aria-expanded', 'false');
+    if (refocus) btn.focus();
+    return true;
+  }
+  function wireStockAngle(sides) {
+    var ADVICE = ' For one shape, use a 1 \u00d7 1 pattern. X0 Y0 at the center, or at a point of the first copy picked on the ' +
+      'preview, puts the pattern where it goes on the stock; a corner or edge of the pattern\u2019s box is measured square ' +
+      'to the machine, so it won\u2019t.';
+    var way = function(deg) { return Math.abs(deg) + '\u00b0 ' + (deg > 0 ? 'counterclockwise' : 'clockwise') + ' from X'; };
+    var both = sides.length === 2;
+    // A tap or click anywhere else, or Esc, closes the menu (Esc not the dialog:
+    // ncSender closes it from a window keydown listener, after this one).
+    document.addEventListener('pointerdown', function onDown(e) {
+      if (!document.body.contains(ROOT)) { document.removeEventListener('pointerdown', onDown, true); return; }
+      if (stockMenu.pop && !stockMenu.pop.contains(e.target) && e.target !== stockMenu.btn) closeStockMenu(false);
+    }, true);
+    // Scrolling the form would leave it behind: closed.
+    ROOT.addEventListener('scroll', function() { closeStockMenu(false); }, true);
+    window.addEventListener('keydown', function onKey(e) {
+      if (!document.body.contains(ROOT)) { window.removeEventListener('keydown', onKey, true); return; }
+      if (e.key === 'Escape' && closeStockMenu(true)) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
     STOCK_ANGLE_TABS.forEach(function(prefix) {
       var id = 'qc-' + prefix + '-pattern-angle', input = $(id), label = input && ROOT.querySelector('label[for="' + id + '"]');
       if (!label) return;
       var rotate = $('qc-' + prefix + '-pattern-rotate-shapes'), origin = $('qc-' + prefix + '-origin');
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'qc-stock-depth qc-stock-angle';
-      b.textContent = 'Stock';
-      b.title = 'Angle = ' + deg + '\u00b0, the stock\u2019s turn in Spoilboard Toolbox (' + way + ', about X0 Y0)' +
-        (rotate ? ', with Rotate shapes on' : '') + '. For one shape, use a 1 \u00d7 1 pattern. X0 Y0 at the center, or at a point of the first copy picked on the ' +
-        'preview, puts the pattern where it goes on the stock; a corner or edge of the pattern\u2019s box is measured square ' +
-        'to the machine, so it won\u2019t.';
-      b.setAttribute('aria-label', 'Use the stock\u2019s angle from Spoilboard Toolbox, ' + way);
-      b.addEventListener('click', function(e) {
-        e.preventDefault();
+      var rotateNote = rotate ? ', with Rotate shapes on' : '';
+      function apply(deg) {
         input.value = String(deg);
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -11311,6 +11378,62 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
             'turned pattern won\u2019t sit where it goes on the stock. Pick the center, or a point of the first copy on the ' +
             'preview, instead.', '#b45309', true);
         }
+      }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'qc-stock-depth qc-stock-angle';
+      b.textContent = 'Stock';
+      if (!both) {
+        var deg = sides[0].deg;
+        b.title = 'Angle = ' + deg + '\u00b0, the stock\u2019s turn in Spoilboard Toolbox (' + way(deg) + ', about X0 Y0)' + rotateNote + '.' + ADVICE;
+        b.setAttribute('aria-label', 'Use the stock\u2019s angle from Spoilboard Toolbox, ' + way(deg));
+        b.addEventListener('click', function(e) { e.preventDefault(); apply(deg); });
+        label.appendChild(b);
+        return;
+      }
+      var lg = sides[0].deg, sh = sides[1].deg;
+      b.title = 'The stock\u2019s sides in Spoilboard Toolbox, about X0 Y0: long side ' + stockSideDeg(lg) + ', short side ' +
+        stockSideDeg(sh) + ' (counterclockwise from X). Pick the side the rows run along for Angle' + rotateNote + '.' + ADVICE;
+      b.setAttribute('aria-label', 'Use an angle of the stock from Spoilboard Toolbox: long side ' + way(lg) + ', short side ' + way(sh));
+      b.setAttribute('aria-haspopup', 'menu');
+      b.setAttribute('aria-expanded', 'false');
+      b.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (stockMenu.btn === b) { closeStockMenu(false); return; }
+        closeStockMenu(false);
+        var reach = patternReach(prefix), first = stockSideFirst(reach.along, reach.across);
+        var list = first === 'short' ? [sides[1], sides[0]] : sides.slice();
+        var pop = document.createElement('div');
+        pop.className = 'qc-stock-menu';
+        pop.setAttribute('role', 'menu');
+        pop.setAttribute('aria-label', 'Stock side for Angle');
+        list.forEach(function(sd) {
+          var it = document.createElement('button');
+          it.type = 'button';
+          it.className = 'qc-stock-menu-item';
+          it.setAttribute('role', 'menuitem');
+          var name = sd.side === 'long' ? 'Long side' : 'Short side';
+          it.innerHTML = name + ' <b>' + stockSideDeg(sd.deg) + '</b>';
+          it.title = 'Angle = ' + sd.deg + '\u00b0: the rows run along the stock\u2019s ' + (sd.side === 'long' ? 'long' : 'short') + ' side' +
+            (first === sd.side ? ', as the pattern reaches farther ' + (first === 'long' ? 'along its rows' : 'across them') : '') + '.';
+          it.addEventListener('click', function(ev) { ev.preventDefault(); closeStockMenu(false); apply(sd.deg); });
+          it.addEventListener('keydown', function(ev) {
+            if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+            ev.preventDefault();
+            var items = pop.querySelectorAll('.qc-stock-menu-item'), i = Array.prototype.indexOf.call(items, it);
+            items[(i + (ev.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+          });
+          pop.appendChild(it);
+        });
+        // Under the button (above it when there's no room), right edges
+        // lined up, inside the dialog, as the tool menu is placed.
+        ROOT.appendChild(pop);
+        var rb = b.getBoundingClientRect(), rr = ROOT.getBoundingClientRect(), below = rb.bottom - rr.top + 4;
+        pop.style.top = (below + pop.offsetHeight <= rr.height - 8 ? below : Math.max(8, rb.top - rr.top - pop.offsetHeight - 4)) + 'px';
+        pop.style.left = Math.max(8, Math.min(rb.right - rr.left - pop.offsetWidth, rr.width - pop.offsetWidth - 8)) + 'px';
+        stockMenu.pop = pop; stockMenu.btn = b;
+        b.setAttribute('aria-expanded', 'true');
+        pop.querySelector('.qc-stock-menu-item').focus();
       });
       label.appendChild(b);
     });
