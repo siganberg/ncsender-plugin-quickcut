@@ -11438,9 +11438,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
   }
   // Which way the picked tool's flutes send chips, for a narrow hole's
   // helix: 'compression' or 'down' (down-cut by its type or name), else ''.
+  // The tool as bitToolInfo finds it: picked with a tool changer, else the
+  // one read in or in the spindle when the Bit Diameter is its size.
   function bitCutKind() {
-    var n = bitToolNumber(), t = n && (state.tools || []).filter(function(x) { return x.n === n; })[0];
-    if (!t) return '';
+    var t = bitToolInfo();
+    if (!t || !(t.type || t.name)) return '';
     if (isCompressionTool(t)) return 'compression';
     return /^down[-_ ]?cut$/i.test(t.type || '') || /\bdown[- ]?cut\b/i.test(t.name || '') ? 'down' : '';
   }
@@ -17827,7 +17829,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
 
       lines.push.apply(lines, tabNotes);
-      if (!straightIn && packsChips(params) && narrowHelix(params, baseGeom.pathRadius)) {
+      // Any of the holes (Concentric Copies' too) narrow enough to matter.
+      if (!straightIn && packsChips(params) && concentric.list.some(function(ec) { return narrowHelix(ec.params, computeCircleGeom(ec.params).pathRadius); })) {
         lines.push('(WARNING: ' + (params.bitCut === 'down' ? 'down-cut' : 'compression') + ' bit in a narrow hole: chips pack, 5 deg ramp)');
       }
       lines.push.apply(lines, startupBlock(params));

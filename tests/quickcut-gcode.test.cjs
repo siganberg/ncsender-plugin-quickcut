@@ -3386,7 +3386,7 @@ test('no straight plunges into the stock: every pass ramps in, and off each tab,
       ['slot clearing', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'clearing', depth: 6, depthOfCut: 2 }))],
       ['slot outline', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'outer', depth: 6, depthOfCut: 2, tabs }))],
       // A helix on a radius under half the bit's is a plunge: Z at the Plunge Rate (helixSlope).
-      ['small circle helix', g.generateCircleProgram(s({ diameter: 7, cutType: 'inner', depth: 6, depthOfCut: 6 })), 45],
+      ['small circle helix', g.generateCircleProgram(s({ diameter: 7, cutType: 'inner', depth: 6, depthOfCut: 6 })), 16],
       // Too short for 5°: 8 trips, steeper, still not a plunge.
       ['short slot', g.generateSlotProgram(s({ slotType: 'straight', length: 8, width: 6.35, cutType: 'center', depth: 18, depthOfCut: 6 })), 25],
       ['two rectangles', g.generateRectangleProgram(s({ width: 50, height: 30, cutType: 'outer', tabs,
@@ -4418,4 +4418,12 @@ test('a narrow hole never comes down faster than the feed', () => {
   // Slower, it spirals: Z at the feed's 1000, not the 4000 asked.
   const slow = g.generateCircleProgram({ ...p, machineAccelMm: 5000 });
   helixZRate(slow).forEach(v => assert.ok(v <= 1000 + 15, 'Z rate ' + v));
+});
+
+test('a narrow Concentric copy of a compression bit\'s hole is warned about too', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { bitDiameter: 6.35, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, spindleDelay: 0, depth: 3, depthOfCut: 1, origin: 'center', cutType: 'inner', diameter: 20, bitCut: 'compression',
+    concentric: { enabled: true, copies: 1, direction: 'inside', stepMode: 'distance', step: 6.3, spacing: 'offset', shiftX: 0, shiftY: 0, turn: 0 } };
+  assert.doesNotMatch(g.generateCircleProgram({ ...p, concentric: null }), /WARNING: compression/);
+  assert.match(g.generateCircleProgram(p), /^\(WARNING: compression bit in a narrow hole/m);
 });
