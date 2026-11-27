@@ -124,6 +124,7 @@ Every pass of a profile, slot or pocket ramps down instead of plunging into uncu
 - **Ramps:** from the last pass's floor, down along the pass's own path and back to where it began, at 5° or less. Down off each holding tab too, from the last pass's floor.
 - **Short paths:** a path too short for 5° goes back and forth, up to 8 times, then steeper, with the feed slowed so Z never comes down faster than the **Plunge Rate**. A path under 1 mm (0.04 in), such as a hole barely bigger than the bit, plunges at the Plunge Rate.
 - **Circles** spiral down (a helix), with as many turns as keep it to 5°, and a Rectangle pocket starts with a small helix in its middle.
+- **A hole barely wider than the bit** (its helix on a radius under half the bit's): the bit's bottom covers the middle all the way down, so it's plunging. It spirals down at the **Plunge Rate** (no faster than the Feed), at the speed the machine can reach on so small a circle (its acceleration, `$120`/`$121`), not at 5°; steeper than 45° it plunges straight down and cuts a lap at each depth. A **compression** or **down-cut** bit (its tool type or name) keeps the slow 5° spiral there, since its chips go down and pack in a narrow hole, and the note beside Generate says so.
 - **Drill** and **Keyhole** plunge, by design: a drill bit cuts on its end, and a keyhole bit can only go in through its hole.
 
 ### Holding tabs
