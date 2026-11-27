@@ -3385,7 +3385,8 @@ test('no straight plunges into the stock: every pass ramps in, and off each tab,
       ['slot centre line', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 6.35, cutType: 'center', depth: 6, depthOfCut: 2 }))],
       ['slot clearing', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'clearing', depth: 6, depthOfCut: 2 }))],
       ['slot outline', g.generateSlotProgram(s({ slotType: 'straight', length: 60, width: 20, cutType: 'outer', depth: 6, depthOfCut: 2, tabs }))],
-      ['small circle helix', g.generateCircleProgram(s({ diameter: 7, cutType: 'inner', depth: 6, depthOfCut: 6 }))],
+      // A helix on a radius under half the bit's is a plunge: Z at the Plunge Rate (helixSlope).
+      ['small circle helix', g.generateCircleProgram(s({ diameter: 7, cutType: 'inner', depth: 6, depthOfCut: 6 })), 16],
       // Too short for 5°: 8 trips, steeper, still not a plunge.
       ['short slot', g.generateSlotProgram(s({ slotType: 'straight', length: 8, width: 6.35, cutType: 'center', depth: 18, depthOfCut: 6 })), 25],
       ['two rectangles', g.generateRectangleProgram(s({ width: 50, height: 30, cutType: 'outer', tabs,
@@ -4337,4 +4338,92 @@ test('planer full-width cuts run at the first-pass feed: an inside-out spiral\'s
   assert.match(g, /one continuous zigzag/);
   const lines = g.split('\n'), slow = lines.filter((l) => /^G1 /.test(l) && / F1050$/.test(l));
   assert.ok(slow.length >= 2, slow.join('\n'));
+});
+
+// A narrow hole's helix (radius under half the bit's) comes down at the
+// Plunge Rate, at the speed the machine reaches on that small circle.
+const helixZRate = (g) => {
+  let z = null, x = null, y = null, rate = [];
+  for (const l of g.split('\n')) {
+    const w = (k) => { const m = new RegExp('(?:^|\\s)' + k + '(-?[\\d.]+)').exec(l.split(/[;(]/)[0]); return m ? +m[1] : null; };
+    const nz = w('Z'), nx = w('X'), ny = w('Y'), f = w('F');
+    if (/^G[23] /.test(l) && nz != null && nz < z) {
+      const r = Math.hypot(w('I') || 0, w('J') || 0), len = Math.PI * r, dz = z - nz;
+      rate.push(f * dz / Math.hypot(len, dz));
+    }
+    if (nz != null) z = nz; if (nx != null) x = nx; if (ny != null) y = ny;
+  }
+  return rate;
+};
+test('a narrow hole\'s helix descends at the Plunge Rate; a wide one keeps the 5 degree ramp', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { bitDiameter: 12.7, feedRate: 4000, plungeFeedRate: 300, spindleRpm: 13100, spindleDelay: 0, depth: 10, depthOfCut: 1, origin: 'center', cutType: 'inner' };
+  const narrow = g.generateCircleProgram({ ...p, diameter: 13.4, machineAccelMm: 700 });
+  const zr = helixZRate(narrow);
+  assert.ok(zr.length > 0);
+  zr.forEach(v => assert.ok(Math.abs(v - 300) < 15, 'Z rate ' + v));
+  // Before: 5 degrees at F4000 on a 0.35 mm circle (about 940 mm/min there): 80 mm/min down.
+  const turns = (narrow.match(/^G3 .*Z/gm) || []).length / 2;
+  assert.ok(turns < 30, 'turns ' + turns);
+  // A wide hole: unchanged 5 degree ramp at the feed.
+  const wide = g.generateCircleProgram({ ...p, diameter: 30, machineAccelMm: 700 });
+  assert.match(wide, /^G3 .* F4000$/m);
+  assert.doesNotMatch(wide, /WARNING/);
+});
+test('a narrow hole steeper than 45 degrees plunges, with a lap at each depth', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { bitDiameter: 12.7, feedRate: 4000, plungeFeedRate: 2000, spindleRpm: 13100, spindleDelay: 0, depth: 3, depthOfCut: 1, origin: 'center', cutType: 'inner', diameter: 13.4, machineAccelMm: 700 };
+  const out = g.generateCircleProgram(p);
+  assert.deepEqual(out.match(/^G1 Z-[\d.]+ F2000$/gm), ['G1 Z-1.000 F2000', 'G1 Z-2.000 F2000', 'G1 Z-3.000 F2000']);
+  assert.equal((out.match(/^G3 X-?[\d.]+ Y-?[\d.]+ I-?[\d.]+ J0 F4000$/gm) || []).length, 3);
+  assert.doesNotMatch(out, /^G3 .*Z/m);
+});
+test('a compression or down-cut bit keeps the 5 degree ramp in a narrow hole, with a warning', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { bitDiameter: 12.7, feedRate: 4000, plungeFeedRate: 2000, spindleRpm: 13100, spindleDelay: 0, depth: 3, depthOfCut: 1, origin: 'center', cutType: 'inner', diameter: 13.4, machineAccelMm: 700 };
+  const plain = g.generateCircleProgram({ ...p, plungeFeedRate: 1e-9 });
+  for (const [cut, word] of [['compression', 'compression'], ['down', 'down-cut']]) {
+    const out = g.generateCircleProgram({ ...p, bitCut: cut });
+    assert.match(out, new RegExp('^\\(WARNING: ' + word + ' bit in a narrow hole: chips pack, 5 deg ramp\\)$', 'm'));
+    assert.doesNotMatch(out, /^G1 Z-1\.000/m);
+    assert.ok(out.split('\n').every(l => l.length <= 79));
+  }
+  // Wide holes say nothing.
+  assert.doesNotMatch(g.generateCircleProgram({ ...p, diameter: 30, bitCut: 'down' }), /WARNING/);
+  assert.ok(plain.length > 0);
+});
+test('config.html carries the same narrow-hole helix code as lib/quickcut-gcode.cjs', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const body = (src, name) => {
+    const start = src.indexOf('function ' + name + '(');
+    let i = src.indexOf('{', start), depth = 0;
+    for (; i < src.length; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}' && --depth === 0) break;
+    }
+    return src.slice(start, i + 1).split('\n').map(l => l.trim()).join('\n');
+  };
+  const html = fs.readFileSync(path.join(__dirname, '..', 'config.html'), 'utf8');
+  const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'quickcut-gcode.cjs'), 'utf8');
+  for (const name of ['narrowHelix', 'packsChips', 'helixSlope', 'emitOneCircle']) {
+    assert.ok(html.indexOf('function ' + name + '(') >= 0, name);
+    assert.equal(body(html, name), body(lib, name), name);
+  }
+});
+test('a narrow hole never comes down faster than the feed', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { bitDiameter: 12.7, feedRate: 1000, plungeFeedRate: 4000, spindleRpm: 17500, spindleDelay: 0, depth: 3, depthOfCut: 1, origin: 'center', cutType: 'inner', diameter: 13.4, machineAccelMm: 700 };
+  const out = g.generateCircleProgram(p);
+  assert.deepEqual(out.match(/^G1 Z-[\d.]+ F\d+$/gm), ['G1 Z-1.000 F1000', 'G1 Z-2.000 F1000', 'G1 Z-3.000 F1000']);
+  // Slower, it spirals: Z at the feed's 1000, not the 4000 asked.
+  const slow = g.generateCircleProgram({ ...p, machineAccelMm: 5000 });
+  helixZRate(slow).forEach(v => assert.ok(v <= 1000 + 15, 'Z rate ' + v));
+});
+
+test('a narrow Concentric copy of a compression bit\'s hole is warned about too', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { bitDiameter: 6.35, feedRate: 1500, plungeFeedRate: 400, spindleRpm: 18000, spindleDelay: 0, depth: 3, depthOfCut: 1, origin: 'center', cutType: 'inner', diameter: 20, bitCut: 'compression',
+    concentric: { enabled: true, copies: 1, direction: 'inside', stepMode: 'distance', step: 6.3, spacing: 'offset', shiftX: 0, shiftY: 0, turn: 0 } };
+  assert.doesNotMatch(g.generateCircleProgram({ ...p, concentric: null }), /WARNING: compression/);
+  assert.match(g.generateCircleProgram(p), /^\(WARNING: compression bit in a narrow hole/m);
 });

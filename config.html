@@ -4095,6 +4095,7 @@
     maxFeedMm: null,
     // The Z axis's max rate ($112), which the starting Plunge Rate stays within.
     maxPlungeMm: null,
+    machineAccelMm: null,
     spindleMax: null,
     spindleMin: null,
     // Flutes on the bit, for the starting feeds.
@@ -4204,6 +4205,8 @@
       if (fwNum('110') > 0 && fwNum('111') > 0) state.maxFeedMm = Math.min(fwNum('110'), fwNum('111'));
       if (fwNum('112') > 0) state.maxPlungeMm = fwNum('112');
       if (fwNum('132') > 0) state.zTravelMm = fwNum('132');
+      // X and Y acceleration (mm/s2): how fast a small helix can go round.
+      if (fwNum('120') > 0 && fwNum('121') > 0) state.machineAccelMm = Math.min(fwNum('120'), fwNum('121'));
       // grblHAL's default $30 is 1000: not a router's real top speed.
       if (fwNum('30') >= 5000) state.spindleMax = fwNum('30');
       if (fwNum('31') > 0) state.spindleMin = fwNum('31');
@@ -6022,6 +6025,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       chamfer:      readChamferForm('circ'),
       pattern:      readPatternForm('circ'),
       concentric:       readConcentricForm('circ'),
+      machineAccelMm:  state.machineAccelMm,
+      bitCut:          bitCutKind(),
       isImperial:      state.isImperial,
       safeZHeightMm:   state.safeZHeightMm
     }));
@@ -11431,6 +11436,16 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (deep && state.feedsAuto && !state.stepTyped[m[1]] && (deep.compression || penTool())) { fillStartingFeeds(true); return; }
     if (/^qc-(rpm|feed|plunge|[a-z]+-step(over)?)$/.test(el.id)) setFeedsAuto(false);
   }
+  // Which way the picked tool's flutes send chips, for a narrow hole's
+  // helix: 'compression' or 'down' (down-cut by its type or name), else ''.
+  // The tool as bitToolInfo finds it: picked with a tool changer, else the
+  // one read in or in the spindle when the Bit Diameter is its size.
+  function bitCutKind() {
+    var t = bitToolInfo();
+    if (!t || !(t.type || t.name)) return '';
+    if (isCompressionTool(t)) return 'compression';
+    return /^down[-_ ]?cut$/i.test(t.type || '') || /\bdown[- ]?cut\b/i.test(t.name || '') ? 'down' : '';
+  }
   // A compression bit: its tool type, or its name says so (not its notes,
   // where "not a compression bit" would count).
   function isCompressionTool(t) {
@@ -11919,6 +11934,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         tabNote = tabsNote(lines);
         var fl = fluteDepthNote(TAB_PREFIX[view]);
         if (fl) { text += ' ' + fl; warn = true; }
+        var nh = narrowHoleNote(lines);
+        if (nh) { text += ' ' + nh; warn = true; }
         var cn = chamferToolNote();
         if (cn) { text += ' ' + cn; warn = true; }
       } catch (e) { text = ''; }
@@ -11942,6 +11959,15 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var m = /^\(WARNING: only (\d+) of (\d+) tabs fit/.exec(lines[i]);
       if (m) return 'Only ' + m[1] + ' of ' + m[2] + ' tabs fit';
       if (/^\(WARNING: tabs too wide for this path/.test(lines[i])) return 'No tabs fit: try narrower ones';
+    }
+    return '';
+  }
+  // A compression or down-cut bit in a hole narrower than half its own
+  // radius each side (from the program's header): it spirals slowly.
+  function narrowHoleNote(lines) {
+    for (var i = 0; i < Math.min(lines.length, 80); i++) {
+      var m = /^\(WARNING: (compression|down-cut) bit in a narrow hole/.exec(lines[i]);
+      if (m) return 'A ' + m[1] + ' bit\u2019s chips pack in a hole this narrow, so it spirals down slowly at the 5\u00b0 ramp. An up-cut bit clears them and goes down at the Plunge Rate.';
     }
     return '';
   }
@@ -17203,6 +17229,29 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
 
     // The feed along a ramp of this slope (drop per length) that lowers Z
     // no faster than the plunge rate.
+    // A circle's helix on a radius under half the bit's: the bit's bottom
+    // covers the hole's middle all the way down, so it's plunging, and the
+    // ramp's 5 degrees only slow it (a small circle can't be run at the feed
+    // either: the machine's acceleration caps it near sqrt(a * r)). Its slope
+    // brings Z down at the Plunge Rate (never faster than the feed, as the
+    // ramp it replaces) at the speed the machine reaches on that circle
+    // (params.machineAccelMm, mm/s2; the feed when unknown);
+    // steeper than 45 degrees it goes straight down instead. Not for a
+    // compression or down-cut bit (params.bitCut): its chips go down, and in
+    // a narrow hole they pack under it, so it keeps the ramp.
+    function narrowHelix(params, pathRadius) {
+      return pathRadius > 0 && pathRadius < params.bitDiameter / 4;
+    }
+    function packsChips(params) {
+      return params.bitCut === 'compression' || params.bitCut === 'down';
+    }
+    function helixSlope(params, pathRadius) {
+      if (!narrowHelix(params, pathRadius) || packsChips(params) || !(params.plungeFeedRate > 0) || !(params.feedRate > 0)) return rampSlope;
+      var k = isImperial ? 25.4 : 1, v = params.feedRate;
+      if (params.machineAccelMm > 0) v = Math.min(v, Math.sqrt(params.machineAccelMm * pathRadius * k) * 60 / k);
+      return Math.max(rampSlope, Math.min(params.plungeFeedRate, params.feedRate) / v);
+    }
+
     function slopeFeed(slope, feedRate, plungeFeedRate) {
       if (slope <= rampSlope * 1.001) return feedRate;
       return Math.max(1, Math.min(feedRate, Math.round(plungeFeedRate * Math.sqrt(1 + slope * slope) / slope)));
@@ -17780,6 +17829,10 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       }
 
       lines.push.apply(lines, tabNotes);
+      // Any of the holes (Concentric Copies' too) narrow enough to matter.
+      if (!straightIn && packsChips(params) && concentric.list.some(function(ec) { return narrowHelix(ec.params, computeCircleGeom(ec.params).pathRadius); })) {
+        lines.push('(WARNING: ' + (params.bitCut === 'down' ? 'down-cut' : 'compression') + ' bit in a narrow hole: chips pack, 5 deg ramp)');
+      }
       lines.push.apply(lines, startupBlock(params));
 
       var shift = placed.shift;
@@ -17830,19 +17883,23 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       var levels = depthLevels(depth, depthOfCut, tabTop);
 
       var prevZ = parseFloat(slowPlungeStart);
+      // A narrow hole's slope comes from the Plunge Rate (helixSlope); past
+      // 45 degrees it plunges and cuts a lap at each depth, as straight entry.
+      var hSlope = helixSlope(params, pathRadius), plunges = straightIn || hSlope > 1;
       for (var i = 0; i < levels.length; i++) {
         if (tabTop != null && levels[i] > tabTop + 1e-6) break;
         var targetZ = -levels[i];
-        // As many turns as keep it to rampSlope (a small hole has a short
+        // As many turns as keep it to hSlope (a small hole has a short
         // lap), up to 64.
         var lap = 2 * Math.PI * pathRadius;
-        if (lap < minRamp || straightIn) {
-          lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + plungeFeedRate);
+        if (lap < minRamp || plunges) {
+          var narrowPlunge = !straightIn && lap >= minRamp;
+          lines.push('G1 Z' + targetZ.toFixed(3) + ' F' + (narrowPlunge ? Math.min(plungeFeedRate, feedRate) : plungeFeedRate));
           prevZ = targetZ;
           // A tool that goes straight down cuts its lap at each depth; the
           // last one before the cleanup lap is that lap.
           var lastHere = i === levels.length - 1 || (tabTop != null && levels[i + 1] > tabTop + 1e-6);
-          if (straightIn && !lastHere) {
+          if (plunges && lap >= minRamp && !lastHere) {
             lines.push('G3 X' + (cx - pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
                        ' I' + (-pathRadius).toFixed(5) + ' J0 F' + feedRate);
             lines.push('G3 X' + (cx + pathRadius).toFixed(5) + ' Y' + cy.toFixed(5) +
@@ -17850,7 +17907,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           }
           continue;
         }
-        var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (lap * rampSlope) - 1e-9)));
+        var turns = Math.min(64, Math.max(1, Math.ceil((prevZ - targetZ) / (lap * hSlope) - 1e-9)));
         var helixFeed = ' F' + slopeFeed((prevZ - targetZ) / turns / lap, feedRate, plungeFeedRate);
         for (var h = 1; h <= turns; h++) {
           var endZ = prevZ + (targetZ - prevZ) * h / turns;
