@@ -62,9 +62,13 @@ test('stockSidesFrom: both sides when Spoilboard Toolbox saves them', () => {
   // Width X along the short side: stockTurnDeg is that side's, the sides are as saved.
   assert.deepEqual(stockSidesFrom({ stockTurnDeg: -26.5651, stockTurnLongDeg: 63.4349, stockTurnShortDeg: -26.5651 }),
     [{ side: 'long', deg: 63.4349 }, { side: 'short', deg: -26.5651 }]);
-  // Only one side known (the other missing): still offered, the other as 0.
-  assert.deepEqual(stockSidesFrom({ stockTurnLongDeg: 18.4242 }), [{ side: 'long', deg: 18.4242 }, { side: 'short', deg: 0 }]);
-  assert.deepEqual(stockSidesFrom({ stockTurnDeg: 5, stockTurnShortDeg: -26.5651 }), [{ side: 'long', deg: 0 }, { side: 'short', deg: -26.5651 }]);
+  // Only one side known (the other missing or unreadable): the other is square to it.
+  assert.deepEqual(stockSidesFrom({ stockTurnLongDeg: 18.4242 }), [{ side: 'long', deg: 18.4242 }, { side: 'short', deg: -71.5758 }]);
+  assert.deepEqual(stockSidesFrom({ stockTurnDeg: 5, stockTurnShortDeg: -26.5651 }), [{ side: 'long', deg: 63.4349 }, { side: 'short', deg: -26.5651 }]);
+  assert.deepEqual(stockSidesFrom({ stockTurnLongDeg: -30, stockTurnShortDeg: 'x' }), [{ side: 'long', deg: -30 }, { side: 'short', deg: 60 }]);
+  assert.deepEqual(stockSidesFrom({ stockTurnLongDeg: 90 }), [{ side: 'long', deg: 90 }, { side: 'short', deg: 0 }]);
+  // Both saved, one of them 0 (square to X): kept as saved.
+  assert.deepEqual(stockSidesFrom({ stockTurnLongDeg: 0, stockTurnShortDeg: 90 }), [{ side: 'long', deg: 0 }, { side: 'short', deg: 90 }]);
 });
 
 test('stockSidesFrom: square is none; an older Spoilboard Toolbox gives stockTurnDeg alone', () => {

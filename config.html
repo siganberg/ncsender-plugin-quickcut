@@ -11291,7 +11291,13 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       return t ? [{ side: 'stock', deg: t }] : [];
     }
     var lg = stockTurnFrom({ stockTurnDeg: s.stockTurnLongDeg }), sh = stockTurnFrom({ stockTurnDeg: s.stockTurnShortDeg });
-    return lg || sh ? [{ side: 'long', deg: lg }, { side: 'short', deg: sh }] : [];
+    if (!lg && !sh) return [];
+    // One side missing or unreadable: it's square to the other one.
+    var known = function(v) { return v != null && isFinite(typeof v === 'string' && v.trim() === '' ? NaN : Number(v)); };
+    var square = function(d) { return Math.round((d > 0 ? d - 90 : d + 90) * 1e4) / 1e4; };
+    if (!known(s.stockTurnShortDeg)) sh = square(lg);
+    else if (!known(s.stockTurnLongDeg)) lg = square(sh);
+    return [{ side: 'long', deg: lg }, { side: 'short', deg: sh }];
   }
   // Which side the rows (Angle's direction) should run along first: the
   // long side when the pattern reaches clearly farther along its rows than
@@ -11354,6 +11360,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     }, true);
     // Scrolling the form would leave it behind: closed.
     ROOT.addEventListener('scroll', function() { closeStockMenu(false); }, true);
+    // A resize or a turned screen would leave it in the wrong place: closed.
+    window.addEventListener('resize', function onResize() {
+      if (!document.body.contains(ROOT)) { window.removeEventListener('resize', onResize); return; }
+      closeStockMenu(false);
+    });
     window.addEventListener('keydown', function onKey(e) {
       if (!document.body.contains(ROOT)) { window.removeEventListener('keydown', onKey, true); return; }
       if (e.key === 'Escape' && closeStockMenu(true)) { e.preventDefault(); e.stopPropagation(); }
@@ -11416,7 +11427,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
           it.innerHTML = name + ' <b>' + stockSideDeg(sd.deg) + '</b>';
           it.title = 'Angle = ' + sd.deg + '\u00b0: the rows run along the stock\u2019s ' + (sd.side === 'long' ? 'long' : 'short') + ' side' +
             (first === sd.side ? ', as the pattern reaches farther ' + (first === 'long' ? 'along its rows' : 'across them') : '') + '.';
-          it.addEventListener('click', function(ev) { ev.preventDefault(); closeStockMenu(false); apply(sd.deg); });
+          // From the keyboard (no pointer, detail 0) focus goes back to the button.
+          it.addEventListener('click', function(ev) { ev.preventDefault(); closeStockMenu(ev.detail === 0); apply(sd.deg); });
           it.addEventListener('keydown', function(ev) {
             if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
             ev.preventDefault();
@@ -11424,6 +11436,11 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
             items[(i + (ev.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
           });
           pop.appendChild(it);
+        });
+        // Tabbing out of the menu closes it, so it can't stay over another tab.
+        pop.addEventListener('focusout', function(ev) {
+          var to = ev.relatedTarget;
+          if (stockMenu.pop === pop && to && !pop.contains(to) && to !== b) closeStockMenu(false);
         });
         // Under the button (above it when there's no room), right edges
         // lined up, inside the dialog, as the tool menu is placed.
