@@ -1,8 +1,8 @@
 ## What's Changed
 
 ### ✨ New Features
-- Pattern Angle: a Stock button beside each Pattern Angle (Rectangle, Circle, Polygon, Slot, Keyhole, Drill). When Spoilboard Toolbox has placed the stock at an angle against its pins, a click fills Angle with the stock's angle and turns Rotate shapes on, so the copies line up with the stock. Use an origin at the center or a point of the first copy: a corner of the pattern's box is measured square to the machine, and a warning says so
+- Pattern Angle: the Stock button offers the stock's Long side and Short side from Spoilboard Toolbox, with the side the pattern's longer way should follow listed first. Picking one fills Angle and turns Rotate shapes on. An older Spoilboard Toolbox still gets the single button
 
-### 🔧 Improvements
-- Programs retract with $SAFEZ on ncSender 2.0.228 or later (Pro 2.0.326 or later), so the lift follows ncSender's Safe Z setting at run time instead of a fixed G53 G0 Z that can trip the Z limit switch. Older versions get the same retract as before
-- Circle: a hole barely wider than the bit now spirals down at the Plunge Rate (no faster than the Feed), at the speed the machine can reach on so small a circle, instead of creeping down at 5 degrees. A 1/2" bit in a 13.4 mm hole went down at about 80 mm/min before. Steeper than 45 degrees it plunges straight down and cuts a lap at each depth. Compression and down-cut bits keep the slow 5 degree spiral there, and the note beside Generate says why
+### 🐛 Bug Fixes
+- Hops between cuts stay under Safe Z and the top of Z travel. With Z0 set close under them (stock near the top of Z), the 5 mm hop went past the soft limit and the machine stopped with ALARM:2. Hops are lowered only for the loaded tool, since another tool's length isn't known until it's loaded; the note beside Generate says when hops are lowered (mind clamps and screws), or when there's no room
+- Programs are plain ASCII: header comments said 0° and Circle × 15, which some controllers and senders mishandle. They now say 0 deg and Circle x 15, and accented letters in a tool name lose their accents
