@@ -4340,6 +4340,111 @@ test('planer full-width cuts run at the first-pass feed: an inside-out spiral\'s
   assert.ok(slow.length >= 2, slow.join('\n'));
 });
 
+// Hops under Safe Z / the top of Z travel (hopLimited): with Z0 close under
+// it, a 5 mm hop ran past the soft limit (ALARM:2).
+const zWords = (g) => g.split('\n').filter(l => !/^\s*\(/.test(l) && !/\bG53\b/.test(l))
+  .map(l => /Z(-?\d*\.?\d+)/.exec(l.split(/[;(]/)[0])).filter(Boolean).map(m => +m[1]);
+const hopCases = [
+  ['rectangle', 'generateRectangleProgram', () => baseParams()],
+  ['circle', 'generateCircleProgram', () => circleBase()],
+  ['planer', 'generatePlanerProgram', () => planerBase()],
+  ['jointer', 'generateJointerProgram', () => jointerBase()],
+  ['cutter', 'generateCutterProgram', () => cutterBase()],
+  ['keyhole', 'generateKeyholeProgram', () => keyholeBase()],
+  ['drill', 'generateDrillProgram', () => drillBase()],
+  ['drill pecks', 'generateDrillProgram', () => drillBase({ peckDepth: 2 })]
+];
+for (const [name, fn, params] of hopCases) {
+  test(`${name}: no Z above the hop ceiling, nothing below it changed`, () => {
+    const g = makeQuickCutGenerator(false);
+    const plain = g[fn](params()), capped = g[fn]({ ...params(), hopCeilingMm: 0.8 });
+    assert.ok(Math.max(...zWords(plain)) > 0.8, 'the case needs a hop above 0.8');
+    assert.ok(Math.max(...zWords(capped)) <= 0.8 + 1e-9);
+    assert.match(capped, /^\(Hops lowered to Z0\.800, under Safe Z or the Z travel\)$/m);
+    const a = plain.split('\n'), b = capped.split('\n').filter(l => !/^\(Hops lowered/.test(l));
+    assert.equal(a.length, b.length);
+    a.forEach((l, i) => { if (l !== b[i]) assert.match(l, /Z/, l); });
+    // A high ceiling changes nothing; so does none.
+    assert.equal(g[fn]({ ...params(), hopCeilingMm: 50 }), plain);
+    assert.equal(g[fn]({ ...params(), hopCeilingMm: null }), plain);
+  });
+}
+
+test('the user\'s circle: Z0 1.8 mm under the top, Safe Z machine -1: hops at 0.8', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = { ...circleBase({ diameter: 13.4, bitDiameter: 6.35, depth: 1.25, depthOfCut: 0.5, cutType: 'inner' }), safeZHeightMm: -1, hopCeilingMm: -1 - -1.8 };
+  const out = g.generateCircleProgram(p);
+  assert.deepEqual([...new Set(out.split('\n').filter(l => /^G0 Z/.test(l)))], ['G0 Z0.800']);
+  assert.match(out, /^G53 G0 Z-1\.000 ; Move to safe Z$/m);
+  assert.ok(out.split('\n').every(l => l.length <= 79 && /^[\x20-\x7e]*$/.test(l)));
+});
+
+test('too little room over the stock: the program is left as is, with a warning', () => {
+  const g = makeQuickCutGenerator(false);
+  const plain = g.generateCircleProgram(circleBase());
+  const out = g.generateCircleProgram({ ...circleBase(), hopCeilingMm: 0.3 });
+  assert.match(out, /^\(WARNING: only Z0\.300 above Z0 under Safe Z or the Z travel\)$/m);
+  assert.equal(out.split('\n').filter(l => !/^\(WARNING: only/.test(l)).join('\n'), plain);
+  assert.match(g.generateCircleProgram({ ...circleBase(), hopCeilingMm: 0.5 }), /^\(Hops lowered to Z0\.500/m);
+});
+
+test('inches: the ceiling converts and rounds down', () => {
+  const g = makeQuickCutGenerator(true);
+  const p = { ...circleBase({ diameter: 1, bitDiameter: 0.25, depth: 0.1, depthOfCut: 0.05 }) };
+  const out = g.generateCircleProgram({ ...p, hopCeilingMm: 0.8 });
+  assert.match(out, /^\(Hops lowered to Z0\.0314,/m);
+  assert.ok(Math.max(...zWords(out)) <= 0.0314 + 1e-9);
+  assert.match(g.generateCircleProgram({ ...p, hopCeilingMm: 0.4 }), /^\(WARNING: only Z0\.0157/m);
+});
+
+test('the Planer\'s thickness mode: the stock\'s top is the Starting Thickness', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = planerBase({ mode: 'thickness', startingThickness: 20, depth: 1, depthOfCut: 0.5 });
+  assert.match(g.generatePlanerProgram({ ...p, hopCeilingMm: 20.3 }), /^\(WARNING: only Z20\.300/m);
+  const out = g.generatePlanerProgram({ ...p, hopCeilingMm: 21 });
+  assert.match(out, /^\(Hops lowered to Z21\.000/m);
+  assert.ok(Math.max(...zWords(out)) <= 21 + 1e-9);
+});
+
+test('config.html carries the same hopLimited as lib/quickcut-gcode.cjs', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const body = (src, name) => {
+    const start = src.indexOf('function ' + name + '(');
+    let i = src.indexOf('{', start), depth = 0;
+    for (; i < src.length; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}' && --depth === 0) break;
+    }
+    return src.slice(start, i + 1).split('\n').map(l => l.trim()).join('\n');
+  };
+  const html = fs.readFileSync(path.join(__dirname, '..', 'config.html'), 'utf8');
+  const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'quickcut-gcode.cjs'), 'utf8');
+  assert.ok(html.indexOf('function hopLimited(') >= 0);
+  assert.equal(body(html, 'hopLimited'), body(lib, 'hopLimited'));
+  assert.match(html, /var hopMinClear = isImperial \? 0\.02 : 0\.5;/);
+  assert.match(html, /api\[k\] = hopLimited\(penLimited\(api\[k\]\)\)/);
+});
+
+test('hops are lowered only for the loaded tool: another tool\'s length isn\'t known', () => {
+  const g = makeQuickCutGenerator(false);
+  const p = (o) => ({ ...circleBase(), hopCeilingMm: 0.8, ...o });
+  const plain = g.generateCircleProgram(p({ toolNumber: 5, hopCeilingMm: undefined }));
+  const other = g.generateCircleProgram(p({ toolNumber: 5, hopTool: 1 }));
+  assert.match(other, /^\(WARNING: hops not lowered to Z0\.800: T5 not loaded, length unknown\)$/m);
+  assert.equal(other.split('\n').filter(l => !/^\(WARNING: hops not/.test(l)).join('\n'), plain);
+  assert.match(g.generateCircleProgram(p({ toolNumber: 5, hopTool: 0 })), /^\(WARNING: hops not lowered/m);
+  assert.match(g.generateCircleProgram(p({ toolNumber: 1, hopTool: 1 })), /^\(Hops lowered to Z0\.800/m);
+  assert.match(g.generateCircleProgram(p({ toolNumber: 0, hopTool: 3 })), /^\(Hops lowered to Z0\.800/m);
+  assert.equal(g.generateCircleProgram(p({ toolNumber: 5, hopTool: 1, hopCeilingMm: 50 })), plain);
+});
+
+test('machine-coordinate lines are left alone under a low ceiling', () => {
+  const g = makeQuickCutGenerator(false);
+  const out = g.generateCircleProgram({ ...circleBase(), safeZHeightMm: 3, hopCeilingMm: 0.8 });
+  assert.match(out, /^G53 G0 Z3\.000 ; Move to safe Z$/m);
+  assert.match(out, /^G53 G0 Z3\.000 ; Return to safe Z$/m);
+});
+
 // A narrow hole's helix (radius under half the bit's) comes down at the
 // Plunge Rate, at the speed the machine reaches on that small circle.
 const helixZRate = (g) => {
