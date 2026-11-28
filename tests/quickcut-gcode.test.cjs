@@ -289,7 +289,7 @@ test('clearing emits helical bore then expanding concentric rectangles', () => {
   // -1 to -2 (1mm ≤ 1.5 → 1 turn). Each turn = 2 semicircles (visualizer
   // compatibility), so 2×(2+1) = 6 helical arcs.
   const helices = gcode.split('\n').filter(l => /^G3\b.*\bZ-?\d/.test(l.trim()));
-  assert.equal(helices.length, 6, `expected 6 helical G3 arcs (2 semicircles × (2 turns pass1 + 1 turn pass2)), got ${helices.length}`);
+  assert.equal(helices.length, 6, `expected 6 helical G3 arcs (2 semicircles x (2 turns pass1 + 1 turn pass2)), got ${helices.length}`);
 });
 
 test('helix radius stays under toolRadius so center gets cleared', () => {
@@ -410,7 +410,7 @@ test('honeycomb: yCount is every row; rows alternate primary and shifted', () =>
     diameter: 5, cutType: 'inner', bitDiameter: 3,
     pattern: { enabled: true, style: 'honeycomb', xDist: 40, yDist: 20, xCount: 3, yCount: 5 }
   }));
-  assert.match(gcode, /^\(QuickCut: Circle × 15\)/m);
+  assert.match(gcode, /^\(QuickCut: Circle x 15\)/m);
   assert.match(gcode, /^\(Pattern: Honeycomb 3x5/m);
   // Origin=center anchors the WHOLE pattern's aggregate bbox center at
   // (0,0), so instance coordinates are shifted by (-50, -40) — the
@@ -449,7 +449,7 @@ test('honeycomb + Symmetric Ends: shifted rows have one less item; ends are alwa
       xDist: 40, yDist: 20, xCount: 3, yCount: 5
     }
   }));
-  assert.match(gcode, /^\(QuickCut: Circle × 13\)/m);
+  assert.match(gcode, /^\(QuickCut: Circle x 13\)/m);
   // Aggregate bbox is 80×80 (Symmetric Ends trims to 80 wide); center
   // shift = (-40, -40).
   assert.match(gcode, /\(Instance 1\/13 at X-40\.000 Y-40\.000\)/);
@@ -469,7 +469,7 @@ test('linear 2×2 pattern emits 4 instances at correct offsets', () => {
     pattern: { enabled: true, style: 'linear', xDist: 50, yDist: 40, xCount: 2, yCount: 2 }
   }));
   // Header mentions pattern count + description
-  assert.match(gcode, /^\(QuickCut: Rectangle × 4\)/m);
+  assert.match(gcode, /^\(QuickCut: Rectangle x 4\)/m);
   assert.match(gcode, /^\(Pattern: Linear 2x2 \[dX=50, dY=40\]\)/m);
   // origin=center anchors the pattern's aggregate bbox (2×2 rects with
   // dX=50 dY=40, W=H=20) center at (0,0). Center shift = (-25, -20).
@@ -506,8 +506,8 @@ test('circular (follow) pattern: instances rotate to match their position angle'
     pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 40, startAngle: 0 }
   }));
   assert.match(gcode, /\(Instance 1\/4 at X40\.000 Y0\.000\)/);
-  assert.match(gcode, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000°\)/);
-  assert.match(gcode, /Pattern: Circular \[Path Direction\] n=4 r=40 start=0°/);
+  assert.match(gcode, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000 deg\)/);
+  assert.match(gcode, /Pattern: Circular \[Path Direction\] n=4 r=40 start=0 deg/);
 });
 
 test('circular pattern (no follow) leaves instances un-rotated', () => {
@@ -554,7 +554,7 @@ test('pattern applies to clearing too — one helix per instance', () => {
   }));
   // 2 instances × (descent 3mm / maxPitch 1.5 = 2 turns) × 2 semicircles = 8 helical arcs.
   const helices = gcode.split('\n').filter(l => /^G3\b.*\bZ-?\d/.test(l.trim())).length;
-  assert.equal(helices, 8, `expected 8 helical semicircles (2 instances × 2 turns × 2 halves), got ${helices}`);
+  assert.equal(helices, 8, `expected 8 helical semicircles (2 instances x 2 turns x 2 halves), got ${helices}`);
   // 2 instance comments.
   const instanceLines = gcode.split('\n').filter(l => /\(Instance \d+\/\d+/.test(l.trim())).length;
   assert.equal(instanceLines, 2, `expected 2 instance comments, got ${instanceLines}`);
@@ -583,7 +583,7 @@ test('linear pattern at 36° puts centers on a 36° line, xDist apart', () => {
     diameter: 10,
     pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 3, yCount: 1, angle: 36 }
   }));
-  assert.match(gcode, /^\(Pattern: Linear 3x1 \[dX=40, dY=0\] angle=36°\)/m);
+  assert.match(gcode, /^\(Pattern: Linear 3x1 \[dX=40, dY=0\] angle=36 deg\)/m);
   const c = instanceCenters(gcode);
   assert.equal(c.length, 3);
   for (let i = 1; i < c.length; i++) {
@@ -634,8 +634,8 @@ test('rotateShapes turns each rectangle with the row; arcs stay in tolerance', (
   const rotated = gen(baseParams(Object.assign({}, params, {
     pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 3, yCount: 1, angle: 36, rotateShapes: true }
   })));
-  assert.match(rotated, /angle=36° rotated/);
-  assert.match(rotated, /\(Instance 2\/3 at X\S+ Y\S+ rot=36\.000°\)/);
+  assert.match(rotated, /angle=36 deg rotated/);
+  assert.match(rotated, /\(Instance 2\/3 at X\S+ Y\S+ rot=36\.000 deg\)/);
   assert.ok(maxArcRadiusDelta(rotated) < GRBL_ARC_TOLERANCE_MM);
 
   const plain = gen(baseParams(Object.assign({}, params, {
@@ -653,8 +653,8 @@ test('rotated instances anchor origin on their rotated extents', () => {
     origin: 'front-left',
     pattern: { enabled: true, style: 'linear', xDist: 40, yDist: 0, xCount: 2, yCount: 1, angle: 90, rotateShapes: true }
   }));
-  assert.match(gcode, /\(Instance 1\/2 at X5\.000 Y10\.000 rot=90\.000°\)/);
-  assert.match(gcode, /\(Instance 2\/2 at X5\.000 Y50\.000 rot=90\.000°\)/);
+  assert.match(gcode, /\(Instance 1\/2 at X5\.000 Y10\.000 rot=90\.000 deg\)/);
+  assert.match(gcode, /\(Instance 2\/2 at X5\.000 Y50\.000 rot=90\.000 deg\)/);
 });
 
 // ---------- Circle ----------
@@ -683,7 +683,7 @@ test('circle perimeter emits helical descent + final cleanup circle', () => {
   // 2 depth passes × 2 semicircles per revolution = 4 descending arcs.
   // Plus 2 final cleanup semicircles = 6 total G3 arcs.
   const arcs = gcode.split('\n').filter(l => /^G3\b/.test(l.trim())).length;
-  assert.equal(arcs, 6, `expected 6 G3 arcs (2 passes × 2 halves + 2 cleanup halves), got ${arcs}`);
+  assert.equal(arcs, 6, `expected 6 G3 arcs (2 passes x 2 halves + 2 cleanup halves), got ${arcs}`);
   // Cleanup arcs have no Z coordinate.
   const cleanup = gcode.split('\n').filter(l => {
     const t = l.trim();
@@ -737,7 +737,7 @@ test('circle clearing emits helical bore + expanding concentric rings', () => {
     const t = l.trim();
     return /^G3\b/.test(t) && !/\bZ-?\d/.test(t);
   }).length;
-  assert.equal(ringArcs, 18, `expected 18 constant-Z ring semicircles (9 rings × 2 halves), got ${ringArcs}`);
+  assert.equal(ringArcs, 18, `expected 18 constant-Z ring semicircles (9 rings x 2 halves), got ${ringArcs}`);
 });
 
 test('circle pattern replicates the whole ring at each position', () => {
@@ -746,7 +746,7 @@ test('circle pattern replicates the whole ring at each position', () => {
     diameter: 20, cutType: 'inner', bitDiameter: 3,
     pattern: { enabled: true, style: 'circular', count: 3, radius: 30, startAngle: 0 }
   }));
-  assert.match(gcode, /^\(QuickCut: Circle × 3\)/m);
+  assert.match(gcode, /^\(QuickCut: Circle x 3\)/m);
   // Circular ring positions (30,0), (-15, 25.98), (-15, -25.98) with
   // D=20 circles. Aggregate bbox center = (7.5, 0); origin=center shifts
   // by (-7.5, 0). First instance = (22.5, 0).
@@ -1060,7 +1060,7 @@ test('jointer multi-depth × multi-trim: depth × numTrims plunges total', () =>
     depth: 4, depthOfCut: 2, trimWidth: 1, numTrims: 3
   }));
   const plunges = gcode.split('\n').filter(l => /^G1 Z-\d/.test(l.trim())).length;
-  assert.equal(plunges, 6, `expected 6 plunges (2 depths × 3 trims), got ${plunges}`);
+  assert.equal(plunges, 6, `expected 6 plunges (2 depths x 3 trims), got ${plunges}`);
 });
 
 // ---------- Cutter ----------
@@ -1371,7 +1371,7 @@ test('polygon clearing: pattern (linear 2x2) emits 4 instances', () => {
     depth: 5, depthOfCut: 5,
     pattern: { enabled: true, style: 'linear', xDist: 25, yDist: 25, xCount: 2, yCount: 2 }
   }));
-  assert.match(gcode, /Polygon \[6-sided, clearing\] × 4/);
+  assert.match(gcode, /Polygon \[6-sided, clearing\] x 4/);
   assert.match(gcode, /Instance 1\/4/);
   assert.match(gcode, /Instance 4\/4/);
 });
@@ -1643,7 +1643,7 @@ test('keyhole pattern rotation turns each slot', () => {
     pattern: { enabled: true, style: 'circular-follow', count: 4, radius: 40, startAngle: 0 }
   }));
   // Instance 2 sits at 90°, so its slot points +Y from (0, 40).
-  assert.match(circ, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000°\)\nG0 X0\.000 Y40\.000\n[\s\S]*?G1 X-?0\.000 Y50\.000 F600/);
+  assert.match(circ, /\(Instance 2\/4 at X0\.000 Y40\.000 rot=90\.000 deg\)\nG0 X0\.000 Y40\.000\n[\s\S]*?G1 X-?0\.000 Y50\.000 F600/);
 
   const row = gen(keyholeBase({
     startAngleDeg: 90, slotLength: 10,
@@ -1964,8 +1964,8 @@ test('Path Direction: the first copy is unturned whatever the Start Angle', () =
 test('circular Total Angle shows in the header only when it is not 360', () => {
   const g = makeQuickCutGenerator(false);
   const pat = (t) => drillBase({ pattern: { enabled: true, style: 'circular', count: 4, radius: 30, startAngle: 10, totalAngle: t } });
-  assert.match(g.generateDrillProgram(pat(120)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10° total=120°\)/);
-  assert.match(g.generateDrillProgram(pat(360)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10°\)/);
+  assert.match(g.generateDrillProgram(pat(120)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10 deg total=120 deg\)/);
+  assert.match(g.generateDrillProgram(pat(360)), /\(Pattern: Circular \[Identical\] n=4 r=30 start=10 deg\)/);
 });
 
 test('rectangle Start Angle turns the cut about its center; 0 is unchanged', () => {
@@ -1981,7 +1981,7 @@ test('rectangle Start Angle turns the cut about its center; 0 is unchanged', () 
     assert.ok(Math.abs(rx - ey) < 1e-3 && Math.abs(ry - ex) < 1e-3, cutType + ' ' + [ex, ey, rx, ry]);
   }
   const turned = g.generateRectangleProgram(baseParams({ width: 50, height: 30, cutType: 'outer', bitDiameter: 6, startAngleDeg: 30 }));
-  assert.match(turned, /\(Corner Radius: 0mm, Start Angle: 30°\)/);
+  assert.match(turned, /\(Corner Radius: 0mm, Start Angle: 30 deg\)/);
   // Front-left origin anchors the turned part's box (the part's own
   // corners), so the Outer tool path's square corner, 3 out on each
   // side, pokes past it by the difference of the two turned boxes.
@@ -2001,7 +2001,7 @@ test('polygon Corner Radius: arcs about the core polygon, offset by the bit; 0 i
   }
   // Outer, radius 5, bit 3 radius: every corner arc is 8; one per corner per pass.
   const outer = g.generatePolygonProgram(base({ cornerRadius: 5 }));
-  assert.match(outer, /\(Start Angle: 0°, Corner Radius: 5mm\)/);
+  assert.match(outer, /\(Start Angle: 0 deg, Corner Radius: 5mm\)/);
   const radii = arcR(outer);
   assert.equal(radii.length, 6 * 2);
   assert.ok(radii.every(r => Math.abs(r - 8) < 2e-3), radii.join(','));
@@ -2049,8 +2049,8 @@ test('inner corners tighter than the bit say what the bit leaves, outer ones do 
   assert.match(rect({ cutType: 'inner', cornerRadius: 5 }), /\(Corner Radius: 5mm\)/);
   assert.match(rect({ cutType: 'outer', cornerRadius: 0 }), /\(Corner Radius: 0mm\)/);
   const poly = (o) => g.generatePolygonProgram(baseParams(Object.assign({ sides: 6, diameter: 60, bitDiameter: 6.35 }, o)));
-  assert.match(poly({ cutType: 'inner' }), /\(Start Angle: 0°, Corner Radius: 0mm \[the bit leaves 3\.175mm\]\)/);
-  assert.match(poly({ cutType: 'outer' }), /\(Start Angle: 0°\)/);
+  assert.match(poly({ cutType: 'inner' }), /\(Start Angle: 0 deg, Corner Radius: 0mm \[the bit leaves 3\.175mm\]\)/);
+  assert.match(poly({ cutType: 'outer' }), /\(Start Angle: 0 deg\)/);
   // The cut itself doesn't change.
   const strip = (t) => t.split('\n').filter(l => !/^\(/.test(l)).join('\n');
   assert.equal(strip(rect({ cutType: 'inner', cornerRadius: 2 })), strip(rect({ cutType: 'inner', cornerRadius: 0 })));
@@ -2529,7 +2529,7 @@ test('grid angle turns every line with the grid', () => {
   const lines = gridLines(g.generateSlotProgram(gridSlot({ pattern: { enabled: true, style: 'grid', xCount: 2, yCount: 2, xDist: 10, yDist: 10, angle: 30 } })));
   lines.forEach(l => {
     const a = ((Math.atan2(l[3] - l[1], l[2] - l[0]) * 180 / Math.PI) % 180 + 180) % 180;
-    assert.ok([30, 120].some(t => Math.abs(a - t) < 1e-3), `line at ${a}°`);
+    assert.ok([30, 120].some(t => Math.abs(a - t) < 1e-3), `line at ${a} deg`);
     assert.ok(Math.abs(Math.hypot(l[2] - l[0], l[3] - l[1]) - 10) < 1e-3);
   });
 });
@@ -2900,7 +2900,7 @@ test('circular pattern header names an Inside / Outside Radius it was set by', (
     width: 6, height: 6, cornerRadius: 0, cutType: 'inner', bitDiameter: 2, depth: 1, depthOfCut: 1, origin: 'center',
     pattern: Object.assign({ enabled: true, style: 'circular', count: 4, radius: 40, startAngle: 0 }, pattern)
   });
-  assert.match(gen(params({ radiusTo: 'inside', radiusEdge: 37 })), /Pattern: Circular \[Identical\] n=4 r=40 \[inside 37\] start=0°/);
+  assert.match(gen(params({ radiusTo: 'inside', radiusEdge: 37 })), /Pattern: Circular \[Identical\] n=4 r=40 \[inside 37\] start=0 deg/);
   assert.match(gen(params({ radiusTo: 'outside', radiusEdge: 43 })), /r=40 \[outside 43\] start=/);
   assert.match(gen(params({ radiusTo: 'center', radiusEdge: null })), /r=40 start=/);
 });
@@ -3193,7 +3193,7 @@ test('triangle: the bit runs a bit radius outside or inside it, and the header g
     const p = triangleBase(o), g = gen(p), dist = convexDistance(triangleCorners(p.triangle));
     assert.match(g, /\(QuickCut: Triangle\)/);
     assert.match(g, /Sides: 100mm base, 80mm left, 60mm right/);
-    assert.match(g, /Angles: 36\.87° left, 53\.13° right, 90° top/);
+    assert.match(g, /Angles: 36\.87 deg left, 53\.13 deg right, 90 deg top/);
     const pts = cutPoints(g);
     assert.ok(pts.length > 50);
     for (const pt of pts) assert.ok(Math.abs(dist(pt) - want) < 0.01, JSON.stringify([o, pt, dist(pt)]));
@@ -3721,7 +3721,7 @@ test('drill chamfer: each hole the drill program made gets a chamfer, centered o
   const chamfer = drillParams({ bitDiameter: 4, toolNumber: 22, chamfer: { width: 0.5, angle: 90, holeDiameter: 5, cutDepth: 10, depthOfCut: 1 } });
   const plan = g.chamferPlanFor('drill', chamfer);
   const gcode = g.generateDrillProgram(chamfer);
-  assert.match(gcode, /^\(QuickCut: Drill chamfer × 6\)/);
+  assert.match(gcode, /^\(QuickCut: Drill chamfer x 6\)/);
   assert.match(gcode, /^M6 T22/m);
   const centers = gcode.split('\n').filter(l => /^G0 X/.test(l)).map(l => l.match(/X(-?[\d.]+) Y(-?[\d.]+)/).slice(1).map(Number))
     .map(([x, y]) => [x - plan.pathRadius, y]);
@@ -4531,4 +4531,45 @@ test('a narrow Concentric copy of a compression bit\'s hole is warned about too'
     concentric: { enabled: true, copies: 1, direction: 'inside', stepMode: 'distance', step: 6.3, spacing: 'offset', shiftX: 0, shiftY: 0, turn: 0 } };
   assert.doesNotMatch(g.generateCircleProgram({ ...p, concentric: null }), /WARNING: compression/);
   assert.match(g.generateCircleProgram(p), /^\(WARNING: compression bit in a narrow hole/m);
+});
+
+test('programs are printable ASCII: degree and times signs spelled out', () => {
+  const pats = [null,
+    { enabled: true, style: 'linear', xCount: 3, yCount: 2, xDist: 40, yDist: 30, angle: 36.123, rotateShapes: true },
+    { enabled: true, style: 'circular', count: 6, radius: 50, startAngle: 15.5, totalAngle: 270, follow: true }];
+  for (const imp of [false, true]) {
+    const g = makeQuickCutGenerator(imp);
+    const outs = [];
+    for (const pattern of pats) {
+      outs.push(g.generateRectangleProgram(baseParams({ startAngleDeg: 33.3, pattern })));
+      outs.push(g.generateCircleProgram(circleBase({ pattern })));
+      outs.push(g.generatePolygonProgram(polygonBase({ startAngleDeg: 123.456, pattern })));
+      outs.push(g.generateKeyholeProgram(keyholeBase({ startAngleDeg: 271.25, pattern })));
+      outs.push(g.generateDrillProgram(drillBase({ pattern })));
+      outs.push(g.generateSlotProgram(slotBase({ angleDeg: 123.456, pattern })));
+      outs.push(g.generateSlotProgram(slotBase({ slotType: 'arc', startAngleDeg: 12.5, sweepDeg: 222.25, pattern })));
+    }
+    for (const out of outs) for (const line of out.split('\n')) {
+      assert.doesNotMatch(line, /[^\x20-\x7e]|[!?~]/, line);
+      assert.ok(line.length <= 79, line);
+    }
+    const all = outs.join('\n');
+    assert.match(all, /\(QuickCut: Rectangle x 6\)/);
+    assert.match(all, /angle=36\.123 deg rotated/);
+    assert.match(all, /Start Angle: 123\.456 deg/);
+  }
+});
+
+test('config.html carries the same ASCII pass as lib/quickcut-gcode.cjs', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'config.html'), 'utf8');
+  const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'quickcut-gcode.cjs'), 'utf8');
+  const chunk = (src) => {
+    const a = src.indexOf('var ASCII_SPELLED'), b = src.indexOf('function penLimited(');
+    assert.ok(a > 0 && b > a);
+    return src.slice(a, b).split('\n').map(l => l.trim()).join('\n');
+  };
+  assert.equal(chunk(html), chunk(lib));
+  assert.match(lib, /api\[k\] = asciiOnly\(api\[k\]\)/);
+  assert.match(html, /api\[k\] = asciiOnly\(api\[k\]\)/);
 });
