@@ -4085,6 +4085,8 @@
     // Front-left corner of the machine's travel in machine coordinates
     // (mm), from the homing settings; null when they don't tell.
     machineMinXmm: null,
+    machineTopZmm: null,
+    safeZSetMm: null,
     machineMinYmm: null,
     machineLimitYmm: 0,
     // Tool card (Bit Diameter, Feed Rate, Plunge Rate) is per-shape.
@@ -4211,6 +4213,8 @@
       state.toolById = !!(s.tool && s.tool.numbering === 'toolId');
       var safeZRaw = Number(s.safeZHeight);
       state.safeZHeightMm = isFinite(safeZRaw) ? safeZRaw : null;
+      // Set, not blank (Number('') and Number(null) are 0): for the hops' ceiling.
+      state.safeZSetMm = s.safeZHeight == null || s.safeZHeight === '' ? null : state.safeZHeightMm;
       // ncSender Pro's keepout zones, in machine coordinates (mm). Only
       // Wasteboard Surfacing uses them; Community has none. Newer cores keep
       // a list (`keepout.zones`); older ones a single `advanced.keepoutZone`.
@@ -4243,6 +4247,7 @@
       }
       var travelMin = machineTravelMin(fwSettings, state.machineLimitXmm, state.machineLimitYmm);
       if (travelMin) { state.machineMinXmm = travelMin.x; state.machineMinYmm = travelMin.y; }
+      state.machineTopZmm = machineTopZ(fwSettings);
       var fwNum = function(k) { return parseFloat(fwSettings && fwSettings[k] && fwSettings[k].value); };
       if (fwNum('110') > 0 && fwNum('111') > 0) state.maxFeedMm = Math.min(fwNum('110'), fwNum('111'));
       if (fwNum('112') > 0) state.maxPlungeMm = fwNum('112');
@@ -6008,6 +6013,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       pattern:      readPatternForm('rect'),
       concentric:       readConcentricForm('rect'),
       isImperial:      state.isImperial,
+      hopCeilingMm:  hopCeilingMm(),
+      hopTool:       state.wco ? state.wco.tool : 0,
       safeZHeightMm:   state.safeZHeightMm,
       safeZCommand:    state.safeZCommand
     }));
@@ -6071,6 +6078,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       machineAccelMm:  state.machineAccelMm,
       bitCut:          bitCutKind(),
       isImperial:      state.isImperial,
+      hopCeilingMm:  hopCeilingMm(),
+      hopTool:       state.wco ? state.wco.tool : 0,
       safeZHeightMm:   state.safeZHeightMm,
       safeZCommand:    state.safeZCommand
     }));
@@ -6104,6 +6113,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       workOrigin:   mode === 'wasteboard' && state.wco && state.machineMinXmm != null
         ? { x: roundDisplay(mmToDisplay(state.wco.x)), y: roundDisplay(mmToDisplay(state.wco.y)) } : null,
       isImperial:      state.isImperial,
+      hopCeilingMm:  hopCeilingMm(),
+      hopTool:       state.wco ? state.wco.tool : 0,
       safeZHeightMm:   state.safeZHeightMm,
       safeZCommand:    state.safeZCommand
     });
@@ -6125,6 +6136,52 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     if (bit < 0 || !isFinite(flags) || !isFinite(toMin) || !(flags & 1)) return null;
     var originAtHome = !!(flags & (1 << bit));
     return { x: originAtHome && (toMin & 1) ? 0 : -travelX, y: originAtHome && (toMin & 2) ? 0 : -travelY };
+  }
+
+  // The top of Z travel in machine mm, from the same homing settings: 0,
+  // unless Z homes to its minimum with the machine origin set there, when
+  // it's $132. null when unknown (homing off, no $22 names, no $132).
+  function machineTopZ(fw) {
+    var cycle = fw && fw['22'], dir = fw && fw['23'], travel = parseFloat(fw && fw['132'] && fw['132'].value);
+    if (!cycle || !dir || !(travel > 0)) return null;
+    var bit = String(cycle.format || '').split(',').indexOf('Set machine origin to 0');
+    var flags = parseInt(cycle.value, 10), toMin = parseInt(dir.value, 10);
+    if (bit < 0 || !isFinite(flags) || !isFinite(toMin) || !(flags & 1)) return null;
+    return (flags & (1 << bit)) && (toMin & 4) ? travel : 0;
+  }
+  // The highest Z, in work mm, a program may reach: Safe Z or the top of Z
+  // travel, whichever is lower, from the work offset's Z (ncSender's WCO,
+  // once homed; it includes the loaded tool's length: that tool, read with
+  // it, is passed as hopTool).
+  // null when neither is known. The generator brings hops
+  // down to it (hopLimited).
+  function hopCeilingMm() {
+    var w = state.wco;
+    if (!w || typeof w.z !== 'number' || !isFinite(w.z)) return null;
+    var tops = [state.safeZSetMm, state.machineTopZmm].filter(function(v) { return typeof v === 'number' && isFinite(v); });
+    return tops.length ? Math.min.apply(null, tops) - w.z : null;
+  }
+  // What limits it, for the run note.
+  function hopCeilingName() {
+    var sz = state.safeZSetMm, top = state.machineTopZmm;
+    return typeof sz === 'number' && isFinite(sz) && !(typeof top === 'number' && top < sz) ? 'Safe Z' : 'the top of Z travel';
+  }
+  // From the program's header (hopLimited): hops lowered under the
+  // ceiling (a note), or no room under it to clear the stock (a problem).
+  function hopNote(lines) {
+    for (var i = 0; i < Math.min(lines.length, 80); i++) {
+      var t = /^\(WARNING: hops not lowered to Z(-?[\d.]+): T(\d+) /.exec(lines[i]);
+      if (t) return { text: 'Z0 is only ' + roundDisplay(+t[1]) + ' ' + state.unitLabel + ' under ' + hopCeilingName() + ' with the loaded tool. T' + t[2] +
+        '\u2019s length isn\u2019t known until it\u2019s loaded, so the hops stay at their usual height: the machine may stop at its Z limit', bad: false };
+      var m = /^\((Hops lowered to|WARNING: only) Z(-?[\d.]+)/.exec(lines[i]);
+      if (!m) continue;
+      var v = roundDisplay(+m[2]) + ' ' + state.unitLabel, what = hopCeilingName();
+      if (m[1] === 'Hops lowered to') return { text: 'Hops over the stock lowered to ' + v + ' above Z0, under ' + what + ': mind clamps and screws', bad: false };
+      // Safe Z isn't a limit itself: above it the hops may still fit the travel.
+      return { text: 'Z0 is only ' + v + ' under ' + what + ', too little to clear the stock, so the hops stay at their usual height' +
+        (what === 'Safe Z' ? ', above Safe Z, and may reach the Z limit. Set Z0 lower or Safe Z higher' : ': the machine would stop at its Z limit. Set Z0 lower'), bad: true };
+    }
+    return null;
   }
 
   // The grblHAL ATCi plugin's keepout ($683 bit 0 = Enable, $684-$687 =
@@ -6205,6 +6262,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depthOfCut:    num('qc-cut-step', 0),
       chamfer:       readChamferForm('cut'),
       isImperial:      state.isImperial,
+      hopCeilingMm:  hopCeilingMm(),
+      hopTool:       state.wco ? state.wco.tool : 0,
       safeZHeightMm:   state.safeZHeightMm,
       safeZCommand:    state.safeZCommand
     });
@@ -6277,6 +6336,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       depth:        num('qc-join-depth', 0),
       depthOfCut:   num('qc-join-step', 0),
       isImperial:      state.isImperial,
+      hopCeilingMm:  hopCeilingMm(),
+      hopTool:       state.wco ? state.wco.tool : 0,
       safeZHeightMm:   state.safeZHeightMm,
       safeZCommand:    state.safeZCommand
     });
@@ -6357,6 +6418,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       pattern:       readPatternForm('poly'),
       concentric:        readConcentricForm('poly'),
       isImperial:    state.isImperial,
+      hopCeilingMm: hopCeilingMm(),
+      hopTool:      state.wco ? state.wco.tool : 0,
       safeZHeightMm: state.safeZHeightMm,
       safeZCommand:  state.safeZCommand
     }));
@@ -10229,6 +10292,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateRectanglePreview();
 
     $('qc-rect-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readRectangleForm();
       if (chamferRefused('rectangle', params)) return;
@@ -10282,6 +10346,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updatePlanerPreview();
 
     $('qc-plan-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readPlanerForm();
       params.shape = 'planer';
@@ -10339,6 +10404,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateCutterPreview();
 
     $('qc-cut-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readCutterForm();
       if (chamferRefused('cutter', params)) return;
@@ -10391,6 +10457,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateJointerPreview();
 
     $('qc-join-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readJointerForm();
       params.shape = 'jointer';
@@ -10863,6 +10930,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updateChamferVisibility();
 
     $('qc-circ-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readCircleForm();
       if (chamferRefused('circle', params)) return;
@@ -12037,6 +12105,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
         if (t) { text += '. ' + t.text; bad = t.bad; }
         var z = originZoneNote();
         if (z) { text += '. ' + z; bad = true; }
+        var hn = hopNote(lines);
+        if (hn) { text += '. ' + hn.text; if (hn.bad) bad = true; else warn = true; }
         text += '.';
         tabNote = tabsNote(lines);
         var fl = fluteDepthNote(TAB_PREFIX[view]);
@@ -12194,7 +12264,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     try {
       var ms = ((await readJson('/api/server-state')) || {}).machineState || {};
       var w = String(ms.WCO || '').split(',').map(Number);
-      state.wco = ms.homed && w.length >= 2 && isFinite(w[0]) && isFinite(w[1]) ? { x: w[0], y: w[1], ws: String(ms.workspace || 'G54').toUpperCase() } : null;
+      state.wco = ms.homed && w.length >= 2 && isFinite(w[0]) && isFinite(w[1]) ? { x: w[0], y: w[1], z: isFinite(w[2]) ? w[2] : null, tool: Number(ms.tool) > 0 ? Number(ms.tool) : 0, ws: String(ms.workspace || 'G54').toUpperCase() } : null;
     } catch (e) { state.wco = null; }
     if (JSON.stringify(state.wco) !== was) scheduleRunNote();
   }
@@ -14597,6 +14667,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       chamfer:       readChamferForm('key'),
       pattern:       readPatternForm('key'),
       isImperial:    state.isImperial,
+      hopCeilingMm: hopCeilingMm(),
+      hopTool:      state.wco ? state.wco.tool : 0,
       safeZHeightMm: state.safeZHeightMm,
       safeZCommand:  state.safeZCommand
     }));
@@ -14856,6 +14928,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updatePatternVisibility('key');
 
     $('qc-key-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readKeyholeForm();
       if (chamferRefused('keyhole', params)) return;
@@ -14887,6 +14960,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       chamfer:       readChamferForm('drl'),
       pattern:       readPatternForm('drl'),
       isImperial:    state.isImperial,
+      hopCeilingMm: hopCeilingMm(),
+      hopTool:      state.wco ? state.wco.tool : 0,
       safeZHeightMm: state.safeZHeightMm,
       safeZCommand:  state.safeZCommand
     }));
@@ -15275,6 +15350,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updatePatternVisibility('drl');
 
     $('qc-drl-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readDrillForm();
       if (chamferRefused('drill', params)) return;
@@ -15419,6 +15495,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updatePatternVisibility('poly');
 
     $('qc-poly-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readPolygonForm();
       if (chamferRefused('polygon', params)) return;
@@ -15465,6 +15542,8 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       stepoverPct:   num('qc-slt-stepover', 40),
       pattern:       readPatternForm('slt'),
       isImperial:    state.isImperial,
+      hopCeilingMm: hopCeilingMm(),
+      hopTool:      state.wco ? state.wco.tool : 0,
       safeZHeightMm: state.safeZHeightMm,
       safeZCommand:  state.safeZCommand
     }));
@@ -15756,6 +15835,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
     updatePatternVisibility('slt');
 
     $('qc-slt-generate').addEventListener('click', async function() {
+      await refreshWco(); // Z0 and the loaded tool as they are now, for the hops' ceiling
       if (!validateAll()) return;
       var params = readSlotForm();
       if (chamferRefused('slot', params)) return;
@@ -21233,6 +21313,55 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       };
     }
 
+    // The highest a hop above the stock may go: params.hopCeilingMm, in work
+    // mm (Safe Z or the top of Z travel, whichever is lower, less the work
+    // offset's Z), when the dialog knows it. Z0 close under it (stock near the
+    // top of travel) would make a hop of safeHopDelta run past the soft limit
+    // (ALARM:2). Every Z above it comes down to it (above the stock's top a
+    // move is in the air: hops, a ramp's or helix's start) while it still
+    // clears the stock's top (Z0, or the Planer's Starting Thickness) by
+    // hopMinClear; otherwise the program is left as is, with a warning in its
+    // header, for the run note to explain. The work offset's Z includes the
+    // loaded tool's length (params.hopTool): after a change to another tool,
+    // whose length isn't known yet, the hops can't be placed, so they're left
+    // as they are and the header says why.
+    var hopMinClear = isImperial ? 0.02 : 0.5;
+    function hopLimited(gen) {
+      return function(params) {
+        var out = gen.apply(null, arguments);
+        var cap = params && params.hopCeilingMm;
+        if (typeof out !== 'string' || typeof cap !== 'number' || !isFinite(cap)) return out;
+        var dp = isImperial ? 4 : 3, scale = Math.pow(10, dp);
+        var ceil = Math.floor((isImperial ? cap / 25.4 : cap) * scale + 1e-6) / scale;
+        var tool = params.toolNumber > 0 ? params.toolNumber : 0, otherTool = tool > 0 && tool !== params.hopTool;
+        var stockTop = params.mode === 'thickness' && params.startingThickness > 0 ? params.startingThickness : 0;
+        var lines = out.split('\n'), over = false;
+        var split = function(line) {
+          var cut = line.search(/[;(]/);
+          return cut < 0 ? [line, ''] : [line.slice(0, cut), line.slice(cut)];
+        };
+        lines.forEach(function(line) {
+          if (/^\s*\(/.test(line) || /\bG53\b/.test(line)) return;
+          var zw = /Z(-?\d*\.?\d+)/i.exec(split(line)[0]);
+          if (zw && +zw[1] > ceil + 1e-9) over = true;
+        });
+        if (!over) return out;
+        var room = !otherTool && ceil >= stockTop + hopMinClear - 1e-9;
+        var word = 'Z' + ceil.toFixed(dp), note = otherTool
+          ? '(WARNING: hops not lowered to ' + word + ': T' + tool + ' not loaded, length unknown)'
+          : room ? '(Hops lowered to ' + word + ', under Safe Z or the Z travel)'
+          : '(WARNING: only ' + word + ' above Z0 under Safe Z or the Z travel)';
+        var placed = false;
+        out = lines.map(function(line) {
+          if (!placed && /^\(Z0: /.test(line)) { placed = true; return line + '\n' + note; }
+          if (!room || /^\s*\(/.test(line) || /\bG53\b/.test(line)) return line;
+          var parts = split(line), code = parts[0];
+          return code.replace(/Z(-?\d*\.?\d+)/gi, function(m, v) { return +v > ceil + 1e-9 ? word : m; }) + parts[1];
+        }).join('\n');
+        return placed ? out : note + '\n' + out;
+      };
+    }
+
     // Why the programs can't run as one, or [] when they can. Each program
     // starts with whatever bit the one before it left in the spindle, so a
     // program with no tool change of its own (its bit typed in, not picked
@@ -21338,7 +21467,7 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       segmentsBbox: segmentsBbox,
       slotProblem: slotProblem
     };
-    Object.keys(api).forEach(function(k) { if (/^generate\w*Program$/.test(k)) api[k] = penLimited(api[k]); });
+    Object.keys(api).forEach(function(k) { if (/^generate\w*Program$/.test(k)) api[k] = hopLimited(penLimited(api[k])); });
     return api;
   }
 
