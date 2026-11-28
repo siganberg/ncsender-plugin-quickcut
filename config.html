@@ -6177,8 +6177,9 @@ if (typeof window !== 'undefined') window.NcUnitInput = NcUnitInput;
       if (!m) continue;
       var v = roundDisplay(+m[2]) + ' ' + state.unitLabel, what = hopCeilingName();
       if (m[1] === 'Hops lowered to') return { text: 'Hops over the stock lowered to ' + v + ' above Z0, under ' + what + ': mind clamps and screws', bad: false };
-      return { text: 'Z0 is only ' + v + ' under ' + what + ', too little to clear the stock: the machine would stop at its Z limit. Set Z0 lower' +
-        (what === 'Safe Z' ? ' or Safe Z higher' : ''), bad: true };
+      // Safe Z isn't a limit itself: above it the hops may still fit the travel.
+      return { text: 'Z0 is only ' + v + ' under ' + what + ', too little to clear the stock, so the hops stay at their usual height' +
+        (what === 'Safe Z' ? ', above Safe Z, and may reach the Z limit. Set Z0 lower or Safe Z higher' : ': the machine would stop at its Z limit. Set Z0 lower'), bad: true };
     }
     return null;
   }
